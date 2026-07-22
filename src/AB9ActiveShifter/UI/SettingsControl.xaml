@@ -1,0 +1,244 @@
+<UserControl x:Class="AB9ActiveShifter.UI.SettingsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins"
+             xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins"
+             xmlns:local="clr-namespace:AB9ActiveShifter.UI"
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DesignWidth="900">
+
+    <styles:SHTabControl>
+
+        <!-- ============================ SETUP ============================ -->
+        <styles:SHTabItem Header="Setup">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="8">
+
+                    <styles:SHSection Title="STATUS" ShowSeparator="True">
+                        <StackPanel x:Name="StatusPanel" Margin="0,4,0,8">
+                            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,6" />
+                            <UniformGrid Columns="2">
+                                <TextBlock Text="{Binding DeviceText}" Margin="0,2" />
+                                <TextBlock Text="{Binding VJoyText}" Margin="0,2" />
+                                <TextBlock Text="{Binding GearText}" Margin="0,2" />
+                                <TextBlock Text="{Binding LoopText}" Margin="0,2" />
+                            </UniformGrid>
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="ENABLE" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <styles:SHToggleCheckbox IsChecked="{Binding Enabled, Mode=TwoWay}"
+                                                     Content="Shifter force feedback enabled" />
+                            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
+                                       Text="Off by default. Enabling takes the base exclusively and starts applying force, so work through the checklist below first and have a hand on the stick. Turn it off again to give the base back to MOZA Pit House or another program." />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="BEFORE YOU START" ShowSeparator="True">
+                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,8" Opacity="0.85">
+                            1. In MOZA Pit House, put the base in flight mode and set its Spring to 0, so the base's own centring does not fight the gate.<LineBreak />
+                            2. Close MOZA Cockpit and any Pit House live-tuning page. They hold the stick exclusively and this plugin cannot open it while they do.<LineBreak />
+                            3. Disable Steam Input for the AB9, or close Steam.<LineBreak />
+                            4. Create a vJoy device with at least 8 buttons in vJoyConf.<LineBreak />
+                            5. In your game, bind gears 1-7 and reverse to vJoy buttons 1-8, and do not bind the AB9 axes.
+                        </TextBlock>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="POLARITY WIZARD" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8"
+                                       Text="Some AB9 firmware versions invert the direction of DirectInput effects. Until this is confirmed the plugin caps its force at 10% for safety. Rest a hand on the stick, run each test, and tick the matching box if the stick does the opposite of what is described. Each test applies a brief, deliberately mild force." />
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <styles:SHButtonPrimary x:Name="SpringTestButton" Click="OnSpringTest"
+                                                        Content="Test 1: spring" Margin="0,0,8,0" Padding="12,4" />
+                                <styles:SHButtonPrimary x:Name="ConstantTestButton" Click="OnConstantTest"
+                                                        Content="Test 2: push" Padding="12,4" />
+                            </StackPanel>
+
+                            <styles:SHToggleCheckbox IsChecked="{Binding InvertSpringPolarity, Mode=TwoWay}"
+                                                     Content="Test 1 pushed the stick AWAY from centre (invert springs)"
+                                                     Margin="0,2" />
+                            <styles:SHToggleCheckbox IsChecked="{Binding InvertConstantPolarity, Mode=TwoWay}"
+                                                     Content="Test 2 pushed the stick AWAY from me (invert constant forces)"
+                                                     Margin="0,2" />
+                            <styles:SHToggleCheckbox IsChecked="{Binding InvertX, Mode=TwoWay}"
+                                                     Content="Left and right are reversed (invert X axis)" Margin="0,2" />
+                            <styles:SHToggleCheckbox IsChecked="{Binding InvertY, Mode=TwoWay}"
+                                                     Content="Forward and back are reversed (invert Y axis)" Margin="0,2" />
+
+                            <Separator Margin="0,10" />
+
+                            <styles:SHToggleCheckbox IsChecked="{Binding PolarityConfirmed, Mode=TwoWay}"
+                                                     Content="Polarity confirmed - remove the 10% force cap" />
+                            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
+                                       Text="Only tick this once both tests behave correctly. Raise the overall gain slowly afterwards: this is a 12 Nm base." />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                </StackPanel>
+            </ScrollViewer>
+        </styles:SHTabItem>
+
+        <!-- ============================= FEEL ============================= -->
+        <styles:SHTabItem Header="Feel">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="8">
+
+                    <styles:SHSection Title="MASTER" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <ui:TitledSlider Title="Overall gain (%)" Minimum="0" Maximum="100" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="25"
+                                             Value="{Binding OverallGainPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Lockout push-through force (% of overall gain)"
+                                             Minimum="0" Maximum="100" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="70"
+                                             Value="{Binding LockoutForcePct, Mode=TwoWay}" />
+                            <TextBlock x:Name="LockoutSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="GATE" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <ui:TitledSlider Title="Column wall stiffness" Minimum="0" Maximum="10000" TickFrequency="500"
+                                             ShowResetButton="True" ResetValue="8000"
+                                             Value="{Binding WallCoeff, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Channel wall stiffness (between columns)" Minimum="0" Maximum="10000"
+                                             TickFrequency="500" ShowResetButton="True" ResetValue="9500"
+                                             Value="{Binding ChannelWallCoeff, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Channel guide (on a column)" Minimum="0" Maximum="5000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="600"
+                                             Value="{Binding ChannelGuideCoeff, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Neutral detent strength" Minimum="0" Maximum="5000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="600"
+                                             Value="{Binding NeutralDetentCoeff, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Damping" Minimum="0" Maximum="5000" TickFrequency="100"
+                                             ShowResetButton="True" ResetValue="800"
+                                             Value="{Binding DamperCoeff, Mode=TwoWay}" />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="SLOT DETENT" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <ui:TitledSlider Title="Resistance entering the slot" Minimum="0" Maximum="8000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="2200"
+                                             Value="{Binding DetentResistMax, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Pull into the slot (the snick)" Minimum="0" Maximum="8000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="3000"
+                                             Value="{Binding DetentPullMax, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Seated hold" Minimum="0" Maximum="8000" TickFrequency="100"
+                                             ShowResetButton="True" ResetValue="1600"
+                                             Value="{Binding DetentHold, Mode=TwoWay}" />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                </StackPanel>
+            </ScrollViewer>
+        </styles:SHTabItem>
+
+        <!-- =========================== GEOMETRY =========================== -->
+        <styles:SHTabItem Header="Geometry">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="8">
+
+                    <styles:SHSection Title="LOCKOUT" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <ui:TitledSlider Title="Lockout starts at (axis position)" Minimum="35000" Maximum="62000"
+                                             TickFrequency="1000" ShowResetButton="True" ResetValue="48000"
+                                             Value="{Binding LockoutStart, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Lockout ramp width (how abrupt the wall is)" Minimum="200" Maximum="10000"
+                                             TickFrequency="200" ShowResetButton="True" ResetValue="2500"
+                                             Value="{Binding LockoutRamp, Mode=TwoWay}" />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHExpander Header="Advanced gate geometry">
+                        <StackPanel Margin="0,8,0,8">
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                       Text="Axis positions run 0 to 65535 with 32767 at centre. Every pair is enter/exit hysteresis: the exit value must be the looser one." />
+
+                            <ui:TitledSlider Title="Neutral channel half-width (enter)" Minimum="200" Maximum="8000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="1400"
+                                             Value="{Binding ChannelHalfEnter, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Neutral channel half-width (exit)" Minimum="200" Maximum="10000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="2400"
+                                             Value="{Binding ChannelHalfExit, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Outer column band (enter)" Minimum="500" Maximum="10000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="2600"
+                                             Value="{Binding ColumnEdgeEnter, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Outer column band (exit)" Minimum="500" Maximum="12000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="5000"
+                                             Value="{Binding ColumnEdgeExit, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Inner column half-width (enter)" Minimum="300" Maximum="8000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="1200"
+                                             Value="{Binding ColumnInnerHalfEnter, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Inner column half-width (exit)" Minimum="300" Maximum="10000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="2400"
+                                             Value="{Binding ColumnInnerHalfExit, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Engage depth (from the end of travel)" Minimum="500" Maximum="20000"
+                                             TickFrequency="500" ShowResetButton="True" ResetValue="4000"
+                                             Value="{Binding EngageDepth, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Release depth (from the end of travel)" Minimum="1000" Maximum="25000"
+                                             TickFrequency="500" ShowResetButton="True" ResetValue="8000"
+                                             Value="{Binding ReleaseDepth, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Neutral detent hysteresis" Minimum="0" Maximum="6000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="1500"
+                                             Value="{Binding DetentHysteresis, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Ticks required to engage" Minimum="1" Maximum="20" TickFrequency="1"
+                                             ShowResetButton="True" ResetValue="2"
+                                             Value="{Binding MinEngageTicks, Mode=TwoWay}" />
+                        </StackPanel>
+                    </styles:SHExpander>
+
+                    <styles:SHExpander Header="Device and output">
+                        <StackPanel Margin="0,8,0,8">
+                            <ui:TitledSlider Title="vJoy device number" Minimum="1" Maximum="16" TickFrequency="1"
+                                             ShowResetButton="True" ResetValue="1"
+                                             Value="{Binding VJoyDeviceId, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="FFB loop rate (Hz)" Minimum="100" Maximum="1000" TickFrequency="50"
+                                             ShowResetButton="True" ResetValue="400"
+                                             Value="{Binding TickHz, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
+                                       Text="The device is matched by USB vendor and product id. The AB9 is 346E / 1000; only change these if your base enumerates differently." />
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <TextBlock Text="Vendor id" VerticalAlignment="Center" Width="80" />
+                                <TextBox Text="{Binding VendorId, Mode=TwoWay}" Width="90" Margin="0,0,16,0" />
+                                <TextBlock Text="Product id" VerticalAlignment="Center" Width="80" />
+                                <TextBox Text="{Binding ProductId, Mode=TwoWay}" Width="90" />
+                            </StackPanel>
+                        </StackPanel>
+                    </styles:SHExpander>
+
+                </StackPanel>
+            </ScrollViewer>
+        </styles:SHTabItem>
+
+        <!-- =========================== MONITOR ============================ -->
+        <styles:SHTabItem Header="Monitor">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="8">
+                    <styles:SHSection Title="LIVE GATE" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <local:GateVisualizer x:Name="Visualizer" Height="300" HorizontalAlignment="Left" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
+                                       Text="The dot is the stick. The shaded band on the right is the lockout: in the neutral channel it pushes back toward the main gears until you push through into 7/R." />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="READINGS" ShowSeparator="True">
+                        <StackPanel x:Name="ReadingsPanel" Margin="0,4,0,8">
+                            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,6" />
+                            <TextBlock Text="{Binding AxisText}" Margin="0,2" />
+                            <TextBlock Text="{Binding StateText}" Margin="0,2" />
+                            <TextBlock Text="{Binding LoopText}" Margin="0,2" />
+                        </StackPanel>
+                    </styles:SHSection>
+                </StackPanel>
+            </ScrollViewer>
+        </styles:SHTabItem>
+
+    </styles:SHTabControl>
+</UserControl>

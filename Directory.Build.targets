@@ -1,0 +1,16 @@
+<Project>
+
+  <!-- Opt-in install: dotnet build -c Release -p:InstallToSimHub=true
+       SimHub locks the DLL while running, and the install dir needs elevation,
+       so install.ps1 is the supported path. This target is the convenience
+       shortcut once you have granted yourself write access to the two files. -->
+  <Target Name="CopyToSimHub"
+          AfterTargets="Build"
+          Condition="'$(IsSimHubPlugin)' == 'true' And '$(InstallToSimHub)' == 'true'">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(SimHubDir)" ContinueOnError="false" />
+    <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(SimHubDir)"
+          Condition="Exists('$(TargetDir)$(TargetName).pdb')" ContinueOnError="true" />
+    <Message Importance="high" Text="Installed $(TargetFileName) -> $(SimHubDir)" />
+  </Target>
+
+</Project>

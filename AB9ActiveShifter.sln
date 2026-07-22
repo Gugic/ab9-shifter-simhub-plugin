@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{459EBB36-E70B-4132-B43E-1A8F46158670}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AB9ActiveShifter", "src\AB9ActiveShifter\AB9ActiveShifter.csproj", "{7CB41894-A9FE-44FC-905A-6015E5448AFF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{672444CB-5424-45E1-9C46-51856ACA23F5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AB9ActiveShifter.Tests", "tests\AB9ActiveShifter.Tests\AB9ActiveShifter.Tests.csproj", "{7BEBBD5C-5D89-43AC-8BFB-790929B01E68}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7CB41894-A9FE-44FC-905A-6015E5448AFF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7CB41894-A9FE-44FC-905A-6015E5448AFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7CB41894-A9FE-44FC-905A-6015E5448AFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7CB41894-A9FE-44FC-905A-6015E5448AFF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7BEBBD5C-5D89-43AC-8BFB-790929B01E68}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7BEBBD5C-5D89-43AC-8BFB-790929B01E68}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7BEBBD5C-5D89-43AC-8BFB-790929B01E68}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7BEBBD5C-5D89-43AC-8BFB-790929B01E68}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7CB41894-A9FE-44FC-905A-6015E5448AFF} = {459EBB36-E70B-4132-B43E-1A8F46158670}
+		{7BEBBD5C-5D89-43AC-8BFB-790929B01E68} = {672444CB-5424-45E1-9C46-51856ACA23F5}
+	EndGlobalSection
+EndGlobal
