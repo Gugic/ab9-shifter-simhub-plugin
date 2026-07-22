@@ -17,6 +17,7 @@ namespace AB9ActiveShifter
         private bool _enabled;
         private int _overallGainPct = 25;
         private int _lockoutForcePct = 70;
+        private int _calibrationForcePct = 25;
         private bool _polarityConfirmed;
         private bool _invertSpringPolarity;
         private bool _invertConstantPolarity;
@@ -58,6 +59,9 @@ namespace AB9ActiveShifter
 
         /// <summary>Force needed to push through into the 7/R column, as a share of the overall gain.</summary>
         public int LockoutForcePct { get { return _lockoutForcePct; } set { Set(ref _lockoutForcePct, value); } }
+
+        /// <summary>Force used when measuring polarity. Raise it if calibration is inconclusive.</summary>
+        public int CalibrationForcePct { get { return _calibrationForcePct; } set { Set(ref _calibrationForcePct, value); } }
 
         public bool PolarityConfirmed { get { return _polarityConfirmed; } set { Set(ref _polarityConfirmed, value); } }
         public bool InvertSpringPolarity { get { return _invertSpringPolarity; } set { Set(ref _invertSpringPolarity, value); } }
@@ -109,6 +113,7 @@ namespace AB9ActiveShifter
                 InvertConstantPolarity = InvertConstantPolarity,
                 PolarityConfirmed = PolarityConfirmed,
                 OverallGainPct = OverallGainPct,
+                CalibrationForcePct = CalibrationForcePct,
 
                 ChannelHalfEnter = ChannelHalfEnter,
                 ChannelHalfExit = ChannelHalfExit,

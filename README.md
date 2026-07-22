@@ -72,13 +72,27 @@ If SimHub is installed somewhere other than `C:\Program Files (x86)\SimHub\`, co
 
 ## Polarity — do this first
 
-Some AB9 firmware revisions invert the direction of DirectInput effects, which would turn
-a centring spring into one that throws the stick at the stops. Until you confirm the
-polarity, the plugin **caps its force output at 10%**.
+Some AB9 firmware revisions apply DirectInput effects backwards, which would turn a
+centring spring into one that throws the stick at its stops. Until this is measured, the
+plugin **caps its force output at 10%**.
 
-On the **Setup** tab, run *Test 1: spring* and *Test 2: push*, tick the invert boxes if
-the stick does the opposite of what is described, then tick **Polarity confirmed**. Raise
-the overall gain slowly afterwards — this is a 12 Nm base.
+On the **Setup** tab, press **Measure polarity**, take your hands off the stick, and wait
+about four seconds. The plugin pushes the stick briefly each way and watches which way it
+actually moves, then sets the invert flags itself and lifts the force cap.
+
+It measures rather than asking because there is nothing useful for a hand to report: the
+base holds itself centred, so a correct centring spring and the base's own centring feel
+identical, and an inverted one just feels like a weaker hold. Each effect family is probed
+in both directions and scored on whether it moved the way it was commanded, which cancels
+any resting bias and still gives the right answer for an inverted spring — that case
+accelerates away from its anchor and drives both probes the same way. A probe stops the
+moment its direction is certain, so an inverted spring never reaches the stops.
+
+If the result says the stick **barely moved**, the cap stays on deliberately — an
+unmeasured direction is exactly what the cap is for. Check that the base's own Spring is 0
+in Pit House and that nothing is holding the stick, then raise *Calibration force*.
+
+Raise the overall gain slowly afterwards — this is a 12 Nm base.
 
 ## Tuning
 
@@ -131,7 +145,7 @@ page, or Steam Input. Close them; the plugin retries automatically.
 Close it, or pick a different vJoy device number on the Geometry tab.
 
 **The stick fights the gate or drifts to the stops** — the base's own spring is still on
-(Pit House → Spring 0), or polarity is inverted (run the wizard).
+(Pit House → Spring 0), or polarity is inverted (run *Measure polarity*).
 
 **Gears do not register in the game** — check `joy.cpl`: the vJoy device should light
 button *i* while gear *i* is held. If it does, the binding is the problem, not the plugin.

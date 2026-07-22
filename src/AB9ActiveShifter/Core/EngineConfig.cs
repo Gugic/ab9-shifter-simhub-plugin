@@ -26,6 +26,13 @@ namespace AB9ActiveShifter.Core
         /// <summary>Ceiling applied to <see cref="OverallGainPct"/> while polarity is unconfirmed.</summary>
         public const int UnconfirmedGainCapPct = 10;
 
+        /// <summary>
+        /// Force used by the polarity measurement, as a percentage of full scale. Not subject to
+        /// the unconfirmed-polarity cap: this is the measurement that lifts that cap, and it needs
+        /// enough authority to visibly move the stick. Bounded well below full scale.
+        /// </summary>
+        public int CalibrationForcePct = 25;
+
         // Geometry (raw axis counts)
         public int ChannelHalfEnter = 1400;
         public int ChannelHalfExit = 2400;

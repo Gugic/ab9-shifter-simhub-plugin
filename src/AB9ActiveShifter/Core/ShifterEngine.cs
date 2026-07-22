@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using AB9ActiveShifter.Device;
@@ -6,17 +7,6 @@ using AB9ActiveShifter.Output;
 
 namespace AB9ActiveShifter.Core
 {
-    public enum PolarityTest
-    {
-        None = 0,
-
-        /// <summary>Centring spring on Y: does the stick pull back to the middle, or run away from it?</summary>
-        Spring = 1,
-
-        /// <summary>Steady push on Y: does it push toward the player, or away?</summary>
-        Constant = 2
-    }
-
     /// <summary>
     /// Owns the force feedback loop. One thread does all DirectInput and vJoy work, so
     /// device access is single-threaded by construction; everything else reads an immutable
@@ -31,15 +21,6 @@ namespace AB9ActiveShifter.Core
         private const int WatchdogPeriodMs = 500;
         private const int WatchdogStaleMs = 1000;
         private const int SnapshotEveryTicks = 8;
-
-        /// <summary>
-        /// Fixed, deliberately modest force used by the polarity wizard. Independent of the
-        /// user's gain so the test is always perceptible, and bounded so it is always safe.
-        /// </summary>
-        private const double PolarityTestGain = 0.25;
-        private const int PolarityTestSpringCoefficient = 3500;
-        private const int PolarityTestConstantMagnitude = 2500;
-        private const int PolarityTestDurationMs = 2500;
 
         private static readonly int[] BackoffMs = { 1000, 2000, 5000 };
 
@@ -65,12 +46,18 @@ namespace AB9ActiveShifter.Core
         private Timer _watchdog;
         private long _lastTickStamp;
 
-        private int _polarityTestRequest;
-        private PolarityTest _activeTest = PolarityTest.None;
-        private long _testEndsAtMs;
+        private int _calibrationRequest;
+        private PolarityCalibrator _calibrator;
+        private readonly Queue<CalibrationTarget> _calibrationQueue = new Queue<CalibrationTarget>();
 
         /// <summary>Raised on the engine thread when the selected gear changes (new, previous).</summary>
         public event Action<int, int> GearChanged;
+
+        /// <summary>Raised on the engine thread as each calibration target finishes.</summary>
+        public event Action<CalibrationResult> CalibrationCompleted;
+
+        /// <summary>Raised on the engine thread when the whole calibration run ends.</summary>
+        public event Action CalibrationFinished;
 
         public EngineSnapshot Snapshot { get { return _snapshot; } }
 
@@ -143,10 +130,16 @@ namespace AB9ActiveShifter.Core
             Log.Info("FFB engine stopped.");
         }
 
-        public void RequestPolarityTest(PolarityTest kind)
+        /// <summary>
+        /// Asks the engine to measure effect polarity on the next tick. Both effect families are
+        /// probed in turn; results arrive on <see cref="CalibrationCompleted"/>.
+        /// </summary>
+        public void RequestCalibration()
         {
-            Interlocked.Exchange(ref _polarityTestRequest, (int)kind);
+            Interlocked.Exchange(ref _calibrationRequest, 1);
         }
+
+        public bool IsCalibrating { get { return _calibrator != null; } }
 
         /// <summary>
         /// Kills output now. Called by the watchdog and at process exit. Buttons are always
@@ -305,7 +298,7 @@ namespace AB9ActiveShifter.Core
                 int x = cfg.InvertX ? GateGeometry.AxisMax - rawX : rawX;
                 int y = cfg.InvertY ? GateGeometry.AxisMax - rawY : rawY;
 
-                if (HandlePolarityTest(cfg, nowMs, rawX, rawY, x, y, loopHz)) return;
+                if (HandleCalibration(cfg, nowMs, rawX, rawY, x, y, loopHz)) return;
 
                 StateTransition t = _stateMachine.Update(x, y);
 
@@ -340,68 +333,105 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// Applies the wizard's test force instead of the gate while a test is running.
-        /// Returns true when the tick was consumed by the test.
+        /// Drives polarity measurement instead of the gate while calibration is running. Returns
+        /// true when the tick was consumed.
+        ///
+        /// The calibrator's frames are sent to the device exactly as given, with no invert flags
+        /// and no gain scaling applied. It is measuring the raw behaviour those settings exist to
+        /// correct, so passing them through the composer would hide the very thing being measured.
         /// </summary>
-        private bool HandlePolarityTest(EngineConfig cfg, long nowMs, int rawX, int rawY, int x, int y, double loopHz)
+        private bool HandleCalibration(EngineConfig cfg, long nowMs, int rawX, int rawY, int x, int y, double loopHz)
         {
-            int requested = Interlocked.Exchange(ref _polarityTestRequest, 0);
-            if (requested != (int)PolarityTest.None)
+            if (Interlocked.Exchange(ref _calibrationRequest, 0) == 1)
             {
-                _activeTest = (PolarityTest)requested;
-                _testEndsAtMs = nowMs + PolarityTestDurationMs;
+                _calibrationQueue.Clear();
+                _calibrationQueue.Enqueue(CalibrationTarget.Constant);
+                _calibrationQueue.Enqueue(CalibrationTarget.Spring);
+                _calibrator = null;
 
-                // Start from a clean slate so the test force is the only thing being felt.
-                _stateMachine.Resync(x, y);
+                // Drop any held gear: the probes move the stick, and a button left down through
+                // that would look to a game like a gear change the user never made.
                 if (_output != null) _output.SetGear(0);
-                Log.Info("Polarity test started: " + _activeTest);
-            }
-
-            if (_activeTest == PolarityTest.None) return false;
-
-            if (nowMs >= _testEndsAtMs)
-            {
-                _activeTest = PolarityTest.None;
-                _effects.Apply(new ForceFrame
-                {
-                    SpringX = SpringPreset.Off,
-                    SpringY = SpringPreset.Off,
-                    DamperCoefficient = _composer.DamperCoefficient
-                }, nowMs);
                 _stateMachine.Resync(x, y);
-                _status = "Polarity test finished.";
-                Log.Info("Polarity test finished.");
-                return true;
+
+                Log.Info("Polarity calibration requested (probe force " + cfg.CalibrationForcePct + "%).");
             }
 
-            int springSign = cfg.InvertSpringPolarity ? -1 : 1;
-            int constantSign = cfg.InvertConstantPolarity ? -1 : 1;
+            if (_calibrator == null && _calibrationQueue.Count == 0) return false;
 
-            var frame = new ForceFrame
+            if (_calibrator == null)
             {
-                SpringX = SpringPreset.Off,
-                SpringY = SpringPreset.Off,
-                DamperCoefficient = _composer.DamperCoefficient
-            };
-
-            if (_activeTest == PolarityTest.Spring)
-            {
-                frame.SpringY = SpringPreset.Centering(
-                    0,
-                    (int)Math.Round(PolarityTestSpringCoefficient * PolarityTestGain) * springSign,
-                    300);
-                _status = "Testing spring: the stick should pull toward centre.";
-            }
-            else
-            {
-                frame.ConstantY =
-                    (int)Math.Round(PolarityTestConstantMagnitude * PolarityTestGain) * constantSign;
-                _status = "Testing push: the stick should push toward you.";
+                int magnitude = (int)Math.Round(
+                    GateGeometry.ForceMax * GateGeometry.Clamp(cfg.CalibrationForcePct, 1, 60) / 100.0);
+                _calibrator = new PolarityCalibrator(_calibrationQueue.Dequeue(), magnitude);
             }
 
+            // Deliberately the raw axis reading: the calibrator compares commanded force against
+            // measured motion, and an axis-inversion setting would corrupt that comparison.
+            ForceFrame frame = _calibrator.Step(rawY, nowMs);
             _effects.Apply(frame, nowMs);
+
+            _status = _calibrator.StatusText;
+
+            if (_calibrator.IsComplete)
+            {
+                CalibrationResult result = _calibrator.Result;
+                _calibrator = null;
+
+                if (result != null)
+                {
+                    Log.Info("Calibration: " + result.Message);
+                    _status = result.Message;
+                    RaiseCalibrationCompleted(result);
+                }
+
+                if (_calibrationQueue.Count == 0)
+                {
+                    // Back to a known state before the gate takes over again.
+                    _effects.Apply(new ForceFrame
+                    {
+                        SpringX = SpringPreset.Off,
+                        SpringY = SpringPreset.Off,
+                        DamperCoefficient = _composer.DamperCoefficient
+                    }, nowMs);
+
+                    _stateMachine.Resync(cfg.InvertX ? GateGeometry.AxisMax - rawX : rawX,
+                                         cfg.InvertY ? GateGeometry.AxisMax - rawY : rawY);
+                    if (_output != null) _output.SetGear(_stateMachine.CurrentGear);
+
+                    RaiseCalibrationFinished();
+                }
+            }
+
             PublishSnapshot(rawX, rawY, x, y, loopHz);
             return true;
+        }
+
+        private void RaiseCalibrationCompleted(CalibrationResult result)
+        {
+            Action<CalibrationResult> handler = CalibrationCompleted;
+            if (handler == null) return;
+            try { handler(result); }
+            catch (Exception ex) { Log.Error("Calibration result handler threw", ex); }
+        }
+
+        private void RaiseCalibrationFinished()
+        {
+            Action handler = CalibrationFinished;
+            if (handler == null) return;
+            try { handler(); }
+            catch (Exception ex) { Log.Error("Calibration finished handler threw", ex); }
+        }
+
+        /// <summary>Abandons any calibration in progress and returns to the gate.</summary>
+        public void CancelCalibration()
+        {
+            Interlocked.Exchange(ref _calibrationRequest, 0);
+            lock (_deviceLock)
+            {
+                _calibrationQueue.Clear();
+                _calibrator = null;
+            }
         }
 
         private bool TryOpenDevice(EngineConfig cfg)

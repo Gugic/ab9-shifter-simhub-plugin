@@ -77,6 +77,13 @@ namespace AB9ActiveShifter.Core
             return Clamp((int)Math.Round(di), -ForceMax, ForceMax);
         }
 
+        /// <summary>Inverse of <see cref="AxisToDi"/>.</summary>
+        public static int DiToAxis(int di)
+        {
+            double axis = (di * (AxisMax / (2.0 * ForceMax))) + (AxisMax / 2.0);
+            return Clamp((int)Math.Round(axis), AxisMin, AxisMax);
+        }
+
         public static int Clamp(int v, int lo, int hi)
         {
             return v < lo ? lo : (v > hi ? hi : v);
