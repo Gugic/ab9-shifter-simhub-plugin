@@ -33,7 +33,9 @@ namespace AB9ActiveShifter.Core
         private readonly int _detentHold;
         private readonly int _lockoutForce;
         private readonly int _damperCoeff;
-        private readonly int _constantSign;
+        private readonly int _constantSignX;
+        private readonly int _constantSignY;
+        private readonly bool _freeStick;
 
         private Column _detentColumn = Column.C2;
 
@@ -43,17 +45,21 @@ namespace AB9ActiveShifter.Core
             _cfg = config;
 
             double gain = config.EffectiveGain;
+            _freeStick = config.FreeStick;
 
-            // A firmware that inverts effect direction is corrected by flipping the sign of
-            // the spring coefficients; saturations stay positive because they are magnitude
-            // clamps, not directions.
-            int springSign = config.InvertSpringPolarity ? -1 : 1;
-            _constantSign = config.InvertConstantPolarity ? -1 : 1;
+            // An effect the firmware applies backwards is corrected by flipping its sign. Springs
+            // flip via their coefficients; saturations stay positive because they clamp magnitude,
+            // not direction. The four flags are independent: this base inverts constant force on X
+            // but not Y, and the spring on Y but not X.
+            int springSignX = config.InvertSpringX ? -1 : 1;
+            int springSignY = config.InvertSpringY ? -1 : 1;
+            _constantSignX = config.InvertConstantX ? -1 : 1;
+            _constantSignY = config.InvertConstantY ? -1 : 1;
 
-            _neutralDetentCoeff = Scale(config.NeutralDetentCoeff, gain) * springSign;
-            _wallCoeff = Scale(config.WallCoeff, gain) * springSign;
-            _channelGuideCoeff = Scale(config.ChannelGuideCoeff, gain) * springSign;
-            _channelWallCoeff = Scale(config.ChannelWallCoeff, gain) * springSign;
+            _neutralDetentCoeff = Scale(config.NeutralDetentCoeff, gain) * springSignX;
+            _wallCoeff = Scale(config.WallCoeff, gain) * springSignX;
+            _channelGuideCoeff = Scale(config.ChannelGuideCoeff, gain) * springSignY;
+            _channelWallCoeff = Scale(config.ChannelWallCoeff, gain) * springSignY;
 
             _detentResistMax = Scale(config.DetentResistMax, gain);
             _detentPullMax = Scale(config.DetentPullMax, gain);
@@ -80,12 +86,27 @@ namespace AB9ActiveShifter.Core
 
         public ForceFrame Compose(GateState state, Column column, ShiftDir direction, int x, int y)
         {
+            if (_freeStick) return FreeFrame();
+
             ForceFrame frame = state == GateState.Neutral
                 ? ComposeNeutral(x)
                 : ComposeInColumn(column, direction, y);
 
             frame.DamperCoefficient = _damperCoeff;
             return frame;
+        }
+
+        /// <summary>Everything off, so the stick is as free as the hardware allows.</summary>
+        public static ForceFrame FreeFrame()
+        {
+            return new ForceFrame
+            {
+                SpringX = SpringPreset.Off,
+                SpringY = SpringPreset.Off,
+                ConstantX = 0,
+                ConstantY = 0,
+                DamperCoefficient = 0
+            };
         }
 
         private ForceFrame ComposeNeutral(int x)
@@ -97,7 +118,7 @@ namespace AB9ActiveShifter.Core
                 // Past the lockout boundary the push-back is the only X force, so the feel is
                 // exactly the shaped plateau and nothing fights it.
                 f.SpringX = SpringPreset.Off;
-                f.ConstantX = -LockoutMagnitude(x) * _constantSign;
+                f.ConstantX = -LockoutMagnitude(x) * _constantSignX;
             }
             else
             {
@@ -132,7 +153,7 @@ namespace AB9ActiveShifter.Core
             // the way; the slot detent alone shapes the fore/aft feel.
             f.SpringY = SpringPreset.Off;
             f.ConstantX = 0;
-            f.ConstantY = DetentMagnitude(direction, y) * _constantSign;
+            f.ConstantY = DetentMagnitude(direction, y) * _constantSignY;
 
             return f;
         }

@@ -125,8 +125,7 @@ namespace AB9ActiveShifter.Core
             DisposeWatchdog();
             _phase = EnginePhase.Stopped;
             _status = "Stopped";
-            PublishSnapshot(GateGeometry.AxisCenter, GateGeometry.AxisCenter,
-                            GateGeometry.AxisCenter, GateGeometry.AxisCenter, 0);
+            PublishSnapshot(GateGeometry.AxisCenter, GateGeometry.AxisCenter, 0);
             Log.Info("FFB engine stopped.");
         }
 
@@ -220,8 +219,7 @@ namespace AB9ActiveShifter.Core
                             }
                         }
 
-                        PublishSnapshot(GateGeometry.AxisCenter, GateGeometry.AxisCenter,
-                                        GateGeometry.AxisCenter, GateGeometry.AxisCenter, 0);
+                        PublishSnapshot(GateGeometry.AxisCenter, GateGeometry.AxisCenter, 0);
 
                         // Nothing to drive while disconnected; do not burn a core spinning.
                         Thread.Sleep(25);
@@ -295,10 +293,14 @@ namespace AB9ActiveShifter.Core
                     return;
                 }
 
-                int x = cfg.InvertX ? GateGeometry.AxisMax - rawX : rawX;
-                int y = cfg.InvertY ? GateGeometry.AxisMax - rawY : rawY;
+                // Positions stay in the device's own coordinates throughout. Spring anchors are
+                // sent back to the device in those coordinates, so mirroring the readings here
+                // would put every anchor on the wrong side of the gate. Layout preference is
+                // applied to the gear map instead.
+                int x = rawX;
+                int y = rawY;
 
-                if (HandleCalibration(cfg, nowMs, rawX, rawY, x, y, loopHz)) return;
+                if (HandleCalibration(cfg, nowMs, x, y, loopHz)) return;
 
                 StateTransition t = _stateMachine.Update(x, y);
 
@@ -327,7 +329,7 @@ namespace AB9ActiveShifter.Core
 
                 if (tickCount % SnapshotEveryTicks == 0 || t.GearChanged)
                 {
-                    PublishSnapshot(rawX, rawY, x, y, loopHz);
+                    PublishSnapshot(x, y, loopHz);
                 }
             }
         }
@@ -340,13 +342,15 @@ namespace AB9ActiveShifter.Core
         /// and no gain scaling applied. It is measuring the raw behaviour those settings exist to
         /// correct, so passing them through the composer would hide the very thing being measured.
         /// </summary>
-        private bool HandleCalibration(EngineConfig cfg, long nowMs, int rawX, int rawY, int x, int y, double loopHz)
+        private bool HandleCalibration(EngineConfig cfg, long nowMs, int x, int y, double loopHz)
         {
             if (Interlocked.Exchange(ref _calibrationRequest, 0) == 1)
             {
                 _calibrationQueue.Clear();
-                _calibrationQueue.Enqueue(CalibrationTarget.Constant);
-                _calibrationQueue.Enqueue(CalibrationTarget.Spring);
+                _calibrationQueue.Enqueue(CalibrationTarget.ConstantX);
+                _calibrationQueue.Enqueue(CalibrationTarget.ConstantY);
+                _calibrationQueue.Enqueue(CalibrationTarget.SpringX);
+                _calibrationQueue.Enqueue(CalibrationTarget.SpringY);
                 _calibrator = null;
 
                 // Drop any held gear: the probes move the stick, and a button left down through
@@ -366,9 +370,7 @@ namespace AB9ActiveShifter.Core
                 _calibrator = new PolarityCalibrator(_calibrationQueue.Dequeue(), magnitude);
             }
 
-            // Deliberately the raw axis reading: the calibrator compares commanded force against
-            // measured motion, and an axis-inversion setting would corrupt that comparison.
-            ForceFrame frame = _calibrator.Step(rawY, nowMs);
+            ForceFrame frame = _calibrator.Step(x, y, nowMs);
             _effects.Apply(frame, nowMs);
 
             _status = _calibrator.StatusText;
@@ -388,22 +390,16 @@ namespace AB9ActiveShifter.Core
                 if (_calibrationQueue.Count == 0)
                 {
                     // Back to a known state before the gate takes over again.
-                    _effects.Apply(new ForceFrame
-                    {
-                        SpringX = SpringPreset.Off,
-                        SpringY = SpringPreset.Off,
-                        DamperCoefficient = _composer.DamperCoefficient
-                    }, nowMs);
+                    _effects.Apply(ForceComposer.FreeFrame(), nowMs);
 
-                    _stateMachine.Resync(cfg.InvertX ? GateGeometry.AxisMax - rawX : rawX,
-                                         cfg.InvertY ? GateGeometry.AxisMax - rawY : rawY);
+                    _stateMachine.Resync(x, y);
                     if (_output != null) _output.SetGear(_stateMachine.CurrentGear);
 
                     RaiseCalibrationFinished();
                 }
             }
 
-            PublishSnapshot(rawX, rawY, x, y, loopHz);
+            PublishSnapshot(x, y, loopHz);
             return true;
         }
 
@@ -483,12 +479,7 @@ namespace AB9ActiveShifter.Core
 
                 int x, y;
                 string pollError;
-                if (_device.TryPoll(out x, out y, out pollError))
-                {
-                    int nx = cfg.InvertX ? GateGeometry.AxisMax - x : x;
-                    int ny = cfg.InvertY ? GateGeometry.AxisMax - y : y;
-                    _stateMachine.Resync(nx, ny);
-                }
+                if (_device.TryPoll(out x, out y, out pollError)) _stateMachine.Resync(x, y);
 
                 Log.ResetThrottle("device-open");
                 _phase = EnginePhase.Run;
@@ -541,11 +532,7 @@ namespace AB9ActiveShifter.Core
 
                 int x, y;
                 string error;
-                if (_device != null && _device.TryPoll(out x, out y, out error))
-                {
-                    _stateMachine.Resync(cfg.InvertX ? GateGeometry.AxisMax - x : x,
-                                         cfg.InvertY ? GateGeometry.AxisMax - y : y);
-                }
+                if (_device != null && _device.TryPoll(out x, out y, out error)) _stateMachine.Resync(x, y);
 
                 // The rebuilt machine may disagree with what is currently held - new geometry
                 // can put the stick outside the gear it was in. Push the truth to vJoy now,
@@ -591,11 +578,11 @@ namespace AB9ActiveShifter.Core
                 && a.LockoutStart == b.LockoutStart
                 && a.DetentHysteresis == b.DetentHysteresis
                 && a.MinEngageTicks == b.MinEngageTicks
-                && a.InvertX == b.InvertX
-                && a.InvertY == b.InvertY;
+                && a.MirrorColumns == b.MirrorColumns
+                && a.MirrorSlots == b.MirrorSlots;
         }
 
-        private void PublishSnapshot(int rawX, int rawY, int x, int y, double loopHz)
+        private void PublishSnapshot(int x, int y, double loopHz)
         {
             GateStateMachine sm = _stateMachine;
             var snapshot = new EngineSnapshot
@@ -603,8 +590,8 @@ namespace AB9ActiveShifter.Core
                 Phase = _phase,
                 DeviceConnected = _device != null && _device.IsOpen,
                 VJoyConnected = _output != null && _output.IsConnected,
-                RawX = rawX,
-                RawY = rawY,
+                RawX = x,
+                RawY = y,
                 X = x,
                 Y = y,
                 State = sm != null ? sm.State : GateState.Neutral,

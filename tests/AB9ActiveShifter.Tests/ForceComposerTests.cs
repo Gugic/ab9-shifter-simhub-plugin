@@ -89,28 +89,79 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void InvertingConstantPolarityFlipsTheLockout()
+        public void InvertingConstantXFlipsTheLockout()
         {
+            // The lockout is a constant force on X, so it follows the X constant flag alone.
             EngineConfig cfg = FullGainConfig();
-            cfg.InvertConstantPolarity = true;
+            cfg.InvertConstantX = true;
 
             Assert.Equal(7000,
                 Composer(cfg).Compose(GateState.Neutral, Column.None, ShiftDir.None, C4, Center).ConstantX);
         }
 
         [Fact]
-        public void InvertingSpringPolarityFlipsTheGateSprings()
+        public void InvertingConstantYFlipsTheDetentButNotTheLockout()
         {
-            EngineConfig normal = FullGainConfig();
-            EngineConfig inverted = FullGainConfig();
-            inverted.InvertSpringPolarity = true;
+            EngineConfig cfg = FullGainConfig();
+            cfg.InvertConstantY = true;
+            ForceComposer c = Composer(cfg);
 
-            SpringPreset a = Composer(normal).Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, 21845, 0).SpringX;
-            SpringPreset b = Composer(inverted).Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, 21845, 0).SpringX;
+            Assert.Equal(1600, c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, 21845, 0).ConstantY);
+            Assert.Equal(-7000, c.Compose(GateState.Neutral, Column.None, ShiftDir.None, C4, Center).ConstantX);
+        }
 
-            Assert.Equal(-a.PositiveCoefficient, b.PositiveCoefficient);
-            Assert.Equal(-a.NegativeCoefficient, b.NegativeCoefficient);
-            Assert.True(a.PositiveCoefficient > 0);
+        [Fact]
+        public void SpringInversionIsPerAxis()
+        {
+            // This base inverts the spring on one axis and not the other, so the flags have to act
+            // independently: the X flag must not touch the channel spring, and vice versa.
+            EngineConfig cfg = FullGainConfig();
+            cfg.InvertSpringX = true;
+            ForceComposer c = Composer(cfg);
+
+            ForceFrame engaged = c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, 21845, 0);
+            Assert.Equal(-8000, engaged.SpringX.PositiveCoefficient);
+
+            ForceFrame neutral = c.Compose(GateState.Neutral, Column.None, ShiftDir.None, 32767, Center);
+            Assert.Equal(9500, neutral.SpringY.PositiveCoefficient);
+        }
+
+        [Fact]
+        public void FreeStickReleasesEverything()
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.FreeStick = true;
+            ForceComposer c = Composer(cfg);
+
+            // Whatever the gate would otherwise be doing, nothing goes to the device.
+            foreach (GateState state in new[] { GateState.Neutral, GateState.Traveling, GateState.Engaged })
+            {
+                ForceFrame f = c.Compose(state, Column.C4, ShiftDir.Back, C4, Max);
+                Assert.Equal(0, f.ConstantX);
+                Assert.Equal(0, f.ConstantY);
+                Assert.Equal(0, f.SpringX.PositiveCoefficient);
+                Assert.Equal(0, f.SpringX.NegativeCoefficient);
+                Assert.Equal(0, f.SpringY.PositiveCoefficient);
+                Assert.Equal(0, f.SpringY.NegativeCoefficient);
+                Assert.Equal(0, f.DamperCoefficient);
+            }
+        }
+
+        [Fact]
+        public void MirroringRelabelsGearsWithoutMovingTheGate()
+        {
+            // Layout preference must not touch geometry: the columns stay where the device puts
+            // them, only the names change. Anything else would mirror the spring anchors too.
+            var plain = new EngineConfig();
+            var mirrored = new EngineConfig { MirrorColumns = true };
+
+            Assert.Equal(plain.BuildGeometry().ColumnTarget(Column.C1),
+                         mirrored.BuildGeometry().ColumnTarget(Column.C1));
+
+            Assert.Equal(1, GateGeometry.GearOf(Column.C1, ShiftDir.Fwd));
+            Assert.Equal(7, GateGeometry.GearOf(Column.C1, ShiftDir.Fwd, mirrorColumns: true));
+            Assert.Equal(8, GateGeometry.GearOf(Column.C1, ShiftDir.Back, mirrorColumns: true));
+            Assert.Equal(2, GateGeometry.GearOf(Column.C1, ShiftDir.Fwd, mirrorSlots: true));
         }
 
         [Fact]

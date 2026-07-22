@@ -50,8 +50,16 @@ namespace AB9ActiveShifter.Device
         private bool _springsPrimed;
         private int _lastConstantX;
         private int _lastConstantY;
-        private long _lastConstantXMs = long.MinValue;
-        private long _lastConstantYMs = long.MinValue;
+        private long _lastConstantXMs;
+        private long _lastConstantYMs;
+
+        // Until the first write lands there is no "last" anything to rate limit against, and a
+        // sentinel timestamp cannot express that: subtracting long.MinValue from the clock
+        // overflows and the interval test silently fails forever, so the effect never receives a
+        // magnitude at all.
+        private bool _constantXPrimed;
+        private bool _constantYPrimed;
+
         private int _lastDamper = -1;
 
         private int _strikes;
@@ -255,22 +263,24 @@ namespace AB9ActiveShifter.Device
 
             _springsPrimed = true;
 
-            if (ShouldWriteConstant(frame.ConstantX, _lastConstantX, _lastConstantXMs, nowMs))
+            if (!_constantXPrimed || ShouldWriteConstant(frame.ConstantX, _lastConstantX, _lastConstantXMs, nowMs))
             {
                 if (WriteConstant(_constantX, _pConstantX, _forceX, frame.ConstantX, "constantX"))
                 {
                     _lastConstantX = frame.ConstantX;
                     _lastConstantXMs = nowMs;
+                    _constantXPrimed = true;
                 }
                 else ok = false;
             }
 
-            if (ShouldWriteConstant(frame.ConstantY, _lastConstantY, _lastConstantYMs, nowMs))
+            if (!_constantYPrimed || ShouldWriteConstant(frame.ConstantY, _lastConstantY, _lastConstantYMs, nowMs))
             {
                 if (WriteConstant(_constantY, _pConstantY, _forceY, frame.ConstantY, "constantY"))
                 {
                     _lastConstantY = frame.ConstantY;
                     _lastConstantYMs = nowMs;
+                    _constantYPrimed = true;
                 }
                 else ok = false;
             }
