@@ -19,10 +19,13 @@ namespace AB9ActiveShifter
         private int _lockoutForcePct = 70;
         private int _calibrationForcePct = 25;
         private bool _polarityConfirmed;
-        private bool _invertSpringPolarity;
-        private bool _invertConstantPolarity;
-        private bool _invertX;
-        private bool _invertY;
+        private bool _invertConstantX;
+        private bool _invertConstantY;
+        private bool _invertSpringX;
+        private bool _invertSpringY;
+        private bool _mirrorColumns;
+        private bool _mirrorSlots;
+        private bool _freeStick;
         private uint _vJoyDeviceId = 1;
         private int _vendorId = 0x346E;
         private int _productId = 0x1000;
@@ -64,10 +67,22 @@ namespace AB9ActiveShifter
         public int CalibrationForcePct { get { return _calibrationForcePct; } set { Set(ref _calibrationForcePct, value); } }
 
         public bool PolarityConfirmed { get { return _polarityConfirmed; } set { Set(ref _polarityConfirmed, value); } }
-        public bool InvertSpringPolarity { get { return _invertSpringPolarity; } set { Set(ref _invertSpringPolarity, value); } }
-        public bool InvertConstantPolarity { get { return _invertConstantPolarity; } set { Set(ref _invertConstantPolarity, value); } }
-        public bool InvertX { get { return _invertX; } set { Set(ref _invertX, value); } }
-        public bool InvertY { get { return _invertY; } set { Set(ref _invertY, value); } }
+
+        // Measured per axis and per effect family: this base inverts constant force on X but not
+        // on Y, and the spring on Y but not on X.
+        public bool InvertConstantX { get { return _invertConstantX; } set { Set(ref _invertConstantX, value); } }
+        public bool InvertConstantY { get { return _invertConstantY; } set { Set(ref _invertConstantY, value); } }
+        public bool InvertSpringX { get { return _invertSpringX; } set { Set(ref _invertSpringX, value); } }
+        public bool InvertSpringY { get { return _invertSpringY; } set { Set(ref _invertSpringY, value); } }
+
+        /// <summary>Put first gear at the right-hand end of the gate instead of the left.</summary>
+        public bool MirrorColumns { get { return _mirrorColumns; } set { Set(ref _mirrorColumns, value); } }
+
+        /// <summary>Swap each gear pair, so odd gears sit toward the player.</summary>
+        public bool MirrorSlots { get { return _mirrorSlots; } set { Set(ref _mirrorSlots, value); } }
+
+        /// <summary>Release all forces, to check how the stick moves with nothing applied.</summary>
+        public bool FreeStick { get { return _freeStick; } set { Set(ref _freeStick, value); } }
 
         public uint VJoyDeviceId { get { return _vJoyDeviceId; } set { Set(ref _vJoyDeviceId, value); } }
         public int VendorId { get { return _vendorId; } set { Set(ref _vendorId, value); } }
@@ -107,10 +122,13 @@ namespace AB9ActiveShifter
                 VJoyDeviceId = VJoyDeviceId,
                 TickHz = TickHz,
 
-                InvertX = InvertX,
-                InvertY = InvertY,
-                InvertSpringPolarity = InvertSpringPolarity,
-                InvertConstantPolarity = InvertConstantPolarity,
+                InvertConstantX = InvertConstantX,
+                InvertConstantY = InvertConstantY,
+                InvertSpringX = InvertSpringX,
+                InvertSpringY = InvertSpringY,
+                MirrorColumns = MirrorColumns,
+                MirrorSlots = MirrorSlots,
+                FreeStick = FreeStick,
                 PolarityConfirmed = PolarityConfirmed,
                 OverallGainPct = OverallGainPct,
                 CalibrationForcePct = CalibrationForcePct,
@@ -140,6 +158,77 @@ namespace AB9ActiveShifter
                 DetentHold = DetentHold,
                 LockoutForcePct = LockoutForcePct
             };
+        }
+
+        /// <summary>
+        /// Which group of settings a reset should touch. Measured polarity is deliberately not
+        /// part of "forces" or "geometry": it describes the hardware, not a preference, and
+        /// throwing it away would silently re-arm the force cap and send the gate backwards.
+        /// </summary>
+        public enum ResetScope
+        {
+            Forces,
+            Geometry,
+            Calibration,
+            Everything
+        }
+
+        public void ResetToDefaults(ResetScope scope)
+        {
+            var d = new ShifterSettings();
+
+            if (scope == ResetScope.Forces || scope == ResetScope.Everything)
+            {
+                OverallGainPct = d.OverallGainPct;
+                LockoutForcePct = d.LockoutForcePct;
+                WallCoeff = d.WallCoeff;
+                NeutralDetentCoeff = d.NeutralDetentCoeff;
+                ChannelGuideCoeff = d.ChannelGuideCoeff;
+                ChannelWallCoeff = d.ChannelWallCoeff;
+                DamperCoeff = d.DamperCoeff;
+                DetentResistMax = d.DetentResistMax;
+                DetentPullMax = d.DetentPullMax;
+                DetentHold = d.DetentHold;
+                SpringDeadBand = d.SpringDeadBand;
+                ChannelDeadBand = d.ChannelDeadBand;
+            }
+
+            if (scope == ResetScope.Geometry || scope == ResetScope.Everything)
+            {
+                ChannelHalfEnter = d.ChannelHalfEnter;
+                ChannelHalfExit = d.ChannelHalfExit;
+                ColumnEdgeEnter = d.ColumnEdgeEnter;
+                ColumnEdgeExit = d.ColumnEdgeExit;
+                ColumnInnerHalfEnter = d.ColumnInnerHalfEnter;
+                ColumnInnerHalfExit = d.ColumnInnerHalfExit;
+                EngageDepth = d.EngageDepth;
+                ReleaseDepth = d.ReleaseDepth;
+                LockoutStart = d.LockoutStart;
+                LockoutRamp = d.LockoutRamp;
+                DetentHysteresis = d.DetentHysteresis;
+                MinEngageTicks = d.MinEngageTicks;
+                TickHz = d.TickHz;
+            }
+
+            if (scope == ResetScope.Calibration || scope == ResetScope.Everything)
+            {
+                InvertConstantX = d.InvertConstantX;
+                InvertConstantY = d.InvertConstantY;
+                InvertSpringX = d.InvertSpringX;
+                InvertSpringY = d.InvertSpringY;
+                PolarityConfirmed = d.PolarityConfirmed;
+                CalibrationForcePct = d.CalibrationForcePct;
+            }
+
+            if (scope == ResetScope.Everything)
+            {
+                MirrorColumns = d.MirrorColumns;
+                MirrorSlots = d.MirrorSlots;
+                FreeStick = d.FreeStick;
+                VJoyDeviceId = d.VJoyDeviceId;
+                VendorId = d.VendorId;
+                ProductId = d.ProductId;
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

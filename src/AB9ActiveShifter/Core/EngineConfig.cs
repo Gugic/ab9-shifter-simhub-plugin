@@ -13,11 +13,23 @@ namespace AB9ActiveShifter.Core
         public uint VJoyDeviceId = 1;
         public int TickHz = 400;
 
-        // Orientation and firmware polarity
-        public bool InvertX;
-        public bool InvertY;
-        public bool InvertSpringPolarity;
-        public bool InvertConstantPolarity;
+        // Firmware effect polarity, measured per axis and per effect family. The AB9 does not
+        // treat them alike - constant force and spring can disagree on the same axis - so these
+        // are four independent facts, not one.
+        public bool InvertConstantX;
+        public bool InvertConstantY;
+        public bool InvertSpringX;
+        public bool InvertSpringY;
+
+        /// <summary>
+        /// Gear layout preference: which end of the gate is first gear. These relabel the gear map
+        /// only. They deliberately do not flip the axis readings, because spring offsets are sent
+        /// to the device in its own coordinates - mirroring the readings alone would put every
+        /// anchor on the wrong side and turn the gate springs into repellers.
+        /// </summary>
+        public bool MirrorColumns;
+        public bool MirrorSlots;
+
         public bool PolarityConfirmed;
 
         /// <summary>Master force scale, 0..100. Hard-capped until the polarity wizard has run.</summary>
@@ -73,6 +85,9 @@ namespace AB9ActiveShifter.Core
             }
         }
 
+        /// <summary>All forces off, for checking the stick moves freely.</summary>
+        public bool FreeStick;
+
         public GateGeometry BuildGeometry()
         {
             return new GateGeometry(
@@ -85,7 +100,9 @@ namespace AB9ActiveShifter.Core
                 EngageDepth,
                 ReleaseDepth,
                 LockoutStart,
-                DetentHysteresis);
+                DetentHysteresis,
+                MirrorColumns,
+                MirrorSlots);
         }
     }
 }

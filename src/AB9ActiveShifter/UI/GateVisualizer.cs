@@ -129,9 +129,12 @@ namespace AB9ActiveShifter.UI
             dc.DrawText(gear, new Point(right - gear.Width, top + 2));
         }
 
-        private static bool IsGearLit(EngineSnapshot snap, int columnIndex, ShiftDir dir)
+        private bool IsGearLit(EngineSnapshot snap, int columnIndex, ShiftDir dir)
         {
-            return snap.Gear > 0 && snap.Gear == GateGeometry.GearOf((Column)columnIndex, dir);
+            bool mirrorColumns = _settings != null && _settings.MirrorColumns;
+            bool mirrorSlots = _settings != null && _settings.MirrorSlots;
+            return snap.Gear > 0 &&
+                   snap.Gear == GateGeometry.GearOf((Column)columnIndex, dir, mirrorColumns, mirrorSlots);
         }
 
         private void DrawLabel(DrawingContext dc, string text, double centerX, double y, bool lit)

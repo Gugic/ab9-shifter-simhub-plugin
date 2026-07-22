@@ -118,6 +118,7 @@ namespace AB9ActiveShifter.UI
             }
 
             if (Plugin != null) Plugin.LastCalibration.Clear();
+            _renderedCalibrationCount = -1;
             CalibrationResultBorder.Visibility = Visibility.Collapsed;
 
             engine.RequestCalibration();
@@ -129,39 +130,71 @@ namespace AB9ActiveShifter.UI
             if (engine != null) engine.CancelCalibration();
         }
 
+        private int _renderedCalibrationCount = -1;
+
         private void RefreshCalibrationResults()
         {
-            if (Plugin == null || CalibrationResultBorder == null) return;
+            if (Plugin == null || CalibrationResultPanel == null) return;
 
-            CalibrationResult constant, spring;
-            bool haveConstant = Plugin.LastCalibration.TryGetValue(CalibrationTarget.Constant, out constant);
-            bool haveSpring = Plugin.LastCalibration.TryGetValue(CalibrationTarget.Spring, out spring);
+            int count = Plugin.LastCalibration.Count;
+            if (count == _renderedCalibrationCount) return;
+            _renderedCalibrationCount = count;
 
-            if (!haveConstant && !haveSpring)
+            CalibrationResultPanel.Children.Clear();
+
+            if (count == 0)
             {
                 CalibrationResultBorder.Visibility = Visibility.Collapsed;
                 return;
             }
 
             CalibrationResultBorder.Visibility = Visibility.Visible;
-            ApplyResultText(CalibrationConstantText, haveConstant ? constant : null);
-            ApplyResultText(CalibrationSpringText, haveSpring ? spring : null);
+
+            foreach (CalibrationTarget target in (CalibrationTarget[])Enum.GetValues(typeof(CalibrationTarget)))
+            {
+                CalibrationResult result;
+                if (!Plugin.LastCalibration.TryGetValue(target, out result)) continue;
+
+                CalibrationResultPanel.Children.Add(new TextBlock
+                {
+                    Text = result.Message,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 1, 0, 1),
+                    Foreground = ResultBrush(result.Outcome)
+                });
+            }
         }
 
-        private static void ApplyResultText(TextBlock block, CalibrationResult result)
+        private void OnResetForces(object sender, RoutedEventArgs e)
         {
-            if (block == null) return;
+            Reset(ShifterSettings.ResetScope.Forces, "force settings");
+        }
 
-            if (result == null)
+        private void OnResetGeometry(object sender, RoutedEventArgs e)
+        {
+            Reset(ShifterSettings.ResetScope.Geometry, "gate geometry");
+        }
+
+        private void OnResetEverything(object sender, RoutedEventArgs e)
+        {
+            Reset(ShifterSettings.ResetScope.Everything,
+                  "every setting, including the measured polarity (you will need to calibrate again)");
+        }
+
+        private void Reset(ShifterSettings.ResetScope scope, string description)
+        {
+            if (Plugin == null || Plugin.Settings == null) return;
+
+            if (MessageBox.Show(
+                    "Reset " + description + " to defaults?",
+                    "AB9 Active Shifter", MessageBoxButton.OKCancel, MessageBoxImage.Question)
+                != MessageBoxResult.OK)
             {
-                block.Text = "";
-                block.Visibility = Visibility.Collapsed;
                 return;
             }
 
-            block.Visibility = Visibility.Visible;
-            block.Text = result.Message;
-            block.Foreground = ResultBrush(result.Outcome);
+            Plugin.Settings.ResetToDefaults(scope);
+            RefreshLockoutSummary();
         }
 
         private static Brush ResultBrush(CalibrationOutcome outcome)

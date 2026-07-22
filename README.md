@@ -61,14 +61,19 @@ If SimHub is installed somewhere other than `C:\Program Files (x86)\SimHub\`, co
 
 ## Before your first run
 
-1. **MOZA Pit House**: put the base in **flight mode** and set its **Spring to 0**. The
-   base's own centring will fight the gate otherwise.
-2. **Close MOZA Cockpit** and any Pit House live-tuning page. They hold the stick
+1. **Close MOZA Cockpit** and any Pit House live-tuning page. They hold the stick
    exclusively; the plugin cannot open it while they do.
-3. **Disable Steam Input** for the AB9, or close Steam.
-4. **Create a vJoy device** with at least 8 buttons in `vJoyConf`.
+2. **Disable Steam Input** for the AB9, or close Steam.
+3. **Create a vJoy device** with at least 8 buttons in `vJoyConf`.
+4. **Run the polarity calibration** (below) before turning the force up.
 5. In your game, bind gears **1–7 and reverse to vJoy buttons 1–8**. Do **not** bind the
    AB9's axes in the game.
+
+You do **not** need to change anything in Pit House. Flight mode has no Spring setting —
+the centring you feel with nothing running is DirectInput's own autocenter spring, which
+is on by default. The plugin switches it off itself while it holds the base, and switches
+nothing else. If you want to confirm the stick is genuinely free, tick **Release all
+forces (free stick)** on the Setup tab: anything you still feel then is the hardware.
 
 ## Polarity — do this first
 
@@ -77,20 +82,26 @@ centring spring into one that throws the stick at its stops. Until this is measu
 plugin **caps its force output at 10%**.
 
 On the **Setup** tab, press **Measure polarity**, take your hands off the stick, and wait
-about four seconds. The plugin pushes the stick briefly each way and watches which way it
-actually moves, then sets the invert flags itself and lifts the force cap.
+about ten seconds. The plugin pushes the stick briefly each way, on each axis, for each
+effect family, and watches which way it actually moves. It sets the four sign flags from
+what it measures and lifts the force cap.
 
 It measures rather than asking because there is nothing useful for a hand to report: the
 base holds itself centred, so a correct centring spring and the base's own centring feel
-identical, and an inverted one just feels like a weaker hold. Each effect family is probed
-in both directions and scored on whether it moved the way it was commanded, which cancels
-any resting bias and still gives the right answer for an inverted spring — that case
-accelerates away from its anchor and drives both probes the same way. A probe stops the
-moment its direction is certain, so an inverted spring never reaches the stops.
+identical, and an inverted one just feels like a weaker hold. Each probe is scored on
+whether the stick moved the direction it was commanded; summing the two probes cancels any
+resting bias and still gives the right answer for an inverted spring, which accelerates
+away from its anchor and drives both probes the same way. A probe stops the moment its
+direction is certain, so an inverted spring never reaches the stops.
 
-If the result says the stick **barely moved**, the cap stays on deliberately — an
-unmeasured direction is exactly what the cap is for. Check that the base's own Spring is 0
-in Pit House and that nothing is holding the stick, then raise *Calibration force*.
+**All four are measured separately, because this base does not treat them alike.** On the
+firmware this was developed against, constant force is inverted on the left/right axis but
+correct fore/aft, while the spring is inverted fore/aft but correct left/right. One global
+polarity flag cannot describe that.
+
+If a probe reports the stick **barely moved**, the cap stays on deliberately — an
+unmeasured direction is exactly what the cap is for. Check nothing is holding the stick,
+then raise *Calibration force*.
 
 Raise the overall gain slowly afterwards — this is a 12 Nm base.
 
@@ -144,8 +155,14 @@ page, or Steam Input. Close them; the plugin retries automatically.
 **"vJoy device 1 is owned by another program"** — the message names the owning process.
 Close it, or pick a different vJoy device number on the Geometry tab.
 
-**The stick fights the gate or drifts to the stops** — the base's own spring is still on
-(Pit House → Spring 0), or polarity is inverted (run *Measure polarity*).
+**The stick fights you everywhere, or drifts to the stops** — polarity has not been
+measured, so the gate springs are pushing the opposite way. Run *Measure polarity*. To
+check whether resistance is coming from the plugin at all, tick *Release all forces*: if
+the stick is still stiff with that on, it is not the gate.
+
+**Everything feels dead, especially the lockout and the detents** — those are constant
+forces. Confirm *Measure polarity* reported a result for both push axes rather than
+"barely moved", and that overall gain is not near zero.
 
 **Gears do not register in the game** — check `joy.cpl`: the vJoy device should light
 button *i* while gear *i* is held. If it does, the binding is the problem, not the plugin.

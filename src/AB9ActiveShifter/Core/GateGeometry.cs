@@ -32,6 +32,11 @@ namespace AB9ActiveShifter.Core
         public int LockoutStart { get; private set; }
         public int DetentHysteresis { get; private set; }
 
+        /// <summary>Gear layout preference; see <see cref="GearOf(Column, ShiftDir)"/>.</summary>
+        public bool MirrorColumns { get; private set; }
+
+        public bool MirrorSlots { get; private set; }
+
         public GateGeometry(
             int channelHalfEnter,
             int channelHalfExit,
@@ -42,8 +47,13 @@ namespace AB9ActiveShifter.Core
             int engageDepth,
             int releaseDepth,
             int lockoutStart,
-            int detentHysteresis)
+            int detentHysteresis,
+            bool mirrorColumns = false,
+            bool mirrorSlots = false)
         {
+            MirrorColumns = mirrorColumns;
+            MirrorSlots = mirrorSlots;
+
             // Exit bands must be looser than enter bands or the hysteresis inverts and
             // the state machine oscillates. Clamp rather than throw: these come from
             // user-editable settings and a bad value must not kill the FFB loop.
@@ -184,10 +194,25 @@ namespace AB9ActiveShifter.Core
             return currentDist - bestDist > DetentHysteresis ? best : current;
         }
 
-        public static int GearOf(Column c, ShiftDir dir)
+        /// <summary>
+        /// Gear number for a gate position, honouring the layout preference. Mirroring is applied
+        /// here, to the labels, rather than to the axis readings - the readings have to stay in the
+        /// device's own coordinates because spring anchors are sent back to it in those same
+        /// coordinates, and mirroring those would turn the gate springs into repellers.
+        /// </summary>
+        public static int GearOf(Column c, ShiftDir dir, bool mirrorColumns = false, bool mirrorSlots = false)
         {
             if (c == Column.None || dir == ShiftDir.None) return 0;
-            return (int)c * 2 + (dir == ShiftDir.Fwd ? 1 : 2);
+
+            int column = mirrorColumns ? (ColumnCount - 1 - (int)c) : (int)c;
+            bool forward = mirrorSlots ? dir == ShiftDir.Back : dir == ShiftDir.Fwd;
+
+            return column * 2 + (forward ? 1 : 2);
+        }
+
+        public int GearFor(Column c, ShiftDir dir)
+        {
+            return GearOf(c, dir, MirrorColumns, MirrorSlots);
         }
 
         public static string GearLabel(int gear)

@@ -104,7 +104,7 @@ namespace AB9ActiveShifter.Core
                 if (_engageTicks >= _minEngageTicks)
                 {
                     _state = GateState.Engaged;
-                    _gear = GateGeometry.GearOf(_column, _direction);
+                    _gear = _geo.GearFor(_column, _direction);
                 }
             }
             else
@@ -165,7 +165,7 @@ namespace AB9ActiveShifter.Core
             if (_geo.IsEngaged(_direction, y))
             {
                 _state = GateState.Engaged;
-                _gear = GateGeometry.GearOf(c, _direction);
+                _gear = _geo.GearFor(c, _direction);
                 _engageTicks = _minEngageTicks;
             }
             else

@@ -184,17 +184,18 @@ namespace AB9ActiveShifter
 
             OnUiThread(() =>
             {
-                switch (result.Target)
+                // Only a definite reading changes a flag; an inconclusive probe leaves whatever
+                // was there rather than guessing.
+                if (result.Outcome == CalibrationOutcome.Correct || result.Outcome == CalibrationOutcome.Inverted)
                 {
-                    case CalibrationTarget.Constant:
-                        if (result.Outcome == CalibrationOutcome.Correct) Settings.InvertConstantPolarity = false;
-                        else if (result.Outcome == CalibrationOutcome.Inverted) Settings.InvertConstantPolarity = true;
-                        break;
-
-                    case CalibrationTarget.Spring:
-                        if (result.Outcome == CalibrationOutcome.Correct) Settings.InvertSpringPolarity = false;
-                        else if (result.Outcome == CalibrationOutcome.Inverted) Settings.InvertSpringPolarity = true;
-                        break;
+                    bool inverted = result.Outcome == CalibrationOutcome.Inverted;
+                    switch (result.Target)
+                    {
+                        case CalibrationTarget.ConstantX: Settings.InvertConstantX = inverted; break;
+                        case CalibrationTarget.ConstantY: Settings.InvertConstantY = inverted; break;
+                        case CalibrationTarget.SpringX: Settings.InvertSpringX = inverted; break;
+                        case CalibrationTarget.SpringY: Settings.InvertSpringY = inverted; break;
+                    }
                 }
 
                 LastCalibration[result.Target] = result;
@@ -210,21 +211,30 @@ namespace AB9ActiveShifter
         {
             OnUiThread(() =>
             {
-                CalibrationResult constant, spring;
-                bool haveConstant = LastCalibration.TryGetValue(CalibrationTarget.Constant, out constant);
-                bool haveSpring = LastCalibration.TryGetValue(CalibrationTarget.Spring, out spring);
-
-                bool conclusive = haveConstant && haveSpring
-                    && constant.Outcome != CalibrationOutcome.Inconclusive
-                    && constant.Outcome != CalibrationOutcome.Pending
-                    && spring.Outcome != CalibrationOutcome.Inconclusive
-                    && spring.Outcome != CalibrationOutcome.Pending;
+                bool conclusive = true;
+                foreach (CalibrationTarget target in (CalibrationTarget[])Enum.GetValues(typeof(CalibrationTarget)))
+                {
+                    CalibrationResult r;
+                    if (!LastCalibration.TryGetValue(target, out r) ||
+                        r.Outcome == CalibrationOutcome.Inconclusive ||
+                        r.Outcome == CalibrationOutcome.Pending)
+                    {
+                        conclusive = false;
+                        break;
+                    }
+                }
 
                 Settings.PolarityConfirmed = conclusive;
 
                 Log.Info(conclusive
                     ? "Calibration complete; force cap lifted."
-                    : "Calibration inconclusive; force cap stays on.");
+                    : "Calibration incomplete; force cap stays on.");
+
+                // Persist now rather than waiting for plugin shutdown. This result describes the
+                // hardware and was earned by moving the stick; losing it to a crash would mean
+                // running the gate backwards on the next start.
+                try { this.SaveCommonSettings(SettingsKey, Settings); }
+                catch (Exception ex) { Log.Error("Could not save settings after calibration", ex); }
             });
         }
 

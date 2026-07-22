@@ -37,12 +37,21 @@
                         </StackPanel>
                     </styles:SHSection>
 
+                    <styles:SHSection Title="FREE STICK" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <styles:SHToggleCheckbox IsChecked="{Binding FreeStick, Mode=TwoWay}"
+                                                     Content="Release all forces (free stick)" />
+                            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
+                                       Text="Holds the base but applies nothing, so you can feel how the stick moves on its own. Any resistance left with this on is coming from the hardware, not from the gate. The plugin already switches off the DirectInput centring spring while it holds the base." />
+                        </StackPanel>
+                    </styles:SHSection>
+
                     <styles:SHSection Title="BEFORE YOU START" ShowSeparator="True">
                         <TextBlock TextWrapping="Wrap" Margin="0,4,0,8" Opacity="0.85">
-                            1. In MOZA Pit House, put the base in flight mode and set its Spring to 0, so the base's own centring does not fight the gate.<LineBreak />
-                            2. Close MOZA Cockpit and any Pit House live-tuning page. They hold the stick exclusively and this plugin cannot open it while they do.<LineBreak />
-                            3. Disable Steam Input for the AB9, or close Steam.<LineBreak />
-                            4. Create a vJoy device with at least 8 buttons in vJoyConf.<LineBreak />
+                            1. Close MOZA Cockpit and any Pit House live-tuning page. They hold the stick exclusively and this plugin cannot open it while they do.<LineBreak />
+                            2. Disable Steam Input for the AB9, or close Steam.<LineBreak />
+                            3. Create a vJoy device with at least 8 buttons in vJoyConf.<LineBreak />
+                            4. Run the polarity calibration below, before turning the force up.<LineBreak />
                             5. In your game, bind gears 1-7 and reverse to vJoy buttons 1-8, and do not bind the AB9 axes.
                         </TextBlock>
                     </styles:SHSection>
@@ -63,10 +72,7 @@
 
                             <Border x:Name="CalibrationResultBorder" Padding="10,8" Margin="0,0,0,8"
                                     Background="#22FFFFFF" CornerRadius="3" Visibility="Collapsed">
-                                <StackPanel>
-                                    <TextBlock x:Name="CalibrationConstantText" TextWrapping="Wrap" Margin="0,1" />
-                                    <TextBlock x:Name="CalibrationSpringText" TextWrapping="Wrap" Margin="0,1" />
-                                </StackPanel>
+                                <StackPanel x:Name="CalibrationResultPanel" />
                             </Border>
 
                             <ui:TitledSlider Title="Calibration force (%)" Minimum="5" Maximum="60" TickFrequency="5"
@@ -78,18 +84,29 @@
                             <styles:SHExpander Header="Manual overrides">
                                 <StackPanel Margin="0,8,0,0">
                                     <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
-                                               Text="Calibration sets the first two for you. The axis toggles are a matter of taste: flip them if the gears end up mirrored from where you expect." />
-                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertSpringPolarity, Mode=TwoWay}"
-                                                             Content="Invert spring effects" Margin="0,2" />
-                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertConstantPolarity, Mode=TwoWay}"
-                                                             Content="Invert constant force effects" Margin="0,2" />
-                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertX, Mode=TwoWay}"
-                                                             Content="Mirror left/right (swaps the column order)" Margin="0,2" />
-                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertY, Mode=TwoWay}"
-                                                             Content="Mirror forward/back (swaps each gear pair)" Margin="0,2" />
+                                               Text="Calibration sets these four from measurement. They are separate because this base does not treat the axes alike - it can invert the push on one axis and the spring on the other." />
+                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertConstantX, Mode=TwoWay}"
+                                                             Content="Invert push, left/right" Margin="0,2" />
+                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertConstantY, Mode=TwoWay}"
+                                                             Content="Invert push, forward/back" Margin="0,2" />
+                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertSpringX, Mode=TwoWay}"
+                                                             Content="Invert spring, left/right" Margin="0,2" />
+                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertSpringY, Mode=TwoWay}"
+                                                             Content="Invert spring, forward/back" Margin="0,2" />
                                     <styles:SHToggleCheckbox IsChecked="{Binding PolarityConfirmed, Mode=TwoWay}"
                                                              Content="Polarity confirmed - remove the 10% force cap"
                                                              Margin="0,8,0,0" />
+                                </StackPanel>
+                            </styles:SHExpander>
+
+                            <styles:SHExpander Header="Gear layout">
+                                <StackPanel Margin="0,8,0,0">
+                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                               Text="Pure preference: which end of the gate is first gear. Flip these if the gears come out mirrored from where your hand expects them." />
+                                    <styles:SHToggleCheckbox IsChecked="{Binding MirrorColumns, Mode=TwoWay}"
+                                                             Content="First gear on the right instead of the left" Margin="0,2" />
+                                    <styles:SHToggleCheckbox IsChecked="{Binding MirrorSlots, Mode=TwoWay}"
+                                                             Content="Odd gears toward me instead of away" Margin="0,2" />
                                 </StackPanel>
                             </styles:SHExpander>
 
@@ -117,6 +134,8 @@
                                              ShowResetButton="True" ResetValue="70"
                                              Value="{Binding LockoutForcePct, Mode=TwoWay}" />
                             <TextBlock x:Name="LockoutSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0" />
+                            <styles:SHButtonSecondary Click="OnResetForces" Content="Reset forces to defaults"
+                                                      Padding="12,4" HorizontalAlignment="Left" Margin="0,10,0,0" />
                         </StackPanel>
                     </styles:SHSection>
 
@@ -230,6 +249,15 @@
                             </StackPanel>
                         </StackPanel>
                     </styles:SHExpander>
+
+                    <styles:SHSection Title="RESET" ShowSeparator="True">
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                            <styles:SHButtonSecondary Click="OnResetGeometry" Content="Reset geometry"
+                                                      Padding="12,4" Margin="0,0,8,0" />
+                            <styles:SHButtonSecondary Click="OnResetEverything" Content="Reset everything"
+                                                      Padding="12,4" />
+                        </StackPanel>
+                    </styles:SHSection>
 
                 </StackPanel>
             </ScrollViewer>
