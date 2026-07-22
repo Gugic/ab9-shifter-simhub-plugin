@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <SimHubDir>C:\Program Files (x86)\SimHub\</SimHubDir>
+  </PropertyGroup>
+</Project>
