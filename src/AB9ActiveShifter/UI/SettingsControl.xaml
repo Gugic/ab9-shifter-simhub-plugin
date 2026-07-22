@@ -47,35 +47,54 @@
                         </TextBlock>
                     </styles:SHSection>
 
-                    <styles:SHSection Title="POLARITY WIZARD" ShowSeparator="True">
+                    <styles:SHSection Title="POLARITY CALIBRATION" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8"
-                                       Text="Some AB9 firmware versions invert the direction of DirectInput effects. Until this is confirmed the plugin caps its force at 10% for safety. Rest a hand on the stick, run each test, and tick the matching box if the stick does the opposite of what is described. Each test applies a brief, deliberately mild force." />
+                                       Text="Some AB9 firmware versions apply DirectInput effects backwards, which would turn a centring spring into one that throws the stick at its stops. Until this is measured the plugin caps its force at 10%." />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8"
+                                       Text="Calibration applies a short push each way and watches which way the stick actually moves, so it works even though the base holds itself centred. Take your hands off the stick and leave them off - anything resisting the stick will spoil the measurement. It takes about four seconds." />
 
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <styles:SHButtonPrimary x:Name="SpringTestButton" Click="OnSpringTest"
-                                                        Content="Test 1: spring" Margin="0,0,8,0" Padding="12,4" />
-                                <styles:SHButtonPrimary x:Name="ConstantTestButton" Click="OnConstantTest"
-                                                        Content="Test 2: push" Padding="12,4" />
+                                <styles:SHButtonPrimary x:Name="CalibrateButton" Click="OnCalibrate"
+                                                        Content="Measure polarity" Margin="0,0,8,0" Padding="14,4" />
+                                <styles:SHButtonSecondary x:Name="CancelCalibrationButton" Click="OnCancelCalibration"
+                                                          Content="Cancel" Padding="14,4" />
                             </StackPanel>
 
-                            <styles:SHToggleCheckbox IsChecked="{Binding InvertSpringPolarity, Mode=TwoWay}"
-                                                     Content="Test 1 pushed the stick AWAY from centre (invert springs)"
-                                                     Margin="0,2" />
-                            <styles:SHToggleCheckbox IsChecked="{Binding InvertConstantPolarity, Mode=TwoWay}"
-                                                     Content="Test 2 pushed the stick AWAY from me (invert constant forces)"
-                                                     Margin="0,2" />
-                            <styles:SHToggleCheckbox IsChecked="{Binding InvertX, Mode=TwoWay}"
-                                                     Content="Left and right are reversed (invert X axis)" Margin="0,2" />
-                            <styles:SHToggleCheckbox IsChecked="{Binding InvertY, Mode=TwoWay}"
-                                                     Content="Forward and back are reversed (invert Y axis)" Margin="0,2" />
+                            <Border x:Name="CalibrationResultBorder" Padding="10,8" Margin="0,0,0,8"
+                                    Background="#22FFFFFF" CornerRadius="3" Visibility="Collapsed">
+                                <StackPanel>
+                                    <TextBlock x:Name="CalibrationConstantText" TextWrapping="Wrap" Margin="0,1" />
+                                    <TextBlock x:Name="CalibrationSpringText" TextWrapping="Wrap" Margin="0,1" />
+                                </StackPanel>
+                            </Border>
 
-                            <Separator Margin="0,10" />
+                            <ui:TitledSlider Title="Calibration force (%)" Minimum="5" Maximum="60" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="25"
+                                             Value="{Binding CalibrationForcePct, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,10"
+                                       Text="Raise this only if calibration reports that the stick barely moved. First check that the base's own Spring is 0 in MOZA Pit House." />
 
-                            <styles:SHToggleCheckbox IsChecked="{Binding PolarityConfirmed, Mode=TwoWay}"
-                                                     Content="Polarity confirmed - remove the 10% force cap" />
-                            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
-                                       Text="Only tick this once both tests behave correctly. Raise the overall gain slowly afterwards: this is a 12 Nm base." />
+                            <styles:SHExpander Header="Manual overrides">
+                                <StackPanel Margin="0,8,0,0">
+                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                               Text="Calibration sets the first two for you. The axis toggles are a matter of taste: flip them if the gears end up mirrored from where you expect." />
+                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertSpringPolarity, Mode=TwoWay}"
+                                                             Content="Invert spring effects" Margin="0,2" />
+                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertConstantPolarity, Mode=TwoWay}"
+                                                             Content="Invert constant force effects" Margin="0,2" />
+                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertX, Mode=TwoWay}"
+                                                             Content="Mirror left/right (swaps the column order)" Margin="0,2" />
+                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertY, Mode=TwoWay}"
+                                                             Content="Mirror forward/back (swaps each gear pair)" Margin="0,2" />
+                                    <styles:SHToggleCheckbox IsChecked="{Binding PolarityConfirmed, Mode=TwoWay}"
+                                                             Content="Polarity confirmed - remove the 10% force cap"
+                                                             Margin="0,8,0,0" />
+                                </StackPanel>
+                            </styles:SHExpander>
+
+                            <TextBlock TextWrapping="Wrap" Margin="0,10,0,0" Opacity="0.75"
+                                       Text="Once calibration succeeds the cap lifts by itself. Raise the overall gain slowly afterwards: this is a 12 Nm base." />
                         </StackPanel>
                     </styles:SHSection>
 

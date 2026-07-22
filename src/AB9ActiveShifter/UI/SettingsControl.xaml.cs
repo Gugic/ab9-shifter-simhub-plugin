@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 using AB9ActiveShifter.Core;
 
@@ -67,6 +68,12 @@ namespace AB9ActiveShifter.UI
             ShifterEngine engine = AB9ShifterPlugin.Engine;
             EngineSnapshot snap = engine != null ? engine.Snapshot : new EngineSnapshot();
             _status.Update(snap);
+
+            bool calibrating = engine != null && engine.IsCalibrating;
+            CalibrateButton.IsEnabled = !calibrating;
+            CancelCalibrationButton.IsEnabled = calibrating;
+
+            RefreshCalibrationResults();
         }
 
         /// <summary>
@@ -91,17 +98,7 @@ namespace AB9ActiveShifter.UI
                 effective, capped);
         }
 
-        private void OnSpringTest(object sender, RoutedEventArgs e)
-        {
-            RequestTest(PolarityTest.Spring);
-        }
-
-        private void OnConstantTest(object sender, RoutedEventArgs e)
-        {
-            RequestTest(PolarityTest.Constant);
-        }
-
-        private void RequestTest(PolarityTest kind)
+        private void OnCalibrate(object sender, RoutedEventArgs e)
         {
             ShifterEngine engine = AB9ShifterPlugin.Engine;
             if (engine == null || !engine.IsRunning)
@@ -120,7 +117,62 @@ namespace AB9ActiveShifter.UI
                 return;
             }
 
-            engine.RequestPolarityTest(kind);
+            if (Plugin != null) Plugin.LastCalibration.Clear();
+            CalibrationResultBorder.Visibility = Visibility.Collapsed;
+
+            engine.RequestCalibration();
+        }
+
+        private void OnCancelCalibration(object sender, RoutedEventArgs e)
+        {
+            ShifterEngine engine = AB9ShifterPlugin.Engine;
+            if (engine != null) engine.CancelCalibration();
+        }
+
+        private void RefreshCalibrationResults()
+        {
+            if (Plugin == null || CalibrationResultBorder == null) return;
+
+            CalibrationResult constant, spring;
+            bool haveConstant = Plugin.LastCalibration.TryGetValue(CalibrationTarget.Constant, out constant);
+            bool haveSpring = Plugin.LastCalibration.TryGetValue(CalibrationTarget.Spring, out spring);
+
+            if (!haveConstant && !haveSpring)
+            {
+                CalibrationResultBorder.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            CalibrationResultBorder.Visibility = Visibility.Visible;
+            ApplyResultText(CalibrationConstantText, haveConstant ? constant : null);
+            ApplyResultText(CalibrationSpringText, haveSpring ? spring : null);
+        }
+
+        private static void ApplyResultText(TextBlock block, CalibrationResult result)
+        {
+            if (block == null) return;
+
+            if (result == null)
+            {
+                block.Text = "";
+                block.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            block.Visibility = Visibility.Visible;
+            block.Text = result.Message;
+            block.Foreground = ResultBrush(result.Outcome);
+        }
+
+        private static Brush ResultBrush(CalibrationOutcome outcome)
+        {
+            switch (outcome)
+            {
+                case CalibrationOutcome.Correct: return new SolidColorBrush(Color.FromRgb(0x36, 0xC7, 0x6A));
+                case CalibrationOutcome.Inverted: return new SolidColorBrush(Color.FromRgb(0xE8, 0x8A, 0x1A));
+                case CalibrationOutcome.Inconclusive: return new SolidColorBrush(Color.FromRgb(0xC7, 0x3B, 0x3B));
+                default: return SystemColors.ControlTextBrush;
+            }
         }
 
         /// <summary>Bindable view of the engine snapshot for the status panels.</summary>

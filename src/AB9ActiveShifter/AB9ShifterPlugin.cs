@@ -71,6 +71,12 @@ namespace AB9ActiveShifter
             _engine.GearChanged -= OnGearChanged;
             _engine.GearChanged += OnGearChanged;
 
+            _engine.CalibrationCompleted -= OnCalibrationCompleted;
+            _engine.CalibrationCompleted += OnCalibrationCompleted;
+
+            _engine.CalibrationFinished -= OnCalibrationFinished;
+            _engine.CalibrationFinished += OnCalibrationFinished;
+
             Settings.PropertyChanged -= OnSettingsChanged;
             Settings.PropertyChanged += OnSettingsChanged;
 
@@ -122,6 +128,8 @@ namespace AB9ActiveShifter
             if (engine != null)
             {
                 engine.GearChanged -= OnGearChanged;
+                engine.CalibrationCompleted -= OnCalibrationCompleted;
+                engine.CalibrationFinished -= OnCalibrationFinished;
                 engine.Dispose();
             }
 
@@ -164,6 +172,77 @@ namespace AB9ActiveShifter
             {
                 Log.ErrorThrottled("trigger-event", "Could not raise gear event", ex);
             }
+        }
+
+        /// <summary>
+        /// Records what the measurement found. Raised on the engine thread, so it is marshalled to
+        /// the UI thread before touching settings that WPF is bound to.
+        /// </summary>
+        private void OnCalibrationCompleted(CalibrationResult result)
+        {
+            if (result == null) return;
+
+            OnUiThread(() =>
+            {
+                switch (result.Target)
+                {
+                    case CalibrationTarget.Constant:
+                        if (result.Outcome == CalibrationOutcome.Correct) Settings.InvertConstantPolarity = false;
+                        else if (result.Outcome == CalibrationOutcome.Inverted) Settings.InvertConstantPolarity = true;
+                        break;
+
+                    case CalibrationTarget.Spring:
+                        if (result.Outcome == CalibrationOutcome.Correct) Settings.InvertSpringPolarity = false;
+                        else if (result.Outcome == CalibrationOutcome.Inverted) Settings.InvertSpringPolarity = true;
+                        break;
+                }
+
+                LastCalibration[result.Target] = result;
+            });
+        }
+
+        /// <summary>
+        /// Lifts the force cap only when both effect families were measured conclusively. An
+        /// inconclusive run leaves the cap on, because an unmeasured direction is exactly the case
+        /// the cap exists for.
+        /// </summary>
+        private void OnCalibrationFinished()
+        {
+            OnUiThread(() =>
+            {
+                CalibrationResult constant, spring;
+                bool haveConstant = LastCalibration.TryGetValue(CalibrationTarget.Constant, out constant);
+                bool haveSpring = LastCalibration.TryGetValue(CalibrationTarget.Spring, out spring);
+
+                bool conclusive = haveConstant && haveSpring
+                    && constant.Outcome != CalibrationOutcome.Inconclusive
+                    && constant.Outcome != CalibrationOutcome.Pending
+                    && spring.Outcome != CalibrationOutcome.Inconclusive
+                    && spring.Outcome != CalibrationOutcome.Pending;
+
+                Settings.PolarityConfirmed = conclusive;
+
+                Log.Info(conclusive
+                    ? "Calibration complete; force cap lifted."
+                    : "Calibration inconclusive; force cap stays on.");
+            });
+        }
+
+        /// <summary>Most recent measurement per effect family, for the settings page to display.</summary>
+        public readonly System.Collections.Generic.Dictionary<CalibrationTarget, CalibrationResult> LastCalibration =
+            new System.Collections.Generic.Dictionary<CalibrationTarget, CalibrationResult>();
+
+        private static void OnUiThread(Action action)
+        {
+            System.Windows.Application app = System.Windows.Application.Current;
+            if (app == null || app.Dispatcher.CheckAccess())
+            {
+                try { action(); }
+                catch (Exception ex) { Log.Error("UI-thread action failed", ex); }
+                return;
+            }
+
+            app.Dispatcher.BeginInvoke(action);
         }
 
         private void OnProcessExit(object sender, EventArgs e)
