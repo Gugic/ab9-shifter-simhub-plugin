@@ -11,13 +11,20 @@ namespace AB9ActiveShifter.Core
     /// counts - a third of full travel - before it reaches 70% force. Five hundred counts past
     /// a wall yields about 1.5%, which is why spring walls feel like nothing at all. A software
     /// profile reaches its plateau in a few hundred counts and holds it, so a wall feels like a
-    /// wall. The damper is what keeps that stiffness from buzzing.
+    /// wall.
+    ///
+    /// Stability comes from shape, not from damping. Past its short bite every wall is a flat
+    /// plateau, and a flat force has no gradient for the loop's delay to pump - leaning on it
+    /// is unconditionally calm, which is what made the original constant-force lockout the one
+    /// part of the gate that never rang. A gradient rendered through USB delay oscillates at
+    /// any damping; the bite only cages that flutter, so it is kept short.
     ///
     /// The gate is then just three kinds of force:
     ///
-    ///   Lateral, in the neutral channel - a light detent onto the nearest column, plus a hump
-    ///   at each barrier between adjacent columns. The lockout is not a separate mechanism: it
-    ///   is simply the barrier guarding the 7/R column, given more strength than the others.
+    ///   Lateral, in the neutral channel - a light detent onto the nearest column, a hump at
+    ///   each gap between the ordinary columns, and the lockout gate before 7/R: flat force
+    ///   either side of an over-centre point. A dot on the channel, not a zone - the walls own
+    ///   the rest of the box.
     ///
     ///   Lateral, once in a column - a firm pin onto that column, so fore/aft travel tracks the
     ///   slot instead of wandering out of it. This is the vertical guide.
@@ -112,7 +119,7 @@ namespace AB9ActiveShifter.Core
         /// <summary>Gain-scaled damping applied on every frame.</summary>
         public int DamperCoefficient { get { return _damperCoeff; } }
 
-        /// <summary>The lockout barrier's peak force in DirectInput units, for the UI.</summary>
+        /// <summary>The lockout gate's force in DirectInput units, for the UI.</summary>
         public int LockoutForce { get { return _lockoutForce; } }
 
         /// <summary>Peak force of the gate walls in DirectInput units, for the UI.</summary>
@@ -305,19 +312,46 @@ namespace AB9ActiveShifter.Core
             return GateGeometry.Clamp(_cfg.SlotHalfWidth, 0, limit);
         }
 
-        /// <summary>Sum of the humps guarding each gap between adjacent columns.</summary>
+        /// <summary>Humps guarding the ordinary gaps, and the lockout gate guarding the last.</summary>
         private int BarrierForceAt(int x)
         {
             int total = 0;
 
             for (int i = 0; i < GateGeometry.ColumnCount - 1; i++)
             {
-                // The last gap is the one protecting 7/R, and it gets the lockout's strength.
-                int strength = i == GateGeometry.ColumnCount - 2 ? _lockoutForce : _barrierForce;
-                total += Hump(x - _geo.BarrierCentre(i), strength, _cfg.BarrierWidth);
+                int d = x - _geo.BarrierCentre(i);
+
+                total += i == GateGeometry.ColumnCount - 2
+                    ? LockoutGate(d, _lockoutForce, _cfg.LockoutHalfWidth, _cfg.WallRamp)
+                    : Hump(d, _barrierForce, _cfg.BarrierWidth);
             }
 
             return total;
+        }
+
+        /// <summary>
+        /// The gate before 7/R: flat force across each side of a compact band, an over-centre
+        /// crossover in the middle, free travel beyond. Flat on purpose - the whole fight
+        /// happens on zero gradient, the shape that cannot ring - and the crossover means it
+        /// snaps through and then helps, instead of shoving from nowhere. It guards only the
+        /// crossing itself; keeping the stick in the channel is the walls' job.
+        /// </summary>
+        private static int LockoutGate(int displacement, int strength, int halfWidth, int ramp)
+        {
+            if (strength <= 0 || halfWidth <= 0) return 0;
+
+            int m = Math.Abs(displacement);
+
+            // The over-centre crossover gets a floor so the sign flip at the middle is a snick,
+            // not a single-count bang; the outer face uses the wall bite as-is.
+            int cross = Math.Max(ramp, 400);
+            int face = Math.Max(ramp, 1);
+
+            double p = GateGeometry.Clamp(
+                Math.Min(m / (double)cross, (halfWidth + face - m) / (double)face), 0.0, 1.0);
+
+            int force = (int)Math.Round(strength * p);
+            return displacement > 0 ? force : -force;
         }
 
         /// <summary>

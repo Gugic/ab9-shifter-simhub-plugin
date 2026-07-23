@@ -154,8 +154,8 @@
                             <ui:TitledSlider Title="Fore/aft drag while on a column (%)" Minimum="0" Maximum="40"
                                              TickFrequency="1" ShowResetButton="True" ResetValue="5"
                                              Value="{Binding ChannelGuideForcePct, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Wall bite distance (axis counts)" Minimum="200" Maximum="6000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="1400"
+                            <ui:TitledSlider Title="Wall bite distance (axis counts)" Minimum="60" Maximum="6000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="250"
                                              Value="{Binding WallRamp, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Rebound absorption (%)" Minimum="0" Maximum="80" TickFrequency="5"
                                              ShowResetButton="True" ResetValue="45"
@@ -164,18 +164,21 @@
                                              ShowResetButton="True" ResetValue="25"
                                              Value="{Binding DampingPct, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
-                                       Text="Rebound absorption is the anti-buzz control: a wall pushes back at full strength while you lean on it, but gives up this much force when throwing the stick back out, so a bounce dies instead of building. If a wall still oscillates, raise absorption first, then widen the bite distance, then raise damping." />
+                                       Text="Past its bite a wall is flat, and a flat force cannot buzz - any flutter lives on the bite itself, so the bite's length is the cap on how wide a shake can get. If a wall oscillates, shorten the bite first. Rebound absorption then drains what a bounce returns: full strength while you lean on the wall, less on the throw-out. Damping mostly thickens the lever and will not fix a buzz by itself." />
                         </StackPanel>
                     </styles:SHSection>
 
                     <styles:SHSection Title="SLIDING ACROSS THE GATE" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
-                                       Text="What the hand feels moving along the neutral channel: a light pull into each column, and a hump to climb between them. The lockout is simply the hump guarding 7/R." />
+                                       Text="What the hand feels moving along the neutral channel: a light pull into each column, a hump to climb between the ordinary columns, and the lockout gate before 7/R - a flat fight either side of a snap-over point, guarding just the crossing. Keeping the stick in line is the walls' job, so the gate can stay compact." />
 
-                            <ui:TitledSlider Title="Lockout, the hump guarding 7/R (%)" Minimum="0" Maximum="100"
+                            <ui:TitledSlider Title="Lockout gate, guarding 7/R (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="70"
                                              Value="{Binding LockoutForcePct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Lockout gate half-width (axis counts)" Minimum="500" Maximum="6000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="2200"
+                                             Value="{Binding LockoutHalfWidth, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Humps between the other columns (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="15"
                                              Value="{Binding BarrierForcePct, Mode=TwoWay}" />
@@ -213,13 +216,13 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="8">
 
-                    <styles:SHSection Title="LOCKOUT" ShowSeparator="True">
+                    <styles:SHSection Title="FORCE SHAPING" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <ui:TitledSlider Title="Gate wall blend width (axis counts)" Minimum="200" Maximum="6000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="1500"
                                              Value="{Binding WallBlend, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Wall deadband (axis counts)" Minimum="0" Maximum="600"
-                                             TickFrequency="10" ShowResetButton="True" ResetValue="60"
+                                             TickFrequency="10" ShowResetButton="True" ResetValue="120"
                                              Value="{Binding WallDeadBand, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Column pull ramp (axis counts)" Minimum="300" Maximum="8000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2500"
