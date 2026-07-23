@@ -50,11 +50,11 @@ namespace AB9ActiveShifter.Tests
             EngineConfig cfg = FullGainConfig();
             cfg.ChannelWallForcePct = 90;
             cfg.WallRamp = 600;
-            cfg.WallDeadBand = 120;
 
-            // Squarely between two columns, pushed clear of the deadband and past the ramp.
+            // Squarely between two columns, pushed clear of the channel corridor and past the ramp.
             int between = (C2 + C3) / 2;
-            int force = Math.Abs(Neutral(Composer(cfg), between, Center - 900).ConstantY);
+            int past = cfg.ChannelHalfEnter + cfg.WallRamp + 200;
+            int force = Math.Abs(Neutral(Composer(cfg), between, Center - past).ConstantY);
 
             Assert.Equal(9000, force);
         }
@@ -102,32 +102,91 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void DeadBandKeepsTheStickFromDitheringOnTarget()
+        public void RestingInTheChannelCostsNoForce()
         {
             EngineConfig cfg = FullGainConfig();
-            cfg.WallDeadBand = 60;
             ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
 
-            Assert.Equal(0, Neutral(c, (C2 + C3) / 2, Center + 30).ConstantY);
-            Assert.True(Math.Abs(Neutral(c, (C2 + C3) / 2, Center + 400).ConstantY) > 0);
+            Assert.Equal(0, Neutral(c, between, Center).ConstantY);
+            Assert.True(Math.Abs(Neutral(c, between, Center + cfg.ChannelHalfEnter + 800).ConstantY) > 0);
         }
 
         // ---------------------------------------------------------------- column hold
 
         [Fact]
-        public void ColumnHoldPinsTowardTheColumnFromEitherSide()
+        public void ASlotIsAFreeCorridorNotAPullToItsCentreLine()
         {
+            // The stick must be able to rest anywhere inside the slot with no lateral force.
+            // A restoring force here would put an equilibrium mid-slot for the stick to hunt
+            // around, which is what made the middle gears shake while seated.
             EngineConfig cfg = FullGainConfig();
-            cfg.ColumnPinForcePct = 90;
+            cfg.SlotHalfWidth = 1100;
             ForceComposer c = Composer(cfg);
 
-            // Right of C2 must push left, left of C2 must push right.
-            Assert.True(c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, C2 + 900, 2000).ConstantX < 0);
-            Assert.True(c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, C2 - 900, 2000).ConstantX > 0);
+            foreach (int offset in new[] { -1000, -500, 0, 500, 1000 })
+            {
+                int force = c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, C2 + offset, 2000).ConstantX;
+                Assert.Equal(0, force);
+            }
+        }
 
-            // The outer columns sit at the ends of travel, so the pin is one-sided.
-            Assert.True(c.Compose(GateState.Engaged, Column.C1, ShiftDir.Fwd, 900, 2000).ConstantX < 0);
-            Assert.True(c.Compose(GateState.Engaged, Column.C4, ShiftDir.Back, Max - 900, Max - 2000).ConstantX > 0);
+        [Fact]
+        public void SlotWallsPushBackOnceOutsideTheCorridor()
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.SlotHalfWidth = 1100;
+            ForceComposer c = Composer(cfg);
+
+            Assert.True(c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, C2 + 1800, 2000).ConstantX < 0);
+            Assert.True(c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, C2 - 1800, 2000).ConstantX > 0);
+        }
+
+        [Fact]
+        public void TheSlotCorridorStaysInsideTheBandThatHoldsTheGear()
+        {
+            // If the corridor were wider than the state machine's exit band, the stick could
+            // wander out of its own gear without a wall ever pushing back.
+            EngineConfig cfg = FullGainConfig();
+            cfg.SlotHalfWidth = 9000;   // absurd on purpose
+            ForceComposer c = Composer(cfg);
+
+            int justInsideExit = cfg.ColumnInnerHalfExit - 100;
+            int force = c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, C2 + justInsideExit, 2000).ConstantX;
+
+            Assert.True(force < 0,
+                "a wall must arrive before the gear is lost, even with a silly corridor width");
+        }
+
+        [Fact]
+        public void TheNeutralChannelIsAlsoACorridor()
+        {
+            EngineConfig cfg = FullGainConfig();
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            // Free along the channel's width, walled beyond it.
+            Assert.Equal(0, Neutral(c, between, Center + 900).ConstantY);
+            Assert.True(Math.Abs(Neutral(c, between, Center + 3000).ConstantY) > 0);
+        }
+
+        [Fact]
+        public void OuterSlotsAreOneSidedAgainstTheEndOfTravel()
+        {
+            // The outer columns sit at the ends of travel, so their wall can only ever push
+            // inward. That is why they were stable when the middle ones were not.
+            EngineConfig cfg = FullGainConfig();
+            ForceComposer c = Composer(cfg);
+
+            for (int x = 0; x <= 4000; x += 250)
+            {
+                Assert.True(c.Compose(GateState.Engaged, Column.C1, ShiftDir.Fwd, x, 2000).ConstantX <= 0);
+            }
+
+            for (int x = Max; x >= Max - 4000; x -= 250)
+            {
+                Assert.True(c.Compose(GateState.Engaged, Column.C4, ShiftDir.Back, x, Max - 2000).ConstantX >= 0);
+            }
         }
 
         [Fact]

@@ -143,9 +143,14 @@
                             <ui:TitledSlider Title="Gate wall, between columns (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="90"
                                              Value="{Binding ChannelWallForcePct, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Column hold, once in a slot (%)" Minimum="0" Maximum="100"
+                            <ui:TitledSlider Title="Slot wall, once in a gear (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="90"
                                              Value="{Binding ColumnPinForcePct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Slot width, free corridor (axis counts)" Minimum="0" Maximum="2400"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="1100"
+                                             Value="{Binding SlotHalfWidth, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="A slot is a corridor with walls, not a pull toward its centre line. If a middle gear shakes while seated, widen this: a narrow corridor leaves the stick balanced on a point it can hunt around. The outer gears never shake because their wall only pushes one way, against the end of travel." />
                             <ui:TitledSlider Title="Fore/aft drag while on a column (%)" Minimum="0" Maximum="40"
                                              TickFrequency="1" ShowResetButton="True" ResetValue="5"
                                              Value="{Binding ChannelGuideForcePct, Mode=TwoWay}" />

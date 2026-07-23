@@ -105,6 +105,17 @@ namespace AB9ActiveShifter.Core
         public int WallDeadBand = 120;
 
         /// <summary>
+        /// Half-width of the free corridor inside a slot. A real shifter slot has width: you feel
+        /// its walls, not a pull toward its centre line. Modelling it as a restoring force instead
+        /// puts an equilibrium point in the middle of the slot, and a stiff restoring force about
+        /// an interior equilibrium is an oscillator - the stick overshoots, gets pushed back, and
+        /// rings. The outer columns never showed it because their force is one-sided against the
+        /// end of travel, which cannot hunt. Inside this corridor there is no lateral force at
+        /// all, so there is nothing to oscillate about.
+        /// </summary>
+        public int SlotHalfWidth = 1100;
+
+        /// <summary>
         /// Velocity damping, as a percentage of full force at <see cref="DampingReferenceSpeed"/>.
         /// This is what stops a stiff wall oscillating. It is computed here from the axis
         /// readings rather than asked of the device, because a damper is a condition effect and
