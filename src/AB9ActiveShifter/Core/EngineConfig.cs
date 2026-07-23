@@ -11,7 +11,14 @@ namespace AB9ActiveShifter.Core
         public int VendorId = 0x346E;
         public int ProductId = 0x1000;
         public uint VJoyDeviceId = 1;
-        public int TickHz = 400;
+
+        /// <summary>
+        /// Loop rate. Measured on this base: reads are free and fresh at ~1 kHz, and one
+        /// SetParameters write costs 1.0 ms on the USB frame clock. At 1 kHz with one write
+        /// per tick, the axis being rendered gets a fresh force every millisecond - the write
+        /// pipe itself paces the loop when busy.
+        /// </summary>
+        public int TickHz = 1000;
 
         // Firmware effect polarity, measured per axis and per effect family. The AB9 does not
         // treat them alike - constant force and spring can disagree on the same axis - so these

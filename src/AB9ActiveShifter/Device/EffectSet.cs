@@ -19,14 +19,6 @@ namespace AB9ActiveShifter.Device
         /// <summary>Smallest constant-force change worth a device write.</summary>
         private const int ConstantDeadband = 30;
 
-        /// <summary>
-        /// Minimum gap between constant-force writes, in milliseconds. This gate sits in the
-        /// wall-rendering path, where every millisecond of delay behaves as negative damping,
-        /// so it is kept below the tick interval - effectively one write per tick per axis,
-        /// and only when the value moved.
-        /// </summary>
-        private const int ConstantMinIntervalMs = 2;
-
         private const int MaxStrikes = 3;
 
         private readonly Joystick _joystick;
@@ -55,15 +47,14 @@ namespace AB9ActiveShifter.Device
         private bool _springsPrimed;
         private int _lastConstantX;
         private int _lastConstantY;
-        private long _lastConstantXMs;
-        private long _lastConstantYMs;
 
-        // Until the first write lands there is no "last" anything to rate limit against, and a
-        // sentinel timestamp cannot express that: subtracting long.MinValue from the clock
-        // overflows and the interval test silently fails forever, so the effect never receives a
-        // magnitude at all.
+        // Until the first write lands there is no "last" anything to compare against; priming
+        // must be an explicit flag rather than a sentinel value.
         private bool _constantXPrimed;
         private bool _constantYPrimed;
+
+        /// <summary>Which axis won the last contended tick, so the other goes next.</summary>
+        private bool _lastContendedWriteWasY;
 
         private int _lastDamper = -1;
 
@@ -246,7 +237,14 @@ namespace AB9ActiveShifter.Device
         /// <summary>
         /// Pushes a frame to the device, skipping writes that would not change the feel.
         /// Springs are written only when the preset actually changes (a few times a second
-        /// at most); the constant forces are rate limited.
+        /// at most).
+        ///
+        /// At most ONE constant-force write goes out per call. A SetParameters lands on the
+        /// device's 1 ms USB frame, measured at 1.0 ms per write on this base, so two writes
+        /// serialise into 2 ms - and that wait sits in the wall-rendering path, where delay
+        /// behaves as negative damping. One write per tick keeps each write's data fresh at
+        /// the loop rate; when both axes want the pipe they alternate, and the axis that is
+        /// actively ringing against a wall - typically the only dirty one - gets every tick.
         /// </summary>
         public void Apply(ForceFrame frame, long nowMs)
         {
@@ -268,23 +266,31 @@ namespace AB9ActiveShifter.Device
 
             _springsPrimed = true;
 
-            if (!_constantXPrimed || ShouldWriteConstant(frame.ConstantX, _lastConstantX, _lastConstantXMs, nowMs))
+            bool wantX = !_constantXPrimed || WantsConstantWrite(frame.ConstantX, _lastConstantX);
+            bool wantY = !_constantYPrimed || WantsConstantWrite(frame.ConstantY, _lastConstantY);
+
+            if (wantX && wantY)
+            {
+                _lastContendedWriteWasY = !_lastContendedWriteWasY;
+                if (_lastContendedWriteWasY) wantX = false;
+                else wantY = false;
+            }
+
+            if (wantX)
             {
                 if (WriteConstant(_constantX, _pConstantX, _forceX, frame.ConstantX, "constantX"))
                 {
                     _lastConstantX = frame.ConstantX;
-                    _lastConstantXMs = nowMs;
                     _constantXPrimed = true;
                 }
                 else ok = false;
             }
 
-            if (!_constantYPrimed || ShouldWriteConstant(frame.ConstantY, _lastConstantY, _lastConstantYMs, nowMs))
+            if (wantY)
             {
                 if (WriteConstant(_constantY, _pConstantY, _forceY, frame.ConstantY, "constantY"))
                 {
                     _lastConstantY = frame.ConstantY;
-                    _lastConstantYMs = nowMs;
                     _constantYPrimed = true;
                 }
                 else ok = false;
@@ -299,7 +305,7 @@ namespace AB9ActiveShifter.Device
             if (ok) _strikes = 0;
         }
 
-        private static bool ShouldWriteConstant(int value, int last, long lastMs, long nowMs)
+        private static bool WantsConstantWrite(int value, int last)
         {
             if (value == last) return false;
 
@@ -307,8 +313,7 @@ namespace AB9ActiveShifter.Device
             // failure mode that is felt in the hand.
             if (value == 0) return true;
 
-            if (Math.Abs(value - last) < ConstantDeadband) return false;
-            return nowMs - lastMs >= ConstantMinIntervalMs;
+            return Math.Abs(value - last) >= ConstantDeadband;
         }
 
         private bool WriteCondition(Effect effect, EffectParameters parameters, Condition[] conditions,

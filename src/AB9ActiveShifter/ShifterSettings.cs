@@ -29,7 +29,7 @@ namespace AB9ActiveShifter
         private uint _vJoyDeviceId = 1;
         private int _vendorId = 0x346E;
         private int _productId = 0x1000;
-        private int _tickHz = 400;
+        private int _tickHz = 1000;
 
         private int _columnPinForcePct = 90;
         private int _channelWallForcePct = 90;
