@@ -179,7 +179,8 @@ namespace AB9ActiveShifter.Core
                           * _constantSignX;
 
             // The horizontal guide. Lined up with a column this nearly vanishes so a gear can be
-            // taken; between columns it is a full wall.
+            // taken; between columns it is a full wall. The channel has width for the same reason
+            // a slot does, so the stick is free within it rather than pulled to its centre line.
             double block = _geo.ChannelBlockFactor(x, _cfg.WallBlend);
             int plateau = (int)Math.Round(_channelGuideForce + (_channelWallForce - _channelGuideForce) * block);
 
@@ -187,7 +188,7 @@ namespace AB9ActiveShifter.Core
                 y - GateGeometry.AxisCenter,
                 plateau,
                 _cfg.WallRamp,
-                _cfg.WallDeadBand) * _constantSignY;
+                _geo.ChannelHalfEnter) * _constantSignY;
 
             return f;
         }
@@ -200,14 +201,15 @@ namespace AB9ActiveShifter.Core
                 SpringY = SpringPreset.Off
             };
 
-            // The vertical guide: hold the stick on the column so the slot runs true. Barriers
-            // are a neutral-channel affair and stay out of it - once committed to a gear there
-            // is nothing left to push through.
+            // The vertical guide: the two walls of the slot, with a free corridor between them.
+            // Deliberately not a pull toward the centre line - that would put an equilibrium in
+            // the middle of the slot for the stick to hunt around. Barriers are a neutral-channel
+            // affair and stay out of it; once committed to a gear there is nothing to push through.
             f.ConstantX = Saturating(
                 x - _geo.ColumnTarget(column),
                 _columnPinForce,
                 _cfg.WallRamp,
-                _cfg.WallDeadBand) * _constantSignX;
+                SlotCorridor(column)) * _constantSignX;
 
             f.ConstantY = DetentMagnitude(direction, y) * _constantSignY;
 
@@ -231,6 +233,17 @@ namespace AB9ActiveShifter.Core
 
             int force = (int)Math.Round(plateau * t);
             return displacement > 0 ? -force : force;
+        }
+
+        /// <summary>
+        /// Half-width of the free corridor inside a slot, kept inside the band the state machine
+        /// uses to decide the stick has left the column. A corridor wider than that would let the
+        /// stick drift out of its own gear with no wall ever pushing back.
+        /// </summary>
+        private int SlotCorridor(Column column)
+        {
+            int limit = Math.Max(0, _geo.ColumnFreeHalfWidth(column) - 100);
+            return GateGeometry.Clamp(_cfg.SlotHalfWidth, 0, limit);
         }
 
         /// <summary>Sum of the humps guarding each gap between adjacent columns.</summary>

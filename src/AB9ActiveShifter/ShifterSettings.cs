@@ -41,6 +41,7 @@ namespace AB9ActiveShifter
         private int _barrierWidth = 2500;
         private int _wallBlend = 1500;
         private int _wallDeadBand = 120;
+        private int _slotHalfWidth = 1100;
         private int _dampingPct = 25;
         private int _damperCoeff = 800;
         private int _detentResistPct = 22;
@@ -107,6 +108,9 @@ namespace AB9ActiveShifter
         public int WallBlend { get { return _wallBlend; } set { Set(ref _wallBlend, value); } }
         public int WallDeadBand { get { return _wallDeadBand; } set { Set(ref _wallDeadBand, value); } }
 
+        /// <summary>Free lateral corridor inside a slot. Widen it if a gear shakes when seated.</summary>
+        public int SlotHalfWidth { get { return _slotHalfWidth; } set { Set(ref _slotHalfWidth, value); } }
+
         /// <summary>Velocity damping. This, not the device damper, is what settles a stiff wall.</summary>
         public int DampingPct { get { return _dampingPct; } set { Set(ref _dampingPct, value); } }
 
@@ -169,6 +173,7 @@ namespace AB9ActiveShifter
                 BarrierWidth = BarrierWidth,
                 WallBlend = WallBlend,
                 WallDeadBand = WallDeadBand,
+                SlotHalfWidth = SlotHalfWidth,
                 DamperCoeff = DamperCoeff,
                 DetentResistPct = DetentResistPct,
                 DetentPullPct = DetentPullPct,
@@ -209,6 +214,7 @@ namespace AB9ActiveShifter
                 BarrierWidth = d.BarrierWidth;
                 WallBlend = d.WallBlend;
                 WallDeadBand = d.WallDeadBand;
+                SlotHalfWidth = d.SlotHalfWidth;
                 DamperCoeff = d.DamperCoeff;
                 DetentResistPct = d.DetentResistPct;
                 DetentPullPct = d.DetentPullPct;
