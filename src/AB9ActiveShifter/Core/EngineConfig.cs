@@ -100,16 +100,16 @@ namespace AB9ActiveShifter.Core
         // Force shaping (axis counts)
 
         /// <summary>
-        /// How far into a wall the force takes to reach its plateau - the wall's face. Keep it
-        /// short. The ramp is the only place a hand can rest on a force gradient, and a stiff
-        /// gradient rendered through USB delay oscillates no matter how it is damped: on this
-        /// base, widening the ramp, running the loop 2.5x faster and adding physical damping
-        /// each changed the buzz's pitch and nothing else. The plateau past the ramp is flat,
-        /// and a flat force has nothing to pump - which is why the original constant-force
-        /// lockout never rang. All the ramp does is cage what is left: the flutter can never
-        /// be wider than the ramp itself, so a short face means a hard and quiet wall.
+        /// How far into a wall the force takes to reach its plateau - the wall's face, and the
+        /// dial that sets its character. The plateau past the face is flat and cannot
+        /// oscillate; the face is a gradient rendered through USB delay, which no software
+        /// damping can stabilise, so the face is always a compromise. Too short and it is a
+        /// step: contact lands as a delay-late blow and a light sustained press vibrates
+        /// against it. Too long and the wall goes spongy and hosts the old wide buzz. The
+        /// 1 kHz loop roughly doubled the stable range compared to where this project started,
+        /// so a middle value now holds firm and stays quiet - found by feel on the hardware.
         /// </summary>
-        public int WallRamp = 250;
+        public int WallRamp = 600;
 
         /// <summary>How quickly the soft column detent reaches full strength.</summary>
         public int DetentRamp = 2500;
@@ -136,6 +136,24 @@ namespace AB9ActiveShifter.Core
         /// fling the lever back.
         /// </summary>
         public int WallYieldPct = 45;
+
+        /// <summary>
+        /// Milliseconds for a wall's force to build to full scale once contact begins. Zero
+        /// turns time shaping off entirely. This is the hammer fix: a flat wall is calm to
+        /// lean on, but its face is a step, and a step delivered several milliseconds late
+        /// lands as a blow - the stick is thrown back out, the hand brings it back, and it
+        /// fires again, felt as ABS-like kicking. Nothing mechanical is a true step; real
+        /// contact winds up over milliseconds. So the wall stays flat in position but becomes
+        /// progressive in time: force may only grow this fast, release stays instant so a
+        /// retreating stick is never chased, and a hand holding still against the wall gets a
+        /// frozen force rather than one that tracks every sensor count - static friction, the
+        /// piece that stops a light sustained press from vibrating on the wall's face.
+        ///
+        /// Off by default: a well-chosen bite usually settles the walls on its own. Reach for
+        /// this if a short bite kicks on contact, or if corners hammer - that is where both
+        /// axes' walls land at once.
+        /// </summary>
+        public int WallAttackMs = 0;
 
         /// <summary>Speeds below this are treated as leaning, in axis counts per second.</summary>
         public int YieldVelocityDeadband = 1500;
