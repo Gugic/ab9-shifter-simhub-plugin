@@ -86,14 +86,15 @@ namespace AB9ActiveShifter.Core
         /// <summary>Humps between the ordinary columns, felt as you slide across the gate.</summary>
         public int BarrierForcePct = 15;
 
-        /// <summary>The lockout gate before 7/R: a flat fight at this force, snapping over at its centre.</summary>
+        /// <summary>The lockout gate before 7/R: a flat one-way fight at this force, all the way across.</summary>
         public int LockoutForcePct = 70;
 
         /// <summary>
         /// Half-width of the lockout gate. The lockout is a dot on the neutral channel, not a
         /// zone: the walls own the rest of the box, so it only needs to guard the crossing into
-        /// the 7/R column. Flat force across each side of this band - the fight - with an
-        /// over-centre release in the middle and free travel beyond.
+        /// the 7/R column. Flat one-way force across the band, free travel beyond. The width is
+        /// also the gate's energy budget - force times band is the toll a flick must pay to get
+        /// through - so if fast slams still sneak past, widen this or raise the force.
         /// </summary>
         public int LockoutHalfWidth = 2200;
 

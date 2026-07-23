@@ -167,14 +167,14 @@
                                              ShowResetButton="True" ResetValue="25"
                                              Value="{Binding DampingPct, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
-                                       Text="A wall is flat past its bite, so the bite is where all trouble lives. Too short and it is a step - contact kicks, and a light press vibrates against it; too long and the wall goes spongy and can buzz. Raise the bite until the vibration stops, and no further. Wall attack is a second dial in time instead of space: force builds over these milliseconds on contact, releases instantly, and freezes while you press and hold still. Try 10-25 if short bites kick or corners hammer. Rebound absorption drains what a bounce returns; damping thickens the lever but cannot fix a buzz alone." />
+                                       Text="A wall is flat past its bite, so the bite is where all trouble lives. Too short and it is a step - contact kicks, and a light press vibrates against it; too long and the wall goes spongy and can buzz. Raise the bite until the vibration stops, and no further. Wall attack is a second dial in time instead of space: force builds over these milliseconds on contact, releases instantly, and freezes while you press and hold still. Try 10-25 if short bites kick or corners hammer. Rebound absorption drains what a bounce returns; damping thickens the lever but cannot fix a buzz alone. The attack shapes walls only - the lockout, humps and detents stay sharp so speed cannot slip past them." />
                         </StackPanel>
                     </styles:SHSection>
 
                     <styles:SHSection Title="SLIDING ACROSS THE GATE" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
-                                       Text="What the hand feels moving along the neutral channel: a light pull into each column, a hump to climb between the ordinary columns, and the lockout gate before 7/R - a flat fight either side of a snap-over point, guarding just the crossing. Keeping the stick in line is the walls' job, so the gate can stay compact." />
+                                       Text="What the hand feels moving along the neutral channel: a light pull into each column, a hump to climb between the ordinary columns, and the lockout gate before 7/R - a one-way fight, flat toward the main gears across a compact band, so a fast flick pays the same price as a slow push. Leaving 7/R is assisted, like a real range gate. Its width times its force is the toll: if slams still get through, widen or strengthen it." />
 
                             <ui:TitledSlider Title="Lockout gate, guarding 7/R (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="70"

@@ -255,21 +255,55 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void LockoutIsFlatWhereTheHandFightsIt()
+        public void LockoutIsFlatAndOneWayAcrossItsWholeBand()
         {
-            // The stability property, and the reason the lockout never rang: across the fight
-            // there is no gradient, so there is nothing for the loop's delay to pump. The same
-            // force everywhere on the flat, zero at the over-centre point.
+            // Two properties in one shape. Flat: no gradient anywhere in the fight, so there
+            // is nothing for the loop's delay to pump. One-way: the push is toward the main
+            // gears on both sides of the centre, because an over-centre gate refunds past its
+            // crest the energy it charged before it - which let a fast flick through for free.
             EngineConfig cfg = FullGainConfig();
             cfg.ColumnDetentForcePct = 0;
             cfg.BarrierForcePct = 0;
             ForceComposer c = Composer(cfg);
 
-            int near = Neutral(c, LockoutCrest - 800, Center).ConstantX;
-            int far = Neutral(c, LockoutCrest - 2000, Center).ConstantX;
+            foreach (int offset in new[] { -2000, -800, 0, 800, 2000 })
+            {
+                Assert.Equal(-7000, Neutral(c, LockoutCrest + offset, Center).ConstantX);
+            }
+        }
 
-            Assert.Equal(near, far);
-            Assert.Equal(-7000, near);
+        [Fact]
+        public void LockoutIsNeverSlewedByTheWallAttack()
+        {
+            // The attack shapes walls, the surfaces a hand rests on. The lockout is a crossing
+            // that charges a toll, and slewing it would hand a fast flick a discount: at flick
+            // speed the band is crossed in less time than the attack takes to reach full force.
+            EngineConfig cfg = FullGainConfig();
+            cfg.WallAttackMs = 20;
+            cfg.ColumnDetentForcePct = 0;
+            cfg.BarrierForcePct = 0;
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+
+            int first = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                  LockoutCrest - 1500, Center, 30000, 0, dtMs: 1).ConstantX;
+            Assert.Equal(-7000, first);
+        }
+
+        [Fact]
+        public void LockoutFollowsTheMirroredGearMap()
+        {
+            // Mirroring puts 7/R at the other physical end of the gate, so the gate guarding
+            // it must move to that gap and push the other way - toward where the main gears
+            // now live.
+            EngineConfig cfg = FullGainConfig();
+            cfg.MirrorColumns = true;
+            cfg.ColumnDetentForcePct = 0;
+            cfg.BarrierForcePct = 0;
+            ForceComposer c = Composer(cfg);
+
+            int mirroredCrest = (C1 + C2) / 2;
+            Assert.Equal(7000, Neutral(c, mirroredCrest, Center).ConstantX);
             Assert.Equal(0, Neutral(c, LockoutCrest, Center).ConstantX);
         }
 
@@ -328,14 +362,16 @@ namespace AB9ActiveShifter.Tests
         [Fact]
         public void BarrierRepelsFromItsCrestOnBothSides()
         {
-            // Left of centre the gate resists entry; once snapped over centre it pushes on
-            // toward 7/R rather than shoving the stick back where it came from.
+            // An ordinary hump resists on the way up and helps on the way down - unlike the
+            // lockout, these are meant to be cheap to cross.
             EngineConfig cfg = FullGainConfig();
             cfg.ColumnDetentForcePct = 0;
+            cfg.LockoutForcePct = 0;
             ForceComposer c = Composer(cfg);
 
-            Assert.True(Neutral(c, LockoutCrest + 2000, Center).ConstantX > 0, "should push on toward 7/R");
-            Assert.True(Neutral(c, LockoutCrest - 2000, Center).ConstantX < 0, "should push back toward 5/6");
+            int crest = (C1 + C2) / 2;
+            Assert.True(Neutral(c, crest + 2000, Center).ConstantX > 0, "should push on toward the next column");
+            Assert.True(Neutral(c, crest - 2000, Center).ConstantX < 0, "should push back where it came from");
         }
 
         [Fact]
@@ -565,6 +601,22 @@ namespace AB9ActiveShifter.Tests
                                  between, deep, 0, 20000, dtMs: 1).ConstantY;
             }
             Assert.Equal(-9000, last);
+        }
+
+        [Fact]
+        public void ASlotWallAttacksLikeAChannelWall()
+        {
+            // The shaping covers both kinds of wall: fore/aft in the channel, sideways in a
+            // slot. The slot wall is the one whose face is clamped short by the gear-exit
+            // band, so it needs the attack most.
+            EngineConfig cfg = FullGainConfig();
+            cfg.WallAttackMs = 20;
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+
+            int first = c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd,
+                                  C2 + 2300, 2000, 20000, 0, dtMs: 1).ConstantX;
+            Assert.Equal(-500, first);
         }
 
         [Fact]
