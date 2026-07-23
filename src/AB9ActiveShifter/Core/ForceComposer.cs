@@ -22,9 +22,9 @@ namespace AB9ActiveShifter.Core
     /// The gate is then just three kinds of force:
     ///
     ///   Lateral, in the neutral channel - a light detent onto the nearest column, a hump at
-    ///   each gap between the ordinary columns, and the lockout gate before 7/R: flat force
-    ///   either side of an over-centre point. A dot on the channel, not a zone - the walls own
-    ///   the rest of the box.
+    ///   each gap between the ordinary columns, and the lockout gate before 7/R: a compact
+    ///   band of flat one-way force toward the main gears, so crossing costs the same fight
+    ///   at any speed. A dot on the channel, not a zone - the walls own the rest of the box.
     ///
     ///   Lateral, once in a column - a firm pin onto that column, so fore/aft travel tracks the
     ///   slot instead of wandering out of it. This is the vertical guide.
@@ -177,8 +177,15 @@ namespace AB9ActiveShifter.Core
             int boundedX = Yield(frame.ConstantX, vx, _yieldFloor);
             int boundedY = Yield(frame.ConstantY, vy, state == GateState.Neutral ? _yieldFloor : _snickFloor);
 
-            boundedX = ShapeInTime(ref _shapedX, boundedX, vx, dtMs);
-            boundedY = ShapeInTime(ref _shapedY, boundedY, vy, dtMs);
+            // Time shaping applies to walls only - the surfaces a hand rests against. In the
+            // neutral channel that is the fore/aft wall; in a column it is the slot wall. The
+            // lockout, the humps and the detents are crossings: they exist to charge a price
+            // for passing, and slewing them would hand a fast flick a discount.
+            bool wallX = state != GateState.Neutral;
+            bool wallY = state == GateState.Neutral;
+
+            boundedX = wallX ? ShapeInTime(ref _shapedX, boundedX, vx, dtMs) : Track(ref _shapedX, boundedX);
+            boundedY = wallY ? ShapeInTime(ref _shapedY, boundedY, vy, dtMs) : Track(ref _shapedY, boundedY);
 
             // Damping joins after the yield and the time shaping - it opposes motion by
             // construction, so it can never be the assisting force the yield softens, and it
@@ -188,6 +195,13 @@ namespace AB9ActiveShifter.Core
 
             frame.DamperCoefficient = _damperCoeff;
             return frame;
+        }
+
+        /// <summary>Unshaped passthrough that keeps the shaping state continuous across mode changes.</summary>
+        private static int Track(ref int shaped, int value)
+        {
+            shaped = value;
+            return value;
         }
 
         /// <summary>
@@ -381,17 +395,21 @@ namespace AB9ActiveShifter.Core
             return GateGeometry.Clamp(_cfg.SlotHalfWidth, 0, limit);
         }
 
-        /// <summary>Humps guarding the ordinary gaps, and the lockout gate guarding the last.</summary>
+        /// <summary>Humps guarding the ordinary gaps, and the lockout gate guarding 7/R's gap.</summary>
         private int BarrierForceAt(int x)
         {
             int total = 0;
+
+            // The 7/R column sits at the far end of the gear map, which mirroring moves to the
+            // other physical end of the gate - the lockout guards wherever 7/R actually is.
+            int lockoutGap = _cfg.MirrorColumns ? 0 : GateGeometry.ColumnCount - 2;
 
             for (int i = 0; i < GateGeometry.ColumnCount - 1; i++)
             {
                 int d = x - _geo.BarrierCentre(i);
 
-                total += i == GateGeometry.ColumnCount - 2
-                    ? LockoutGate(d, _lockoutForce, _cfg.LockoutHalfWidth, _cfg.WallRamp)
+                total += i == lockoutGap
+                    ? LockoutGate(d, _lockoutForce, _cfg.LockoutHalfWidth, _cfg.WallRamp, _cfg.MirrorColumns)
                     : Hump(d, _barrierForce, _cfg.BarrierWidth);
             }
 
@@ -399,30 +417,28 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// The gate before 7/R: flat force across each side of a compact band, an over-centre
-        /// crossover in the middle, free travel beyond. Flat on purpose - the whole fight
-        /// happens on zero gradient, the shape that cannot ring - and the crossover means it
-        /// snaps through and then helps, instead of shoving from nowhere. It guards only the
-        /// crossing itself; keeping the stick in the channel is the walls' job.
+        /// The gate before 7/R: flat force across a compact band, pushing toward the main
+        /// gears the whole way, free travel beyond. Flat because a gradient rings; one-way
+        /// because an over-centre gate refunds past its crest the energy it charged before it,
+        /// which lets a fast flick sail through for nearly nothing - measured by hand. With no
+        /// refund, crossing costs the full fight at any speed, and the faces at both ends mean
+        /// leaving 7/R winds up briefly and is then assisted, like a real range gate. It
+        /// guards only the crossing; keeping the stick in the channel is the walls' job.
         /// </summary>
-        private static int LockoutGate(int displacement, int strength, int halfWidth, int ramp)
+        private static int LockoutGate(int displacement, int strength, int halfWidth, int ramp, bool mirrored)
         {
             if (strength <= 0 || halfWidth <= 0) return 0;
 
             int m = Math.Abs(displacement);
 
-            // The over-centre crossover gets a floor so the sign flip at the middle is a snick,
-            // not a single-count bang, and both slopes are capped against the gate's own width:
-            // a long wall bite must not stretch the gate into a soft triangle bleeding into the
-            // columns - the fight in the middle of the band stays flat regardless.
-            int cross = Math.Max(Math.Min(ramp, halfWidth / 2), 400);
+            // The entry face is capped against the gate's own width, so a long wall bite
+            // cannot stretch the band toward the columns.
             int face = Math.Max(Math.Min(ramp, halfWidth), 1);
 
-            double p = GateGeometry.Clamp(
-                Math.Min(m / (double)cross, (halfWidth + face - m) / (double)face), 0.0, 1.0);
+            double p = GateGeometry.Clamp((halfWidth + face - m) / (double)face, 0.0, 1.0);
 
             int force = (int)Math.Round(strength * p);
-            return displacement > 0 ? force : -force;
+            return mirrored ? force : -force;
         }
 
         /// <summary>
