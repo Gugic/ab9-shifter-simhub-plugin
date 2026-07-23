@@ -175,6 +175,12 @@ namespace AB9ActiveShifter.Core
         private void RunLoop()
         {
             NativeMethods.TimeBeginPeriod(1);
+            _paceTimer = NativeMethods.TryCreateHighResolutionTimer();
+            if (_paceTimer == null)
+            {
+                Log.Info("High-resolution timer unavailable; pacing with sleep and spin.");
+            }
+
             var clock = Stopwatch.StartNew();
 
             long nextOpenAttemptMs = 0;
@@ -253,20 +259,43 @@ namespace AB9ActiveShifter.Core
                     Teardown();
                 }
 
+                if (_paceTimer != null)
+                {
+                    _paceTimer.Dispose();
+                    _paceTimer = null;
+                }
+
                 NativeMethods.TimeEndPeriod(1);
                 _running = false;
             }
         }
 
-        private static long PaceTick(long nextDue, long periodTicks)
+        private Microsoft.Win32.SafeHandles.SafeWaitHandle _paceTimer;
+
+        private long PaceTick(long nextDue, long periodTicks)
         {
             while (true)
             {
                 long remaining = nextDue - Stopwatch.GetTimestamp();
                 if (remaining <= 0) break;
 
-                double remainingMs = remaining * 1000.0 / Stopwatch.Frequency;
-                if (remainingMs > 1.5) Thread.Sleep(1);
+                long remainingUs = remaining * 1000000 / Stopwatch.Frequency;
+
+                // The high-resolution timer sleeps fractions of a millisecond without spinning,
+                // which is what makes a 1 kHz tick affordable; the sleep-and-spin path is the
+                // fallback for old Windows builds.
+                if (_paceTimer != null && remainingUs > 80)
+                {
+                    if (!NativeMethods.WaitMicroseconds(_paceTimer, remainingUs - 50))
+                    {
+                        _paceTimer.Dispose();
+                        _paceTimer = null;
+                        Log.Warn("High-resolution timer failed; pacing with sleep and spin.");
+                    }
+                    continue;
+                }
+
+                if (remainingUs > 1500) Thread.Sleep(1);
                 else Thread.SpinWait(64);
             }
 

@@ -274,7 +274,7 @@
                                              ShowResetButton="True" ResetValue="1"
                                              Value="{Binding VJoyDeviceId, Mode=TwoWay}" />
                             <ui:TitledSlider Title="FFB loop rate (Hz)" Minimum="100" Maximum="1000" TickFrequency="50"
-                                             ShowResetButton="True" ResetValue="400"
+                                             ShowResetButton="True" ResetValue="1000"
                                              Value="{Binding TickHz, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
                                        Text="The device is matched by USB vendor and product id. The AB9 is 346E / 1000; only change these if your base enumerates differently." />
