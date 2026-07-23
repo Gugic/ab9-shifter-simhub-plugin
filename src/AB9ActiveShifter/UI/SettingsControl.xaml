@@ -149,12 +149,14 @@
                             <ui:TitledSlider Title="Fore/aft drag while on a column (%)" Minimum="0" Maximum="40"
                                              TickFrequency="1" ShowResetButton="True" ResetValue="5"
                                              Value="{Binding ChannelGuideForcePct, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Wall bite distance (axis counts)" Minimum="100" Maximum="4000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="600"
+                            <ui:TitledSlider Title="Wall bite distance (axis counts)" Minimum="200" Maximum="6000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="1400"
                                              Value="{Binding WallRamp, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Damping" Minimum="0" Maximum="5000" TickFrequency="100"
-                                             ShowResetButton="True" ResetValue="800"
-                                             Value="{Binding DamperCoeff, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Damping (%)" Minimum="0" Maximum="80" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="25"
+                                             Value="{Binding DampingPct, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="If a wall buzzes or shakes on its own it is too stiff for the damping behind it. Widen the bite distance first, then raise damping." />
                         </StackPanel>
                     </styles:SHSection>
 
@@ -180,15 +182,17 @@
 
                     <styles:SHSection Title="SLOT DETENT" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
-                            <ui:TitledSlider Title="Resistance entering the slot" Minimum="0" Maximum="8000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="2200"
-                                             Value="{Binding DetentResistMax, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Pull into the slot (the snick)" Minimum="0" Maximum="8000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="3000"
-                                             Value="{Binding DetentPullMax, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Seated hold" Minimum="0" Maximum="8000" TickFrequency="100"
-                                             ShowResetButton="True" ResetValue="1600"
-                                             Value="{Binding DetentHold, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Resistance entering the slot (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="22"
+                                             Value="{Binding DetentResistPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Pull into the slot, the snick (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="35"
+                                             Value="{Binding DetentPullPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Seated hold, keeps the gear in (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="55"
+                                             Value="{Binding DetentHoldPct, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="The seated hold has to beat whatever the base does by itself. A base that is still self-centring pulls hard at full deflection, and a light hold loses to it - the gear simply falls back out." />
                         </StackPanel>
                     </styles:SHSection>
 

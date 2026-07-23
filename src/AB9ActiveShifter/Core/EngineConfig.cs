@@ -84,8 +84,13 @@ namespace AB9ActiveShifter.Core
 
         // Force shaping (axis counts)
 
-        /// <summary>How quickly a wall reaches full strength. Short means solid.</summary>
-        public int WallRamp = 600;
+        /// <summary>
+        /// How quickly a wall reaches full strength. Shorter is more solid, but it is also the
+        /// loop's proportional gain: too short and the wall rings instead of holding, because
+        /// the stick crosses the whole ramp between ticks. Widen this before reaching for more
+        /// damping.
+        /// </summary>
+        public int WallRamp = 1400;
 
         /// <summary>How quickly the soft column detent reaches full strength.</summary>
         public int DetentRamp = 2500;
@@ -97,13 +102,37 @@ namespace AB9ActiveShifter.Core
         public int WallBlend = 1500;
 
         /// <summary>No wall force within this distance of target, to stop the stick dithering.</summary>
-        public int WallDeadBand = 60;
+        public int WallDeadBand = 120;
 
-        // Slot detent (DirectInput units, before the overall gain)
+        /// <summary>
+        /// Velocity damping, as a percentage of full force at <see cref="DampingReferenceSpeed"/>.
+        /// This is what stops a stiff wall oscillating. It is computed here from the axis
+        /// readings rather than asked of the device, because a damper is a condition effect and
+        /// conditions are far too weak on this base to settle anything.
+        /// </summary>
+        public int DampingPct = 25;
+
+        /// <summary>Speed at which damping reaches its full percentage, in axis counts per second.</summary>
+        public int DampingReferenceSpeed = 120000;
+
+        /// <summary>The device's own damper condition effect. Largely decorative on this base.</summary>
         public int DamperCoeff = 800;
-        public int DetentResistMax = 2200;
-        public int DetentPullMax = 3000;
-        public int DetentHold = 1600;
+
+        // Slot detent, on the same percent-of-full-force scale as the walls so the two can be
+        // compared at a glance.
+
+        /// <summary>Resistance felt on the way into a slot.</summary>
+        public int DetentResistPct = 22;
+
+        /// <summary>The pull over centre that seats the gear - the snick.</summary>
+        public int DetentPullPct = 35;
+
+        /// <summary>
+        /// What keeps a gear engaged. This has to out-pull whatever the base does on its own:
+        /// an AB9 that is still self-centring drags the stick home with most of its available
+        /// force at full deflection, and a light hold simply loses that argument.
+        /// </summary>
+        public int DetentHoldPct = 55;
 
         /// <summary>The gain actually applied, after the unconfirmed-polarity safety cap.</summary>
         public double EffectiveGain
