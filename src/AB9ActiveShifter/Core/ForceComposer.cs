@@ -43,6 +43,9 @@ namespace AB9ActiveShifter.Core
         private readonly int _detentHold;
         private readonly int _damperCoeff;
 
+        private readonly int _dampingForce;
+        private readonly double _dampingPerCount;
+
         private readonly int _constantSignX;
         private readonly int _constantSignY;
         private readonly bool _freeStick;
@@ -71,10 +74,13 @@ namespace AB9ActiveShifter.Core
             _barrierForce = Force(config.BarrierForcePct, gain);
             _lockoutForce = Force(config.LockoutForcePct, gain);
 
-            _detentResistMax = Scale(config.DetentResistMax, gain);
-            _detentPullMax = Scale(config.DetentPullMax, gain);
-            _detentHold = Scale(config.DetentHold, gain);
+            _detentResistMax = Force(config.DetentResistPct, gain);
+            _detentPullMax = Force(config.DetentPullPct, gain);
+            _detentHold = Force(config.DetentHoldPct, gain);
             _damperCoeff = Scale(config.DamperCoeff, gain);
+
+            _dampingForce = Force(config.DampingPct, gain);
+            _dampingPerCount = _dampingForce / (double)Math.Max(1, config.DampingReferenceSpeed);
         }
 
         /// <summary>Gain-scaled damping applied on every frame.</summary>
@@ -96,7 +102,12 @@ namespace AB9ActiveShifter.Core
             return (int)Math.Round(value * gain);
         }
 
-        public ForceFrame Compose(GateState state, Column column, ShiftDir direction, int x, int y)
+        /// <summary>
+        /// Forces for this tick. Velocities are axis counts per second, already smoothed by the
+        /// caller, and are what the damping term works from.
+        /// </summary>
+        public ForceFrame Compose(
+            GateState state, Column column, ShiftDir direction, int x, int y, int vx = 0, int vy = 0)
         {
             if (_freeStick) return FreeFrame();
 
@@ -104,8 +115,31 @@ namespace AB9ActiveShifter.Core
                 ? ComposeNeutral(x, y)
                 : ComposeInColumn(column, direction, x, y);
 
+            // Damping is added last, after the gate forces, so it opposes whatever the stick is
+            // actually doing rather than being folded into any one wall.
+            frame.ConstantX = Combine(frame.ConstantX, Damping(vx) * _constantSignX);
+            frame.ConstantY = Combine(frame.ConstantY, Damping(vy) * _constantSignY);
+
             frame.DamperCoefficient = _damperCoeff;
             return frame;
+        }
+
+        /// <summary>
+        /// Force opposing motion, proportional to speed up to the configured ceiling. Without
+        /// this a wall stiff enough to be worth having will ring: the stick overshoots the
+        /// ramp between ticks, gets pushed back, overshoots again, and settles into a buzz.
+        /// </summary>
+        private int Damping(int velocity)
+        {
+            if (_dampingForce <= 0 || velocity == 0) return 0;
+
+            double force = -velocity * _dampingPerCount;
+            return (int)Math.Round(GateGeometry.Clamp(force, -_dampingForce, _dampingForce));
+        }
+
+        private static int Combine(int a, int b)
+        {
+            return GateGeometry.Clamp(a + b, -GateGeometry.ForceMax, GateGeometry.ForceMax);
         }
 
         /// <summary>Everything off, so the stick is as free as the hardware allows.</summary>

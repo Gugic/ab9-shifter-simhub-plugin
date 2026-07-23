@@ -279,6 +279,66 @@ namespace AB9ActiveShifter.Core
             return due;
         }
 
+        /// <summary>
+        /// Smoothing applied to the measured velocity. A raw tick-to-tick difference is far too
+        /// noisy to damp against - the axis jitters by a few counts at rest, which at 400 Hz
+        /// reads as thousands of counts per second and would inject the very buzz damping is
+        /// meant to remove.
+        /// </summary>
+        private const double VelocitySmoothing = 0.25;
+
+        private long _velocityStamp;
+        private int _velocityLastX;
+        private int _velocityLastY;
+        private int _velocityX;
+        private int _velocityY;
+        private bool _velocityPrimed;
+
+        /// <summary>Forgets the current motion estimate, so a jump in position is not read as speed.</summary>
+        private void ResetVelocity()
+        {
+            _velocityPrimed = false;
+            _velocityX = 0;
+            _velocityY = 0;
+        }
+
+        private void UpdateVelocity(int x, int y)
+        {
+            long now = Stopwatch.GetTimestamp();
+
+            if (!_velocityPrimed)
+            {
+                _velocityPrimed = true;
+                _velocityStamp = now;
+                _velocityLastX = x;
+                _velocityLastY = y;
+                _velocityX = 0;
+                _velocityY = 0;
+                return;
+            }
+
+            double dt = (now - _velocityStamp) / (double)Stopwatch.Frequency;
+            _velocityStamp = now;
+
+            // A stalled or absurdly long tick says nothing useful about speed; keep the last
+            // estimate and resynchronise from this position.
+            if (dt < 0.0002 || dt > 0.05)
+            {
+                _velocityLastX = x;
+                _velocityLastY = y;
+                return;
+            }
+
+            double rawX = (x - _velocityLastX) / dt;
+            double rawY = (y - _velocityLastY) / dt;
+
+            _velocityLastX = x;
+            _velocityLastY = y;
+
+            _velocityX += (int)Math.Round((rawX - _velocityX) * VelocitySmoothing);
+            _velocityY += (int)Math.Round((rawY - _velocityY) * VelocitySmoothing);
+        }
+
         private void Tick(EngineConfig cfg, long nowMs, long tickCount, double loopHz)
         {
             lock (_deviceLock)
@@ -318,7 +378,10 @@ namespace AB9ActiveShifter.Core
                     }
                 }
 
-                ForceFrame frame = _composer.Compose(t.State, t.Column, t.Direction, x, y);
+                UpdateVelocity(x, y);
+
+                ForceFrame frame = _composer.Compose(
+                    t.State, t.Column, t.Direction, x, y, _velocityX, _velocityY);
                 _effects.Apply(frame, nowMs);
 
                 if (_effects.IsFaulted)

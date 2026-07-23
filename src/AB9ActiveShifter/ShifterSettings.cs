@@ -36,15 +36,16 @@ namespace AB9ActiveShifter
         private int _channelGuideForcePct = 5;
         private int _columnDetentForcePct = 12;
         private int _barrierForcePct = 15;
-        private int _wallRamp = 600;
+        private int _wallRamp = 1400;
         private int _detentRamp = 2500;
         private int _barrierWidth = 2500;
         private int _wallBlend = 1500;
-        private int _wallDeadBand = 60;
+        private int _wallDeadBand = 120;
+        private int _dampingPct = 25;
         private int _damperCoeff = 800;
-        private int _detentResistMax = 2200;
-        private int _detentPullMax = 3000;
-        private int _detentHold = 1600;
+        private int _detentResistPct = 22;
+        private int _detentPullPct = 35;
+        private int _detentHoldPct = 55;
 
         private int _channelHalfEnter = 1400;
         private int _channelHalfExit = 2400;
@@ -106,10 +107,13 @@ namespace AB9ActiveShifter
         public int WallBlend { get { return _wallBlend; } set { Set(ref _wallBlend, value); } }
         public int WallDeadBand { get { return _wallDeadBand; } set { Set(ref _wallDeadBand, value); } }
 
+        /// <summary>Velocity damping. This, not the device damper, is what settles a stiff wall.</summary>
+        public int DampingPct { get { return _dampingPct; } set { Set(ref _dampingPct, value); } }
+
         public int DamperCoeff { get { return _damperCoeff; } set { Set(ref _damperCoeff, value); } }
-        public int DetentResistMax { get { return _detentResistMax; } set { Set(ref _detentResistMax, value); } }
-        public int DetentPullMax { get { return _detentPullMax; } set { Set(ref _detentPullMax, value); } }
-        public int DetentHold { get { return _detentHold; } set { Set(ref _detentHold, value); } }
+        public int DetentResistPct { get { return _detentResistPct; } set { Set(ref _detentResistPct, value); } }
+        public int DetentPullPct { get { return _detentPullPct; } set { Set(ref _detentPullPct, value); } }
+        public int DetentHoldPct { get { return _detentHoldPct; } set { Set(ref _detentHoldPct, value); } }
 
         public int ChannelHalfEnter { get { return _channelHalfEnter; } set { Set(ref _channelHalfEnter, value); } }
         public int ChannelHalfExit { get { return _channelHalfExit; } set { Set(ref _channelHalfExit, value); } }
@@ -166,9 +170,10 @@ namespace AB9ActiveShifter
                 WallBlend = WallBlend,
                 WallDeadBand = WallDeadBand,
                 DamperCoeff = DamperCoeff,
-                DetentResistMax = DetentResistMax,
-                DetentPullMax = DetentPullMax,
-                DetentHold = DetentHold,
+                DetentResistPct = DetentResistPct,
+                DetentPullPct = DetentPullPct,
+                DetentHoldPct = DetentHoldPct,
+                DampingPct = DampingPct,
                 LockoutForcePct = LockoutForcePct
             };
         }
@@ -205,9 +210,10 @@ namespace AB9ActiveShifter
                 WallBlend = d.WallBlend;
                 WallDeadBand = d.WallDeadBand;
                 DamperCoeff = d.DamperCoeff;
-                DetentResistMax = d.DetentResistMax;
-                DetentPullMax = d.DetentPullMax;
-                DetentHold = d.DetentHold;
+                DetentResistPct = d.DetentResistPct;
+                DetentPullPct = d.DetentPullPct;
+                DetentHoldPct = d.DetentHoldPct;
+                DampingPct = d.DampingPct;
             }
 
             if (scope == ResetScope.Geometry || scope == ResetScope.Everything)

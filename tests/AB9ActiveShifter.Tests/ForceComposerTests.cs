@@ -50,10 +50,11 @@ namespace AB9ActiveShifter.Tests
             EngineConfig cfg = FullGainConfig();
             cfg.ChannelWallForcePct = 90;
             cfg.WallRamp = 600;
+            cfg.WallDeadBand = 120;
 
-            // Squarely between two columns, pushed fore/aft out of the channel.
+            // Squarely between two columns, pushed clear of the deadband and past the ramp.
             int between = (C2 + C3) / 2;
-            int force = Math.Abs(Neutral(Composer(cfg), between, Center - 700).ConstantY);
+            int force = Math.Abs(Neutral(Composer(cfg), between, Center - 900).ConstantY);
 
             Assert.Equal(9000, force);
         }
@@ -264,11 +265,129 @@ namespace AB9ActiveShifter.Tests
         public void SeatedHoldKeepsTheGearEngaged()
         {
             EngineConfig cfg = FullGainConfig();
-            cfg.DetentHold = 1600;
+            cfg.DetentHoldPct = 55;
             ForceComposer c = Composer(cfg);
 
-            Assert.Equal(-1600, c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, C2, 0).ConstantY);
-            Assert.Equal(1600, c.Compose(GateState.Engaged, Column.C2, ShiftDir.Back, C2, Max).ConstantY);
+            Assert.Equal(-5500, c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, C2, 0).ConstantY);
+            Assert.Equal(5500, c.Compose(GateState.Engaged, Column.C2, ShiftDir.Back, C2, Max).ConstantY);
+        }
+
+        [Fact]
+        public void SeatedHoldCanOutpullABaseThatStillSelfCentres()
+        {
+            // The AB9 measured here drags the stick home with roughly 90% of full force at full
+            // deflection. A hold weaker than that loses, and the gear falls straight back out -
+            // which is what a 16% hold used to do.
+            EngineConfig cfg = FullGainConfig();
+            ForceComposer c = Composer(cfg);
+
+            int hold = Math.Abs(c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, C2, 0).ConstantY);
+
+            Assert.True(hold >= 5000,
+                "seated hold " + hold + " is too weak to keep a gear against a self-centring base");
+        }
+
+        // ---------------------------------------------------------------- damping
+
+        [Fact]
+        public void DampingOpposesMotion()
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 25;
+            cfg.ChannelWallForcePct = 0;   // isolate damping from the walls
+            cfg.ColumnDetentForcePct = 0;
+            cfg.BarrierForcePct = 0;
+            cfg.LockoutForcePct = 0;
+            ForceComposer c = Composer(cfg);
+
+            ForceFrame moving = c.Compose(GateState.Neutral, Column.None, ShiftDir.None, C2, Center,
+                                          vx: 60000, vy: 60000);
+
+            Assert.True(moving.ConstantX < 0, "damping must push against rightward motion");
+            Assert.True(moving.ConstantY < 0, "damping must push against motion toward the player");
+        }
+
+        [Fact]
+        public void DampingIsProportionalToSpeedAndCappedAtTheReference()
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 25;
+            cfg.DampingReferenceSpeed = 120000;
+            cfg.ChannelWallForcePct = 0;
+            cfg.ColumnDetentForcePct = 0;
+            cfg.BarrierForcePct = 0;
+            cfg.LockoutForcePct = 0;
+            ForceComposer c = Composer(cfg);
+
+            int half = Math.Abs(c.Compose(GateState.Neutral, Column.None, ShiftDir.None, C2, Center,
+                                          0, 60000).ConstantY);
+            int atReference = Math.Abs(c.Compose(GateState.Neutral, Column.None, ShiftDir.None, C2, Center,
+                                                 0, 120000).ConstantY);
+            int wayOver = Math.Abs(c.Compose(GateState.Neutral, Column.None, ShiftDir.None, C2, Center,
+                                             0, 600000).ConstantY);
+
+            Assert.Equal(1250, half);
+            Assert.Equal(2500, atReference);
+            Assert.Equal(2500, wayOver);
+        }
+
+        [Fact]
+        public void AStationaryStickIsNotDamped()
+        {
+            EngineConfig cfg = FullGainConfig();
+            ForceComposer c = Composer(cfg);
+
+            ForceFrame still = c.Compose(GateState.Neutral, Column.None, ShiftDir.None, C2, Center, 0, 0);
+            ForceFrame implied = c.Compose(GateState.Neutral, Column.None, ShiftDir.None, C2, Center);
+
+            Assert.Equal(implied.ConstantX, still.ConstantX);
+            Assert.Equal(implied.ConstantY, still.ConstantY);
+        }
+
+        [Fact]
+        public void DampingFollowsTheMeasuredPolarityOfItsAxis()
+        {
+            // Damping is a constant force like everything else, so it has to be flipped by the
+            // same measured sign. Getting this backwards would turn the damper into an
+            // accelerator and make the shake worse rather than better.
+            EngineConfig plain = FullGainConfig();
+            EngineConfig inverted = FullGainConfig();
+            inverted.InvertConstantY = true;
+
+            foreach (EngineConfig cfg in new[] { plain, inverted })
+            {
+                cfg.ChannelWallForcePct = 0;
+                cfg.ColumnDetentForcePct = 0;
+                cfg.BarrierForcePct = 0;
+                cfg.LockoutForcePct = 0;
+            }
+
+            int a = Composer(plain).Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                            C2, Center, 0, 60000).ConstantY;
+            int b = Composer(inverted).Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                               C2, Center, 0, 60000).ConstantY;
+
+            Assert.Equal(-a, b);
+            Assert.NotEqual(0, a);
+        }
+
+        [Fact]
+        public void DampingNeverPushesTotalForceOutOfRange()
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 80;
+            cfg.ChannelWallForcePct = 100;
+            cfg.ColumnPinForcePct = 100;
+            cfg.LockoutForcePct = 100;
+            ForceComposer c = Composer(cfg);
+
+            foreach (int v in new[] { -900000, -120000, 0, 120000, 900000 })
+            {
+                ForceFrame f = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                         LockoutCrest + 2500, Center - 5000, v, v);
+                Assert.InRange(f.ConstantX, -GateGeometry.ForceMax, GateGeometry.ForceMax);
+                Assert.InRange(f.ConstantY, -GateGeometry.ForceMax, GateGeometry.ForceMax);
+            }
         }
 
         // ---------------------------------------------------------------- polarity and gain
