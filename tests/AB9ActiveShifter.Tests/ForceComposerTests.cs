@@ -288,6 +288,23 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void LockoutStaysBoundedEvenWithAHugeBite()
+        {
+            // The gate's slopes are capped against its own width: a 6000-count wall bite must
+            // not stretch the lockout into a soft triangle bleeding toward the columns. The
+            // middle of the band stays flat and the outside stays free.
+            EngineConfig cfg = FullGainConfig();
+            cfg.WallRamp = 6000;
+            cfg.ColumnDetentForcePct = 0;
+            cfg.BarrierForcePct = 0;
+            ForceComposer c = Composer(cfg);
+
+            Assert.Equal(-7000, Neutral(c, LockoutCrest - 1800, Center).ConstantX);
+            Assert.Equal(0, Neutral(c, LockoutCrest - 4500, Center).ConstantX);
+            Assert.Equal(0, Neutral(c, LockoutCrest + 4500, Center).ConstantX);
+        }
+
+        [Fact]
         public void AnOrdinaryBarrierPeaksAtItsWidthAndReleasesBeyond()
         {
             EngineConfig cfg = FullGainConfig();
@@ -521,6 +538,127 @@ namespace AB9ActiveShifter.Tests
             int force = c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, justInsideExit, 2000).ConstantX;
 
             Assert.Equal(-9000, force);
+        }
+
+        // ---------------------------------------------------------------- time shaping
+
+        [Fact]
+        public void AWallAttacksOverTimeInsteadOfArrivingAsAStep()
+        {
+            // With the attack on, contact winds up at a bounded rate instead of landing as a
+            // delay-late hammer blow. Full scale over 20 ms means 500 units per millisecond.
+            EngineConfig cfg = FullGainConfig();
+            cfg.WallAttackMs = 20;
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+            int deep = Center + 4000;
+
+            int first = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                  between, deep, 0, 20000, dtMs: 1).ConstantY;
+            Assert.Equal(-500, first);
+
+            int last = first;
+            for (int i = 0; i < 40; i++)
+            {
+                last = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                 between, deep, 0, 20000, dtMs: 1).ConstantY;
+            }
+            Assert.Equal(-9000, last);
+        }
+
+        [Fact]
+        public void ReleaseIsInstantEvenMidAttack()
+        {
+            // A retreating stick must never be chased by stale force: any drop passes through
+            // immediately, only growth is rate-limited.
+            EngineConfig cfg = FullGainConfig();
+            cfg.WallAttackMs = 20;
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            for (int i = 0; i < 3; i++)
+            {
+                c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                          between, Center + 4000, 0, 20000, dtMs: 1);
+            }
+
+            int released = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                     between, Center, 0, -20000, dtMs: 1).ConstantY;
+            Assert.Equal(0, released);
+        }
+
+        [Fact]
+        public void AStillHandGetsAFrozenForce()
+        {
+            // Static friction: pressed against the wall and effectively still, small force
+            // deviations are held instead of tracked. A delayed gradient can only pump through
+            // force changes, so freezing them is what quiets a light sustained press.
+            EngineConfig cfg = FullGainConfig();
+            cfg.WallAttackMs = 20;
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            for (int i = 0; i < 40; i++)
+            {
+                c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                          between, Center + 4000, 0, 20000, dtMs: 1);
+            }
+
+            // Drift back onto the face: the position asks for less force, but the hand is
+            // still, so the force stays frozen at the plateau.
+            int onFace = Center + cfg.ChannelHalfEnter + 500;
+            int frozen = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                   between, onFace, 0, 0, dtMs: 1).ConstantY;
+            Assert.Equal(-9000, frozen);
+
+            // The same position while genuinely moving tracks the face value immediately.
+            int moving = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                   between, onFace, 0, -20000, dtMs: 1).ConstantY;
+            Assert.True(Math.Abs(moving) < 9000, "a moving stick must be tracked: " + moving);
+        }
+
+        [Fact]
+        public void TimeShapingIsBypassedWhenOffOrWithoutTime()
+        {
+            // Attack zero is the escape hatch, and a zero dt (as every other test here uses)
+            // must behave exactly like the shaping never existed.
+            EngineConfig off = FullGainConfig();
+            off.DampingPct = 0;
+            int between = (C2 + C3) / 2;
+
+            int instant = Composer(off).Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                                between, Center + 4000, 0, 20000, dtMs: 1).ConstantY;
+            Assert.Equal(-9000, instant);
+
+            EngineConfig on = FullGainConfig();
+            on.WallAttackMs = 20;
+            on.DampingPct = 0;
+            int bypassed = Composer(on).Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                                between, Center + 4000, 0, 20000).ConstantY;
+            Assert.Equal(-9000, bypassed);
+        }
+
+        [Fact]
+        public void DampingKeepsFullBandwidthThroughTheAttack()
+        {
+            // Damping is the stabiliser; slewing it would defeat its purpose. It joins after
+            // the shaping and must appear at full strength from the first millisecond.
+            EngineConfig cfg = FullGainConfig();
+            cfg.WallAttackMs = 20;
+            cfg.DampingPct = 25;
+            cfg.ChannelWallForcePct = 0;
+            cfg.ChannelGuideForcePct = 0;
+            cfg.ColumnDetentForcePct = 0;
+            cfg.BarrierForcePct = 0;
+            cfg.LockoutForcePct = 0;
+            ForceComposer c = Composer(cfg);
+
+            int force = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                  C2, Center, 0, 120000, dtMs: 1).ConstantY;
+            Assert.Equal(-2500, force);
         }
 
         // ---------------------------------------------------------------- damping

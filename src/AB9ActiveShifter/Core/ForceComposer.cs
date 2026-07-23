@@ -73,9 +73,22 @@ namespace AB9ActiveShifter.Core
         private readonly int _yieldDeadband;
         private readonly int _yieldBlend;
 
+        /// <summary>Force growth rate in DirectInput units per millisecond; 0 disables shaping.</summary>
+        private readonly double _attackPerMs;
+
+        /// <summary>
+        /// While pressed and still, force deviations up to this are held frozen instead of
+        /// tracked. Sized to cover the face of a default wall (a few tens of counts of micro
+        /// motion at the steepest gradient), well below any deliberate change of pressure.
+        /// </summary>
+        private const int StaticHoldBand = 2000;
+
         private readonly int _constantSignX;
         private readonly int _constantSignY;
         private readonly bool _freeStick;
+
+        private int _shapedX;
+        private int _shapedY;
 
         private Column _detentColumn = Column.C2;
 
@@ -114,6 +127,10 @@ namespace AB9ActiveShifter.Core
             _snickFloor = 1.0 - yield * 0.33;
             _yieldDeadband = Math.Max(0, config.YieldVelocityDeadband);
             _yieldBlend = Math.Max(1, config.YieldVelocityBlend);
+
+            _attackPerMs = config.WallAttackMs <= 0
+                ? 0
+                : GateGeometry.ForceMax / (double)config.WallAttackMs;
         }
 
         /// <summary>Gain-scaled damping applied on every frame.</summary>
@@ -143,9 +160,15 @@ namespace AB9ActiveShifter.Core
         /// once at the very end, so the yield's same-direction test compares like with like.
         /// </summary>
         public ForceFrame Compose(
-            GateState state, Column column, ShiftDir direction, int x, int y, int vx = 0, int vy = 0)
+            GateState state, Column column, ShiftDir direction, int x, int y,
+            int vx = 0, int vy = 0, double dtMs = 0)
         {
-            if (_freeStick) return FreeFrame();
+            if (_freeStick)
+            {
+                _shapedX = 0;
+                _shapedY = 0;
+                return FreeFrame();
+            }
 
             ForceFrame frame = state == GateState.Neutral
                 ? ComposeNeutral(x, y)
@@ -154,13 +177,59 @@ namespace AB9ActiveShifter.Core
             int boundedX = Yield(frame.ConstantX, vx, _yieldFloor);
             int boundedY = Yield(frame.ConstantY, vy, state == GateState.Neutral ? _yieldFloor : _snickFloor);
 
-            // Damping joins after the yield - it opposes motion by construction, so it can
-            // never be the assisting force the yield exists to soften.
+            boundedX = ShapeInTime(ref _shapedX, boundedX, vx, dtMs);
+            boundedY = ShapeInTime(ref _shapedY, boundedY, vy, dtMs);
+
+            // Damping joins after the yield and the time shaping - it opposes motion by
+            // construction, so it can never be the assisting force the yield softens, and it
+            // must keep its full bandwidth rather than being slewed.
             frame.ConstantX = Combine(boundedX, Damping(vx)) * _constantSignX;
             frame.ConstantY = Combine(boundedY, Damping(vy)) * _constantSignY;
 
             frame.DamperCoefficient = _damperCoeff;
             return frame;
+        }
+
+        /// <summary>
+        /// The wall in time rather than in space, with three behaviours. Attack: force may
+        /// only grow at the configured rate, so contact winds up like a real surface instead
+        /// of landing as a delay-late hammer blow. Static hold: pressed against the same wall
+        /// and effectively still, small force deviations are frozen rather than tracked -
+        /// static friction, and the only thing that quiets a light press resting on the face,
+        /// where the gradient is far too steep for any damping to stabilise through this much
+        /// delay. Release: any drop, sign flip or let-go passes instantly, so a retreating
+        /// stick is never chased by stale force. A dt of zero bypasses shaping entirely.
+        /// </summary>
+        private int ShapeInTime(ref int shaped, int target, int velocity, double dtMs)
+        {
+            if (_attackPerMs <= 0 || dtMs <= 0)
+            {
+                shaped = target;
+                return shaped;
+            }
+
+            bool sameWall = target != 0 && shaped != 0 && Math.Sign(target) == Math.Sign(shaped);
+
+            if (sameWall
+                && Math.Abs(velocity) <= _yieldDeadband
+                && Math.Abs(target - shaped) <= StaticHoldBand)
+            {
+                return shaped;
+            }
+
+            // A sign flip or a fresh contact restarts the attack from nothing.
+            int from = sameWall ? shaped : 0;
+
+            if (Math.Abs(target) <= Math.Abs(from))
+            {
+                shaped = target;
+                return shaped;
+            }
+
+            int step = Math.Max(1, (int)Math.Round(_attackPerMs * dtMs));
+            int magnitude = Math.Min(Math.Abs(target), Math.Abs(from) + step);
+            shaped = Math.Sign(target) * magnitude;
+            return shaped;
         }
 
         /// <summary>
@@ -343,9 +412,11 @@ namespace AB9ActiveShifter.Core
             int m = Math.Abs(displacement);
 
             // The over-centre crossover gets a floor so the sign flip at the middle is a snick,
-            // not a single-count bang; the outer face uses the wall bite as-is.
-            int cross = Math.Max(ramp, 400);
-            int face = Math.Max(ramp, 1);
+            // not a single-count bang, and both slopes are capped against the gate's own width:
+            // a long wall bite must not stretch the gate into a soft triangle bleeding into the
+            // columns - the fight in the middle of the band stays flat regardless.
+            int cross = Math.Max(Math.Min(ramp, halfWidth / 2), 400);
+            int face = Math.Max(Math.Min(ramp, halfWidth), 1);
 
             double p = GateGeometry.Clamp(
                 Math.Min(m / (double)cross, (halfWidth + face - m) / (double)face), 0.0, 1.0);

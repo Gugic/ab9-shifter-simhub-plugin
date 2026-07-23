@@ -332,6 +332,28 @@ namespace AB9ActiveShifter.Core
             _velocityPrimed = false;
             _velocityX = 0;
             _velocityY = 0;
+            _composeStamp = 0;
+        }
+
+        private long _composeStamp;
+
+        /// <summary>
+        /// Milliseconds since the previous force composition, for the attack shaping. The
+        /// first tick after a reset reports the nominal period, so forces wind up softly from
+        /// zero on enable. Clamped so a stalled tick cannot dump a whole attack at once.
+        /// </summary>
+        private double ComposeDelta(EngineConfig cfg)
+        {
+            long now = Stopwatch.GetTimestamp();
+            long prev = _composeStamp;
+            _composeStamp = now;
+
+            if (prev == 0) return 1000.0 / Math.Max(1, cfg.TickHz);
+
+            double dtMs = (now - prev) * 1000.0 / Stopwatch.Frequency;
+            if (dtMs < 0.05) dtMs = 0.05;
+            if (dtMs > 5.0) dtMs = 5.0;
+            return dtMs;
         }
 
         private void UpdateVelocity(int x, int y)
@@ -413,7 +435,7 @@ namespace AB9ActiveShifter.Core
                 UpdateVelocity(x, y);
 
                 ForceFrame frame = _composer.Compose(
-                    t.State, t.Column, t.Direction, x, y, _velocityX, _velocityY);
+                    t.State, t.Column, t.Direction, x, y, _velocityX, _velocityY, ComposeDelta(cfg));
                 _effects.Apply(frame, nowMs);
 
                 if (_effects.IsFaulted)

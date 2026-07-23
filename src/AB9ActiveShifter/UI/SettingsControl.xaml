@@ -155,8 +155,11 @@
                                              TickFrequency="1" ShowResetButton="True" ResetValue="5"
                                              Value="{Binding ChannelGuideForcePct, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Wall bite distance (axis counts)" Minimum="60" Maximum="6000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="250"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="600"
                                              Value="{Binding WallRamp, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Wall attack (ms to full force, 0 = off)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="0"
+                                             Value="{Binding WallAttackMs, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Rebound absorption (%)" Minimum="0" Maximum="80" TickFrequency="5"
                                              ShowResetButton="True" ResetValue="45"
                                              Value="{Binding WallYieldPct, Mode=TwoWay}" />
@@ -164,7 +167,7 @@
                                              ShowResetButton="True" ResetValue="25"
                                              Value="{Binding DampingPct, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
-                                       Text="Past its bite a wall is flat, and a flat force cannot buzz - any flutter lives on the bite itself, so the bite's length is the cap on how wide a shake can get. If a wall oscillates, shorten the bite first. Rebound absorption then drains what a bounce returns: full strength while you lean on the wall, less on the throw-out. Damping mostly thickens the lever and will not fix a buzz by itself." />
+                                       Text="A wall is flat past its bite, so the bite is where all trouble lives. Too short and it is a step - contact kicks, and a light press vibrates against it; too long and the wall goes spongy and can buzz. Raise the bite until the vibration stops, and no further. Wall attack is a second dial in time instead of space: force builds over these milliseconds on contact, releases instantly, and freezes while you press and hold still. Try 10-25 if short bites kick or corners hammer. Rebound absorption drains what a bounce returns; damping thickens the lever but cannot fix a buzz alone." />
                         </StackPanel>
                     </styles:SHSection>
 
