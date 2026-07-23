@@ -25,6 +25,14 @@ namespace AB9ActiveShifter.Core
     ///   Fore/aft - held to the neutral channel in proportion to how far the stick is from a
     ///   column, so it is free to enter a gear when lined up and walled off when not. This is
     ///   the horizontal guide. Once in a column it gives way to the slot detent.
+    ///
+    /// Every force is rendered non-conservatively: full strength when it resists the stick's
+    /// motion or the stick is holding still, reduced strength when it is accelerating the stick
+    /// the way it is already going. A position-to-force loop over USB carries 5-10 ms of delay,
+    /// and a stiff wall rendered through delay acts as negative damping - each overshoot comes
+    /// back with interest and the wall rings. Giving back less energy on the rebound than was
+    /// stored on the way in starves that cycle at its source, which is how mechanical gates
+    /// stay quiet too: they are friction-damped and do not fling the lever back.
     /// </summary>
     public sealed class ForceComposer
     {
@@ -45,6 +53,18 @@ namespace AB9ActiveShifter.Core
 
         private readonly int _dampingForce;
         private readonly double _dampingPerCount;
+
+        /// <summary>Force multiplier on a rebound: 1 - WallYieldPct.</summary>
+        private readonly double _yieldFloor;
+
+        /// <summary>
+        /// Milder rebound floor for the slot detent. The snick is supposed to do positive work
+        /// pulling the stick home, so it keeps most of its strength while assisting.
+        /// </summary>
+        private readonly double _snickFloor;
+
+        private readonly int _yieldDeadband;
+        private readonly int _yieldBlend;
 
         private readonly int _constantSignX;
         private readonly int _constantSignY;
@@ -81,6 +101,12 @@ namespace AB9ActiveShifter.Core
 
             _dampingForce = Force(config.DampingPct, gain);
             _dampingPerCount = _dampingForce / (double)Math.Max(1, config.DampingReferenceSpeed);
+
+            double yield = GateGeometry.Clamp(config.WallYieldPct, 0, 90) / 100.0;
+            _yieldFloor = 1.0 - yield;
+            _snickFloor = 1.0 - yield * 0.33;
+            _yieldDeadband = Math.Max(0, config.YieldVelocityDeadband);
+            _yieldBlend = Math.Max(1, config.YieldVelocityBlend);
         }
 
         /// <summary>Gain-scaled damping applied on every frame.</summary>
@@ -103,8 +129,11 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// Forces for this tick. Velocities are axis counts per second, already smoothed by the
-        /// caller, and are what the damping term works from.
+        /// Forces for this tick. Velocities are axis counts per second, lightly smoothed by the
+        /// caller; they drive both the damping term and the rebound yield.
+        ///
+        /// Composition happens in the gate's own frame; the measured polarity signs are applied
+        /// once at the very end, so the yield's same-direction test compares like with like.
         /// </summary>
         public ForceFrame Compose(
             GateState state, Column column, ShiftDir direction, int x, int y, int vx = 0, int vy = 0)
@@ -115,19 +144,40 @@ namespace AB9ActiveShifter.Core
                 ? ComposeNeutral(x, y)
                 : ComposeInColumn(column, direction, x, y);
 
-            // Damping is added last, after the gate forces, so it opposes whatever the stick is
-            // actually doing rather than being folded into any one wall.
-            frame.ConstantX = Combine(frame.ConstantX, Damping(vx) * _constantSignX);
-            frame.ConstantY = Combine(frame.ConstantY, Damping(vy) * _constantSignY);
+            int boundedX = Yield(frame.ConstantX, vx, _yieldFloor);
+            int boundedY = Yield(frame.ConstantY, vy, state == GateState.Neutral ? _yieldFloor : _snickFloor);
+
+            // Damping joins after the yield - it opposes motion by construction, so it can
+            // never be the assisting force the yield exists to soften.
+            frame.ConstantX = Combine(boundedX, Damping(vx)) * _constantSignX;
+            frame.ConstantY = Combine(boundedY, Damping(vy)) * _constantSignY;
 
             frame.DamperCoefficient = _damperCoeff;
             return frame;
         }
 
         /// <summary>
-        /// Force opposing motion, proportional to speed up to the configured ceiling. Without
-        /// this a wall stiff enough to be worth having will ring: the stick overshoots the
-        /// ramp between ticks, gets pushed back, overshoots again, and settles into a buzz.
+        /// The rebound absorber. A force resisting the stick's motion, or acting on a stick
+        /// that is effectively still, passes through untouched - leaning on a wall stays solid.
+        /// A force accelerating the stick along its existing motion is scaled toward the floor
+        /// as speed grows, so a bounce off a wall returns less energy than the push stored.
+        /// </summary>
+        private int Yield(int force, int velocity, double floor)
+        {
+            if (force == 0 || floor >= 1.0) return force;
+            if (Math.Sign(force) != Math.Sign(velocity)) return force;
+
+            int speed = Math.Abs(velocity);
+            if (speed <= _yieldDeadband) return force;
+
+            double t = GateGeometry.Clamp((speed - _yieldDeadband) / (double)_yieldBlend, 0.0, 1.0);
+            double scale = 1.0 - (1.0 - floor) * t;
+            return (int)Math.Round(force * scale);
+        }
+
+        /// <summary>
+        /// Force opposing motion, proportional to speed up to the configured ceiling. The other
+        /// half of keeping a stiff wall quiet, and the part that also calms free travel.
         /// </summary>
         private int Damping(int velocity)
         {
@@ -175,8 +225,7 @@ namespace AB9ActiveShifter.Core
 
             lateral += BarrierForceAt(x);
 
-            f.ConstantX = GateGeometry.Clamp(lateral, -GateGeometry.ForceMax, GateGeometry.ForceMax)
-                          * _constantSignX;
+            f.ConstantX = GateGeometry.Clamp(lateral, -GateGeometry.ForceMax, GateGeometry.ForceMax);
 
             // The horizontal guide. Lined up with a column this nearly vanishes so a gear can be
             // taken; between columns it is a full wall. The channel has width for the same reason
@@ -188,7 +237,7 @@ namespace AB9ActiveShifter.Core
                 y - GateGeometry.AxisCenter,
                 plateau,
                 _cfg.WallRamp,
-                _geo.ChannelHalfEnter) * _constantSignY;
+                _geo.ChannelHalfEnter);
 
             return f;
         }
@@ -205,13 +254,23 @@ namespace AB9ActiveShifter.Core
             // Deliberately not a pull toward the centre line - that would put an equilibrium in
             // the middle of the slot for the stick to hunt around. Barriers are a neutral-channel
             // affair and stay out of it; once committed to a gear there is nothing to push through.
+            //
+            // The ramp is clamped so the wall reaches full strength before the state machine's
+            // exit band. Otherwise a firm sideways lean could drop the gear while the wall was
+            // still building, and the abrupt swap to neutral forces mid-lean is itself a source
+            // of oscillation - as well as a gear falling out for no visible reason.
+            int corridor = SlotCorridor(column);
+            int ramp = Math.Min(
+                _cfg.WallRamp,
+                Math.Max(200, _geo.ColumnExitHalfWidth(column) - corridor - 150));
+
             f.ConstantX = Saturating(
                 x - _geo.ColumnTarget(column),
                 _columnPinForce,
-                _cfg.WallRamp,
-                SlotCorridor(column)) * _constantSignX;
+                ramp,
+                corridor);
 
-            f.ConstantY = DetentMagnitude(direction, y) * _constantSignY;
+            f.ConstantY = DetentMagnitude(direction, y);
 
             return f;
         }

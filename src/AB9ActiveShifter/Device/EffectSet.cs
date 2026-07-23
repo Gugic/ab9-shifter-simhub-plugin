@@ -17,10 +17,15 @@ namespace AB9ActiveShifter.Device
     public sealed class EffectSet : IDisposable
     {
         /// <summary>Smallest constant-force change worth a device write.</summary>
-        private const int ConstantDeadband = 50;
+        private const int ConstantDeadband = 30;
 
-        /// <summary>Minimum gap between constant-force writes, in milliseconds.</summary>
-        private const int ConstantMinIntervalMs = 4;
+        /// <summary>
+        /// Minimum gap between constant-force writes, in milliseconds. This gate sits in the
+        /// wall-rendering path, where every millisecond of delay behaves as negative damping,
+        /// so it is kept below the tick interval - effectively one write per tick per axis,
+        /// and only when the value moved.
+        /// </summary>
+        private const int ConstantMinIntervalMs = 2;
 
         private const int MaxStrikes = 3;
 

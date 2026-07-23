@@ -105,6 +105,26 @@ namespace AB9ActiveShifter.Core
         public int WallDeadBand = 120;
 
         /// <summary>
+        /// How much of a wall's force is given up when it is accelerating the stick along the
+        /// direction it is already moving - the rebound - as a percentage. Forces resisting
+        /// motion, and forces on a stick that is holding still, are never reduced.
+        ///
+        /// This is what makes the walls stable. A position-to-force loop over USB carries
+        /// 5-10 ms of delay, and a stiff wall rendered through delay acts as negative damping:
+        /// each overshoot returns with interest, and the wall rings. Returning less energy on
+        /// the way out than was stored on the way in starves that cycle at the source. It is
+        /// also how a real gate behaves - mechanical gates are friction-damped and do not
+        /// fling the lever back.
+        /// </summary>
+        public int WallYieldPct = 45;
+
+        /// <summary>Speeds below this are treated as leaning, in axis counts per second.</summary>
+        public int YieldVelocityDeadband = 1500;
+
+        /// <summary>How quickly the yield reaches full effect above the deadband, in counts per second.</summary>
+        public int YieldVelocityBlend = 12000;
+
+        /// <summary>
         /// Half-width of the free corridor inside a slot. A real shifter slot has width: you feel
         /// its walls, not a pull toward its centre line. Modelling it as a restoring force instead
         /// puts an equilibrium point in the middle of the slot, and a stiff restoring force about
