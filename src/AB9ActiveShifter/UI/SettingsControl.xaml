@@ -129,33 +129,52 @@
                             <ui:TitledSlider Title="Overall gain (%)" Minimum="0" Maximum="100" TickFrequency="5"
                                              ShowResetButton="True" ResetValue="25"
                                              Value="{Binding OverallGainPct, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Lockout push-through force (% of overall gain)"
-                                             Minimum="0" Maximum="100" TickFrequency="5"
-                                             ShowResetButton="True" ResetValue="70"
-                                             Value="{Binding LockoutForcePct, Mode=TwoWay}" />
                             <TextBlock x:Name="LockoutSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0" />
                             <styles:SHButtonSecondary Click="OnResetForces" Content="Reset forces to defaults"
                                                       Padding="12,4" HorizontalAlignment="Left" Margin="0,10,0,0" />
                         </StackPanel>
                     </styles:SHSection>
 
-                    <styles:SHSection Title="GATE" ShowSeparator="True">
+                    <styles:SHSection Title="GATE WALLS" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
-                            <ui:TitledSlider Title="Column wall stiffness" Minimum="0" Maximum="10000" TickFrequency="500"
-                                             ShowResetButton="True" ResetValue="8000"
-                                             Value="{Binding WallCoeff, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Channel wall stiffness (between columns)" Minimum="0" Maximum="10000"
-                                             TickFrequency="500" ShowResetButton="True" ResetValue="9500"
-                                             Value="{Binding ChannelWallCoeff, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Channel guide (on a column)" Minimum="0" Maximum="5000"
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                       Text="Every wall is a percentage of full force, so 90% is a wall you cannot push through by hand. These are the same kind of force as the lockout, which is why they can be made properly solid." />
+
+                            <ui:TitledSlider Title="Gate wall, between columns (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="90"
+                                             Value="{Binding ChannelWallForcePct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Column hold, once in a slot (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="90"
+                                             Value="{Binding ColumnPinForcePct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Fore/aft drag while on a column (%)" Minimum="0" Maximum="40"
+                                             TickFrequency="1" ShowResetButton="True" ResetValue="5"
+                                             Value="{Binding ChannelGuideForcePct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Wall bite distance (axis counts)" Minimum="100" Maximum="4000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="600"
-                                             Value="{Binding ChannelGuideCoeff, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Neutral detent strength" Minimum="0" Maximum="5000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="600"
-                                             Value="{Binding NeutralDetentCoeff, Mode=TwoWay}" />
+                                             Value="{Binding WallRamp, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Damping" Minimum="0" Maximum="5000" TickFrequency="100"
                                              ShowResetButton="True" ResetValue="800"
                                              Value="{Binding DamperCoeff, Mode=TwoWay}" />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="SLIDING ACROSS THE GATE" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                       Text="What the hand feels moving along the neutral channel: a light pull into each column, and a hump to climb between them. The lockout is simply the hump guarding 7/R." />
+
+                            <ui:TitledSlider Title="Lockout, the hump guarding 7/R (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="70"
+                                             Value="{Binding LockoutForcePct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Humps between the other columns (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="15"
+                                             Value="{Binding BarrierForcePct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Hump width (axis counts)" Minimum="400" Maximum="8000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="2500"
+                                             Value="{Binding BarrierWidth, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Pull into a column (%)" Minimum="0" Maximum="60"
+                                             TickFrequency="1" ShowResetButton="True" ResetValue="12"
+                                             Value="{Binding ColumnDetentForcePct, Mode=TwoWay}" />
                         </StackPanel>
                     </styles:SHSection>
 
@@ -184,12 +203,18 @@
 
                     <styles:SHSection Title="LOCKOUT" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
-                            <ui:TitledSlider Title="Lockout starts at (axis position)" Minimum="35000" Maximum="62000"
+                            <ui:TitledSlider Title="Gate wall blend width (axis counts)" Minimum="200" Maximum="6000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="1500"
+                                             Value="{Binding WallBlend, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Wall deadband (axis counts)" Minimum="0" Maximum="600"
+                                             TickFrequency="10" ShowResetButton="True" ResetValue="60"
+                                             Value="{Binding WallDeadBand, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Column pull ramp (axis counts)" Minimum="300" Maximum="8000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="2500"
+                                             Value="{Binding DetentRamp, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Lockout shading starts at (display only)" Minimum="35000" Maximum="62000"
                                              TickFrequency="1000" ShowResetButton="True" ResetValue="48000"
                                              Value="{Binding LockoutStart, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Lockout ramp width (how abrupt the wall is)" Minimum="200" Maximum="10000"
-                                             TickFrequency="200" ShowResetButton="True" ResetValue="2500"
-                                             Value="{Binding LockoutRamp, Mode=TwoWay}" />
                         </StackPanel>
                     </styles:SHSection>
 
