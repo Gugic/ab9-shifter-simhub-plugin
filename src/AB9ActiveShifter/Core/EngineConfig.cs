@@ -86,18 +86,30 @@ namespace AB9ActiveShifter.Core
         /// <summary>Humps between the ordinary columns, felt as you slide across the gate.</summary>
         public int BarrierForcePct = 15;
 
-        /// <summary>The barrier guarding 7/R. Just a stronger version of the others.</summary>
+        /// <summary>The lockout gate before 7/R: a flat fight at this force, snapping over at its centre.</summary>
         public int LockoutForcePct = 70;
+
+        /// <summary>
+        /// Half-width of the lockout gate. The lockout is a dot on the neutral channel, not a
+        /// zone: the walls own the rest of the box, so it only needs to guard the crossing into
+        /// the 7/R column. Flat force across each side of this band - the fight - with an
+        /// over-centre release in the middle and free travel beyond.
+        /// </summary>
+        public int LockoutHalfWidth = 2200;
 
         // Force shaping (axis counts)
 
         /// <summary>
-        /// How quickly a wall reaches full strength. Shorter is more solid, but it is also the
-        /// loop's proportional gain: too short and the wall rings instead of holding, because
-        /// the stick crosses the whole ramp between ticks. Widen this before reaching for more
-        /// damping.
+        /// How far into a wall the force takes to reach its plateau - the wall's face. Keep it
+        /// short. The ramp is the only place a hand can rest on a force gradient, and a stiff
+        /// gradient rendered through USB delay oscillates no matter how it is damped: on this
+        /// base, widening the ramp, running the loop 2.5x faster and adding physical damping
+        /// each changed the buzz's pitch and nothing else. The plateau past the ramp is flat,
+        /// and a flat force has nothing to pump - which is why the original constant-force
+        /// lockout never rang. All the ramp does is cage what is left: the flutter can never
+        /// be wider than the ramp itself, so a short face means a hard and quiet wall.
         /// </summary>
-        public int WallRamp = 1400;
+        public int WallRamp = 250;
 
         /// <summary>How quickly the soft column detent reaches full strength.</summary>
         public int DetentRamp = 2500;

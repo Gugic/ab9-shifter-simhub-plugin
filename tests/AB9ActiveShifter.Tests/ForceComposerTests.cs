@@ -22,7 +22,7 @@ namespace AB9ActiveShifter.Tests
         private const int C3 = 43690;
         private const int C4 = 65535;
 
-        /// <summary>Midpoint between C3 and C4: the crest of the lockout hump.</summary>
+        /// <summary>Midpoint between C3 and C4: the centre of the lockout gate.</summary>
         private const int LockoutCrest = (C3 + C4) / 2;
 
         private static EngineConfig FullGainConfig()
@@ -99,6 +99,40 @@ namespace AB9ActiveShifter.Tests
 
             Assert.True(atColumn < nearEdge, "wall should grow leaving the column");
             Assert.True(nearEdge < wellOut, "wall should keep growing toward the midpoint");
+        }
+
+        [Fact]
+        public void AWallIsFlatPastItsBite()
+        {
+            // The stability property for every wall, not just the lockout: past the short bite
+            // the force is a plateau, identical at any depth. A hand leaning anywhere on it
+            // rests on zero gradient, and a flat force has nothing for the loop's delay to
+            // pump - the shape that cannot ring.
+            EngineConfig cfg = FullGainConfig();
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            int shallow = Neutral(c, between, Center + cfg.ChannelHalfEnter + cfg.WallRamp + 100).ConstantY;
+            int deep = Neutral(c, between, Center + 6000).ConstantY;
+
+            Assert.Equal(shallow, deep);
+            Assert.Equal(-9000, shallow);
+        }
+
+        [Fact]
+        public void ASlotWallIsFlatPastItsBite()
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.SlotHalfWidth = 1100;
+            ForceComposer c = Composer(cfg);
+
+            int shallow = c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd,
+                                    C2 + 1100 + cfg.WallRamp + 50, 2000).ConstantX;
+            int deep = c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd,
+                                 C2 + 2300, 2000).ConstantX;
+
+            Assert.Equal(shallow, deep);
+            Assert.Equal(-9000, shallow);
         }
 
         [Fact]
@@ -205,45 +239,80 @@ namespace AB9ActiveShifter.Tests
         // ---------------------------------------------------------------- barriers and lockout
 
         [Fact]
-        public void LockoutIsJustTheStrongestBarrier()
+        public void LockoutDwarfsAnOrdinaryBarrier()
         {
-            // The lockout is not a separate mechanism; it is the hump guarding 7/R. Confirm it
-            // behaves like the others, only harder.
             EngineConfig cfg = FullGainConfig();
             cfg.BarrierForcePct = 15;
             cfg.LockoutForcePct = 70;
+            cfg.ColumnDetentForcePct = 0;   // isolate the two shapes
             ForceComposer c = Composer(cfg);
 
-            int width = cfg.BarrierWidth;
-            int inner = Math.Abs(Neutral(c, ((C1 + C2) / 2) + width, Center).ConstantX);
-            int lockout = Math.Abs(Neutral(c, LockoutCrest + width, Center).ConstantX);
+            int inner = Math.Abs(Neutral(c, ((C1 + C2) / 2) + cfg.BarrierWidth, Center).ConstantX);
+            int lockout = Math.Abs(Neutral(c, LockoutCrest + 1500, Center).ConstantX);
 
             Assert.True(lockout > inner * 3,
                 "lockout " + lockout + " should dwarf an ordinary barrier " + inner);
         }
 
         [Fact]
-        public void BarrierPeaksAtItsWidthAndReleasesBeyond()
+        public void LockoutIsFlatWhereTheHandFightsIt()
         {
+            // The stability property, and the reason the lockout never rang: across the fight
+            // there is no gradient, so there is nothing for the loop's delay to pump. The same
+            // force everywhere on the flat, zero at the over-centre point.
             EngineConfig cfg = FullGainConfig();
-            cfg.LockoutForcePct = 70;
-            cfg.BarrierWidth = 2500;
-            cfg.ColumnDetentForcePct = 0;   // isolate the hump
+            cfg.ColumnDetentForcePct = 0;
+            cfg.BarrierForcePct = 0;
             ForceComposer c = Composer(cfg);
 
-            int atCrest = Math.Abs(Neutral(c, LockoutCrest, Center).ConstantX);
-            int atPeak = Math.Abs(Neutral(c, LockoutCrest + 2500, Center).ConstantX);
-            int farBeyond = Math.Abs(Neutral(c, LockoutCrest + 9000, Center).ConstantX);
+            int near = Neutral(c, LockoutCrest - 800, Center).ConstantX;
+            int far = Neutral(c, LockoutCrest - 2000, Center).ConstantX;
+
+            Assert.Equal(near, far);
+            Assert.Equal(-7000, near);
+            Assert.Equal(0, Neutral(c, LockoutCrest, Center).ConstantX);
+        }
+
+        [Fact]
+        public void LockoutIsADotOnTheChannelNotAZone()
+        {
+            // The walls own the box, so the gate only guards the crossing itself. Approach on
+            // either side is free - no long zone dragging the stick around the channel.
+            EngineConfig cfg = FullGainConfig();
+            cfg.ColumnDetentForcePct = 0;
+            cfg.BarrierForcePct = 0;
+            ForceComposer c = Composer(cfg);
+
+            Assert.Equal(0, Neutral(c, LockoutCrest - 4000, Center).ConstantX);
+            Assert.Equal(0, Neutral(c, LockoutCrest + 4000, Center).ConstantX);
+        }
+
+        [Fact]
+        public void AnOrdinaryBarrierPeaksAtItsWidthAndReleasesBeyond()
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.BarrierForcePct = 15;
+            cfg.BarrierWidth = 2500;
+            cfg.ColumnDetentForcePct = 0;   // isolate the hump
+            cfg.LockoutForcePct = 0;
+            ForceComposer c = Composer(cfg);
+
+            int crest = (C1 + C2) / 2;
+            int atCrest = Math.Abs(Neutral(c, crest, Center).ConstantX);
+            int atPeak = Math.Abs(Neutral(c, crest + 2500, Center).ConstantX);
+            int farBeyond = Math.Abs(Neutral(c, crest + 9000, Center).ConstantX);
 
             Assert.True(atCrest < 200, "the crest is an unstable point, not a shove: " + atCrest);
-            Assert.Equal(7000, atPeak);
+            Assert.Equal(1500, atPeak);
             Assert.True(farBeyond < atPeak / 4,
-                "past the hump the lockout must let go: " + farBeyond + " vs " + atPeak);
+                "past the hump the barrier must let go: " + farBeyond + " vs " + atPeak);
         }
 
         [Fact]
         public void BarrierRepelsFromItsCrestOnBothSides()
         {
+            // Left of centre the gate resists entry; once snapped over centre it pushes on
+            // toward 7/R rather than shoving the stick back where it came from.
             EngineConfig cfg = FullGainConfig();
             cfg.ColumnDetentForcePct = 0;
             ForceComposer c = Composer(cfg);
@@ -551,7 +620,7 @@ namespace AB9ActiveShifter.Tests
             foreach (int v in new[] { -900000, -120000, 0, 120000, 900000 })
             {
                 ForceFrame f = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
-                                         LockoutCrest + 2500, Center - 5000, v, v);
+                                         LockoutCrest + 1800, Center - 5000, v, v);
                 Assert.InRange(f.ConstantX, -GateGeometry.ForceMax, GateGeometry.ForceMax);
                 Assert.InRange(f.ConstantY, -GateGeometry.ForceMax, GateGeometry.ForceMax);
             }
@@ -566,8 +635,8 @@ namespace AB9ActiveShifter.Tests
             EngineConfig inverted = FullGainConfig();
             inverted.InvertConstantX = true;
 
-            int a = Neutral(Composer(plain), LockoutCrest + 2500, Center).ConstantX;
-            int b = Neutral(Composer(inverted), LockoutCrest + 2500, Center).ConstantX;
+            int a = Neutral(Composer(plain), LockoutCrest + 1800, Center).ConstantX;
+            int b = Neutral(Composer(inverted), LockoutCrest + 1800, Center).ConstantX;
 
             Assert.Equal(-a, b);
             Assert.NotEqual(0, a);
@@ -588,8 +657,8 @@ namespace AB9ActiveShifter.Tests
             int yInverted = Neutral(Composer(inverted), between, Center - 3000).ConstantY;
             Assert.Equal(-yPlain, yInverted);
 
-            int xPlain = Neutral(Composer(plain), LockoutCrest + 2500, Center).ConstantX;
-            int xInverted = Neutral(Composer(inverted), LockoutCrest + 2500, Center).ConstantX;
+            int xPlain = Neutral(Composer(plain), LockoutCrest + 1800, Center).ConstantX;
+            int xInverted = Neutral(Composer(inverted), LockoutCrest + 1800, Center).ConstantX;
             Assert.Equal(xPlain, xInverted);
         }
 
@@ -606,8 +675,8 @@ namespace AB9ActiveShifter.Tests
             int wallHalf = Math.Abs(Neutral(Composer(half), between, Center - 3000).ConstantY);
             Assert.Equal(wallFull / 2, wallHalf);
 
-            int lockFull = Math.Abs(Neutral(Composer(full), LockoutCrest + 2500, Center).ConstantX);
-            int lockHalf = Math.Abs(Neutral(Composer(half), LockoutCrest + 2500, Center).ConstantX);
+            int lockFull = Math.Abs(Neutral(Composer(full), LockoutCrest + 1800, Center).ConstantX);
+            int lockHalf = Math.Abs(Neutral(Composer(half), LockoutCrest + 1800, Center).ConstantX);
             Assert.Equal(lockFull / 2, lockHalf);
         }
 

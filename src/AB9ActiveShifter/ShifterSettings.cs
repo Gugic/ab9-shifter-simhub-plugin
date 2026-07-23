@@ -36,7 +36,8 @@ namespace AB9ActiveShifter
         private int _channelGuideForcePct = 5;
         private int _columnDetentForcePct = 12;
         private int _barrierForcePct = 15;
-        private int _wallRamp = 1400;
+        private int _lockoutHalfWidth = 2200;
+        private int _wallRamp = 250;
         private int _detentRamp = 2500;
         private int _barrierWidth = 2500;
         private int _wallBlend = 1500;
@@ -68,6 +69,9 @@ namespace AB9ActiveShifter
 
         /// <summary>Force needed to push through into the 7/R column, as a share of the overall gain.</summary>
         public int LockoutForcePct { get { return _lockoutForcePct; } set { Set(ref _lockoutForcePct, value); } }
+
+        /// <summary>Half-width of the lockout gate: a dot on the neutral channel, not a zone.</summary>
+        public int LockoutHalfWidth { get { return _lockoutHalfWidth; } set { Set(ref _lockoutHalfWidth, value); } }
 
         /// <summary>Force used when measuring polarity. Raise it if calibration is inconclusive.</summary>
         public int CalibrationForcePct { get { return _calibrationForcePct; } set { Set(ref _calibrationForcePct, value); } }
@@ -184,7 +188,8 @@ namespace AB9ActiveShifter
                 DetentHoldPct = DetentHoldPct,
                 DampingPct = DampingPct,
                 WallYieldPct = WallYieldPct,
-                LockoutForcePct = LockoutForcePct
+                LockoutForcePct = LockoutForcePct,
+                LockoutHalfWidth = LockoutHalfWidth
             };
         }
 
@@ -209,6 +214,7 @@ namespace AB9ActiveShifter
             {
                 OverallGainPct = d.OverallGainPct;
                 LockoutForcePct = d.LockoutForcePct;
+                LockoutHalfWidth = d.LockoutHalfWidth;
                 ColumnPinForcePct = d.ColumnPinForcePct;
                 ChannelWallForcePct = d.ChannelWallForcePct;
                 ChannelGuideForcePct = d.ChannelGuideForcePct;
