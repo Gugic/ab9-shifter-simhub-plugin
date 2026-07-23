@@ -346,6 +346,114 @@ namespace AB9ActiveShifter.Tests
                 "seated hold " + hold + " is too weak to keep a gear against a self-centring base");
         }
 
+        // ---------------------------------------------------------------- rebound absorption
+
+        [Fact]
+        public void LeaningOnAWallGetsFullForce()
+        {
+            // The yield must never soften a wall someone is leaning on: at rest the wall is
+            // solid regardless of the absorption setting.
+            EngineConfig cfg = FullGainConfig();
+            cfg.WallYieldPct = 45;
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            ForceFrame still = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                         between, Center + 3500, 0, 0);
+            ForceFrame implied = Neutral(c, between, Center + 3500);
+
+            Assert.Equal(implied.ConstantY, still.ConstantY);
+            Assert.NotEqual(0, still.ConstantY);
+        }
+
+        [Fact]
+        public void PushingIntoTheWallIsNeverReduced()
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;   // isolate the yield from the damping term
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            // Moving deeper into the wall: force opposes motion, so it passes through whole.
+            int leaning = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                    between, Center + 3500, 0, 0).ConstantY;
+            int pushing = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                    between, Center + 3500, 0, 20000).ConstantY;
+
+            Assert.Equal(leaning, pushing);
+        }
+
+        [Fact]
+        public void ReboundOffAWallIsAbsorbed()
+        {
+            // The instability mechanism: the stick overshoots, and the delayed wall force then
+            // accelerates it back out with interest. On the way out the force is scaled down,
+            // so each bounce returns less energy than the last and the ring dies.
+            EngineConfig cfg = FullGainConfig();
+            cfg.WallYieldPct = 45;
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            int full = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                 between, Center + 3500, 0, 0).ConstantY;
+            int rebounding = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                       between, Center + 3500, 0,
+                                       -(cfg.YieldVelocityDeadband + cfg.YieldVelocityBlend)).ConstantY;
+
+            Assert.Equal((int)Math.Round(full * 0.55), rebounding);
+        }
+
+        [Fact]
+        public void CreepBelowTheVelocityDeadbandStaysSolid()
+        {
+            // Sensor jitter reads as a small velocity; it must not soften a wall being leant on.
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            int full = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                 between, Center + 3500, 0, 0).ConstantY;
+            int creeping = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                     between, Center + 3500, 0, -1000).ConstantY;
+
+            Assert.Equal(full, creeping);
+        }
+
+        [Fact]
+        public void SnickKeepsMostOfItsPullWhileAssisting()
+        {
+            // The pull into the slot is supposed to do positive work; it gets a much milder
+            // absorption than the walls so the shift still feels like it seats itself.
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+
+            int full = c.Compose(GateState.Traveling, Column.C2, ShiftDir.Fwd, C2, 5000, 0, 0).ConstantY;
+            int assisted = c.Compose(GateState.Traveling, Column.C2, ShiftDir.Fwd, C2, 5000, 0, -20000).ConstantY;
+
+            Assert.True(full < 0, "the pull should point into the slot");
+            Assert.True(Math.Abs(assisted) >= (int)(Math.Abs(full) * 0.8),
+                "the snick lost too much: " + assisted + " of " + full);
+            Assert.True(Math.Abs(assisted) < Math.Abs(full), "some absorption should still apply");
+        }
+
+        [Fact]
+        public void SlotWallReachesFullStrengthBeforeTheGearCanBeLost()
+        {
+            // The state machine drops a latched inner column at ColumnInnerHalfExit. The wall's
+            // ramp is clamped to finish before that, or a firm sideways lean would release the
+            // gear while the wall was still building and swap force fields mid-lean.
+            EngineConfig cfg = FullGainConfig();
+            ForceComposer c = Composer(cfg);
+
+            int justInsideExit = C2 + cfg.ColumnInnerHalfExit - 100;
+            int force = c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, justInsideExit, 2000).ConstantX;
+
+            Assert.Equal(-9000, force);
+        }
+
         // ---------------------------------------------------------------- damping
 
         [Fact]

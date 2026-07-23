@@ -43,6 +43,7 @@ namespace AB9ActiveShifter
         private int _wallDeadBand = 120;
         private int _slotHalfWidth = 1100;
         private int _dampingPct = 25;
+        private int _wallYieldPct = 45;
         private int _damperCoeff = 800;
         private int _detentResistPct = 22;
         private int _detentPullPct = 35;
@@ -114,6 +115,9 @@ namespace AB9ActiveShifter
         /// <summary>Velocity damping. This, not the device damper, is what settles a stiff wall.</summary>
         public int DampingPct { get { return _dampingPct; } set { Set(ref _dampingPct, value); } }
 
+        /// <summary>How much of a wall's force is given up on the rebound. The anti-buzz control.</summary>
+        public int WallYieldPct { get { return _wallYieldPct; } set { Set(ref _wallYieldPct, value); } }
+
         public int DamperCoeff { get { return _damperCoeff; } set { Set(ref _damperCoeff, value); } }
         public int DetentResistPct { get { return _detentResistPct; } set { Set(ref _detentResistPct, value); } }
         public int DetentPullPct { get { return _detentPullPct; } set { Set(ref _detentPullPct, value); } }
@@ -179,6 +183,7 @@ namespace AB9ActiveShifter
                 DetentPullPct = DetentPullPct,
                 DetentHoldPct = DetentHoldPct,
                 DampingPct = DampingPct,
+                WallYieldPct = WallYieldPct,
                 LockoutForcePct = LockoutForcePct
             };
         }
@@ -220,6 +225,7 @@ namespace AB9ActiveShifter
                 DetentPullPct = d.DetentPullPct;
                 DetentHoldPct = d.DetentHoldPct;
                 DampingPct = d.DampingPct;
+                WallYieldPct = d.WallYieldPct;
             }
 
             if (scope == ResetScope.Geometry || scope == ResetScope.Everything)

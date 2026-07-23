@@ -280,12 +280,15 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// Smoothing applied to the measured velocity. A raw tick-to-tick difference is far too
-        /// noisy to damp against - the axis jitters by a few counts at rest, which at 400 Hz
-        /// reads as thousands of counts per second and would inject the very buzz damping is
-        /// meant to remove.
+        /// Smoothing applied to the measured velocity. A raw tick-to-tick difference is too
+        /// noisy to act on - the axis jitters by a few counts at rest, which at 400 Hz reads as
+        /// thousands of counts per second. But smoothing is also phase lag, and phase-lagged
+        /// damping stops damping at exactly the frequencies where a wall rings (a lagged
+        /// opposing force arrives partly in phase with the motion). 0.45 keeps the lag near a
+        /// single tick; the noise floor that remains is handled by the composer's velocity
+        /// deadband instead of by more smoothing.
         /// </summary>
-        private const double VelocitySmoothing = 0.25;
+        private const double VelocitySmoothing = 0.45;
 
         private long _velocityStamp;
         private int _velocityLastX;

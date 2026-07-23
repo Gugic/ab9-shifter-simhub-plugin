@@ -191,6 +191,15 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
+        /// The loose band a latched column is lost at, per <see cref="StillInColumn"/>. Forces
+        /// that must arrive before the gear can be lost size themselves against this.
+        /// </summary>
+        public int ColumnExitHalfWidth(Column c)
+        {
+            return (c == Column.C1 || c == Column.C4) ? ColumnEdgeExit : ColumnInnerHalfExit;
+        }
+
+        /// <summary>
         /// How strongly the gate should resist fore/aft movement at this lateral position:
         /// 0 when lined up with a column, where a gear can be taken, rising to 1 squarely
         /// between columns, where the stick must stay in the neutral channel. Blended over
