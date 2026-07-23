@@ -170,14 +170,63 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// Nearest of the three unprotected columns, with hysteresis so the soft neutral
-        /// detent does not flip back and forth when the stick sits on a midpoint.
+        /// Where the barrier between two adjacent columns sits: the midpoint between them.
+        /// Barrier i separates column i from column i+1, so barrier 2 is the one guarding the
+        /// 7/R column - what a truck shifter calls the lockout.
         /// </summary>
-        public Column NearestMainColumn(int x, Column current)
+        public int BarrierCentre(int index)
+        {
+            int i = Clamp(index, 0, ColumnCount - 2);
+            return (_targets[i] + _targets[i + 1]) / 2;
+        }
+
+        /// <summary>
+        /// How far either side of a column's centre counts as "lined up with it". Matches the
+        /// bands <see cref="ColumnAt"/> uses, so the forces and the state machine agree about
+        /// where a column begins.
+        /// </summary>
+        public int ColumnFreeHalfWidth(Column c)
+        {
+            return (c == Column.C1 || c == Column.C4) ? ColumnEdgeEnter : ColumnInnerHalfEnter;
+        }
+
+        /// <summary>
+        /// How strongly the gate should resist fore/aft movement at this lateral position:
+        /// 0 when lined up with a column, where a gear can be taken, rising to 1 squarely
+        /// between columns, where the stick must stay in the neutral channel. Blended over
+        /// blendWidth counts so the wall arrives smoothly rather than snapping on at a band
+        /// edge.
+        /// </summary>
+        public double ChannelBlockFactor(int x, int blendWidth)
+        {
+            Column nearest = Column.C1;
+            int bestDist = int.MaxValue;
+
+            for (int i = 0; i < ColumnCount; i++)
+            {
+                int d = Math.Abs(x - _targets[i]);
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    nearest = (Column)i;
+                }
+            }
+
+            int free = ColumnFreeHalfWidth(nearest);
+            if (bestDist <= free) return 0.0;
+
+            return Clamp((bestDist - free) / (double)Math.Max(1, blendWidth), 0.0, 1.0);
+        }
+
+        /// <summary>
+        /// Nearest column, with hysteresis so the neutral detent does not flip back and forth
+        /// when the stick sits on a midpoint.
+        /// </summary>
+        public Column NearestColumn(int x, Column current)
         {
             Column best = Column.C1;
             int bestDist = int.MaxValue;
-            for (int i = 0; i <= 2; i++)
+            for (int i = 0; i < ColumnCount; i++)
             {
                 int d = Math.Abs(x - _targets[i]);
                 if (d < bestDist)
@@ -187,7 +236,7 @@ namespace AB9ActiveShifter.Core
                 }
             }
 
-            if (current == Column.None || current == Column.C4 || best == current) return best;
+            if (current == Column.None || best == current) return best;
 
             // Only leave the current detent once clearly closer to the new one.
             int currentDist = Math.Abs(x - _targets[(int)current]);

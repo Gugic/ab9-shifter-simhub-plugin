@@ -5,34 +5,44 @@ namespace AB9ActiveShifter.Core
     /// <summary>
     /// Maps gate state and stick position onto the forces for one tick.
     ///
-    /// The gate is built from three pieces:
-    ///   X spring  - soft detents onto each column while neutral, a stiff pin onto the
-    ///               latched column once travelling, so the stick tracks the gate walls.
-    ///   Y spring  - soft while lined up with a column so a gear can be selected, very
-    ///               stiff between columns so it cannot be. This swap is what the hand
-    ///               reads as the walls of the H.
-    ///   X/Y constant force - the lockout push and the slot detent respectively.
+    /// Everything the hand reads as a wall is a shaped constant force, never a DirectInput
+    /// condition effect. A spring's output is coefficient times displacement over 10000, so
+    /// even at the maximum coefficient of 10000 the stick has to be pushed roughly 23000 axis
+    /// counts - a third of full travel - before it reaches 70% force. Five hundred counts past
+    /// a wall yields about 1.5%, which is why spring walls feel like nothing at all. A software
+    /// profile reaches its plateau in a few hundred counts and holds it, so a wall feels like a
+    /// wall. The damper is what keeps that stiffness from buzzing.
     ///
-    /// The lockout is a constant force rather than a spring on purpose. A DirectInput
-    /// spring caps at coefficient 10000, which yields roughly one force unit per position
-    /// unit; reaching 70% force would need ~22900 axis counts of travel, more than the
-    /// whole lockout zone. A software-shaped constant force reaches the requested plateau
-    /// in a settable ramp and then holds it, which is what a real lockout gate feels like.
+    /// The gate is then just three kinds of force:
+    ///
+    ///   Lateral, in the neutral channel - a light detent onto the nearest column, plus a hump
+    ///   at each barrier between adjacent columns. The lockout is not a separate mechanism: it
+    ///   is simply the barrier guarding the 7/R column, given more strength than the others.
+    ///
+    ///   Lateral, once in a column - a firm pin onto that column, so fore/aft travel tracks the
+    ///   slot instead of wandering out of it. This is the vertical guide.
+    ///
+    ///   Fore/aft - held to the neutral channel in proportion to how far the stick is from a
+    ///   column, so it is free to enter a gear when lined up and walled off when not. This is
+    ///   the horizontal guide. Once in a column it gives way to the slot detent.
     /// </summary>
     public sealed class ForceComposer
     {
         private readonly GateGeometry _geo;
         private readonly EngineConfig _cfg;
 
-        private readonly int _neutralDetentCoeff;
-        private readonly int _wallCoeff;
-        private readonly int _channelGuideCoeff;
-        private readonly int _channelWallCoeff;
+        private readonly int _columnPinForce;
+        private readonly int _channelWallForce;
+        private readonly int _channelGuideForce;
+        private readonly int _columnDetentForce;
+        private readonly int _barrierForce;
+        private readonly int _lockoutForce;
+
         private readonly int _detentResistMax;
         private readonly int _detentPullMax;
         private readonly int _detentHold;
-        private readonly int _lockoutForce;
         private readonly int _damperCoeff;
+
         private readonly int _constantSignX;
         private readonly int _constantSignY;
         private readonly bool _freeStick;
@@ -47,37 +57,39 @@ namespace AB9ActiveShifter.Core
             double gain = config.EffectiveGain;
             _freeStick = config.FreeStick;
 
-            // An effect the firmware applies backwards is corrected by flipping its sign. Springs
-            // flip via their coefficients; saturations stay positive because they clamp magnitude,
-            // not direction. The four flags are independent: this base inverts constant force on X
-            // but not Y, and the spring on Y but not X.
-            int springSignX = config.InvertSpringX ? -1 : 1;
-            int springSignY = config.InvertSpringY ? -1 : 1;
+            // An effect the firmware applies backwards is corrected by flipping its sign. The
+            // two axes are independent: this base inverts constant force on X but not on Y.
             _constantSignX = config.InvertConstantX ? -1 : 1;
             _constantSignY = config.InvertConstantY ? -1 : 1;
 
-            _neutralDetentCoeff = Scale(config.NeutralDetentCoeff, gain) * springSignX;
-            _wallCoeff = Scale(config.WallCoeff, gain) * springSignX;
-            _channelGuideCoeff = Scale(config.ChannelGuideCoeff, gain) * springSignY;
-            _channelWallCoeff = Scale(config.ChannelWallCoeff, gain) * springSignY;
+            // Wall strengths are percentages of full scale, then scaled by the master gain, so
+            // raising overall force raises the whole gate together and keeps the tuned ratios.
+            _columnPinForce = Force(config.ColumnPinForcePct, gain);
+            _channelWallForce = Force(config.ChannelWallForcePct, gain);
+            _channelGuideForce = Force(config.ChannelGuideForcePct, gain);
+            _columnDetentForce = Force(config.ColumnDetentForcePct, gain);
+            _barrierForce = Force(config.BarrierForcePct, gain);
+            _lockoutForce = Force(config.LockoutForcePct, gain);
 
             _detentResistMax = Scale(config.DetentResistMax, gain);
             _detentPullMax = Scale(config.DetentPullMax, gain);
             _detentHold = Scale(config.DetentHold, gain);
             _damperCoeff = Scale(config.DamperCoeff, gain);
-
-            // The lockout percentage is relative to the plugin's overall gain, so raising the
-            // master force raises the lockout with it and the ratio the user tuned is kept.
-            _lockoutForce = Scale(
-                (int)Math.Round(GateGeometry.ForceMax * GateGeometry.Clamp(config.LockoutForcePct, 0, 100) / 100.0),
-                gain);
         }
 
         /// <summary>Gain-scaled damping applied on every frame.</summary>
         public int DamperCoefficient { get { return _damperCoeff; } }
 
-        /// <summary>The lockout plateau in DirectInput units, for display in the UI.</summary>
+        /// <summary>The lockout barrier's peak force in DirectInput units, for the UI.</summary>
         public int LockoutForce { get { return _lockoutForce; } }
+
+        /// <summary>Peak force of the gate walls in DirectInput units, for the UI.</summary>
+        public int WallForce { get { return _channelWallForce; } }
+
+        private static int Force(int percent, double gain)
+        {
+            return (int)Math.Round(GateGeometry.ForceMax * GateGeometry.Clamp(percent, 0, 100) / 100.0 * gain);
+        }
 
         private static int Scale(int value, double gain)
         {
@@ -89,8 +101,8 @@ namespace AB9ActiveShifter.Core
             if (_freeStick) return FreeFrame();
 
             ForceFrame frame = state == GateState.Neutral
-                ? ComposeNeutral(x)
-                : ComposeInColumn(column, direction, y);
+                ? ComposeNeutral(x, y)
+                : ComposeInColumn(column, direction, x, y);
 
             frame.DamperCoefficient = _damperCoeff;
             return frame;
@@ -109,61 +121,113 @@ namespace AB9ActiveShifter.Core
             };
         }
 
-        private ForceFrame ComposeNeutral(int x)
+        private ForceFrame ComposeNeutral(int x, int y)
         {
-            ForceFrame f = new ForceFrame();
-
-            if (_geo.InLockoutZone(x))
+            ForceFrame f = new ForceFrame
             {
-                // Past the lockout boundary the push-back is the only X force, so the feel is
-                // exactly the shaped plateau and nothing fights it.
-                f.SpringX = SpringPreset.Off;
-                f.ConstantX = -LockoutMagnitude(x) * _constantSignX;
-            }
-            else
-            {
-                _detentColumn = _geo.NearestMainColumn(x, _detentColumn);
-                f.SpringX = SpringPreset.Centering(
-                    GateGeometry.AxisToDi(_geo.ColumnTarget(_detentColumn)),
-                    _neutralDetentCoeff,
-                    _cfg.SpringDeadBand);
-                f.ConstantX = 0;
-            }
+                SpringX = SpringPreset.Off,
+                SpringY = SpringPreset.Off
+            };
 
-            bool alignedWithColumn = _geo.ColumnAt(x) != Column.None;
-            f.SpringY = SpringPreset.Centering(
-                0,
-                alignedWithColumn ? _channelGuideCoeff : _channelWallCoeff,
-                _cfg.ChannelDeadBand);
+            // Sliding along the channel is meant to feel like a real shifter: mostly free, with
+            // a light pull into each column and a hump to climb between them.
+            _detentColumn = _geo.NearestColumn(x, _detentColumn);
 
-            f.ConstantY = 0;
+            int lateral = Saturating(
+                x - _geo.ColumnTarget(_detentColumn),
+                _columnDetentForce,
+                _cfg.DetentRamp,
+                _cfg.WallDeadBand);
+
+            lateral += BarrierForceAt(x);
+
+            f.ConstantX = GateGeometry.Clamp(lateral, -GateGeometry.ForceMax, GateGeometry.ForceMax)
+                          * _constantSignX;
+
+            // The horizontal guide. Lined up with a column this nearly vanishes so a gear can be
+            // taken; between columns it is a full wall.
+            double block = _geo.ChannelBlockFactor(x, _cfg.WallBlend);
+            int plateau = (int)Math.Round(_channelGuideForce + (_channelWallForce - _channelGuideForce) * block);
+
+            f.ConstantY = Saturating(
+                y - GateGeometry.AxisCenter,
+                plateau,
+                _cfg.WallRamp,
+                _cfg.WallDeadBand) * _constantSignY;
+
             return f;
         }
 
-        private ForceFrame ComposeInColumn(Column column, ShiftDir direction, int y)
+        private ForceFrame ComposeInColumn(Column column, ShiftDir direction, int x, int y)
         {
-            ForceFrame f = new ForceFrame();
+            ForceFrame f = new ForceFrame
+            {
+                SpringX = SpringPreset.Off,
+                SpringY = SpringPreset.Off
+            };
 
-            f.SpringX = SpringPreset.Centering(
-                GateGeometry.AxisToDi(_geo.ColumnTarget(column)),
-                _wallCoeff,
-                _cfg.SpringDeadBand);
+            // The vertical guide: hold the stick on the column so the slot runs true. Barriers
+            // are a neutral-channel affair and stay out of it - once committed to a gear there
+            // is nothing left to push through.
+            f.ConstantX = Saturating(
+                x - _geo.ColumnTarget(column),
+                _columnPinForce,
+                _cfg.WallRamp,
+                _cfg.WallDeadBand) * _constantSignX;
 
-            // The column wall holds the stick laterally, so the channel spring must be out of
-            // the way; the slot detent alone shapes the fore/aft feel.
-            f.SpringY = SpringPreset.Off;
-            f.ConstantX = 0;
             f.ConstantY = DetentMagnitude(direction, y) * _constantSignY;
 
             return f;
         }
 
-        /// <summary>Ramps to the lockout plateau over LockoutRamp counts, then holds it.</summary>
-        private int LockoutMagnitude(int x)
+        /// <summary>
+        /// Restoring force toward a target: rises over <paramref name="ramp"/> counts to the
+        /// plateau and then holds. The short ramp is what makes it read as a wall rather than a
+        /// spring; the deadband keeps the stick from dithering when it is already on target.
+        /// </summary>
+        private static int Saturating(int displacement, int plateau, int ramp, int deadBand)
         {
-            int ramp = Math.Max(1, _cfg.LockoutRamp);
-            double t = GateGeometry.Clamp((x - _geo.LockoutStart) / (double)ramp, 0.0, 1.0);
-            return (int)Math.Round(_lockoutForce * t);
+            if (plateau <= 0) return 0;
+
+            int magnitude = Math.Abs(displacement);
+            if (magnitude <= deadBand) return 0;
+
+            double t = GateGeometry.Clamp(
+                (magnitude - deadBand) / (double)Math.Max(1, ramp), 0.0, 1.0);
+
+            int force = (int)Math.Round(plateau * t);
+            return displacement > 0 ? -force : force;
+        }
+
+        /// <summary>Sum of the humps guarding each gap between adjacent columns.</summary>
+        private int BarrierForceAt(int x)
+        {
+            int total = 0;
+
+            for (int i = 0; i < GateGeometry.ColumnCount - 1; i++)
+            {
+                // The last gap is the one protecting 7/R, and it gets the lockout's strength.
+                int strength = i == GateGeometry.ColumnCount - 2 ? _lockoutForce : _barrierForce;
+                total += Hump(x - _geo.BarrierCentre(i), strength, _cfg.BarrierWidth);
+            }
+
+            return total;
+        }
+
+        /// <summary>
+        /// The force of pushing over a hump: zero at the crest, peaking at <paramref name="width"/>
+        /// counts either side, fading away beyond. Smooth everywhere, so there is no step for the
+        /// stick to chatter against, and it releases once the crest is behind you - which is what
+        /// makes a lockout feel like it lets go when you are through.
+        /// </summary>
+        private static int Hump(int displacement, int strength, int width)
+        {
+            if (strength <= 0) return 0;
+
+            double u = displacement / (double)Math.Max(1, width);
+            double force = strength * u * Math.Exp(0.5 - (0.5 * u * u));
+
+            return (int)Math.Round(force);
         }
 
         /// <summary>

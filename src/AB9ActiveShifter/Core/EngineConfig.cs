@@ -54,25 +54,56 @@ namespace AB9ActiveShifter.Core
         public int ColumnInnerHalfExit = 2400;
         public int EngageDepth = 4000;
         public int ReleaseDepth = 8000;
+        /// <summary>Where the Monitor tab starts shading the lockout. Display only: the barrier
+        /// itself sits at the midpoint between the 5/6 and 7/R columns.</summary>
         public int LockoutStart = 48000;
-        public int LockoutRamp = 2500;
         public int DetentHysteresis = 1500;
         public int MinEngageTicks = 2;
 
-        // Forces (DirectInput units, before the overall gain)
-        public int NeutralDetentCoeff = 600;
-        public int WallCoeff = 8000;
-        public int ChannelGuideCoeff = 600;
-        public int ChannelWallCoeff = 9500;
+        // Wall strengths, as a percentage of full scale before the overall gain. These are
+        // constant forces, not spring coefficients: a spring cannot produce a usable wall on
+        // this hardware (see ForceComposer).
+
+        /// <summary>Vertical guide: how firmly the stick is held on a column once in one.</summary>
+        public int ColumnPinForcePct = 90;
+
+        /// <summary>Horizontal guide: the gate wall between columns.</summary>
+        public int ChannelWallForcePct = 90;
+
+        /// <summary>Residual fore/aft resistance while lined up with a column. Keep this low.</summary>
+        public int ChannelGuideForcePct = 5;
+
+        /// <summary>Light pull onto the nearest column while sliding along the channel.</summary>
+        public int ColumnDetentForcePct = 12;
+
+        /// <summary>Humps between the ordinary columns, felt as you slide across the gate.</summary>
+        public int BarrierForcePct = 15;
+
+        /// <summary>The barrier guarding 7/R. Just a stronger version of the others.</summary>
+        public int LockoutForcePct = 70;
+
+        // Force shaping (axis counts)
+
+        /// <summary>How quickly a wall reaches full strength. Short means solid.</summary>
+        public int WallRamp = 600;
+
+        /// <summary>How quickly the soft column detent reaches full strength.</summary>
+        public int DetentRamp = 2500;
+
+        /// <summary>Distance from a barrier's crest to its peak force.</summary>
+        public int BarrierWidth = 2500;
+
+        /// <summary>How far past a column the gate wall takes to close, so it arrives smoothly.</summary>
+        public int WallBlend = 1500;
+
+        /// <summary>No wall force within this distance of target, to stop the stick dithering.</summary>
+        public int WallDeadBand = 60;
+
+        // Slot detent (DirectInput units, before the overall gain)
         public int DamperCoeff = 800;
-        public int SpringDeadBand = 150;
-        public int ChannelDeadBand = 430;
         public int DetentResistMax = 2200;
         public int DetentPullMax = 3000;
         public int DetentHold = 1600;
-
-        /// <summary>Lockout plateau force, as a percentage of the plugin's overall gain.</summary>
-        public int LockoutForcePct = 70;
 
         /// <summary>The gain actually applied, after the unconfirmed-polarity safety cap.</summary>
         public double EffectiveGain

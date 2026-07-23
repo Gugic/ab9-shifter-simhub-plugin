@@ -31,16 +31,20 @@ namespace AB9ActiveShifter
         private int _productId = 0x1000;
         private int _tickHz = 400;
 
-        private int _wallCoeff = 8000;
-        private int _neutralDetentCoeff = 600;
-        private int _channelGuideCoeff = 600;
-        private int _channelWallCoeff = 9500;
+        private int _columnPinForcePct = 90;
+        private int _channelWallForcePct = 90;
+        private int _channelGuideForcePct = 5;
+        private int _columnDetentForcePct = 12;
+        private int _barrierForcePct = 15;
+        private int _wallRamp = 600;
+        private int _detentRamp = 2500;
+        private int _barrierWidth = 2500;
+        private int _wallBlend = 1500;
+        private int _wallDeadBand = 60;
         private int _damperCoeff = 800;
         private int _detentResistMax = 2200;
         private int _detentPullMax = 3000;
         private int _detentHold = 1600;
-        private int _springDeadBand = 150;
-        private int _channelDeadBand = 430;
 
         private int _channelHalfEnter = 1400;
         private int _channelHalfExit = 2400;
@@ -51,7 +55,6 @@ namespace AB9ActiveShifter
         private int _engageDepth = 4000;
         private int _releaseDepth = 8000;
         private int _lockoutStart = 48000;
-        private int _lockoutRamp = 2500;
         private int _detentHysteresis = 1500;
         private int _minEngageTicks = 2;
 
@@ -89,16 +92,24 @@ namespace AB9ActiveShifter
         public int ProductId { get { return _productId; } set { Set(ref _productId, value); } }
         public int TickHz { get { return _tickHz; } set { Set(ref _tickHz, value); } }
 
-        public int WallCoeff { get { return _wallCoeff; } set { Set(ref _wallCoeff, value); } }
-        public int NeutralDetentCoeff { get { return _neutralDetentCoeff; } set { Set(ref _neutralDetentCoeff, value); } }
-        public int ChannelGuideCoeff { get { return _channelGuideCoeff; } set { Set(ref _channelGuideCoeff, value); } }
-        public int ChannelWallCoeff { get { return _channelWallCoeff; } set { Set(ref _channelWallCoeff, value); } }
+        // Walls are constant forces expressed as a percentage of full scale. Spring
+        // coefficients used to live here and could not produce a usable wall; see ForceComposer.
+        public int ColumnPinForcePct { get { return _columnPinForcePct; } set { Set(ref _columnPinForcePct, value); } }
+        public int ChannelWallForcePct { get { return _channelWallForcePct; } set { Set(ref _channelWallForcePct, value); } }
+        public int ChannelGuideForcePct { get { return _channelGuideForcePct; } set { Set(ref _channelGuideForcePct, value); } }
+        public int ColumnDetentForcePct { get { return _columnDetentForcePct; } set { Set(ref _columnDetentForcePct, value); } }
+        public int BarrierForcePct { get { return _barrierForcePct; } set { Set(ref _barrierForcePct, value); } }
+
+        public int WallRamp { get { return _wallRamp; } set { Set(ref _wallRamp, value); } }
+        public int DetentRamp { get { return _detentRamp; } set { Set(ref _detentRamp, value); } }
+        public int BarrierWidth { get { return _barrierWidth; } set { Set(ref _barrierWidth, value); } }
+        public int WallBlend { get { return _wallBlend; } set { Set(ref _wallBlend, value); } }
+        public int WallDeadBand { get { return _wallDeadBand; } set { Set(ref _wallDeadBand, value); } }
+
         public int DamperCoeff { get { return _damperCoeff; } set { Set(ref _damperCoeff, value); } }
         public int DetentResistMax { get { return _detentResistMax; } set { Set(ref _detentResistMax, value); } }
         public int DetentPullMax { get { return _detentPullMax; } set { Set(ref _detentPullMax, value); } }
         public int DetentHold { get { return _detentHold; } set { Set(ref _detentHold, value); } }
-        public int SpringDeadBand { get { return _springDeadBand; } set { Set(ref _springDeadBand, value); } }
-        public int ChannelDeadBand { get { return _channelDeadBand; } set { Set(ref _channelDeadBand, value); } }
 
         public int ChannelHalfEnter { get { return _channelHalfEnter; } set { Set(ref _channelHalfEnter, value); } }
         public int ChannelHalfExit { get { return _channelHalfExit; } set { Set(ref _channelHalfExit, value); } }
@@ -109,7 +120,6 @@ namespace AB9ActiveShifter
         public int EngageDepth { get { return _engageDepth; } set { Set(ref _engageDepth, value); } }
         public int ReleaseDepth { get { return _releaseDepth; } set { Set(ref _releaseDepth, value); } }
         public int LockoutStart { get { return _lockoutStart; } set { Set(ref _lockoutStart, value); } }
-        public int LockoutRamp { get { return _lockoutRamp; } set { Set(ref _lockoutRamp, value); } }
         public int DetentHysteresis { get { return _detentHysteresis; } set { Set(ref _detentHysteresis, value); } }
         public int MinEngageTicks { get { return _minEngageTicks; } set { Set(ref _minEngageTicks, value); } }
 
@@ -142,17 +152,20 @@ namespace AB9ActiveShifter
                 EngageDepth = EngageDepth,
                 ReleaseDepth = ReleaseDepth,
                 LockoutStart = LockoutStart,
-                LockoutRamp = LockoutRamp,
                 DetentHysteresis = DetentHysteresis,
                 MinEngageTicks = MinEngageTicks,
 
-                NeutralDetentCoeff = NeutralDetentCoeff,
-                WallCoeff = WallCoeff,
-                ChannelGuideCoeff = ChannelGuideCoeff,
-                ChannelWallCoeff = ChannelWallCoeff,
+                ColumnPinForcePct = ColumnPinForcePct,
+                ChannelWallForcePct = ChannelWallForcePct,
+                ChannelGuideForcePct = ChannelGuideForcePct,
+                ColumnDetentForcePct = ColumnDetentForcePct,
+                BarrierForcePct = BarrierForcePct,
+                WallRamp = WallRamp,
+                DetentRamp = DetentRamp,
+                BarrierWidth = BarrierWidth,
+                WallBlend = WallBlend,
+                WallDeadBand = WallDeadBand,
                 DamperCoeff = DamperCoeff,
-                SpringDeadBand = SpringDeadBand,
-                ChannelDeadBand = ChannelDeadBand,
                 DetentResistMax = DetentResistMax,
                 DetentPullMax = DetentPullMax,
                 DetentHold = DetentHold,
@@ -181,16 +194,20 @@ namespace AB9ActiveShifter
             {
                 OverallGainPct = d.OverallGainPct;
                 LockoutForcePct = d.LockoutForcePct;
-                WallCoeff = d.WallCoeff;
-                NeutralDetentCoeff = d.NeutralDetentCoeff;
-                ChannelGuideCoeff = d.ChannelGuideCoeff;
-                ChannelWallCoeff = d.ChannelWallCoeff;
+                ColumnPinForcePct = d.ColumnPinForcePct;
+                ChannelWallForcePct = d.ChannelWallForcePct;
+                ChannelGuideForcePct = d.ChannelGuideForcePct;
+                ColumnDetentForcePct = d.ColumnDetentForcePct;
+                BarrierForcePct = d.BarrierForcePct;
+                WallRamp = d.WallRamp;
+                DetentRamp = d.DetentRamp;
+                BarrierWidth = d.BarrierWidth;
+                WallBlend = d.WallBlend;
+                WallDeadBand = d.WallDeadBand;
                 DamperCoeff = d.DamperCoeff;
                 DetentResistMax = d.DetentResistMax;
                 DetentPullMax = d.DetentPullMax;
                 DetentHold = d.DetentHold;
-                SpringDeadBand = d.SpringDeadBand;
-                ChannelDeadBand = d.ChannelDeadBand;
             }
 
             if (scope == ResetScope.Geometry || scope == ResetScope.Everything)
@@ -204,7 +221,6 @@ namespace AB9ActiveShifter
                 EngageDepth = d.EngageDepth;
                 ReleaseDepth = d.ReleaseDepth;
                 LockoutStart = d.LockoutStart;
-                LockoutRamp = d.LockoutRamp;
                 DetentHysteresis = d.DetentHysteresis;
                 MinEngageTicks = d.MinEngageTicks;
                 TickHz = d.TickHz;
