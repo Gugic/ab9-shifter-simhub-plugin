@@ -50,6 +50,7 @@ namespace AB9ActiveShifter.Core
         private readonly int _channelWallForce;
         private readonly int _channelGuideForce;
         private readonly int _columnDetentForce;
+        private readonly int _columnFunnelForce;
         private readonly int _barrierForce;
         private readonly int _lockoutForce;
 
@@ -111,6 +112,7 @@ namespace AB9ActiveShifter.Core
             _channelWallForce = Force(config.ChannelWallForcePct, gain);
             _channelGuideForce = Force(config.ChannelGuideForcePct, gain);
             _columnDetentForce = Force(config.ColumnDetentForcePct, gain);
+            _columnFunnelForce = Force(config.ColumnFunnelForcePct, gain);
             _barrierForce = Force(config.BarrierForcePct, gain);
             _lockoutForce = Force(config.LockoutForcePct, gain);
 
@@ -307,11 +309,25 @@ namespace AB9ActiveShifter.Core
             // a light pull into each column and a hump to climb between them.
             _detentColumn = _geo.NearestColumn(x, _detentColumn);
 
+            // The lateral guide, which does two jobs with one force. Along the channel it is the
+            // light detent that parks the stick on a column. As the stick is pushed out of the
+            // channel toward a gear it strengthens into a funnel, so an entry taken slightly off
+            // the column is steered into the slot instead of merely being blocked by the gate
+            // wall - the tapered mouth a real gate has. Without it an off-column push is a dead
+            // end: the wall holds, no gear arrives, and nothing tells the hand which way to go.
+            //
+            // Flat-bottomed, across the column's full width, for the same reason the slots are
+            // corridors: a pull toward a centre line is an equilibrium for the stick to hunt
+            // around, and this one would sit exactly where the hand is trying to hold still.
+            double funnel = _geo.FunnelDepthFactor(y);
+            int guide = (int)Math.Round(
+                _columnDetentForce + ((_columnFunnelForce - _columnDetentForce) * funnel));
+
             int lateral = Saturating(
                 x - _geo.ColumnTarget(_detentColumn),
-                _columnDetentForce,
+                Math.Max(_columnDetentForce, guide),
                 _cfg.DetentRamp,
-                _cfg.WallDeadBand);
+                _geo.ColumnFreeHalfWidth(_detentColumn));
 
             lateral += BarrierForceAt(x);
 
@@ -345,14 +361,18 @@ namespace AB9ActiveShifter.Core
             // the middle of the slot for the stick to hunt around. Barriers are a neutral-channel
             // affair and stay out of it; once committed to a gear there is nothing to push through.
             //
-            // The ramp is clamped so the wall reaches full strength before the state machine's
-            // exit band. Otherwise a firm sideways lean could drop the gear while the wall was
-            // still building, and the abrupt swap to neutral forces mid-lean is itself a source
-            // of oscillation - as well as a gear falling out for no visible reason.
+            // The face gets the full bite distance, the same as the gate walls. It used to be
+            // squeezed into the state machine's exit band - about a fifth of that - so that a
+            // lean could not drop the gear while the wall was still building, and the resulting
+            // gradient was several times steeper than any wall a hand found stable: the slots
+            // oscillated while the channel did not. A latched gear is now held until the stick
+            // returns through the neutral channel, so that band no longer decides anything and
+            // the squeeze is gone. The remaining bound just keeps a wall from bleeding into the
+            // neighbouring column.
             int corridor = SlotCorridor(column);
             int ramp = Math.Min(
                 _cfg.WallRamp,
-                Math.Max(200, _geo.ColumnExitHalfWidth(column) - corridor - 150));
+                Math.Max(200, (_geo.ColumnSpacing / 2) - corridor));
 
             f.ConstantX = Saturating(
                 x - _geo.ColumnTarget(column),
@@ -400,16 +420,14 @@ namespace AB9ActiveShifter.Core
         {
             int total = 0;
 
-            // The 7/R column sits at the far end of the gear map, which mirroring moves to the
-            // other physical end of the gate - the lockout guards wherever 7/R actually is.
-            int lockoutGap = _cfg.MirrorColumns ? 0 : GateGeometry.ColumnCount - 2;
-
             for (int i = 0; i < GateGeometry.ColumnCount - 1; i++)
             {
+                // Both the gate's position and which gap it guards come from the geometry, which
+                // places it against the main section and follows the mirrored gear map.
                 int d = x - _geo.BarrierCentre(i);
 
-                total += i == lockoutGap
-                    ? LockoutGate(d, _lockoutForce, _cfg.LockoutHalfWidth, _cfg.WallRamp, _cfg.MirrorColumns)
+                total += i == _geo.LockoutGapIndex
+                    ? LockoutGate(d, _lockoutForce, _geo.LockoutHalfWidth, _cfg.WallRamp, _geo.MirrorColumns)
                     : Hump(d, _barrierForce, _cfg.BarrierWidth);
             }
 

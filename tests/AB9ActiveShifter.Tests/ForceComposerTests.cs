@@ -22,8 +22,21 @@ namespace AB9ActiveShifter.Tests
         private const int C3 = 43690;
         private const int C4 = 65535;
 
-        /// <summary>Midpoint between C3 and C4: the centre of the lockout gate.</summary>
-        private const int LockoutCrest = (C3 + C4) / 2;
+        /// <summary>
+        /// Where the lockout gate sits. Asked of the geometry rather than assumed: the gate places
+        /// itself against the last main-section column, not at the midpoint of the gap it guards.
+        /// </summary>
+        private static int GateCentre(EngineConfig cfg)
+        {
+            return cfg.BuildGeometry().LockoutCentre;
+        }
+
+        /// <summary>A point clear of the gate's band including its ramp-out face.</summary>
+        private static int OutsideGate(EngineConfig cfg, int sign)
+        {
+            GateGeometry geo = cfg.BuildGeometry();
+            return geo.LockoutCentre + (sign * (geo.LockoutHalfWidth + cfg.WallRamp + 500));
+        }
 
         private static EngineConfig FullGainConfig()
         {
@@ -248,7 +261,7 @@ namespace AB9ActiveShifter.Tests
             ForceComposer c = Composer(cfg);
 
             int inner = Math.Abs(Neutral(c, ((C1 + C2) / 2) + cfg.BarrierWidth, Center).ConstantX);
-            int lockout = Math.Abs(Neutral(c, LockoutCrest + 1500, Center).ConstantX);
+            int lockout = Math.Abs(Neutral(c, GateCentre(cfg) + 1500, Center).ConstantX);
 
             Assert.True(lockout > inner * 3,
                 "lockout " + lockout + " should dwarf an ordinary barrier " + inner);
@@ -268,7 +281,7 @@ namespace AB9ActiveShifter.Tests
 
             foreach (int offset in new[] { -2000, -800, 0, 800, 2000 })
             {
-                Assert.Equal(-7000, Neutral(c, LockoutCrest + offset, Center).ConstantX);
+                Assert.Equal(-7000, Neutral(c, GateCentre(cfg) + offset, Center).ConstantX);
             }
         }
 
@@ -286,7 +299,7 @@ namespace AB9ActiveShifter.Tests
             ForceComposer c = Composer(cfg);
 
             int first = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
-                                  LockoutCrest - 1500, Center, 30000, 0, dtMs: 1).ConstantX;
+                                  GateCentre(cfg) - 1500, Center, 30000, 0, dtMs: 1).ConstantX;
             Assert.Equal(-7000, first);
         }
 
@@ -302,9 +315,8 @@ namespace AB9ActiveShifter.Tests
             cfg.BarrierForcePct = 0;
             ForceComposer c = Composer(cfg);
 
-            int mirroredCrest = (C1 + C2) / 2;
-            Assert.Equal(7000, Neutral(c, mirroredCrest, Center).ConstantX);
-            Assert.Equal(0, Neutral(c, LockoutCrest, Center).ConstantX);
+            Assert.Equal(7000, Neutral(c, GateCentre(cfg), Center).ConstantX);
+            Assert.Equal(0, Neutral(c, GateCentre(FullGainConfig()), Center).ConstantX);
         }
 
         [Fact]
@@ -317,8 +329,8 @@ namespace AB9ActiveShifter.Tests
             cfg.BarrierForcePct = 0;
             ForceComposer c = Composer(cfg);
 
-            Assert.Equal(0, Neutral(c, LockoutCrest - 4000, Center).ConstantX);
-            Assert.Equal(0, Neutral(c, LockoutCrest + 4000, Center).ConstantX);
+            Assert.Equal(0, Neutral(c, OutsideGate(cfg, -1), Center).ConstantX);
+            Assert.Equal(0, Neutral(c, OutsideGate(cfg, +1), Center).ConstantX);
         }
 
         [Fact]
@@ -333,9 +345,47 @@ namespace AB9ActiveShifter.Tests
             cfg.BarrierForcePct = 0;
             ForceComposer c = Composer(cfg);
 
-            Assert.Equal(-7000, Neutral(c, LockoutCrest - 1800, Center).ConstantX);
-            Assert.Equal(0, Neutral(c, LockoutCrest - 4500, Center).ConstantX);
-            Assert.Equal(0, Neutral(c, LockoutCrest + 4500, Center).ConstantX);
+            Assert.Equal(-7000, Neutral(c, GateCentre(cfg) - 1800, Center).ConstantX);
+            Assert.Equal(0, Neutral(c, OutsideGate(cfg, -1), Center).ConstantX);
+            Assert.Equal(0, Neutral(c, OutsideGate(cfg, +1), Center).ConstantX);
+        }
+
+        [Fact]
+        public void TheGateSitsAgainstTheMainSectionNotInTheMiddleOfTheGap()
+        {
+            // The gate used to sit at the gap's midpoint, thousands of counts right of 5/6, and
+            // the dead travel in between was a usability trap: the hand stops where the gate
+            // stops it, assumes it has reached a column, and finds fore/aft neither engages a
+            // gear nor explains itself. Its inner face now begins where the 5/6 column's band
+            // ends, so meeting the gate means the column is directly behind you.
+            GateGeometry geo = new EngineConfig().BuildGeometry();
+
+            int innerFace = geo.LockoutCentre - geo.LockoutHalfWidth;
+            int columnBand = geo.ColumnTarget(Column.C3) + geo.ColumnExitHalfWidth(Column.C3);
+
+            Assert.Equal(columnBand, innerFace);
+            Assert.True(geo.LockoutCentre < (C3 + C4) / 2,
+                "the gate must sit nearer the main section than the midpoint it used to occupy");
+        }
+
+        [Fact]
+        public void CrossingTheGateHandsTheStickToTheSeventhColumn()
+        {
+            // The lateral guide switches columns at the barrier crests, not at the geometric
+            // midpoints. With the gate off-centre a midpoint boundary would keep pulling the
+            // stick back toward 5/6 for thousands of counts after it had fought its way through
+            // - dragging it straight back into the gate it just paid for.
+            EngineConfig cfg = FullGainConfig();
+            GateGeometry geo = cfg.BuildGeometry();
+
+            Assert.Equal(Column.C3, geo.NearestColumn(geo.LockoutCentre - 500, Column.C3));
+            Assert.Equal(Column.C4, geo.NearestColumn(geo.LockoutCentre + 3000, Column.C3));
+
+            // And the guide past the gate must pull on toward 7/R, not back.
+            EngineConfig noGate = FullGainConfig();
+            noGate.LockoutForcePct = 0;
+            Assert.True(Neutral(Composer(noGate), OutsideGate(noGate, +1), Center).ConstantX > 0,
+                "past the gate the guide should carry on toward 7/R");
         }
 
         [Fact]
@@ -424,6 +474,52 @@ namespace AB9ActiveShifter.Tests
 
             Assert.True(Neutral(c, C4, Center).ConstantX >= 0, "must not be pushed off 7/R");
             Assert.True(Neutral(c, C1, Center).ConstantX <= 0, "must not be pushed off 1/2");
+        }
+
+        // ---------------------------------------------------------------- the funnel
+
+        [Fact]
+        public void TheGuideStrengthensIntoAFunnelAsAGearIsTakenP()
+        {
+            // Off-column entries used to be a dead end - the gate wall held, no gear arrived, and
+            // nothing steered the hand onto a slot. The lateral guide now grows with depth out of
+            // the channel, like the tapered mouth of a real gate.
+            EngineConfig cfg = FullGainConfig();
+            cfg.ColumnDetentForcePct = 12;
+            cfg.ColumnFunnelForcePct = 40;
+            cfg.BarrierForcePct = 0;
+            cfg.LockoutForcePct = 0;
+            ForceComposer c = Composer(cfg);
+
+            int offColumn = C2 + 2200;
+            int sliding = Math.Abs(Neutral(c, offColumn, Center).ConstantX);
+            int entering = Math.Abs(Neutral(c, offColumn, Center - cfg.ChannelHalfExit - 500).ConstantX);
+
+            Assert.True(entering > sliding * 2,
+                "the funnel should take over on entry: " + entering + " vs " + sliding);
+        }
+
+        [Fact]
+        public void TheFunnelPushesTowardTheColumnAndIsFlatBottomed()
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.BarrierForcePct = 0;
+            cfg.LockoutForcePct = 0;
+            ForceComposer c = Composer(cfg);
+            int deep = Center - cfg.ChannelHalfExit - 500;
+
+            // Either side of a column it steers inward.
+            Assert.True(Neutral(c, C2 + 2200, deep).ConstantX < 0);
+            Assert.True(Neutral(c, C2 - 2200, deep).ConstantX > 0);
+
+            // And across the column's own width it does nothing at all, so there is no centre
+            // line for the stick to hunt around exactly where the hand is trying to hold still.
+            GateGeometry geo = cfg.BuildGeometry();
+            int free = geo.ColumnFreeHalfWidth(Column.C2);
+            foreach (int offset in new[] { -free, -free / 2, 0, free / 2, free })
+            {
+                Assert.Equal(0, Neutral(c, C2 + offset, deep).ConstantX);
+            }
         }
 
         // ---------------------------------------------------------------- slot detent
@@ -562,18 +658,36 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void SlotWallReachesFullStrengthBeforeTheGearCanBeLost()
+        public void ASlotWallGetsTheSameBiteAsAGateWall()
         {
-            // The state machine drops a latched inner column at ColumnInnerHalfExit. The wall's
-            // ramp is clamped to finish before that, or a firm sideways lean would release the
-            // gear while the wall was still building and swap force fields mid-lean.
+            // The slot wall's face used to be squeezed into the state machine's exit band, about
+            // a fifth of the configured bite, so it was several times steeper than any wall a
+            // hand found stable - the slots oscillated while the channel did not. A latched gear
+            // is now held until the stick returns through the channel, so nothing needs the
+            // squeeze and both kinds of wall share one bite distance.
             EngineConfig cfg = FullGainConfig();
+            cfg.WallRamp = 4000;
+            cfg.SlotHalfWidth = 1100;
             ForceComposer c = Composer(cfg);
 
-            int justInsideExit = C2 + cfg.ColumnInnerHalfExit - 100;
-            int force = c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, justInsideExit, 2000).ConstantX;
+            // Half way up the face, the force is half the plateau - a gentle gradient, not the
+            // near-step the exit band used to force.
+            int halfway = C2 + 1100 + 2000;
+            Assert.Equal(-4500, c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, halfway, 2000).ConstantX);
+        }
 
-            Assert.Equal(-9000, force);
+        [Fact]
+        public void ASlotWallStillCannotBleedIntoTheNextColumn()
+        {
+            // The one bound left on the face: whatever the bite is set to, the wall must be at
+            // full strength before the neighbouring column's territory begins.
+            EngineConfig cfg = FullGainConfig();
+            cfg.WallRamp = 40000;   // absurd on purpose
+            ForceComposer c = Composer(cfg);
+            GateGeometry geo = cfg.BuildGeometry();
+
+            int atMidpoint = C2 + (geo.ColumnSpacing / 2);
+            Assert.Equal(-9000, c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, atMidpoint, 2000).ConstantX);
         }
 
         // ---------------------------------------------------------------- time shaping
@@ -810,7 +924,7 @@ namespace AB9ActiveShifter.Tests
             foreach (int v in new[] { -900000, -120000, 0, 120000, 900000 })
             {
                 ForceFrame f = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
-                                         LockoutCrest + 1800, Center - 5000, v, v);
+                                         GateCentre(cfg) + 1800, Center - 5000, v, v);
                 Assert.InRange(f.ConstantX, -GateGeometry.ForceMax, GateGeometry.ForceMax);
                 Assert.InRange(f.ConstantY, -GateGeometry.ForceMax, GateGeometry.ForceMax);
             }
@@ -825,8 +939,8 @@ namespace AB9ActiveShifter.Tests
             EngineConfig inverted = FullGainConfig();
             inverted.InvertConstantX = true;
 
-            int a = Neutral(Composer(plain), LockoutCrest + 1800, Center).ConstantX;
-            int b = Neutral(Composer(inverted), LockoutCrest + 1800, Center).ConstantX;
+            int a = Neutral(Composer(plain), GateCentre(plain) + 1800, Center).ConstantX;
+            int b = Neutral(Composer(inverted), GateCentre(inverted) + 1800, Center).ConstantX;
 
             Assert.Equal(-a, b);
             Assert.NotEqual(0, a);
@@ -847,8 +961,8 @@ namespace AB9ActiveShifter.Tests
             int yInverted = Neutral(Composer(inverted), between, Center - 3000).ConstantY;
             Assert.Equal(-yPlain, yInverted);
 
-            int xPlain = Neutral(Composer(plain), LockoutCrest + 1800, Center).ConstantX;
-            int xInverted = Neutral(Composer(inverted), LockoutCrest + 1800, Center).ConstantX;
+            int xPlain = Neutral(Composer(plain), GateCentre(plain) + 1800, Center).ConstantX;
+            int xInverted = Neutral(Composer(inverted), GateCentre(inverted) + 1800, Center).ConstantX;
             Assert.Equal(xPlain, xInverted);
         }
 
@@ -865,8 +979,8 @@ namespace AB9ActiveShifter.Tests
             int wallHalf = Math.Abs(Neutral(Composer(half), between, Center - 3000).ConstantY);
             Assert.Equal(wallFull / 2, wallHalf);
 
-            int lockFull = Math.Abs(Neutral(Composer(full), LockoutCrest + 1800, Center).ConstantX);
-            int lockHalf = Math.Abs(Neutral(Composer(half), LockoutCrest + 1800, Center).ConstantX);
+            int lockFull = Math.Abs(Neutral(Composer(full), GateCentre(full) + 1800, Center).ConstantX);
+            int lockHalf = Math.Abs(Neutral(Composer(half), GateCentre(half) + 1800, Center).ConstantX);
             Assert.Equal(lockFull / 2, lockHalf);
         }
 

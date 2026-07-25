@@ -102,17 +102,26 @@ namespace AB9ActiveShifter.UI
             DrawStick(dc, snap, left, right, top, bottom);
         }
 
+        /// <summary>
+        /// Shades where the lockout gate actually is, rather than where a separate setting says
+        /// to shade. The gate positions itself from the gate geometry, so asking the geometry is
+        /// the only way for the drawing to stay honest when its width or the layout changes.
+        /// </summary>
         private void DrawLockoutBand(DrawingContext dc, double left, double right, double top, double bottom)
         {
-            int lockoutStart = _settings != null ? _settings.LockoutStart : 48000;
-            double x = MapX(lockoutStart, left, right);
-            if (x >= right) return;
+            if (_settings == null) return;
 
-            dc.DrawRectangle(LockoutBrush, null, new Rect(x, top - 8, right - x + 8, bottom - top + 16));
-            dc.DrawLine(LockoutEdgePen, new Point(x, top - 8), new Point(x, bottom + 8));
+            GateGeometry geo = _settings.ToEngineConfig().BuildGeometry();
+            double from = MapX(geo.LockoutCentre - geo.LockoutHalfWidth, left, right);
+            double to = MapX(geo.LockoutCentre + geo.LockoutHalfWidth, left, right);
+            if (to <= left || from >= right) return;
+
+            dc.DrawRectangle(LockoutBrush, null, new Rect(from, top - 8, Math.Max(1, to - from), bottom - top + 16));
+            dc.DrawLine(LockoutEdgePen, new Point(from, top - 8), new Point(from, bottom + 8));
+            dc.DrawLine(LockoutEdgePen, new Point(to, top - 8), new Point(to, bottom + 8));
 
             FormattedText text = Text("LOCKOUT", 10, LockoutEdgeBrush);
-            dc.DrawText(text, new Point(x + 6, top - 8 - text.Height - 2));
+            dc.DrawText(text, new Point(from + 4, top - 8 - text.Height - 2));
         }
 
         private void DrawStick(DrawingContext dc, EngineSnapshot snap, double left, double right, double top, double bottom)

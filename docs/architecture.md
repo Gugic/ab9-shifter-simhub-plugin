@@ -100,7 +100,17 @@ hysteresis on every boundary (the exit band is always the looser one).
   single-tick spikes) → button down.
 - Engaged → Traveling past `ReleaseDepth` → **button up immediately**.
 - Traveling → Neutral on re-entering the channel.
-- Anomaly guard: if X escapes the latched column's exit band, release the button and `Resync`.
+
+**The latch is a lock.** Once a column is latched, sideways motion never changes it — the only
+route to another gear is back through the neutral channel, exactly as a real gate works. See the
+gear lock in [force-model.md](force-model.md) for what that buys.
+
+The fault path: if X escapes the latched column by more than half a column spacing
+(`EscapedColumn`), that is a fault, not a shift. The gear drops, the state goes Neutral, and an
+`_awaitChannel` flag blocks any new latch until the stick has been seen in the channel. Without
+that flag the very next tick would latch whatever column the stick had landed in, making the fault
+path a back door into the diagonal shift the lock forbids. `Resync` — used at startup and after a
+geometry change — deliberately does adopt the gear the stick is sitting in, and clears the flag.
 
 Gear numbering is `GearOf(column, direction)`, 1–8 with 8 = reverse. `MirrorColumns` and
 `MirrorSlots` relabel that map **only** — geometry never moves. See the invariants in

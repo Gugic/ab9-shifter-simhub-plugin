@@ -20,11 +20,17 @@ and a one-way gate guarding 7th and reverse.
 ```
 
 Four columns: **1/2, 3/4, 5/6, 7/R**, reverse bottom-right. Sliding along the neutral
-channel there is a light hump between the ordinary columns, and before 7/R a **lockout
-gate**: a compact band of flat force pushing back toward the main gears the whole way
-across. Crossing it costs the same effort however fast you move the lever, so it cannot be
-flicked through. Coming back out of 7/R is assisted, like a real range gate. Once slotted
+channel there is a light hump between the ordinary columns, and immediately past 5/6 a
+**lockout gate**: a compact band of flat force pushing back toward the main gears the whole
+way across. Crossing it costs the same effort however fast you move the lever, so it cannot
+be flicked through. Coming back out of 7/R is assisted, like a real range gate. Once slotted
 in 7 or R the column behaves exactly like the others.
+
+Two rules make the gate feel mechanical rather than like a set of forces. A gear can only be
+left **through the neutral channel** — leaning sideways, or shoving through a wall, will not
+hand you a different gear, it just pushes you back into the one you are in. And pushing into
+a gear slightly off-column is **funnelled** onto the slot rather than blocked, the way the
+tapered mouth of a real gate guides the lever in.
 
 The toll is the gate's force (70% by default) times its width, and both are adjustable.
 

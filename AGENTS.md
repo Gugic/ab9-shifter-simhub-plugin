@@ -114,9 +114,17 @@ runners cannot load, so anything worth testing must not touch it.
 - Positions stay in **device coordinates end to end.** Layout preferences (`MirrorColumns`,
   `MirrorSlots`) relabel the *gear map* only. Mirroring the readings instead would put every
   force anchor on the wrong side of the gate and turn holds into repellers.
-- A slot wall's ramp is clamped to reach full strength **before** the state machine's
-  `ColumnInnerHalfExit` band. Otherwise a firm sideways lean drops the gear while the wall is
-  still building, and the force field swaps mid-lean.
+- **A latched gear is released only by returning through the neutral channel.** Sideways motion
+  never changes gear; only a gross escape (over half a column spacing) counts, as a fault, and a
+  fault refuses to latch anything until the channel has been seen again — otherwise it becomes a
+  back door into the diagonal shift the lock exists to forbid. This is also what frees the slot
+  wall's face from the old exit-band squeeze, so do not reintroduce a lateral release without
+  re-clamping that ramp.
+- **The lockout gate positions itself** against the last main-section column
+  (`GateGeometry.LockoutCentre`), and the lateral guide's column boundaries are the barrier
+  crests, not the geometric midpoints. Anything that needs to know where the lockout is must ask
+  the geometry — a second copy of that position silently drifts (the Monitor tab's shading used
+  to be exactly that bug).
 - Slots and the neutral channel are **corridors with walls**, not pulls toward a centre line. A
   restoring force about an interior equilibrium is an oscillator; that is what made the middle
   columns shake while the outer ones (one-sided against the end of travel) were fine.

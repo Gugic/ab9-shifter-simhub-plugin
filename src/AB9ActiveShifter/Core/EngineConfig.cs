@@ -61,9 +61,6 @@ namespace AB9ActiveShifter.Core
         public int ColumnInnerHalfExit = 2400;
         public int EngageDepth = 4000;
         public int ReleaseDepth = 8000;
-        /// <summary>Where the Monitor tab starts shading the lockout. Display only: the barrier
-        /// itself sits at the midpoint between the 5/6 and 7/R columns.</summary>
-        public int LockoutStart = 48000;
         public int DetentHysteresis = 1500;
         public int MinEngageTicks = 2;
 
@@ -83,6 +80,14 @@ namespace AB9ActiveShifter.Core
         /// <summary>Light pull onto the nearest column while sliding along the channel.</summary>
         public int ColumnDetentForcePct = 12;
 
+        /// <summary>
+        /// What the pull onto a column grows to as the stick is pushed out of the channel toward
+        /// a gear - the tapered mouth of the gate. Strong enough to steer an off-column entry
+        /// into the slot, which is otherwise a dead end: the gate wall holds, no gear arrives,
+        /// and nothing tells the hand which way to move.
+        /// </summary>
+        public int ColumnFunnelForcePct = 40;
+
         /// <summary>Humps between the ordinary columns, felt as you slide across the gate.</summary>
         public int BarrierForcePct = 15;
 
@@ -95,6 +100,9 @@ namespace AB9ActiveShifter.Core
         /// the 7/R column. Flat one-way force across the band, free travel beyond. The width is
         /// also the gate's energy budget - force times band is the toll a flick must pay to get
         /// through - so if fast slams still sneak past, widen this or raise the force.
+        ///
+        /// Geometry, not just feel: the gate is positioned against the last main-section column
+        /// and the width decides how far past it the band reaches. See GateGeometry.LockoutCentre.
         /// </summary>
         public int LockoutHalfWidth = 2200;
 
@@ -228,7 +236,7 @@ namespace AB9ActiveShifter.Core
                 ColumnInnerHalfExit,
                 EngageDepth,
                 ReleaseDepth,
-                LockoutStart,
+                LockoutHalfWidth,
                 DetentHysteresis,
                 MirrorColumns,
                 MirrorSlots);

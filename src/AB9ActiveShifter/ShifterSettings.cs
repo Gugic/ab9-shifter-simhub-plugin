@@ -12,8 +12,8 @@ namespace AB9ActiveShifter
     public class ShifterSettings : INotifyPropertyChanged
     {
         // Off by default on purpose: enabling takes the base exclusively and starts applying
-        // force. That must be a deliberate act, after the Pit House pre-flight steps, with
-        // the user at the stick.
+        // force. That must be a deliberate act, after the MOZA Cockpit setup and the rest of
+        // the pre-flight steps, with the user at the stick.
         private bool _enabled;
         private int _overallGainPct = 25;
         private int _lockoutForcePct = 70;
@@ -35,6 +35,7 @@ namespace AB9ActiveShifter
         private int _channelWallForcePct = 90;
         private int _channelGuideForcePct = 5;
         private int _columnDetentForcePct = 12;
+        private int _columnFunnelForcePct = 40;
         private int _barrierForcePct = 15;
         private int _lockoutHalfWidth = 2200;
         private int _wallRamp = 600;
@@ -59,7 +60,6 @@ namespace AB9ActiveShifter
         private int _columnInnerHalfExit = 2400;
         private int _engageDepth = 4000;
         private int _releaseDepth = 8000;
-        private int _lockoutStart = 48000;
         private int _detentHysteresis = 1500;
         private int _minEngageTicks = 2;
 
@@ -106,6 +106,9 @@ namespace AB9ActiveShifter
         public int ChannelWallForcePct { get { return _channelWallForcePct; } set { Set(ref _channelWallForcePct, value); } }
         public int ChannelGuideForcePct { get { return _channelGuideForcePct; } set { Set(ref _channelGuideForcePct, value); } }
         public int ColumnDetentForcePct { get { return _columnDetentForcePct; } set { Set(ref _columnDetentForcePct, value); } }
+
+        /// <summary>What the pull onto a column grows to when pushing into a gear - the funnel.</summary>
+        public int ColumnFunnelForcePct { get { return _columnFunnelForcePct; } set { Set(ref _columnFunnelForcePct, value); } }
         public int BarrierForcePct { get { return _barrierForcePct; } set { Set(ref _barrierForcePct, value); } }
 
         public int WallRamp { get { return _wallRamp; } set { Set(ref _wallRamp, value); } }
@@ -139,7 +142,6 @@ namespace AB9ActiveShifter
         public int ColumnInnerHalfExit { get { return _columnInnerHalfExit; } set { Set(ref _columnInnerHalfExit, value); } }
         public int EngageDepth { get { return _engageDepth; } set { Set(ref _engageDepth, value); } }
         public int ReleaseDepth { get { return _releaseDepth; } set { Set(ref _releaseDepth, value); } }
-        public int LockoutStart { get { return _lockoutStart; } set { Set(ref _lockoutStart, value); } }
         public int DetentHysteresis { get { return _detentHysteresis; } set { Set(ref _detentHysteresis, value); } }
         public int MinEngageTicks { get { return _minEngageTicks; } set { Set(ref _minEngageTicks, value); } }
 
@@ -171,7 +173,6 @@ namespace AB9ActiveShifter
                 ColumnInnerHalfExit = ColumnInnerHalfExit,
                 EngageDepth = EngageDepth,
                 ReleaseDepth = ReleaseDepth,
-                LockoutStart = LockoutStart,
                 DetentHysteresis = DetentHysteresis,
                 MinEngageTicks = MinEngageTicks,
 
@@ -179,6 +180,7 @@ namespace AB9ActiveShifter
                 ChannelWallForcePct = ChannelWallForcePct,
                 ChannelGuideForcePct = ChannelGuideForcePct,
                 ColumnDetentForcePct = ColumnDetentForcePct,
+                ColumnFunnelForcePct = ColumnFunnelForcePct,
                 BarrierForcePct = BarrierForcePct,
                 WallRamp = WallRamp,
                 WallAttackMs = WallAttackMs,
@@ -224,6 +226,7 @@ namespace AB9ActiveShifter
                 ChannelWallForcePct = d.ChannelWallForcePct;
                 ChannelGuideForcePct = d.ChannelGuideForcePct;
                 ColumnDetentForcePct = d.ColumnDetentForcePct;
+                ColumnFunnelForcePct = d.ColumnFunnelForcePct;
                 BarrierForcePct = d.BarrierForcePct;
                 WallRamp = d.WallRamp;
                 WallAttackMs = d.WallAttackMs;
@@ -250,7 +253,6 @@ namespace AB9ActiveShifter
                 ColumnInnerHalfExit = d.ColumnInnerHalfExit;
                 EngageDepth = d.EngageDepth;
                 ReleaseDepth = d.ReleaseDepth;
-                LockoutStart = d.LockoutStart;
                 DetentHysteresis = d.DetentHysteresis;
                 MinEngageTicks = d.MinEngageTicks;
                 TickHz = d.TickHz;
