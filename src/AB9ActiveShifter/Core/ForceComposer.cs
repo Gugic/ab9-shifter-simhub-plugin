@@ -50,7 +50,6 @@ namespace AB9ActiveShifter.Core
         private readonly int _channelWallForce;
         private readonly int _channelGuideForce;
         private readonly int _columnDetentForce;
-        private readonly int _columnFunnelForce;
         private readonly int _barrierForce;
         private readonly int _lockoutForce;
 
@@ -125,8 +124,6 @@ namespace AB9ActiveShifter.Core
             _channelWallForce = Force(config.ChannelWallForcePct, gain);
             _channelGuideForce = Force(config.ChannelGuideForcePct, gain);
             _columnDetentForce = Force(config.ColumnDetentForcePct, gain);
-            _columnFunnelForce = Math.Min(
-                Force(config.ColumnFunnelForcePct, gain), Force(config.ColumnPinForcePct, gain));
             _barrierForce = Force(config.BarrierForcePct, gain);
             _lockoutForce = Force(config.LockoutForcePct, gain);
 
@@ -442,25 +439,27 @@ namespace AB9ActiveShifter.Core
 
         /// <summary>
         /// How hard the lateral guide pushes at this depth: the light detent that parks the lever on
-        /// a column in the tunnel, growing through the funnel that steers an off-column entry into
-        /// its slot, to the full slot wall below. Piecewise linear and continuous, so there is no
-        /// depth at which the lever is handed a step.
+        /// a column in the tunnel, rising to the full slot wall by the time the channel is left.
+        ///
+        /// It finishes at the channel's exit band, and that boundary is the whole point. Below it a
+        /// column can be latched, and there the lateral field must be a function of x alone - no
+        /// depth term at all. An earlier version carried the rise on past the exit, which gave the
+        /// slot walls a cross-gradient of about 2 DI per count of depth where they had none before:
+        /// the wall grew under the hand as the lever was pushed in. The deep walls were unchanged
+        /// and stayed calm, and the guides leading down to each gear rang, which is exactly where it
+        /// was felt. One linear rise, done by the exit, and below it nothing varies with depth.
+        ///
+        /// Linear rather than kinked, so the slope is bounded by construction: pin force over the
+        /// channel's exit width, which sits at or under the wall's own face gradient. That is why
+        /// there is no separate funnel strength any more - a waypoint would either steepen one leg
+        /// past the budget or be exactly this line.
         /// </summary>
         private int GuidePlateau(int depth)
         {
             int mouth = Math.Max(1, _geo.ChannelHalfExit);
+            if (depth >= mouth) return _columnPinForce;
 
-            if (depth <= mouth)
-            {
-                return (int)Math.Round(Lerp(_columnDetentForce, _columnFunnelForce, depth / (double)mouth));
-            }
-
-            // The span is the channel's own width, deliberately NOT the wall's bite. The bite is a
-            // lateral distance and this is a depth, and coupling them meant a long bite pushed the
-            // slot wall's full strength tens of thousands of counts down the slot - the wall went
-            // missing exactly where a gear is held.
-            double t = GateGeometry.Clamp((depth - mouth) / (double)mouth, 0.0, 1.0);
-            return (int)Math.Round(Lerp(_columnFunnelForce, _columnPinForce, t));
+            return (int)Math.Round(Lerp(_columnDetentForce, _columnPinForce, depth / (double)mouth));
         }
 
         /// <summary>
@@ -485,7 +484,7 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         private int BarrierForceIn(int x, int y)
         {
-            double faded = 1.0 - _geo.SlotConfinementFactor(y, _cfg.WallRamp);
+            double faded = 1.0 - _geo.SlotConfinementFactor(y);
             if (faded <= 0.0) return 0;
 
             return (int)Math.Round(BarrierForceAt(x) * faded);

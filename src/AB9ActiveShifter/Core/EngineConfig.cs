@@ -77,16 +77,12 @@ namespace AB9ActiveShifter.Core
         /// <summary>Residual fore/aft resistance while lined up with a column. Keep this low.</summary>
         public int ChannelGuideForcePct = 5;
 
-        /// <summary>Light pull onto the nearest column while sliding along the channel.</summary>
-        public int ColumnDetentForcePct = 12;
-
         /// <summary>
-        /// What the pull onto a column grows to as the stick is pushed out of the channel toward
-        /// a gear - the tapered mouth of the gate. Strong enough to steer an off-column entry
-        /// into the slot, which is otherwise a dead end: the gate wall holds, no gear arrives,
-        /// and nothing tells the hand which way to move.
+        /// Light pull onto the nearest column while sliding along the channel. It is the shallow end
+        /// of one straight line that rises to the slot wall by the channel's exit, so it also sets
+        /// how firmly an off-column entry is steered into its slot on the way in.
         /// </summary>
-        public int ColumnFunnelForcePct = 40;
+        public int ColumnDetentForcePct = 12;
 
         /// <summary>Humps between the ordinary columns, felt as you slide across the gate.</summary>
         public int BarrierForcePct = 15;

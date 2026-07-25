@@ -118,6 +118,20 @@ slot to another around a divider end is exactly the manoeuvre that crosses the b
 exactly where it rang, while the deep walls - where the two branches happened to agree and both went
 flat - stayed calm. `TheLateralFieldDoesNotDependOnTheLatch` pins it at zero now.
 
+**Nothing below the channel varies with depth.** Below the exit band a column can be latched, and
+there the lateral field is a function of x alone - the guide plateau has reached the slot wall, the
+barriers have faded out, and only an opt-in mouth shape moves anything. This boundary was learned the
+hard way: an earlier version carried the plateau's rise on past the exit, which gave the slot walls a
+cross-gradient of about 2 DI per count of depth where they had none, so the wall grew under the hand as
+the lever was pushed in. The deep walls were untouched and stayed calm; the guides leading down to each
+gear rang, and that is exactly where it was felt. Pinned by
+`BelowTheChannelTheLateralFieldHasNoDepthTermAtAll`.
+
+The guide's rise is therefore one straight line from the tunnel detent to the slot wall, finishing at
+the exit band, which also bounds its slope by construction at pin force over the exit width - at or
+under the wall's own face. That is why there is no separate funnel strength: a waypoint would either
+make one leg steeper than the walls or land exactly on this line.
+
 **One stiffness.** Every lateral force's face length is derived from its plateau, so plateau over
 face is always pin force over the wall's bite. A gentler force gets a *shorter face* rather than a
 steeper one. This retired the steepest gradient in the gate: the funnel's ramp was a free parameter,
@@ -299,6 +313,8 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **Lockout faces overhanging the band** | Ate the clearance the gate is placed with and put the onset of the toll on top of the 5/6 column, as a hard bump where a hand expects a resting place. The faces are inside the band now. |
 | **A fixed static-hold band** | Wide enough to steady a full-strength wall meant swallowing a light guide force whole, making a slide across the gate notchy. The band is proportional to the force being applied. |
 | **Computing the lateral force in two branches** | The tunnel's field and the in-column field disagreed by 4924 measured DI at the same position, selected by the latch and therefore by history. The mouth rang; deep walls did not, because there the two agreed. One function now, called by both. |
+| **A depth term below the channel exit** | The guide's rise continued past the exit, giving every slot wall a ~2 DI/count cross-gradient it had never had - the wall grew as the lever was pushed in. Deep walls unchanged and calm, guides ringing. Everything depth-dependent now finishes at the exit band. |
+| **A separate funnel strength** (`ColumnFunnelForcePct`) | A waypoint on the guide's rise. Placed anywhere but on the straight line it made one leg steeper than the wall face; placed on the line it was redundant. Deleted; the detent sets the shallow end and the slot wall the deep one. |
 | **A separate ramp for the lateral guide** (`DetentRamp`) | A free parameter on a gradient. At its floor it made the funnel 13.3 DI/count against a 3.8 wall face - the steepest thing in the gate, in the region crossed on every shift. Faces are derived from plateaus at the wall's stiffness now, and the dial is deleted. |
 | **Using the wall's bite as the plateau's depth span** | They are different axes. A long bite delayed the slot wall's full strength by tens of thousands of counts of depth, so the wall vanished where a gear is held. The depth span is the channel's own width. |
 | **Crest watersheds below the tunnel** | Opened a complete lockout bypass: past the gate's off-centre crest at gear depth the guide adopts 7/R and conveys the lever toward 7 at full pin force, toll unpaid. Midpoints below the tunnel. |

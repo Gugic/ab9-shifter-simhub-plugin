@@ -15,7 +15,6 @@ light — that is the safety cap doing its job, not a tuning problem.
 | Gate wall, between columns | 90% | The fore/aft wall that stops you entering a gear you are not lined up with. |
 | Slot wall, once in a gear | 90% | The sideways walls of a slot. |
 | Lockout gate, guarding 7/R | 70% | The push-through toll before 7 and R. Sits against the 5/6 column; width sets the toll with it. |
-| Funnel into the slot | 40% | Steers an off-column push into the slot instead of blocking it. |
 | Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
 | Slot mouth | Square | Shape of the divider ends where they meet the tunnel. Square is the plain notch and changes nothing. |
 | Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
@@ -57,6 +56,13 @@ one you got. Going around a divider end is the manoeuvre that crosses that bound
 function called by both, provably identical. Second, the funnel had its own ramp dial, and at its
 floor that made it the steepest gradient in the gate at three and a half times the wall face, present
 only in the mouth. Every lateral force now rises at the wall's own stiffness, and the dial is gone.
+
+**The guides leading down to each gear oscillate, though the deep walls are calm.**
+Fixed. The guide's rise from the tunnel's light pull to the full slot wall used to continue past the
+channel's exit band, which gave every slot wall a cross-gradient it had never had - the wall grew
+stronger under the hand as the lever was pushed in. Below the exit band nothing varies with depth now.
+If it persists with the mouth shape on Square, tell me; if only with Rounded or Angled, that is the
+mouth's own flank and *Mouth opening* is the dial.
 
 **A slot wall oscillates half-way into a gear, though the channel walls are calm.**
 This was a real bug, now fixed: the slot wall's face was squeezed into the state machine's lateral

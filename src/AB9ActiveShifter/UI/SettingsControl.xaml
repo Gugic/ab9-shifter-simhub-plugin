@@ -216,11 +216,8 @@
                             <ui:TitledSlider Title="Pull into a column (%)" Minimum="0" Maximum="60"
                                              TickFrequency="1" ShowResetButton="True" ResetValue="12"
                                              Value="{Binding ColumnDetentForcePct, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Funnel into the slot, when pushing into a gear (%)" Minimum="0" Maximum="100"
-                                             TickFrequency="5" ShowResetButton="True" ResetValue="40"
-                                             Value="{Binding ColumnFunnelForcePct, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
-                                       Text="The pull into a column is light while you slide along the channel, and grows to the funnel figure as you push out of it toward a gear - the tapered mouth a real gate has. Without it, pushing while slightly off a column is a dead end: the wall holds, no gear arrives, and nothing steers you onto the slot. There is no force at all across a column's own width, so it guides without giving the stick a centre line to hunt around." />
+                                       Text="The pull into a column is light while you slide along the channel and rises in one straight line to the full slot wall by the time you have left it, so the same dial also sets how firmly an entry taken slightly off a column is steered onto its slot. There is no force at all across a column's own width, so it guides without giving the lever a centre line to hunt around. It has no separate funnel strength: a second waypoint would either make one leg steeper than the walls or land exactly on this line." />
                         </StackPanel>
                     </styles:SHSection>
 
