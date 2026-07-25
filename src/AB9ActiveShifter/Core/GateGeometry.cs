@@ -306,14 +306,16 @@ namespace AB9ActiveShifter.Core
         /// wall that should not have been pushable.
         ///
         /// Deliberately far looser than <see cref="StillInColumn"/>, which is no longer what
-        /// releases a gear. A gear is given up only by returning through the neutral channel, so
-        /// the gate cannot be crossed diagonally from one gear into another, and a firm lean
-        /// against a slot wall can never drop the gear it is holding.
+        /// releases a gear: the threshold is a whole column spacing, past where the next column
+        /// even sits. A gear is given up only by returning through the neutral channel, so the
+        /// gate cannot be crossed diagonally from one gear into another, and no lean a hand can
+        /// manage drops the gear it is holding - it is simply pushed back to it, however far it
+        /// was dragged. Only a sensor jump or a geometry change under the loop reaches this far.
         /// </summary>
         public bool EscapedColumn(Column c, int x)
         {
             if (c == Column.None) return true;
-            return Math.Abs(x - ColumnTarget(c)) > (ColumnSpacing / 2) + DetentHysteresis;
+            return Math.Abs(x - ColumnTarget(c)) > ColumnSpacing + DetentHysteresis;
         }
 
         /// <summary>
@@ -326,6 +328,25 @@ namespace AB9ActiveShifter.Core
             int depth = Math.Abs(y - AxisCenter);
             int span = Math.Max(1, ChannelHalfExit - ChannelHalfEnter);
             return Clamp((depth - ChannelHalfEnter) / (double)span, 0.0, 1.0);
+        }
+
+        /// <summary>
+        /// How much a slot's own walls apply at this depth: 0 inside the neutral channel, rising
+        /// to 1 over the wall's bite once clear of it.
+        ///
+        /// A lever at gear depth is inside a slot whether or not the state machine has a column
+        /// latched, so lateral confinement has to be a fact about depth rather than about the
+        /// latch. When it depended on the latch, overpowering one slot wall dropped the latch,
+        /// which swapped in the neutral force field, which had no lateral wall at depth at all -
+        /// so the gate gave way completely and the lever could be dragged along the top or bottom
+        /// of the pattern from gear to gear, helped on its way by the guide adopting each column
+        /// as it passed the halfway line.
+        /// </summary>
+        public double SlotConfinementFactor(int y, int biteDistance)
+        {
+            int depth = Math.Abs(y - AxisCenter);
+            int span = Math.Max(1, biteDistance);
+            return Clamp((depth - ChannelHalfExit) / (double)span, 0.0, 1.0);
         }
 
         /// <summary>

@@ -319,17 +319,38 @@ namespace AB9ActiveShifter.Core
             // Flat-bottomed, across the column's full width, for the same reason the slots are
             // corridors: a pull toward a centre line is an equilibrium for the stick to hunt
             // around, and this one would sit exactly where the hand is trying to hold still.
+            int offset = x - _geo.ColumnTarget(_detentColumn);
+            int free = _geo.ColumnFreeHalfWidth(_detentColumn);
+
             double funnel = _geo.FunnelDepthFactor(y);
-            int guide = (int)Math.Round(
+            int guidePlateau = (int)Math.Round(
                 _columnDetentForce + ((_columnFunnelForce - _columnDetentForce) * funnel));
 
             int lateral = Saturating(
-                x - _geo.ColumnTarget(_detentColumn),
-                Math.Max(_columnDetentForce, guide),
-                _cfg.DetentRamp,
-                _geo.ColumnFreeHalfWidth(_detentColumn));
+                offset, Math.Max(_columnDetentForce, guidePlateau), _cfg.DetentRamp, free);
 
-            lateral += BarrierForceAt(x);
+            // Below the channel the guide gives way to the slot's own wall, at full strength. The
+            // slot walls belong to the depth, not to the state machine's latch: a lever at gear
+            // depth is inside a slot whatever the software thinks. While they depended on the
+            // latch, overpowering one wall dropped the latch and left the neutral field, which had
+            // no lateral wall down here at all - so the gate gave way entirely and the lever could
+            // be walked along the top or bottom of the pattern through every gear in turn.
+            double confine = _geo.SlotConfinementFactor(y, _cfg.WallRamp);
+            if (confine > 0.0)
+            {
+                int wall = (int)Math.Round(
+                    Saturating(offset, _columnPinForce, SlotRamp(free), free) * confine);
+
+                if (Math.Abs(wall) > Math.Abs(lateral)) lateral = wall;
+            }
+
+            // The humps and the lockout gate are features of the neutral channel - a plate has its
+            // gate cut into the tunnel, not into the slots - so they hand over to the slot walls
+            // with depth. Leaving them on below the channel had the lockout shoving back toward
+            // the main gears while the slot wall pushed on toward 7/R, the two of them cancelling
+            // to almost nothing in exactly the region that should be solid plate. Nothing is lost
+            // by fading them: reaching that depth at all means overpowering the full gate wall.
+            lateral += (int)Math.Round(BarrierForceAt(x) * (1.0 - confine));
 
             f.ConstantX = GateGeometry.Clamp(lateral, -GateGeometry.ForceMax, GateGeometry.ForceMax);
 
@@ -370,14 +391,11 @@ namespace AB9ActiveShifter.Core
             // the squeeze is gone. The remaining bound just keeps a wall from bleeding into the
             // neighbouring column.
             int corridor = SlotCorridor(column);
-            int ramp = Math.Min(
-                _cfg.WallRamp,
-                Math.Max(200, (_geo.ColumnSpacing / 2) - corridor));
 
             f.ConstantX = Saturating(
                 x - _geo.ColumnTarget(column),
                 _columnPinForce,
-                ramp,
+                SlotRamp(corridor),
                 corridor);
 
             f.ConstantY = DetentMagnitude(direction, y);
@@ -409,6 +427,15 @@ namespace AB9ActiveShifter.Core
         /// uses to decide the stick has left the column. A corridor wider than that would let the
         /// stick drift out of its own gear with no wall ever pushing back.
         /// </summary>
+        /// <summary>
+        /// Bite distance for a slot wall: the configured one, bounded only so the wall is at full
+        /// strength before the neighbouring column's territory begins.
+        /// </summary>
+        private int SlotRamp(int corridor)
+        {
+            return Math.Min(_cfg.WallRamp, Math.Max(200, (_geo.ColumnSpacing / 2) - corridor));
+        }
+
         private int SlotCorridor(Column column)
         {
             int limit = Math.Max(0, _geo.ColumnFreeHalfWidth(column) - 100);
