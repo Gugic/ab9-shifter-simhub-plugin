@@ -48,6 +48,15 @@ Widen **slot width (free corridor)**. A narrow corridor leaves the stick balance
 hunt around. Outer columns never do this because their wall only pushes one way, against the end of
 travel.
 
+**It oscillates around the wall ends, where one slot meets the tunnel, though deep walls are calm.**
+Fixed, and it was two measured faults rather than a tuning problem. The lateral force was computed by
+two different branches - one for the tunnel, one for once a gear was latched - and they disagreed by
+about six newton-metres at the same physical position, with the channel's hysteresis deciding which
+one you got. Going around a divider end is the manoeuvre that crosses that boundary. It is now one
+function called by both, provably identical. Second, the funnel had its own ramp dial, and at its
+floor that made it the steepest gradient in the gate at three and a half times the wall face, present
+only in the mouth. Every lateral force now rises at the wall's own stiffness, and the dial is gone.
+
 **A slot wall oscillates half-way into a gear, though the channel walls are calm.**
 This was a real bug, now fixed: the slot wall's face was squeezed into the state machine's lateral
 exit band, about a fifth of the bite you had set, so it was far steeper than the channel walls you
@@ -121,10 +130,11 @@ velocity.
 
 **Geometry tab.** *Gate wall fade width* (1500) is how far sideways the fore/aft wall takes to go
 from open on a column to solid between columns — the mouth of each slot, seen from the tunnel, and
-the sideways gradient that corners are made of. *Column pull and funnel ramp* (2500) is how far past
-a column's own width the lateral guide takes to reach full strength; keep it well above the wall bite
-distance, or the funnel becomes the steepest gradient in the gate and snatches. The enter/exit pairs
-are hysteresis bands — the exit value must always be the looser one. The lockout gate has no position dial: it places
+the sideways gradient that corners are made of. It is now the largest remaining gradient in the gate
+at about 1.5× the wall face, so it is the one to widen if corners still feel harsh. The lateral guide
+no longer has a ramp of its own: every sideways force rises at the wall's stiffness, so a gentler
+force gets a shorter face instead of a steeper one. The enter/exit pairs are hysteresis bands — the
+exit value must always be the looser one. The lockout gate has no position dial: it places
 itself against the last main-section column, and the Monitor tab draws the band where it actually
 is. *FFB loop rate* should stay at 1000; see [hardware.md](hardware.md) for
 why higher buys nothing.

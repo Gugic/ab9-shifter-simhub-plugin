@@ -539,6 +539,136 @@ namespace AB9ActiveShifter.Tests
             Assert.True(Neutral(c, C1, Center).ConstantX <= 0, "must not be pushed off 1/2");
         }
 
+        // ---------------------------------------------------------------- one lateral field
+
+        [Fact]
+        public void TheLateralFieldDoesNotDependOnTheLatch()
+        {
+            // THE REGRESSION TEST. Its absence is what let a 4924 DI step - nearly six newton-metres
+            // - exist at the same physical position, selected by whether a column happened to be
+            // latched. Because the channel bands are hysteretic, that made the force depend on how
+            // the lever had arrived, and going around a divider end is the manoeuvre that crosses
+            // the boundary. It rang there and nowhere else.
+            EngineConfig cfg = FullGainConfig();
+            GateGeometry geo = cfg.BuildGeometry();
+
+            foreach (Column latched in new[] { Column.C1, Column.C2, Column.C3, Column.C4 })
+            {
+                foreach (ShiftDir dir in new[] { ShiftDir.Fwd, ShiftDir.Back })
+                {
+                    for (int x = 0; x <= Max; x += 617)
+                    {
+                        foreach (int depth in new[] { 0, 900, 1399, 1400, 1401, 2399, 2400, 2401, 4000, 9000, 20000 })
+                        {
+                            int y = dir == ShiftDir.Fwd ? Center - depth : Center + depth;
+
+                            int neutral = Neutral(Composer(cfg), x, y).ConstantX;
+                            int inColumn = Composer(cfg)
+                                .Compose(GateState.Engaged, latched, dir, x, y).ConstantX;
+
+                            Assert.Equal(neutral, inColumn);
+                        }
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void TheLateralFieldHasNoStepAcrossTheChannelBands()
+        {
+            // The other half of the same property: no depth at which the lever is handed a jump.
+            // The plateau profile is piecewise linear and continuous, so a single count of depth
+            // may only change the force by about one stiffness unit.
+            EngineConfig cfg = FullGainConfig();
+            int limit = (int)Math.Ceiling(cfg.ColumnPinForcePct * 100.0 / cfg.WallRamp) + 2;
+
+            foreach (int offset in new[] { 0, 800, 1500, 2400, 5000, 9000 })
+            {
+                int previous = Neutral(Composer(cfg), C2 + offset, Center).ConstantX;
+                for (int depth = 1; depth <= 6000; depth++)
+                {
+                    int now = Neutral(Composer(cfg), C2 + offset, Center - depth).ConstantX;
+                    Assert.True(Math.Abs(now - previous) <= limit,
+                        "step of " + (now - previous) + " at depth " + depth + ", offset " + offset);
+                    previous = now;
+                }
+            }
+        }
+
+        [Fact]
+        public void TheLockoutCannotBeConveyedPastAtDepth()
+        {
+            // Unifying the field opened a complete lockout bypass, found by review before it
+            // shipped: with the tunnel's crest boundaries applied at depth, a lever dragged out of
+            // 5/6 crosses the gate's crest and the guide adopts 7/R, so the wall that was holding
+            // it in reverses into a conveyor pushing it toward 7 at full pin force - no toll paid.
+            // Below the tunnel the boundary is the plain midpoint, so the lever keeps 5/6's inward
+            // wall the whole way across the gate's band.
+            EngineConfig cfg = FullGainConfig();
+            GateGeometry geo = cfg.BuildGeometry();
+            int deep = Center - cfg.EngageDepth - 2000;
+
+            int from = geo.LockoutCentre - geo.LockoutHalfWidth;
+            int to = (geo.ColumnTarget(Column.C3) + geo.ColumnTarget(Column.C4)) / 2;
+
+            for (int x = from; x < to; x += 100)
+            {
+                int force = Neutral(Composer(cfg), x, deep).ConstantX;
+                Assert.True(force <= 0,
+                    "at x=" + x + " the field must not carry the lever toward 7/R, got " + force);
+            }
+        }
+
+        [Fact]
+        public void EveryLateralForceRisesAtTheWallStiffness()
+        {
+            // One stiffness everywhere: a gentler force gets a shorter face, never a steeper one.
+            // The funnel used to have its own ramp, and at the bottom of its range that made it
+            // 13.3 DI per count against a wall face of 3.8 - the steepest gradient in the gate,
+            // living only in the mouth, which is the one region the lever crosses on every shift.
+            EngineConfig cfg = FullGainConfig();
+            cfg.WallRamp = 2364;
+            cfg.BarrierForcePct = 0;
+            cfg.LockoutForcePct = 0;
+            GateGeometry geo = cfg.BuildGeometry();
+
+            int corridor = Math.Min(cfg.SlotHalfWidth, geo.ColumnFreeHalfWidth(Column.C2) - 100);
+            double expected = (cfg.ColumnPinForcePct * 100.0)
+                / Math.Min(cfg.WallRamp, (geo.ColumnSpacing / 2) - corridor);
+
+            foreach (int depth in new[] { 1200, 2400, 3600, 4800, 12000 })
+            {
+                int a = Math.Abs(Neutral(Composer(cfg), C2 + corridor + 100, Center - depth).ConstantX);
+                int b = Math.Abs(Neutral(Composer(cfg), C2 + corridor + 200, Center - depth).ConstantX);
+                if (a == 0 || b <= a) continue;   // past the plateau, nothing left to measure
+
+                double slope = (b - a) / 100.0;
+                Assert.True(Math.Abs(slope - expected) < 0.6,
+                    "stiffness at depth " + depth + " was " + slope + ", expected " + expected);
+            }
+        }
+
+        [Fact]
+        public void TheGuideColumnIsForgottenWhenTheForcesAreReleased()
+        {
+            // The guide column is remembered between ticks for its hysteresis, so it has to be
+            // dropped when the forces are. Otherwise the lever can be moved anywhere with free
+            // stick on and come back to a saturated wall aimed at where it used to be.
+            EngineConfig held = FullGainConfig();
+            ForceComposer c = Composer(held);
+
+            c.Compose(GateState.Neutral, Column.None, ShiftDir.None, C4, Center);
+
+            EngineConfig free = FullGainConfig();
+            free.FreeStick = true;
+            ForceComposer released = new ForceComposer(free.BuildGeometry(), free);
+            Assert.Equal(0, released.Compose(GateState.Neutral, Column.None, ShiftDir.None, C4, Center).ConstantX);
+
+            // Coming back at the far end of travel must resolve from position alone.
+            int fresh = Neutral(Composer(held), C1, Center - 6000).ConstantX;
+            Assert.True(fresh >= 0, "a cold guide must not push away from the column it is on: " + fresh);
+        }
+
         // ---------------------------------------------------------------- the funnel
 
         [Fact]
@@ -650,10 +780,13 @@ namespace AB9ActiveShifter.Tests
             Assert.True(Neutral(c, C2 + 2200, deep).ConstantX < 0);
             Assert.True(Neutral(c, C2 - 2200, deep).ConstantX > 0);
 
-            // And across the column's own width it does nothing at all, so there is no centre
+            // And across the slot's own corridor it does nothing at all, so there is no centre
             // line for the stick to hunt around exactly where the hand is trying to hold still.
+            // The flat bottom is the slot's corridor now, in every state - it used to be the
+            // column's selection band here and the corridor once a gear was latched, and those
+            // differing by a hundred counts was one seam among several.
             GateGeometry geo = cfg.BuildGeometry();
-            int free = geo.ColumnFreeHalfWidth(Column.C2);
+            int free = Math.Min(cfg.SlotHalfWidth, geo.ColumnFreeHalfWidth(Column.C2) - 100);
             foreach (int offset in new[] { -free, -free / 2, 0, free / 2, free })
             {
                 Assert.Equal(0, Neutral(c, C2 + offset, deep).ConstantX);

@@ -233,11 +233,8 @@
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
                                        Text="How far sideways it takes the fore/aft gate wall to go from open, on a column, to solid between columns. This is the mouth of each slot seen from the tunnel: narrow and the gate snaps shut as you leave a column, wide and every entry feels vague. It is a sideways gradient, so it is also what corners are made of - widen it if corners feel harsh." />
 
-                            <ui:TitledSlider Title="Column pull and funnel ramp (axis counts)" Minimum="300" Maximum="8000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="2500"
-                                             Value="{Binding DetentRamp, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
-                                       Text="How far past a column's own width the lateral guide takes to reach full strength - both the light pull along the tunnel and the funnel that steers you into a slot. Short makes the funnel snatch; it is a gradient like any other, so keep it well above the wall bite distance or it becomes the steepest thing in the gate." />
+                                       Text="The lateral guide has no ramp of its own any more. Every sideways force in the gate - the pull along the tunnel, the funnel into a slot, the slot wall itself - now rises at the same stiffness as the wall, so a gentler force gets a shorter face instead of a steeper one. Its own ramp was a free parameter, and at the bottom of its range it made the funnel the steepest thing in the gate, three and a half times the wall face, in exactly the place the lever crosses on every shift." />
 
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
                                        Text="The lockout gate places itself: it sits just outside the band of the last main-section column, so sliding across the gate meets it straight away instead of after a long stretch of dead travel. Its width is on the Feel tab, and the Monitor tab draws the band where it actually is." />

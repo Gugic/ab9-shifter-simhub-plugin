@@ -96,7 +96,12 @@ namespace AB9ActiveShifter.Core
         private int _shapedX;
         private int _shapedY;
 
-        private Column _detentColumn = Column.C2;
+        /// <summary>
+        /// The column the lateral field is measured from. None until a position is seen, because a
+        /// guess is a force: this used to be seeded to C2, so the first tick after a settings change
+        /// aimed the whole lateral field at the middle of the gate no matter where the lever was.
+        /// </summary>
+        private Column _guideColumn = Column.None;
 
         public ForceComposer(GateGeometry geometry, EngineConfig config)
         {
@@ -117,7 +122,8 @@ namespace AB9ActiveShifter.Core
             _channelWallForce = Force(config.ChannelWallForcePct, gain);
             _channelGuideForce = Force(config.ChannelGuideForcePct, gain);
             _columnDetentForce = Force(config.ColumnDetentForcePct, gain);
-            _columnFunnelForce = Force(config.ColumnFunnelForcePct, gain);
+            _columnFunnelForce = Math.Min(
+                Force(config.ColumnFunnelForcePct, gain), Force(config.ColumnPinForcePct, gain));
             _barrierForce = Force(config.BarrierForcePct, gain);
             _lockoutForce = Force(config.LockoutForcePct, gain);
 
@@ -174,8 +180,17 @@ namespace AB9ActiveShifter.Core
             {
                 _shapedX = 0;
                 _shapedY = 0;
+
+                // Forget the guide column too. The lever can be moved anywhere while the forces are
+                // off, and coming back with a stale column would aim a saturated wall at wherever
+                // it used to be.
+                _guideColumn = Column.None;
                 return FreeFrame();
             }
+
+            // Advanced once, before the branch, so both branches measure from the same column and
+            // the lateral field cannot depend on which one runs.
+            _guideColumn = _geo.GuideColumn(x, _guideColumn, _geo.InChannel(y));
 
             ForceFrame frame = state == GateState.Neutral
                 ? ComposeNeutral(x, y)
@@ -310,6 +325,88 @@ namespace AB9ActiveShifter.Core
             };
         }
 
+        /// <summary>
+        /// The entire lateral field, in one expression, keyed on nothing but position and the guide
+        /// column. Both states call it and get the same answer, which is the point.
+        ///
+        /// It used to be computed twice - a funnel-plus-confinement in the tunnel, a slot wall once
+        /// a column was latched - and the two disagreed by up to 4924 measured DI units, nearly six
+        /// newton-metres, at the same physical position. Which one you got depended on the state
+        /// machine's latch, and because the channel bands are hysteretic, that in turn depended on
+        /// how the lever had arrived. Travelling from one slot to another around a divider end is
+        /// exactly the manoeuvre that crosses the boundary, and it was felt exactly there: the
+        /// mouth rang while the deep walls, where the two branches happened to agree and both went
+        /// flat, stayed calm.
+        ///
+        /// Every lateral force also now rises at one stiffness - the wall's own, pin force over its
+        /// bite - because the face length is derived from the plateau rather than set by a separate
+        /// dial. That structurally retires the steepest gradient in the gate: the funnel's, at 13.3
+        /// DI per count against a wall face of 3.8, which existed only in the mouth and only
+        /// because its ramp was a free parameter someone had turned to its floor.
+        /// </summary>
+        private int LateralGuide(int x, int y)
+        {
+            if (_guideColumn == Column.None) return 0;
+
+            int corridor = SlotCorridor(_guideColumn);
+            int plateau = GuidePlateau(Math.Abs(y - GateGeometry.AxisCenter));
+            if (plateau <= 0) return 0;
+
+            return Saturating(
+                x - _geo.ColumnTarget(_guideColumn), plateau, GuideFace(plateau, corridor), corridor);
+        }
+
+        /// <summary>
+        /// How hard the lateral guide pushes at this depth: the light detent that parks the lever on
+        /// a column in the tunnel, growing through the funnel that steers an off-column entry into
+        /// its slot, to the full slot wall below. Piecewise linear and continuous, so there is no
+        /// depth at which the lever is handed a step.
+        /// </summary>
+        private int GuidePlateau(int depth)
+        {
+            int mouth = Math.Max(1, _geo.ChannelHalfExit);
+
+            if (depth <= mouth)
+            {
+                return (int)Math.Round(Lerp(_columnDetentForce, _columnFunnelForce, depth / (double)mouth));
+            }
+
+            // The span is the channel's own width, deliberately NOT the wall's bite. The bite is a
+            // lateral distance and this is a depth, and coupling them meant a long bite pushed the
+            // slot wall's full strength tens of thousands of counts down the slot - the wall went
+            // missing exactly where a gear is held.
+            double t = GateGeometry.Clamp((depth - mouth) / (double)mouth, 0.0, 1.0);
+            return (int)Math.Round(Lerp(_columnFunnelForce, _columnPinForce, t));
+        }
+
+        /// <summary>
+        /// Face length for a given plateau, chosen so every lateral force in the gate has the same
+        /// stiffness as the slot wall: plateau over face is always pin force over the wall's bite.
+        /// A gentler force therefore gets a shorter face rather than a steeper one.
+        /// </summary>
+        private int GuideFace(int plateau, int corridor)
+        {
+            int ramp = SlotRamp(corridor);
+            if (_columnPinForce <= 0) return ramp;
+
+            return GateGeometry.Clamp(
+                (int)Math.Round(plateau * ramp / (double)_columnPinForce), 1, ramp);
+        }
+
+        /// <summary>
+        /// The humps and the lockout gate, faded out with depth. A plate has its gate cut into the
+        /// tunnel, not into the slots, so below the channel the slot walls own the lateral axis
+        /// alone. Applied in every state, like the guide, because anything indexed on the state
+        /// machine puts the step back.
+        /// </summary>
+        private int BarrierForceIn(int x, int y)
+        {
+            double faded = 1.0 - _geo.SlotConfinementFactor(y, _cfg.WallRamp);
+            if (faded <= 0.0) return 0;
+
+            return (int)Math.Round(BarrierForceAt(x) * faded);
+        }
+
         private ForceFrame ComposeNeutral(int x, int y)
         {
             ForceFrame f = new ForceFrame
@@ -318,54 +415,7 @@ namespace AB9ActiveShifter.Core
                 SpringY = SpringPreset.Off
             };
 
-            // Sliding along the channel is meant to feel like a real shifter: mostly free, with
-            // a light pull into each column and a hump to climb between them.
-            _detentColumn = _geo.NearestColumn(x, _detentColumn);
-
-            // The lateral guide, which does two jobs with one force. Along the channel it is the
-            // light detent that parks the stick on a column. As the stick is pushed out of the
-            // channel toward a gear it strengthens into a funnel, so an entry taken slightly off
-            // the column is steered into the slot instead of merely being blocked by the gate
-            // wall - the tapered mouth a real gate has. Without it an off-column push is a dead
-            // end: the wall holds, no gear arrives, and nothing tells the hand which way to go.
-            //
-            // Flat-bottomed, across the column's full width, for the same reason the slots are
-            // corridors: a pull toward a centre line is an equilibrium for the stick to hunt
-            // around, and this one would sit exactly where the hand is trying to hold still.
-            int offset = x - _geo.ColumnTarget(_detentColumn);
-            int free = _geo.ColumnFreeHalfWidth(_detentColumn);
-
-            double funnel = _geo.FunnelDepthFactor(y);
-            int guidePlateau = (int)Math.Round(
-                _columnDetentForce + ((_columnFunnelForce - _columnDetentForce) * funnel));
-
-            int lateral = Saturating(
-                offset, Math.Max(_columnDetentForce, guidePlateau), _cfg.DetentRamp, free);
-
-            // Below the channel the guide gives way to the slot's own wall, at full strength. The
-            // slot walls belong to the depth, not to the state machine's latch: a lever at gear
-            // depth is inside a slot whatever the software thinks. While they depended on the
-            // latch, overpowering one wall dropped the latch and left the neutral field, which had
-            // no lateral wall down here at all - so the gate gave way entirely and the lever could
-            // be walked along the top or bottom of the pattern through every gear in turn.
-            double confine = _geo.SlotConfinementFactor(y, _cfg.WallRamp);
-            if (confine > 0.0)
-            {
-                int wall = (int)Math.Round(
-                    Saturating(offset, _columnPinForce, SlotRamp(free), free) * confine);
-
-                if (Math.Abs(wall) > Math.Abs(lateral)) lateral = wall;
-            }
-
-            // The humps and the lockout gate are features of the neutral channel - a plate has its
-            // gate cut into the tunnel, not into the slots - so they hand over to the slot walls
-            // with depth. Leaving them on below the channel had the lockout shoving back toward
-            // the main gears while the slot wall pushed on toward 7/R, the two of them cancelling
-            // to almost nothing in exactly the region that should be solid plate. Nothing is lost
-            // by fading them: reaching that depth at all means overpowering the full gate wall.
-            lateral += (int)Math.Round(BarrierForceAt(x) * (1.0 - confine));
-
-            f.ConstantX = GateGeometry.Clamp(lateral, -GateGeometry.ForceMax, GateGeometry.ForceMax);
+            f.ConstantX = Combine(LateralGuide(x, y), BarrierForceIn(x, y));
 
             // The horizontal guide. Lined up with a column this nearly vanishes so a gear can be
             // taken; between columns it is a full wall. The channel has width for the same reason
@@ -390,27 +440,15 @@ namespace AB9ActiveShifter.Core
                 SpringY = SpringPreset.Off
             };
 
-            // The vertical guide: the two walls of the slot, with a free corridor between them.
-            // Deliberately not a pull toward the centre line - that would put an equilibrium in
-            // the middle of the slot for the stick to hunt around. Barriers are a neutral-channel
-            // affair and stay out of it; once committed to a gear there is nothing to push through.
+            // Laterally, exactly what the tunnel gets - the same expression, from the same guide
+            // column, with the same barriers faded by the same depth. The latched column is
+            // deliberately not consulted: while it was, this branch and the tunnel's disagreed by
+            // nearly six newton-metres at the same position, and the mouth rang because of it.
             //
-            // The face gets the full bite distance, the same as the gate walls. It used to be
-            // squeezed into the state machine's exit band - about a fifth of that - so that a
-            // lean could not drop the gear while the wall was still building, and the resulting
-            // gradient was several times steeper than any wall a hand found stable: the slots
-            // oscillated while the channel did not. A latched gear is now held until the stick
-            // returns through the neutral channel, so that band no longer decides anything and
-            // the squeeze is gone. The remaining bound just keeps a wall from bleeding into the
-            // neighbouring column.
-            int corridor = SlotCorridor(column);
-
-            f.ConstantX = Saturating(
-                x - _geo.ColumnTarget(column),
-                _columnPinForce,
-                SlotRamp(corridor),
-                corridor);
-
+            // Fore and aft is the one thing a latch does change, and the only thing it changes:
+            // the slot detent replaces the tunnel's gate wall, which is what makes a gear a place
+            // the lever can go rather than a wall it bounces off.
+            f.ConstantX = Combine(LateralGuide(x, y), BarrierForceIn(x, y));
             f.ConstantY = DetentMagnitude(direction, y);
 
             return f;

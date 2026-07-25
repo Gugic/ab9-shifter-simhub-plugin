@@ -270,21 +270,48 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public Column NearestColumn(int x, Column current)
         {
-            Column plain = ColumnPastCrests(x, 0);
-            if (current == Column.None || plain == current) return plain;
-
-            // Bias every crest toward whichever column we are already parked on, so leaving it
-            // costs the hysteresis distance in whichever direction we are travelling.
-            int bias = (int)plain > (int)current ? DetentHysteresis : -DetentHysteresis;
-            return ColumnPastCrests(x, bias);
+            return Pick(x, current, false);
         }
 
-        private Column ColumnPastCrests(int x, int bias)
+        private Column Pick(int x, Column current, bool byMidpoint)
+        {
+            Column plain = ColumnPastCrests(x, 0, byMidpoint);
+            if (current == Column.None || plain == current) return plain;
+
+            // Bias every boundary toward whichever column we are already parked on, so leaving it
+            // costs the hysteresis distance in whichever direction we are travelling.
+            int bias = (int)plain > (int)current ? DetentHysteresis : -DetentHysteresis;
+            return ColumnPastCrests(x, bias, byMidpoint);
+        }
+
+        /// <summary>
+        /// Which column the lateral guide belongs to. In the tunnel the boundaries are the barrier
+        /// crests, so fighting through the lockout gate hands the lever to 7/R rather than letting
+        /// it be dragged back. Below the tunnel they are the plain midpoints instead: down there
+        /// the lever simply belongs to the column it is physically nearest.
+        ///
+        /// That distinction closes a lockout bypass, and it has to be positional rather than
+        /// historical to close it properly. The gate sits well off its gap's midpoint, so with
+        /// crest boundaries a lever at gear depth just past the gate is "in 7/R's territory" and
+        /// the guide pushes it that way at full pin force for thousands of counts - the wall that
+        /// was holding it in 5/6 reverses into a conveyor toward 7, and the toll is never paid.
+        /// Pull out of 5, drag right at depth, drop into 7: no lockout at all. Using midpoints
+        /// below the tunnel means that lever keeps 5/6's inward wall the whole way, exactly as it
+        /// did before the lateral field was unified, and a cold start at that position resolves
+        /// the same way as a lever that was dragged there.
+        /// </summary>
+        public Column GuideColumn(int x, Column current, bool inTunnel)
+        {
+            return Pick(x, current, !inTunnel);
+        }
+
+        private Column ColumnPastCrests(int x, int bias, bool byMidpoint)
         {
             Column c = Column.C1;
             for (int i = 0; i < ColumnCount - 1; i++)
             {
-                if (x > BarrierCentre(i) + bias) c = (Column)(i + 1);
+                int boundary = byMidpoint ? (_targets[i] + _targets[i + 1]) / 2 : BarrierCentre(i);
+                if (x > boundary + bias) c = (Column)(i + 1);
             }
             return c;
         }

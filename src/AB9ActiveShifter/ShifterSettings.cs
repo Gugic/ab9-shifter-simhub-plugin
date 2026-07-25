@@ -40,7 +40,6 @@ namespace AB9ActiveShifter
         private int _lockoutHalfWidth = 2200;
         private int _wallRamp = 600;
         private int _wallAttackMs = 0;
-        private int _detentRamp = 2500;
         private int _barrierWidth = 2500;
         private int _wallBlend = 1500;
         private int _slotHalfWidth = 1100;
@@ -114,7 +113,6 @@ namespace AB9ActiveShifter
 
         /// <summary>How many milliseconds a wall takes to reach full force on contact. The hammer fix.</summary>
         public int WallAttackMs { get { return _wallAttackMs; } set { Set(ref _wallAttackMs, value); } }
-        public int DetentRamp { get { return _detentRamp; } set { Set(ref _detentRamp, value); } }
         public int BarrierWidth { get { return _barrierWidth; } set { Set(ref _barrierWidth, value); } }
         public int WallBlend { get { return _wallBlend; } set { Set(ref _wallBlend, value); } }
 
@@ -182,7 +180,6 @@ namespace AB9ActiveShifter
                 BarrierForcePct = BarrierForcePct,
                 WallRamp = WallRamp,
                 WallAttackMs = WallAttackMs,
-                DetentRamp = DetentRamp,
                 BarrierWidth = BarrierWidth,
                 WallBlend = WallBlend,
                 SlotHalfWidth = SlotHalfWidth,
@@ -227,7 +224,6 @@ namespace AB9ActiveShifter
                 BarrierForcePct = d.BarrierForcePct;
                 WallRamp = d.WallRamp;
                 WallAttackMs = d.WallAttackMs;
-                DetentRamp = d.DetentRamp;
                 BarrierWidth = d.BarrierWidth;
                 WallBlend = d.WallBlend;
                 SlotHalfWidth = d.SlotHalfWidth;
