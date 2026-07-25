@@ -42,17 +42,18 @@
                             <styles:SHToggleCheckbox IsChecked="{Binding FreeStick, Mode=TwoWay}"
                                                      Content="Release all forces (free stick)" />
                             <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
-                                       Text="Holds the base but applies nothing, so you can feel how the stick moves on its own. Any resistance left with this on is coming from the hardware, not from the gate. The plugin already switches off the DirectInput centring spring while it holds the base." />
+                                       Text="Holds the base but applies nothing, so you can feel how the stick moves on its own. Any resistance left with this on is coming from the hardware, not from the gate - almost always the base's own centring, which only MOZA Cockpit's Spring setting can switch off. This base centres in firmware and ignores DirectInput's request to stop." />
                         </StackPanel>
                     </styles:SHSection>
 
                     <styles:SHSection Title="BEFORE YOU START" ShowSeparator="True">
                         <TextBlock TextWrapping="Wrap" Margin="0,4,0,8" Opacity="0.85">
-                            1. Close MOZA Cockpit and any Pit House live-tuning page. They hold the stick exclusively and this plugin cannot open it while they do.<LineBreak />
-                            2. Disable Steam Input for the AB9, or close Steam.<LineBreak />
-                            3. Create a vJoy device with at least 8 buttons in vJoyConf.<LineBreak />
-                            4. Run the polarity calibration below, before turning the force up.<LineBreak />
-                            5. In your game, bind gears 1-7 and reverse to vJoy buttons 1-8, and do not bind the AB9 axes.
+                            1. In MOZA Cockpit, once: FFB Mode = DirectInput, Spring = 0, Base Force Model = Flight Base, Max Torque and Overall Intensity 100%. Without this the base fights the gate with its own centring.<LineBreak />
+                            2. Fully exit MOZA Cockpit, and close any Pit House live-tuning page. They hold the stick exclusively and this plugin cannot open it while they do.<LineBreak />
+                            3. Disable Steam Input for the AB9, or close Steam.<LineBreak />
+                            4. Create a vJoy device with at least 8 buttons in vJoyConf.<LineBreak />
+                            5. Run the polarity calibration below, before turning the force up.<LineBreak />
+                            6. In your game, bind gears 1-7 and reverse to vJoy buttons 1-8, and do not bind the AB9 axes.
                         </TextBlock>
                     </styles:SHSection>
 
@@ -79,7 +80,7 @@
                                              ShowResetButton="True" ResetValue="25"
                                              Value="{Binding CalibrationForcePct, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,10"
-                                       Text="Raise this only if calibration reports that the stick barely moved. First check that the base's own Spring is 0 in MOZA Pit House." />
+                                       Text="Raise this only if calibration reports that the stick barely moved. First check that nothing is touching the stick, and that the base's own Spring is 0 in MOZA Cockpit - Pit House has no such setting in flight mode." />
 
                             <styles:SHExpander Header="Manual overrides">
                                 <StackPanel Margin="0,8,0,0">

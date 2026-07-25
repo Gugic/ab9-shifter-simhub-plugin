@@ -6,32 +6,32 @@ shifter mode does not have — and publishes the selected gear as **vJoy buttons
 game can bind it like a real shifter.
 
 The stick is not read as a joystick. The plugin renders the gate with force feedback:
-walls between the columns, a soft channel to slide along, a detent that snicks into each
-slot, and a heavy spring-loaded gate guarding 7th and reverse.
+walls between the columns, a channel to slide along, a detent that snicks into each slot,
+and a one-way gate guarding 7th and reverse.
 
 ## The gate
 
 ```
    1     3     5     7
    |     |     |     |
-   +-----+-----+--|--+     <- neutral channel;  | = lockout
-   |     |     |     |
+   +-----+--+--+--#--+     +  column        -- neutral channel
+   |     |     |     |     #  lockout gate   -  ordinary hump
    2     4     6     R
 ```
 
-Four columns: **1/2, 3/4, 5/6, 7/R**, reverse bottom-right. Sliding right along the
-neutral channel you meet the lockout: a force that ramps up and holds at a set share of
-the base's output. Push through it and the 7/R column behaves exactly like the others.
-Release the stick while still in the lockout zone and it springs back toward the main
-gears. Once slotted in 7 or R, the column wall holds the stick and the lockout stops
-pushing, so shifting between 7 and R is normal.
+Four columns: **1/2, 3/4, 5/6, 7/R**, reverse bottom-right. Sliding along the neutral
+channel there is a light hump between the ordinary columns, and before 7/R a **lockout
+gate**: a compact band of flat force pushing back toward the main gears the whole way
+across. Crossing it costs the same effort however fast you move the lever, so it cannot be
+flicked through. Coming back out of 7/R is assisted, like a real range gate. Once slotted
+in 7 or R the column behaves exactly like the others.
 
-Lockout force defaults to 70% of the plugin's overall gain and is adjustable.
+The toll is the gate's force (70% by default) times its width, and both are adjustable.
 
 ## Requirements
 
 - SimHub (developed against 9.11.21)
-- MOZA AB9 base with MOZA Pit House
+- MOZA AB9 base, configured once in **MOZA Cockpit** — see below
 - [vJoy](https://sourceforge.net/projects/vjoystick/) with a device exposing **at least 8 buttons**
 - .NET Framework 4.8 (already present if SimHub runs)
 
@@ -61,19 +61,36 @@ If SimHub is installed somewhere other than `C:\Program Files (x86)\SimHub\`, co
 
 ## Before your first run
 
-1. **Close MOZA Cockpit** and any Pit House live-tuning page. They hold the stick
-   exclusively; the plugin cannot open it while they do.
-2. **Disable Steam Input** for the AB9, or close Steam.
-3. **Create a vJoy device** with at least 8 buttons in `vJoyConf`.
-4. **Run the polarity calibration** (below) before turning the force up.
-5. In your game, bind gears **1–7 and reverse to vJoy buttons 1–8**. Do **not** bind the
+1. **Configure the base in MOZA Cockpit**, once (see the next section). This is not
+   optional — without it the base fights the gate with its own centring spring.
+2. **Fully exit MOZA Cockpit** and close any Pit House live-tuning page. They hold the
+   stick exclusively; the plugin cannot open it while they do.
+3. **Disable Steam Input** for the AB9, or close Steam.
+4. **Create a vJoy device** with at least 8 buttons in `vJoyConf`.
+5. **Run the polarity calibration** (below) before turning the force up.
+6. In your game, bind gears **1–7 and reverse to vJoy buttons 1–8**. Do **not** bind the
    AB9's axes in the game.
 
-You do **not** need to change anything in Pit House. Flight mode has no Spring setting —
-the centring you feel with nothing running is DirectInput's own autocenter spring, which
-is on by default. The plugin switches it off itself while it holds the base, and switches
-nothing else. If you want to confirm the stick is genuinely free, tick **Release all
-forces (free stick)** on the Setup tab: anything you still feel then is the hardware.
+## The MOZA Cockpit settings
+
+The base's self-centring lives in **firmware**, and DirectInput's request to disable
+autocentring is ignored — measured, across five configurations. **MOZA Cockpit** is the only
+place it can be switched off, and Pit House has no Spring setting in flight mode at all.
+
+In MOZA Cockpit, with firmware **1.1.3.4 or newer**:
+
+| Setting | Value |
+| --- | --- |
+| FFB Mode | **DirectInput** |
+| Spring | **0** |
+| Base Force Model | **Flight Base** |
+| Max Torque | 100% |
+| Overall Intensity | 100% |
+| Game FFB Gain | 100% |
+
+Then **exit Cockpit completely**. To check the stick is genuinely free afterwards, tick
+**Release all forces (free stick)** on the Setup tab — anything you still feel with that on
+is the hardware, not the gate.
 
 ## Polarity — do this first
 
@@ -107,13 +124,21 @@ Raise the overall gain slowly afterwards — this is a 12 Nm base.
 
 ## Tuning
 
-- **Feel** — overall gain, lockout force, wall stiffness, channel guide and wall, neutral
-  detent, damping, and the three slot-detent forces (resistance, pull, seated hold).
-- **Geometry** — where the lockout starts and how abrupt it is, plus the enter/exit
-  hysteresis bands for the channel and columns, engage and release depth.
+- **Feel** — master gain; the gate and slot walls with their bite distance, attack, rebound
+  absorption and damping; the lockout gate and the humps; the three slot-detent forces
+  (resistance, pull, seated hold).
+- **Geometry** — force shaping, the enter/exit hysteresis bands for the channel and columns,
+  engage and release depth, vJoy device, loop rate, and scoped resets.
 - **Monitor** — live gate drawing with the stick position and the shaded lockout band.
 
 Changes apply on the next FFB tick; nothing needs restarting.
+
+**[docs/tuning.md](docs/tuning.md) is the guide** — every dial, and a symptom-to-dial table
+for when something feels wrong.
+
+The first dial to know: **wall bite distance**. Past its bite a wall is a flat force and is
+stable; all oscillation lives on the bite itself. Too short and contact kicks like ABS, too
+long and the wall goes spongy. If neither end works, use **wall attack** instead.
 
 ## SimHub properties
 
@@ -156,9 +181,13 @@ page, or Steam Input. Close them; the plugin retries automatically.
 Close it, or pick a different vJoy device number on the Geometry tab.
 
 **The stick fights you everywhere, or drifts to the stops** — polarity has not been
-measured, so the gate springs are pushing the opposite way. Run *Measure polarity*. To
+measured, so the gate's forces are pushing the opposite way. Run *Measure polarity*. To
 check whether resistance is coming from the plugin at all, tick *Release all forces*: if
-the stick is still stiff with that on, it is not the gate.
+the stick is still stiff with that on, it is not the gate — check the MOZA Cockpit settings
+above.
+
+**A wall buzzes, or kicks back like ABS** — see [docs/tuning.md](docs/tuning.md). Short
+answer: adjust *wall bite distance* first, then *wall attack*.
 
 **Everything feels dead, especially the lockout and the detents** — those are constant
 forces. Confirm *Measure polarity* reported a result for both push axes rather than
@@ -166,6 +195,16 @@ forces. Confirm *Measure polarity* reported a result for both push axes rather t
 
 **Gears do not register in the game** — check `joy.cpl`: the vJoy device should light
 button *i* while gear *i* is held. If it does, the binding is the problem, not the plugin.
+
+## Documentation
+
+| | |
+| --- | --- |
+| [docs/tuning.md](docs/tuning.md) | Every dial, and symptom → dial when something feels wrong |
+| [docs/hardware.md](docs/hardware.md) | Measured facts about the base, the USB path, and MOZA's software |
+| [docs/force-model.md](docs/force-model.md) | How the gate is built, and every approach that was tried and rejected |
+| [docs/architecture.md](docs/architecture.md) | Threading, lifecycle, effect handling, safety |
+| [AGENTS.md](AGENTS.md) | Contributor and agent orientation, with the invariants |
 
 ## Licence
 

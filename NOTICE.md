@@ -34,12 +34,22 @@ expression:
 - Order-of-magnitude starting values for gate geometry, taken as a sanity
   reference and then re-derived for this plugin's four-column 7+R layout.
   These are re-tuned against the hardware and are user-adjustable settings.
-- Hardware facts reported in the BonusFFB issue tracker, notably that some
-  MOZA AB9 firmware revisions invert the direction of certain DirectInput
-  effects, and that the base's own centering spring must be set to zero.
+- Hardware facts reported in the BonusFFB issue tracker and documentation,
+  notably that some MOZA AB9 firmware revisions invert the direction of certain
+  DirectInput effects, and that the base's own centering spring must be set to
+  zero in MOZA Cockpit.
+- Observations about *technique* made while reading its source for comparison,
+  recorded in `docs/force-model.md`: that it renders gate structure with spring
+  condition effects whose anchor is re-aimed past the target each update, and
+  that it plays a short one-shot ramp-force effect as a detent click. These are
+  descriptions of approach, discussed there alongside why this project chose
+  differently; no expression of them was copied.
 
-The force model, state machine, effect set, threading design, and all code in
-this repository were written independently for this project.
+Its source was read for architectural comparison. The force model, state
+machine, effect set, threading design, and all code in this repository were
+written independently for this project, and the two implementations make
+opposite core choices — BonusFFB puts the fast loop in the firmware via springs,
+this plugin renders shaped constant forces from a software loop.
 
 ## SimHub
 
