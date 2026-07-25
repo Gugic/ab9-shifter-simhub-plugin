@@ -43,7 +43,6 @@ namespace AB9ActiveShifter
         private int _detentRamp = 2500;
         private int _barrierWidth = 2500;
         private int _wallBlend = 1500;
-        private int _wallDeadBand = 120;
         private int _slotHalfWidth = 1100;
         private int _dampingPct = 25;
         private int _wallYieldPct = 45;
@@ -118,7 +117,6 @@ namespace AB9ActiveShifter
         public int DetentRamp { get { return _detentRamp; } set { Set(ref _detentRamp, value); } }
         public int BarrierWidth { get { return _barrierWidth; } set { Set(ref _barrierWidth, value); } }
         public int WallBlend { get { return _wallBlend; } set { Set(ref _wallBlend, value); } }
-        public int WallDeadBand { get { return _wallDeadBand; } set { Set(ref _wallDeadBand, value); } }
 
         /// <summary>Free lateral corridor inside a slot. Widen it if a gear shakes when seated.</summary>
         public int SlotHalfWidth { get { return _slotHalfWidth; } set { Set(ref _slotHalfWidth, value); } }
@@ -187,7 +185,6 @@ namespace AB9ActiveShifter
                 DetentRamp = DetentRamp,
                 BarrierWidth = BarrierWidth,
                 WallBlend = WallBlend,
-                WallDeadBand = WallDeadBand,
                 SlotHalfWidth = SlotHalfWidth,
                 DamperCoeff = DamperCoeff,
                 DetentResistPct = DetentResistPct,
@@ -233,7 +230,6 @@ namespace AB9ActiveShifter
                 DetentRamp = d.DetentRamp;
                 BarrierWidth = d.BarrierWidth;
                 WallBlend = d.WallBlend;
-                WallDeadBand = d.WallDeadBand;
                 SlotHalfWidth = d.SlotHalfWidth;
                 DamperCoeff = d.DamperCoeff;
                 DetentResistPct = d.DetentResistPct;
