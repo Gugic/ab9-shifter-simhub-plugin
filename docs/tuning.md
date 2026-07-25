@@ -18,6 +18,7 @@ light — that is the safety cap doing its job, not a tuning problem.
 | Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
 | Slot mouth | Square | Shape of the divider ends where they meet the tunnel. Square is the plain notch and changes nothing. |
 | Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
+| Neutral tunnel depth | 2600 counts | How deep the tunnel is completely free. Must exceed your fore/aft slop while sliding sideways, or you spend your time in the transition band instead. Measured on real hands: p50 1848, p90 3215. |
 | Seated hold | 55% | What keeps a gear engaged against the base's own centring. |
 
 ## Symptom → dial
@@ -33,6 +34,17 @@ Raise **wall bite distance** until it stops, and no further. Past its bite a wal
 oscillate; all trouble lives on the bite itself. If a longer bite makes the wall feel spongy before
 the buzz clears, leave the bite moderate and raise **wall attack** to 10–25 ms instead — that
 freezes force while you hold still, which is what quiets a sustained press.
+
+The diagnostic signature, reported from the stick and worth recognising: *"it starts slow as I touch
+the wall, grows as I press harder, then reduces and stops while I am still far from pushing through."*
+That is the hand walking up the **bite** and arriving on the flat top — ringing where the gradient is,
+silence where it is flat. It is the bite, not the wall's strength.
+
+Note that **wall attack is the only way to get the static hold at all** — at 0 ms the whole time-shaping
+stage is bypassed, static friction included. If you are chasing the lightest possible shifter and are
+reluctant to turn it on: static hold is **not damping**. It freezes force updates while the lever is
+nearly still and never opposes motion, so it costs nothing in throw speed or lightness, and the slot
+detent is deliberately exempt so the snick still arrives whole.
 
 **Touching a wall kicks back at me, like ABS.**
 The bite is too short — force is arriving as a step and landing late. Lengthen the bite, or add
@@ -56,6 +68,20 @@ one you got. Going around a divider end is the manoeuvre that crosses that bound
 function called by both, provably identical. Second, the funnel had its own ramp dial, and at its
 floor that made it the steepest gradient in the gate at three and a half times the wall face, present
 only in the mouth. Every lateral force now rises at the wall's own stiffness, and the dial is gone.
+
+**Sliding along neutral, the notches kick the lever sideways as I pass them.**
+Fixed, and it was the largest discontinuity the gate has ever had. The guide pushes toward the nearest
+column, so at every boundary between two columns the force reverses — and because it held its full
+plateau flat right up to that boundary, the reversal was a step of twice the plateau in a single tick.
+Measured from a recorded trace at real settings: 20 000 DI, a clamped ±12 Nm, from 100 counts of drift.
+The field is now faded to zero across every position the guide can change hands at, so a handover
+happens where there is no force to reverse; the same sweep now measures 553 DI worst case anywhere.
+
+Two things make it worse if they are set wrong, and both are now defaults. **Neutral tunnel depth**
+below your actual fore/aft slop puts you inside the transition band while you slide, where the plateau
+is ramping up — measured, 65% of one recording's sliding time was in that band at the old 1400. And a
+large **detent hysteresis** widens the dead strip at each divider, because the window must cover it; it
+used to be 1500 and only ever existed to hide the cliff that is now gone.
 
 **The guides leading down to each gear oscillate, though the deep walls are calm.**
 Fixed. The guide's rise from the tunnel's light pull to the full slot wall used to continue past the

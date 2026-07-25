@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Text;
 
 namespace AB9ActiveShifter.Core
@@ -26,7 +28,11 @@ namespace AB9ActiveShifter.Core
         {
             public double Ms;
             public int X, Y, Vx, Vy, Fx, Fy;
-            public byte State, Column, Direction;
+            public byte State, Direction;
+
+            /// <summary>Signed, because <see cref="Core.Column"/>.None is -1 and a byte turns it into 255.</summary>
+            public sbyte Column;
+
             public sbyte Gear;
             public float DtMs;
         }
@@ -83,7 +89,7 @@ namespace AB9ActiveShifter.Core
             _samples[i].Vy = vy;
             _samples[i].DtMs = (float)dtMs;
             _samples[i].State = (byte)state;
-            _samples[i].Column = (byte)column;
+            _samples[i].Column = (sbyte)column;
             _samples[i].Direction = (byte)direction;
             _samples[i].Gear = (sbyte)gear;
             _samples[i].Fx = fx;
@@ -131,29 +137,30 @@ namespace AB9ActiveShifter.Core
             return path;
         }
 
+        /// <summary>
+        /// Every dial, by reflection over the config's public fields, in name=value form.
+        ///
+        /// Reflection rather than a hand-written list because the hand-written list went stale the
+        /// first time it was used in anger: replaying a real trace reproduced the recorded lateral
+        /// force only to within 431 DI, because the header had omitted the barrier width and the
+        /// detent hysteresis, and the fore/aft force to within 1252, because it had omitted the
+        /// detent profile. A header that does not carry every input is not a replayable trace, and
+        /// the whole point of recording is to stop guessing. This runs once per save, off the loop.
+        /// </summary>
         private static string Describe(EngineConfig c)
         {
-            return string.Concat(
-                "gain=", c.OverallGainPct,
-                " pin=", c.ColumnPinForcePct,
-                " wall=", c.ChannelWallForcePct,
-                " guide=", c.ChannelGuideForcePct,
-                " detent=", c.ColumnDetentForcePct,
-                " barrier=", c.BarrierForcePct,
-                " lockout=", c.LockoutForcePct, "/", c.LockoutHalfWidth,
-                " wallRamp=", c.WallRamp,
-                " attack=", c.WallAttackMs,
-                " yield=", c.WallYieldPct,
-                " damping=", c.DampingPct,
-                " slotHalf=", c.SlotHalfWidth,
-                " wallBlend=", c.WallBlend,
-                " chan=", c.ChannelHalfEnter, "/", c.ChannelHalfExit,
-                " colInner=", c.ColumnInnerHalfEnter, "/", c.ColumnInnerHalfExit,
-                " colEdge=", c.ColumnEdgeEnter, "/", c.ColumnEdgeExit,
-                " engage=", c.EngageDepth, "/", c.ReleaseDepth,
-                " mouth=", c.MouthShape, "/", c.MouthDepth, "/", c.MouthOpenPct,
-                " invX=", c.InvertConstantX, " invY=", c.InvertConstantY,
-                " tick=", c.TickHz);
+            var fields = new List<FieldInfo>(
+                typeof(EngineConfig).GetFields(BindingFlags.Public | BindingFlags.Instance));
+            fields.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
+
+            var sb = new StringBuilder();
+            foreach (FieldInfo f in fields)
+            {
+                if (sb.Length > 0) sb.Append(' ');
+                sb.Append(f.Name).Append('=')
+                  .Append(Convert.ToString(f.GetValue(c), CultureInfo.InvariantCulture));
+            }
+            return sb.ToString();
         }
     }
 }

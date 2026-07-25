@@ -377,8 +377,35 @@ namespace AB9ActiveShifter.Core
 
             int offset = x - _geo.ColumnTarget(_guideColumn);
             int corridor = SlotCorridor(_guideColumn) + MouthExtra(offset, depth, y);
+            int face = GuideFace(plateau, corridor);
 
-            return Saturating(offset, plateau, GuideFace(plateau, corridor), corridor);
+            return (int)Math.Round(Saturating(offset, plateau, face, corridor) * Relief(x, face));
+        }
+
+        /// <summary>
+        /// How much of the lateral guide survives at this x: 1 out on the plate, 0 across every
+        /// position the guide can change hands at, one wall face of flank in between.
+        ///
+        /// A MULTIPLIER on the finished force, and a function of position alone, and both of those
+        /// are load-bearing. The obvious shape - truncate the plateau at a distance measured from the
+        /// guide column - was built and refuted: the reach is then a property of WHICH column owns the
+        /// field, and the latched column and the position-picked one differ. A flat plateau makes that
+        /// handover free, because wherever both columns lie on the same side of the lever both
+        /// saturate to the same value; a truncated one does not. Measured, that invented 10000 DI of
+        /// history dependence - the full pin force at one physical position, selected by whether the
+        /// lever had once dipped into the tunnel - and left a latched gear with no push-back at all
+        /// over three quarters of the axis. A shared scalar cannot do either: the field becomes
+        /// F_old(history) x Relief(x), so any two histories the old field made equal stay equal, and
+        /// the wall still reaches the end of travel at full strength.
+        ///
+        /// The flank is one wall face, so its gradient is plateau/face, which
+        /// <see cref="GuideFace"/> pins at pin force over the wall's bite - the same stiffness as
+        /// every other lateral force, and independent of depth, so the flank adds no cross-gradient.
+        /// </summary>
+        private double Relief(int x, int face)
+        {
+            return GateGeometry.Clamp(
+                _geo.HandoverClearance(x) / (double)Math.Max(1, face), 0.0, 1.0);
         }
 
         /// <summary>
@@ -587,7 +614,13 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         private int SlotRamp(int corridor)
         {
-            return Math.Min(_cfg.WallRamp, Math.Max(200, (_geo.ColumnSpacing / 2) - corridor));
+            // Room for the rising face AND the relief flank, which is the same length, plus the
+            // handover window they have to fit either side of. Halved for that reason: without it an
+            // absurd bite makes the two ramps overlap and the wall never reaches full strength at all,
+            // instead of merely reaching it late. Real bites are nowhere near this bound - at the
+            // shipped geometry it allows 4711 - so this only ever catches a hostile setting.
+            int room = (_geo.ColumnSpacing / 2) - corridor - _geo.DetentHysteresis;
+            return Math.Min(_cfg.WallRamp, Math.Max(200, room / 2));
         }
 
         private int SlotCorridor(Column column)

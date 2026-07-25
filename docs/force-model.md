@@ -107,6 +107,62 @@ only the corridor out of the gate's band is not enough, because widening the cor
 face begins, so the force inside the band changes and the toll's size starts depending on the mouth
 setting. Angled sidesteps this entirely by returning no bias across the lockout gap.
 
+### The handover window
+
+A field that pushes toward the **nearest** column has a boundary between every pair of columns, and at
+that boundary the force reverses. With the guide saturating at a flat plateau all the way up to it, the
+reversal was a step of **twice the plateau in a single tick**. Measured, by replaying a real 25 110-tick
+hardware trace through the composer at the user's own settings - worst lateral force change from 100
+counts of sideways drift:
+
+| depth | before | after |
+| --- | --- | --- |
+| ≤ 1400, the tunnel proper | 423 DI (the lockout's face - correct) | 423 |
+| 1600 | 1 558 | 457 |
+| 2400 | 7 706 | 447 |
+| 3200 | 13 853 | 553 |
+| ≥ 4000 | **20 000 - a clamped ±12 Nm reversal** | 424 |
+
+Four instances are visible in the raw trace with **zero** depth change and 55-104 counts of drift
+reversing the force by up to 2838 DI. It was felt as the notches kicking while sliding along the tunnel,
+and reported as the lever being "pushed and pulled in random directions".
+
+The fix is `GateGeometry.HandoverClearance`: the lateral field is **multiplied** by a window that is
+zero across every position the guide pick can change hands at, with one wall face of flank either side.
+A handover then always happens where the force is already zero, so there is nothing to reverse.
+
+Three details are load-bearing, and each was established by refuting a version that lacked it.
+
+**It is a multiplier, not a reach.** The obvious shape - truncate the plateau at a distance measured
+from the guide column - was built and measured, and it *invents* history dependence. The reach becomes a
+property of *which* column owns the field, and the latched column and the position-picked one can
+differ. A flat plateau made that handover free, because wherever both columns lie on the same side of
+the lever both saturate to the identical value; a truncated one does not. Measured: **10 000 DI at one
+physical position, selected by whether the lever had once dipped into the tunnel**, and a latched gear
+left with no push-back at all over three quarters of the axis. A shared scalar cannot do either, because
+the field becomes `F_old(history) × Relief(x)` - any two histories the old field made equal stay equal.
+`TheReliefWindowCannotInventHistoryDependence` pins it.
+
+**The window spans both boundary rules, not the one in force at this depth.** `GuideColumn` uses the
+barrier crest in the tunnel and the plain midpoint below it, and at the lockout gap those are thousands
+of counts apart. A window keyed on `InChannel(y)` leaves the other rule's flip window on a live part of
+the field, and then **one single count of fore/aft movement reverses the guide - measured at 2403 DI** -
+right where the fore/aft wall's own deadband leaves the lever freest. That is the original bug moved
+from the x axis to the depth axis, and it is the natural thing to write, so it is recorded in the
+rejected table below. Taking the hull of both rules makes the window a function of x alone.
+
+**The hysteresis shrank because of it.** `DetentHysteresis` was 1500 and load-bearing: the boundary was a
+cliff, so a wide band was all that stopped the lever chattering between two opposite full-scale forces.
+With the field zeroed there, a flip costs nothing, so it is now 400 - and since the window has to cover
+it, that turns an ordinary divider's dead strip from 3000 counts into 800.
+
+The price, stated plainly: at the **lockout gap only**, where the two rules genuinely disagree over
+thousands of counts, a latched 5/6 dragged toward 7/R at gear depth goes slack across the gate's
+doorway instead of being shepherded home. The gear cannot change there - the lock is absolute and
+positional - and the gate's own force is deliberately faded at depth anyway, because a plate has its
+gate cut into the tunnel and not into the slots. `OnlyTheLockoutGapLosesItsWallToTheHandoverWindow`
+pins that this is confined to that one gap.
+
 ### One lateral field
 
 The lateral force is computed **once**, by a single function of position and the guide column, and
@@ -295,6 +351,10 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | --- | --- |
 | **Spring effects for the gate walls** | Walls felt like nothing. Root cause is arithmetic, not tuning: ~0.3 DI/count ceiling. Whole gate rebuilt on constant forces. |
 | **Pull toward a slot's centre line** | Middle columns shook violently when seated; outer columns fine. Interior equilibrium = oscillator. Replaced by corridors. |
+| **A guide plateau held flat up to the column boundary** | The boundary reverses the force, so a flat plateau makes the reversal a step of 2 × plateau in one tick - measured at 20000 DI, a clamped ±12 Nm, from 100 counts of drift, and felt as the notches kicking while sliding the tunnel. Replaced by the handover window. |
+| **A guide reach measured from the guide column** | The natural fix, and it invents history dependence: the reach belongs to *which* column owns the field, so the latched branch and the position-picked branch disagree by the full pin force wherever both columns lie on the same side of the lever - exactly where a flat plateau had made them identical. Measured 10000 DI at one position selected by whether the lever once dipped into the tunnel, plus no push-back over 75% of the axis at gear depth. Use a positional multiplier, which both branches share. |
+| **A handover window keyed on `InChannel(y)`** | Moves the same reversal onto the depth axis. The crest and midpoint rules are thousands of counts apart at the lockout gap, so the other rule's flip window stays live: **2403 DI from one single axis count of fore/aft movement**, where the fore/aft wall's deadband leaves the lever freest. The window must span the hull of both rules. |
+| **A wide detent hysteresis as the cure for boundary chatter** | It only ever hid the cliff; 1500 counts of it bought a 3000-count dead strip once the field was zeroed at the boundary. Zero the field instead and the hysteresis can be small. |
 | **Device damper / friction / inertia to settle walls** | Condition effects are near-decorative on this base. Replaced by software velocity damping. |
 | **MOZA Cockpit Natural Damping** | Stiffens the lever, oscillation unchanged. Damping cannot rescue a gradient this steep behind this much delay. |
 | **Raising the loop rate (400 Hz → 1 kHz)** | Buzz changed *pitch* and nothing else. Proved the limit cycle is set by geometry, not by delay distance. Kept anyway — it doubled the stable gradient range. |

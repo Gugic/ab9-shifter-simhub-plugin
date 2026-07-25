@@ -210,6 +210,46 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
+        /// How far x is from the nearest place the lateral guide can change hands, and 0 while it is
+        /// inside one. The lateral field is faded out over this, so a handover always happens where
+        /// the force is already zero.
+        ///
+        /// This is the whole fix for the gate's worst discontinuity. The guide's force saturates at
+        /// its plateau and used to hold it flat right up to the boundary between two columns, so the
+        /// moment the pick flipped, the force reversed: measured 2 x plateau in a single tick - up to
+        /// the full +-12 Nm from a hundred counts of drift, and felt as the notches kicking while
+        /// sliding along the tunnel.
+        ///
+        /// The window has to cover every position ANY rule can hand over at, which is why it spans
+        /// the hull of both. <see cref="Pick"/> biases each boundary by <see cref="DetentHysteresis"/>
+        /// toward whichever column is held, so the flip can land anywhere in a band that wide; and
+        /// <see cref="GuideColumn"/> uses the barrier crest in the tunnel but the plain midpoint below
+        /// it, which at the lockout gap are thousands of counts apart. Covering only the rule in force
+        /// at the current depth was measured to move the same reversal onto the DEPTH axis instead -
+        /// 2403 DI from one single axis count of fore/aft movement, right where the fore/aft wall's
+        /// own deadband leaves the lever freest. Taking the hull makes this a function of x alone, so
+        /// no amount of wander can find a step and a cold start resolves identically.
+        /// </summary>
+        public int HandoverClearance(int x)
+        {
+            int nearest = int.MaxValue;
+
+            for (int gap = 0; gap < ColumnCount - 1; gap++)
+            {
+                int crest = BarrierCentre(gap);
+                int mid = (_targets[gap] + _targets[gap + 1]) / 2;
+
+                int lo = Math.Min(crest, mid) - DetentHysteresis;
+                int hi = Math.Max(crest, mid) + DetentHysteresis;
+
+                int outside = Math.Max(0, Math.Max(lo - x, x - hi));
+                if (outside < nearest) nearest = outside;
+            }
+
+            return nearest == int.MaxValue ? AxisMax : nearest;
+        }
+
+        /// <summary>
         /// How far either side of a column's centre counts as "lined up with it". Matches the
         /// bands <see cref="ColumnAt"/> uses, so the forces and the state machine agree about
         /// where a column begins.
