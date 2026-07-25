@@ -105,8 +105,9 @@ namespace AB9ActiveShifter.Device
 
                 try
                 {
-                    // The base's own centring would fight the gate. Pit House "Spring = 0" is
-                    // the real control, but ask the driver too in case it honours this.
+                    // Measured: this base centres in firmware and ignores this property. The
+                    // real control is MOZA Cockpit's Spring = 0 - Pit House has no such
+                    // setting in flight mode. Asked anyway, in case another unit honours it.
                     _joystick.Properties.AutoCenter = false;
                 }
                 catch (Exception ex)
@@ -126,7 +127,8 @@ namespace AB9ActiveShifter.Device
                 if (effectCount == 0)
                 {
                     error = "Device '" + ProductName + "' reports no force feedback effects. " +
-                            "Check that the base is in flight mode and that MOZA Pit House is not holding it.";
+                            "Check that the base is in flight mode with FFB Mode set to DirectInput " +
+                            "in MOZA Cockpit, and that Cockpit and Pit House are fully closed.";
                     Close();
                     return false;
                 }

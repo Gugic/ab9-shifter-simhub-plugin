@@ -1,0 +1,192 @@
+# Measured hardware facts
+
+Everything here was measured on the actual hardware, not read from a datasheet. The unit is a
+**MOZA AB9 force feedback flight base**, 12 Nm, in **flight mode**, where it enumerates as an
+ordinary two-axis DirectInput force feedback joystick: **VID `0x346E`, PID `0x1000`**.
+
+Numbers from a different base or firmware may differ. What should not differ is the *method* —
+if you doubt one of these, re-measure it with a scratchpad probe while SimHub is stopped, and
+update this file with what you find.
+
+## Timing — the constraint the whole design bends around
+
+| Quantity | Measured | Notes |
+| --- | --- | --- |
+| One `SetParameters` force write | **1.0 ms** (p50), up to ~2 ms | Hard-quantised to the USB frame clock. Not reducible. |
+| Two writes back to back (X then Y) | **2.0 ms** | They serialise on the pipe; there is no batching. |
+| `Poll` + `GetCurrentState` | ~1 µs | Effectively free, served from the driver's cache. |
+| Fresh input reports | **~940 Hz** | The stick already reports about every millisecond. |
+| Position → torque round trip | **3–4 ms floor** | ~1 ms report age + 1.0 ms write + ~1 ms firmware application. |
+
+Consequences, all of which are baked into the current design:
+
+- The loop runs at **1 kHz** and issues **at most one constant-force write per tick**. When both
+  axes want the pipe they alternate, so each gets ~500 Hz; a single hot axis — which is what
+  contact with one wall looks like — gets the full 1 kHz.
+- Raising the loop rate further buys nothing: reads are already fresh every millisecond and the
+  write pipe is the bound.
+- **The 3–4 ms round trip cannot be engineered away.** It is why stability comes from force
+  *shape* rather than from rate or damping, and why a fast flick covers 1500–2000 axis counts
+  inside the latency window no matter how fast the loop runs.
+- Pacing a 1 ms tick needs a high-resolution waitable timer
+  (`CREATE_WAITABLE_TIMER_HIGH_RESOLUTION`). `Thread.Sleep(1)` overshoots the entire budget;
+  spinning burns a core. Both fallbacks remain for Windows builds without the flag.
+
+## Effect strength — why the gate is built from constant forces
+
+A DirectInput **spring** produces coefficient × displacement ÷ 10000. At the *maximum* coefficient
+of 10000 that is about **0.305 DI units per axis count**:
+
+- 500 counts past a wall → ~1.5% of full force. Felt as nothing.
+- Reaching 70% force needs roughly **23000 counts** — a third of full travel.
+
+So a spring cannot make a wall on this hardware at any setting. BonusFFB works around this by
+reflecting the spring's anchor past the target each tick (`offset = target + (pos − target) ×
+−1.3`), multiplying delivered force ~2.3× → ~0.7 DI/count. Better, still nowhere near a wall.
+That trick's real virtue is different and worth understanding: it keeps the fast loop *inside the
+firmware*, where a spring is a genuine zero-latency passive element and cannot ring. It buys
+stability by construction and pays for it with a hard ceiling on stiffness.
+
+This project takes the other trade: **every wall is a shaped constant force**, which reaches its
+plateau in a few hundred counts and can be made properly firm, at the cost of having to solve
+stability in software. See [force-model.md](force-model.md) for how.
+
+The other condition effects — **damper, friction, inertia** — are similarly weak here. They are
+close to decorative; the device damper is still set (`DamperCoeff`) but does no real work.
+Velocity damping is computed in software from the axis readings instead.
+
+## Effect polarity — four independent facts
+
+Some AB9 firmware applies DirectInput effects backwards. On this unit it is **not** a single
+global inversion — it differs by axis *and* by effect family:
+
+| | X (left/right) | Y (fore/aft) |
+| --- | --- | --- |
+| Constant force | **inverted** | correct |
+| Spring | correct | **inverted** |
+
+Hence four flags (`InvertConstantX/Y`, `InvertSpringX/Y`) and a calibration that measures all
+four. Until they are confirmed, overall gain is capped at 10%.
+
+Polarity is **measured, never asked.** A human cannot report it: the base holds itself centred,
+so a correct centring spring and the base's own centring feel identical, while an inverted one
+just feels like a weaker hold. The calibrator pushes each way on each axis for each family and
+scores whether the stick moved the commanded direction. Two details were needed to make it work:
+
+- **Measure deflection from a per-probe origin**, not from a single resting baseline. With
+  centring effectively off the stick does not return between probes, so a fixed baseline reports
+  "inconclusive" on a correctly configured base.
+- **Score each probe against its expected direction, then sum.** Subtracting the two probes
+  cancels out for an inverted spring, which accelerates away from its anchor and therefore drives
+  both probes the same way — it scored as "correct" or as zero.
+
+A probe aborts as soon as its direction is certain (12000 counts of deflection), so an inverted
+spring never reaches the stops.
+
+## Self-centring — and the MOZA Cockpit settings that actually control it
+
+**The AB9 self-centres in firmware, and `DIPROP_AUTOCENTER` is ignored.** Verified across five
+configurations. The plugin still asks (harmless, logged on failure), but the request does nothing.
+
+The centring is non-linear and strong:
+
+- Near centre: ~1100 force units per 1000 counts.
+- Far out: ~300 per 1000 counts.
+- At full deflection the base drags the stick home with roughly **90% of its available force.**
+
+That last number is why `DetentHoldPct` defaults to 55 and why a light seated hold simply loses
+the argument and the gear falls back out.
+
+The real control is **MOZA Cockpit** — *not* Pit House, which has no Spring setting in flight
+mode. Required, once:
+
+| Setting | Value |
+| --- | --- |
+| FFB Mode | **DirectInput** |
+| Spring | **0** |
+| Max Torque | 100% |
+| Overall Intensity | 100% |
+| Game FFB Gain | 100% |
+| Base Force Model | **Flight Base** |
+| Firmware | 1.1.3.4 or newer |
+
+Then **fully exit Cockpit** — it holds the device exclusively while open, and the plugin cannot
+acquire it. This was the fix for what looked for a long time like a plugin bug: the base fighting
+the gate everywhere with its own centring spring.
+
+**Natural Damping** in Cockpit (15–30%) is available as zero-latency physical damping. Tried and
+reported: it stiffens the lever but does not stop wall oscillation — consistent with the
+gradient-through-delay analysis, since damping cannot rescue a gradient that steep.
+
+## Exclusive access
+
+The plugin takes the device `Exclusive | Background` — exclusive is required to create FFB
+effects, background so forces stay live while the *game* has focus rather than SimHub.
+
+Things that will take it away: **MOZA Cockpit**, a **Pit House** live-tuning page, **Steam
+Input**, and occasionally a game. The failure surfaces as `DIERR_OTHERAPPHASPRIO` /
+`DIERR_NOTEXCLUSIVEACQUIRED`; the engine backs off (1/2/5 s) and retries, so a transient grab
+recovers on its own.
+
+A useful safety property falls out of this: if SimHub exits or crashes, dropping the exclusive
+handle makes the driver discard the effects, so forces cannot outlive the process.
+
+## Host environment
+
+| | |
+| --- | --- |
+| SimHub | 9.11.21, `C:\Program Files (x86)\SimHub\` |
+| Host process | `SimHubWPF.exe` — **32-bit x86**, .NET Framework 4.8 |
+| Plugins | net48 DLLs dropped in the SimHub install root |
+| Settings | `PluginsData\Common\AB9ShifterPlugin.GeneralSettings.json` (rewritten on exit) |
+| Logs | `Logs\SimHub.txt` |
+
+Assemblies referenced from the SimHub root with `Private=false` (never NuGet, never copied):
+`SimHub.Plugins`, `GameReaderCommon`, `SimHub.Logging`, `log4net`, `SharpDX`,
+`SharpDX.DirectInput` 4.2.0, `vJoyInterfaceWrap` 2.2.2, `MahApps.Metro`.
+
+vJoy 2.2.2, device 1, **8 buttons** — exactly enough for 7+R. Gear *i* holds button *i*, reverse
+is gear 8. The bundled `vJoyInterface.dll` is 32-bit, matching the host; this is why `Output/` is
+behind an interface and never touched by tests.
+
+Note that SimHub **rebuilds plugins at game change**, so the engine must survive it — hence
+`IReusable`, with real teardown only in `FinalizePlugin()`.
+
+## MOZA's serial protocol (AZOM), for reference
+
+[AZOM](https://github.com/giantorth/AZOM) reverse-engineered MOZA's wire protocol. Facts only —
+it is GPL-3.0, so **no code may be copied into this MIT project**; a clean-room reimplementation
+from the protocol facts is fine.
+
+Frames on the base's serial port (COM12 on this machine): `7E len group dev cmd val chk`, with the
+checksum seeded at `0x0D`. Commands seen: `0x5D` input mode, `0xAF00` spring, `0xA900` max torque.
+AZOM also presence-spoofs Pit House via a CoAP stub.
+
+This is a possible future convenience — the plugin could set Spring = 0 and DirectInput mode
+itself instead of asking the user to visit Cockpit. Two known traps: AZOM does not cover flight
+base mode, and it **re-pushes Shifter mode and Spring = 50 when a profile is applied**, which
+would silently undo the setup mid-session.
+
+## Disproven — do not rebuild these
+
+Assumptions that looked reasonable, cost real time, and are false:
+
+- ~~Pit House flight mode has a Spring setting~~ → it does not; **MOZA Cockpit** is the control.
+- ~~`DIPROP_AUTOCENTER` disables the base's centring~~ → ignored by firmware.
+- ~~The plugin disables the base's autocentring itself~~ → it cannot; the README claimed this for
+  weeks and it misdirected debugging more than once.
+- ~~Spring effects can make the gate walls firm~~ → capped at ~0.3 DI/count, arithmetically
+  impossible.
+- ~~The device damper/friction can settle an oscillating wall~~ → far too weak; software velocity
+  damping replaced it.
+- ~~The loop rate limits wall stability~~ → 400 Hz → 1 kHz raised the buzz's *pitch* and nothing
+  else.
+- ~~Software could compensate for the firmware centring curve~~ → abandoned; the measurement it
+  depended on was contaminated by too short a settle time, and configuring Cockpit made it moot.
+
+One coding hazard worth remembering because it produced a completely silent failure: the constant
+force rate limiter once seeded its "last write" timestamp to `long.MinValue`, so `now - last`
+overflowed negative, the first write never fired, and **every constant force in the gate was
+dead** while looking perfectly healthy in logs and UI. Explicit `primed` booleans replaced the
+sentinel. Symptom to recognise: walls and detents feel absent while calibration still visibly
+moves the stick.
