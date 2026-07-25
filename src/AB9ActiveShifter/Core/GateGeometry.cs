@@ -365,8 +365,12 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// How much a slot's own walls apply at this depth: 0 inside the neutral channel, rising
-        /// to 1 over the wall's bite once clear of it.
+        /// How far the tunnel has been left behind: 0 inside the channel, 1 by its exit band.
+        ///
+        /// The span ends at the exit band deliberately. Below it a column can be latched, and the
+        /// lateral field there has to be a function of x alone or the slot walls acquire a
+        /// cross-gradient - a wall that grows under the hand as the lever is pushed in, which is
+        /// what made the guides leading to each gear ring while the deep walls stayed calm.
         ///
         /// A lever at gear depth is inside a slot whether or not the state machine has a column
         /// latched, so lateral confinement has to be a fact about depth rather than about the
@@ -376,11 +380,11 @@ namespace AB9ActiveShifter.Core
         /// of the pattern from gear to gear, helped on its way by the guide adopting each column
         /// as it passed the halfway line.
         /// </summary>
-        public double SlotConfinementFactor(int y, int biteDistance)
+        public double SlotConfinementFactor(int y)
         {
             int depth = Math.Abs(y - AxisCenter);
-            int span = Math.Max(1, biteDistance);
-            return Clamp((depth - ChannelHalfExit) / (double)span, 0.0, 1.0);
+            int span = Math.Max(1, ChannelHalfExit - ChannelHalfEnter);
+            return Clamp((depth - ChannelHalfEnter) / (double)span, 0.0, 1.0);
         }
 
         /// <summary>

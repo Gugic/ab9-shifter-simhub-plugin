@@ -909,14 +909,13 @@ namespace AB9ActiveShifter.Tests
         // ---------------------------------------------------------------- the funnel
 
         [Fact]
-        public void TheGuideStrengthensIntoAFunnelAsAGearIsTakenP()
+        public void TheGuideStrengthensAsAGearIsTaken()
         {
             // Off-column entries used to be a dead end - the gate wall held, no gear arrived, and
-            // nothing steered the hand onto a slot. The lateral guide now grows with depth out of
-            // the channel, like the tapered mouth of a real gate.
+            // nothing steered the hand onto a slot. The lateral guide rises with depth out of the
+            // channel, like the tapered mouth of a real gate.
             EngineConfig cfg = FullGainConfig();
             cfg.ColumnDetentForcePct = 12;
-            cfg.ColumnFunnelForcePct = 40;
             cfg.BarrierForcePct = 0;
             cfg.LockoutForcePct = 0;
             ForceComposer c = Composer(cfg);
@@ -926,7 +925,30 @@ namespace AB9ActiveShifter.Tests
             int entering = Math.Abs(Neutral(c, offColumn, Center - cfg.ChannelHalfExit - 500).ConstantX);
 
             Assert.True(entering > sliding * 2,
-                "the funnel should take over on entry: " + entering + " vs " + sliding);
+                "the guide should take over on entry: " + entering + " vs " + sliding);
+        }
+
+        [Fact]
+        public void BelowTheChannelTheLateralFieldHasNoDepthTermAtAll()
+        {
+            // The regression that put the guides leading to each gear back into oscillation. Below
+            // the channel's exit a column can be latched, and there the lateral field must be a
+            // function of x alone - a wall that grows under the hand as the lever is pushed in is a
+            // cross-gradient where there had been exactly none, and it rang while the deep walls,
+            // which had not changed, stayed calm.
+            EngineConfig cfg = FullGainConfig();
+            cfg.MouthShape = SlotMouthShape.Square;
+            GateGeometry geo = cfg.BuildGeometry();
+
+            for (int x = 0; x <= Max; x += 449)
+            {
+                int reference = Neutral(Composer(cfg), x, Center - geo.ChannelHalfExit).ConstantX;
+
+                foreach (int depth in new[] { 2500, 3000, 4000, 4800, 6000, 12000, 28000 })
+                {
+                    Assert.Equal(reference, Neutral(Composer(cfg), x, Center - depth).ConstantX);
+                }
+            }
         }
 
         [Fact]

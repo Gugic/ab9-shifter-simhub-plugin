@@ -35,7 +35,6 @@ namespace AB9ActiveShifter
         private int _channelWallForcePct = 90;
         private int _channelGuideForcePct = 5;
         private int _columnDetentForcePct = 12;
-        private int _columnFunnelForcePct = 40;
         private int _barrierForcePct = 15;
         private int _lockoutHalfWidth = 2200;
         private SlotMouthShape _mouthShape = SlotMouthShape.Square;
@@ -108,8 +107,6 @@ namespace AB9ActiveShifter
         public int ChannelGuideForcePct { get { return _channelGuideForcePct; } set { Set(ref _channelGuideForcePct, value); } }
         public int ColumnDetentForcePct { get { return _columnDetentForcePct; } set { Set(ref _columnDetentForcePct, value); } }
 
-        /// <summary>What the pull onto a column grows to when pushing into a gear - the funnel.</summary>
-        public int ColumnFunnelForcePct { get { return _columnFunnelForcePct; } set { Set(ref _columnFunnelForcePct, value); } }
         public int BarrierForcePct { get { return _barrierForcePct; } set { Set(ref _barrierForcePct, value); } }
 
         /// <summary>Shape of the slot mouths. Square is today's rectangular notch, and the default.</summary>
@@ -202,7 +199,6 @@ namespace AB9ActiveShifter
                 ChannelWallForcePct = ChannelWallForcePct,
                 ChannelGuideForcePct = ChannelGuideForcePct,
                 ColumnDetentForcePct = ColumnDetentForcePct,
-                ColumnFunnelForcePct = ColumnFunnelForcePct,
                 BarrierForcePct = BarrierForcePct,
                 MouthShape = MouthShape,
                 MouthDepth = MouthDepth,
@@ -249,7 +245,6 @@ namespace AB9ActiveShifter
                 ChannelWallForcePct = d.ChannelWallForcePct;
                 ChannelGuideForcePct = d.ChannelGuideForcePct;
                 ColumnDetentForcePct = d.ColumnDetentForcePct;
-                ColumnFunnelForcePct = d.ColumnFunnelForcePct;
                 BarrierForcePct = d.BarrierForcePct;
                 MouthShape = d.MouthShape;
                 MouthDepth = d.MouthDepth;
