@@ -53,7 +53,7 @@ namespace AB9ActiveShifter
         private int _detentHoldPct = 55;
 
         private int _channelHalfEnter = 1400;
-        private int _channelHalfExit = 2400;
+        private int _channelHalfExit = 4000;
         private int _columnEdgeEnter = 2600;
         private int _columnEdgeExit = 5000;
         private int _columnInnerHalfEnter = 1200;

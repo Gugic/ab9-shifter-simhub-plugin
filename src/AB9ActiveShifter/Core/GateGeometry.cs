@@ -365,12 +365,15 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// How far the tunnel has been left behind: 0 inside the channel, 1 by its exit band.
+        /// How far the tunnel has been left behind: 0 anywhere inside the channel's enter band, 1 by
+        /// its exit band, and the transition confined to the hysteresis band between them.
         ///
-        /// The span ends at the exit band deliberately. Below it a column can be latched, and the
-        /// lateral field there has to be a function of x alone or the slot walls acquire a
-        /// cross-gradient - a wall that grows under the hand as the lever is pushed in, which is
-        /// what made the guides leading to each gear ring while the deep walls stayed calm.
+        /// Both ends of that matter and both were learned by getting them wrong. Ending later than
+        /// the exit band gives the slot walls a depth term, and the guides leading to each gear ring.
+        /// Starting earlier than the enter band gives the TUNNEL one, and since this factor also
+        /// fades the barriers, the lockout's own force then swings by thousands of units as the lever
+        /// wanders fore and aft while sliding past - felt, accurately, as being pushed and pulled in
+        /// random directions.
         ///
         /// A lever at gear depth is inside a slot whether or not the state machine has a column
         /// latched, so lateral confinement has to be a fact about depth rather than about the

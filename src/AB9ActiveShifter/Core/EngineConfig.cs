@@ -54,7 +54,12 @@ namespace AB9ActiveShifter.Core
 
         // Geometry (raw axis counts)
         public int ChannelHalfEnter = 1400;
-        public int ChannelHalfExit = 2400;
+        /// <summary>
+        /// How far out of the tunnel counts as committed to a slot. Also the whole budget for the
+        /// lateral field's one transition - free to slide across, then held in a slot - so widening
+        /// it is what keeps that transition's slope down at the wall face rather than above it.
+        /// </summary>
+        public int ChannelHalfExit = 4000;
         public int ColumnEdgeEnter = 2600;
         public int ColumnEdgeExit = 5000;
         public int ColumnInnerHalfEnter = 1200;

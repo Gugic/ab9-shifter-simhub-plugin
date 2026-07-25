@@ -61,6 +61,33 @@ namespace AB9ActiveShifter.Core
 
         public EngineSnapshot Snapshot { get { return _snapshot; } }
 
+        /// <summary>
+        /// Records every tick's inputs and outputs, for replaying a movement the hand complained
+        /// about instead of reasoning about what it might have been.
+        /// </summary>
+        public TraceRecorder Trace { get { return _trace; } }
+
+        private readonly TraceRecorder _trace = new TraceRecorder();
+
+        /// <summary>Where traces are written. Documents, so it is writable and easy to find.</summary>
+        public string TraceDirectory
+        {
+            get
+            {
+                return System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "AB9ActiveShifter");
+            }
+        }
+
+        /// <summary>Saves whatever has been recorded. Call off the engine thread.</summary>
+        public string SaveTrace(string note)
+        {
+            _trace.Stop();
+            EngineConfig cfg = _activeConfig ?? _config;
+            return _trace.Save(TraceDirectory, cfg, note);
+        }
+
         public bool IsRunning { get { return _running; } }
 
         public EngineConfig Config { get { return _config; } }
@@ -434,9 +461,14 @@ namespace AB9ActiveShifter.Core
 
                 UpdateVelocity(x, y);
 
+                double dtMs = ComposeDelta(cfg);
                 ForceFrame frame = _composer.Compose(
-                    t.State, t.Column, t.Direction, x, y, _velocityX, _velocityY, ComposeDelta(cfg));
+                    t.State, t.Column, t.Direction, x, y, _velocityX, _velocityY, dtMs);
                 _effects.Apply(frame, nowMs);
+
+                // After Apply, so what is recorded is what was actually sent.
+                _trace.Add(nowMs, x, y, _velocityX, _velocityY, dtMs,
+                           t.State, t.Column, t.Direction, t.Gear, frame.ConstantX, frame.ConstantY);
 
                 if (_effects.IsFaulted)
                 {
