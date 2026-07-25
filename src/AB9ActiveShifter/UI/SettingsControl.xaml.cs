@@ -167,6 +167,48 @@ namespace AB9ActiveShifter.UI
             }
         }
 
+        private void OnToggleRecord(object sender, RoutedEventArgs e)
+        {
+            ShifterEngine engine = AB9ShifterPlugin.Engine;
+            if (engine == null) return;
+
+            if (engine.Trace.IsRecording)
+            {
+                try
+                {
+                    string path = engine.SaveTrace(null);
+                    RecordStatus.Text = "Saved " + engine.Trace.Count + " ticks to " + path;
+                }
+                catch (Exception ex)
+                {
+                    RecordStatus.Text = "Could not save the trace: " + ex.Message;
+                }
+
+                RecordButton.Content = "Start recording";
+                return;
+            }
+
+            engine.Trace.Start();
+            RecordButton.Content = "Stop and save";
+            RecordStatus.Text = "Recording. Make the movement that misbehaves, then stop.";
+        }
+
+        private void OnOpenTraces(object sender, RoutedEventArgs e)
+        {
+            ShifterEngine engine = AB9ShifterPlugin.Engine;
+            if (engine == null) return;
+
+            try
+            {
+                System.IO.Directory.CreateDirectory(engine.TraceDirectory);
+                System.Diagnostics.Process.Start(engine.TraceDirectory);
+            }
+            catch (Exception ex)
+            {
+                RecordStatus.Text = "Could not open the folder: " + ex.Message;
+            }
+        }
+
         private void OnResetForces(object sender, RoutedEventArgs e)
         {
             Reset(ShifterSettings.ResetScope.Forces, "force settings");

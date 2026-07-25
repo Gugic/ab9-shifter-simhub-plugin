@@ -542,32 +542,39 @@ namespace AB9ActiveShifter.Tests
         // ---------------------------------------------------------------- one lateral field
 
         [Fact]
-        public void TheLateralFieldDoesNotDependOnTheLatch()
+        public void EnteringYourOwnColumnNeverChangesTheLateralForce()
         {
             // THE REGRESSION TEST. Its absence is what let a 4924 DI step - nearly six newton-metres
-            // - exist at the same physical position, selected by whether a column happened to be
-            // latched. Because the channel bands are hysteretic, that made the force depend on how
-            // the lever had arrived, and going around a divider end is the manoeuvre that crosses
+            // - exist at the same physical position, because the two branches used different formulas
+            // for the same column. The channel bands are hysteretic, so that made the force depend on
+            // how the lever had arrived, and going around a divider end is the manoeuvre that crosses
             // the boundary. It rang there and nowhere else.
             EngineConfig cfg = FullGainConfig();
             GateGeometry geo = cfg.BuildGeometry();
 
-            foreach (Column latched in new[] { Column.C1, Column.C2, Column.C3, Column.C4 })
+            foreach (ShiftDir dir in new[] { ShiftDir.Fwd, ShiftDir.Back })
             {
-                foreach (ShiftDir dir in new[] { ShiftDir.Fwd, ShiftDir.Back })
+                for (int x = 0; x <= Max; x += 617)
                 {
-                    for (int x = 0; x <= Max; x += 617)
+                    // The case that matters, and the only one a normal shift ever visits: the gear
+                    // the lever is in is the column the lever is over. A latched gear does own the
+                    // lateral field - that is what pushes a lever dragged sideways back to its own
+                    // slot - but entering or leaving your own column must not change the force by a
+                    // single unit, because that boundary is hysteretic and the mouth is where a hand
+                    // crosses it again and again.
+                    foreach (int depth in new[] { 0, 900, 1399, 1400, 1401, 2399, 2400, 2401, 4000, 9000, 20000 })
                     {
-                        foreach (int depth in new[] { 0, 900, 1399, 1400, 1401, 2399, 2400, 2401, 4000, 9000, 20000 })
-                        {
-                            int y = dir == ShiftDir.Fwd ? Center - depth : Center + depth;
+                        int y = dir == ShiftDir.Fwd ? Center - depth : Center + depth;
 
-                            int neutral = Neutral(Composer(cfg), x, y).ConstantX;
-                            int inColumn = Composer(cfg)
-                                .Compose(GateState.Engaged, latched, dir, x, y).ConstantX;
+                        // The column the tunnel itself would pick at this position - which is the one
+                        // a lever arriving here would have latched.
+                        Column latched = geo.GuideColumn(x, Column.None, geo.InChannel(y));
 
-                            Assert.Equal(neutral, inColumn);
-                        }
+                        int neutral = Neutral(Composer(cfg), x, y).ConstantX;
+                        int inColumn = Composer(cfg)
+                            .Compose(GateState.Engaged, latched, dir, x, y).ConstantX;
+
+                        Assert.Equal(neutral, inColumn);
                     }
                 }
             }
@@ -860,7 +867,7 @@ namespace AB9ActiveShifter.Tests
             foreach (SlotMouthShape shape in new[] { SlotMouthShape.Rounded, SlotMouthShape.Angled })
             {
                 EngineConfig cfg = MouthConfig(shape);
-                cfg.MouthDepth = 1000;      // the harshest legal reach
+                cfg.MouthDepth = 6000;      // long enough to reach past the transition band
                 cfg.WallRamp = 2364;
                 GateGeometry geo = cfg.BuildGeometry();
 
@@ -880,7 +887,7 @@ namespace AB9ActiveShifter.Tests
                 const int window = 100;
                 for (int offset = corridor; offset < corridor + 900; offset += 50)
                 {
-                    for (int depth = geo.ChannelHalfEnter; depth <= geo.ChannelHalfEnter + 1100; depth += window)
+                    for (int depth = geo.ChannelHalfExit; depth <= geo.ChannelHalfEnter + 5000; depth += window)
                     {
                         int a = Neutral(Composer(cfg), C2 + offset, Center - depth).ConstantX
                               - Neutral(Composer(square), C2 + offset, Center - depth).ConstantX;
@@ -944,9 +951,10 @@ namespace AB9ActiveShifter.Tests
             {
                 int reference = Neutral(Composer(cfg), x, Center - geo.ChannelHalfExit).ConstantX;
 
-                foreach (int depth in new[] { 2500, 3000, 4000, 4800, 6000, 12000, 28000 })
+                foreach (int extra in new[] { 100, 600, 1600, 2400, 8000, 24000 })
                 {
-                    Assert.Equal(reference, Neutral(Composer(cfg), x, Center - depth).ConstantX);
+                    Assert.Equal(reference,
+                        Neutral(Composer(cfg), x, Center - geo.ChannelHalfExit - extra).ConstantX);
                 }
             }
         }

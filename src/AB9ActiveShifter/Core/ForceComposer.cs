@@ -199,9 +199,21 @@ namespace AB9ActiveShifter.Core
                 return FreeFrame();
             }
 
-            // Advanced once, before the branch, so both branches measure from the same column and
-            // the lateral field cannot depend on which one runs.
-            _guideColumn = _geo.GuideColumn(x, _guideColumn, _geo.InChannel(y));
+            // A latched gear owns the lateral field: the wall points at the gear the lever is in,
+            // so dragging sideways is pushed back to it rather than held in whichever slot the lever
+            // was dragged to. Only in the tunnel does the guide follow the lever.
+            //
+            // This is the distinction I had wrong. Removing the latch entirely did fix the six
+            // newton-metre step, but it also meant the wall followed the lever instead of the gear,
+            // so a lever pushed across was held in the wrong slot. The step was never caused by
+            // consulting the latch - it was caused by the two branches using different FORMULAS for
+            // the same column. With one formula, the mouth of the column being entered gives
+            // identical force either way, because there the latched column and the nearest column
+            // are the same column. The only place they can differ is the tunnel, where the plateau
+            // is the light detent, so the handover costs at most that.
+            _guideColumn = state == GateState.Neutral
+                ? _geo.GuideColumn(x, _guideColumn, _geo.InChannel(y))
+                : column;
 
             ForceFrame frame = state == GateState.Neutral
                 ? ComposeNeutral(x, y)
@@ -441,25 +453,33 @@ namespace AB9ActiveShifter.Core
         /// How hard the lateral guide pushes at this depth: the light detent that parks the lever on
         /// a column in the tunnel, rising to the full slot wall by the time the channel is left.
         ///
-        /// It finishes at the channel's exit band, and that boundary is the whole point. Below it a
-        /// column can be latched, and there the lateral field must be a function of x alone - no
-        /// depth term at all. An earlier version carried the rise on past the exit, which gave the
-        /// slot walls a cross-gradient of about 2 DI per count of depth where they had none before:
-        /// the wall grew under the hand as the lever was pushed in. The deep walls were unchanged
-        /// and stayed calm, and the guides leading down to each gear rang, which is exactly where it
-        /// was felt. One linear rise, done by the exit, and below it nothing varies with depth.
+        /// The rise happens ENTIRELY inside the channel's hysteresis band, and that is the whole
+        /// point. There are two places a hand spends real time - sliding along the tunnel, and held
+        /// in a slot - and in both of them the lateral field has to be a function of x alone. Any
+        /// depth term there turns the lever's inevitable fore/aft wander into sideways force that
+        /// arrives for no reason the hand can see.
         ///
-        /// Linear rather than kinked, so the slope is bounded by construction: pin force over the
-        /// channel's exit width, which sits at or under the wall's own face gradient. That is why
-        /// there is no separate funnel strength any more - a waypoint would either steepen one leg
-        /// past the budget or be exactly this line.
+        /// Both mistakes were made, one at a time, and both were felt immediately. Carrying the rise
+        /// on past the exit band gave the slot walls a cross-gradient where they had none, so the
+        /// wall grew as the lever was pushed in, and the guides leading down to each gear rang while
+        /// the untouched deep walls stayed calm. Starting the rise at the centre line instead gave
+        /// the TUNNEL a depth term, so sliding past the columns with the usual small fore/aft wander
+        /// pushed and pulled the lever sideways at random.
+        ///
+        /// A transition has to exist somewhere - free to slide across, then held in a slot - and
+        /// wherever it is, it is a cross-gradient. The band the state machine already calls "leaving
+        /// the tunnel" is the honest place for it: a hand crosses that band on the way to a gear
+        /// rather than dwelling in it. Widening the band is what buys the slope down, which is why
+        /// the exit band is wider than it used to be.
         /// </summary>
         private int GuidePlateau(int depth)
         {
-            int mouth = Math.Max(1, _geo.ChannelHalfExit);
-            if (depth >= mouth) return _columnPinForce;
+            if (depth <= _geo.ChannelHalfEnter) return _columnDetentForce;
+            if (depth >= _geo.ChannelHalfExit) return _columnPinForce;
 
-            return (int)Math.Round(Lerp(_columnDetentForce, _columnPinForce, depth / (double)mouth));
+            int span = Math.Max(1, _geo.ChannelHalfExit - _geo.ChannelHalfEnter);
+            double t = (depth - _geo.ChannelHalfEnter) / (double)span;
+            return (int)Math.Round(Lerp(_columnDetentForce, _columnPinForce, t));
         }
 
         /// <summary>

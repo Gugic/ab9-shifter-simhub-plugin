@@ -242,6 +242,7 @@
         </styles:SHTabItem>
 
         <!-- =========================== GEOMETRY =========================== -->
+
         <styles:SHTabItem Header="Geometry">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="8">
@@ -271,7 +272,7 @@
                                              TickFrequency="100" ShowResetButton="True" ResetValue="1400"
                                              Value="{Binding ChannelHalfEnter, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Neutral channel half-width (exit)" Minimum="200" Maximum="10000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="2400"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="4000"
                                              Value="{Binding ChannelHalfExit, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Outer column band (enter)" Minimum="500" Maximum="10000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2600"
@@ -350,6 +351,22 @@
                             <TextBlock Text="{Binding AxisText}" Margin="0,2" />
                             <TextBlock Text="{Binding StateText}" Margin="0,2" />
                             <TextBlock Text="{Binding LoopText}" Margin="0,2" />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="RECORD A TRACE" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8"
+                                       Text="Records every tick - position, speed and the exact force sent to the base - so a movement that feels wrong can be replayed and measured instead of described. Press record, make the movement that misbehaves, press stop, and tell me what you did. Two minutes maximum, then it stops on its own." />
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <styles:SHButtonPrimary x:Name="RecordButton" Click="OnToggleRecord"
+                                                        Content="Start recording" Margin="0,0,8,0" Padding="14,4" />
+                                <styles:SHButtonSecondary x:Name="OpenTracesButton" Click="OnOpenTraces"
+                                                          Content="Open trace folder" Padding="14,4" />
+                            </StackPanel>
+
+                            <TextBlock x:Name="RecordStatus" TextWrapping="Wrap" Opacity="0.85" />
                         </StackPanel>
                     </styles:SHSection>
                 </StackPanel>
