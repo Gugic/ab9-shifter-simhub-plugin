@@ -124,9 +124,20 @@ runners cannot load, so anything worth testing must not touch it.
   distance at which the rest of the pattern came back and could capture the lever into a gear it
   was never driven into. Do not reintroduce a lateral release — it is also what frees the slot
   wall's face from its old exit-band squeeze, so restoring one would mean re-clamping that ramp.
-- **Lateral confinement is a fact about depth, not about the latch** (`SlotConfinementFactor`), and
-  barriers are the reverse — they fade out as the slot walls fade in. When confinement depended on
-  the latch, overpowering one wall left no lateral wall at gear depth at all.
+- **The lateral field must not read the state machine.** It is one function of position and the
+  guide column, called by both branches; `TheLateralFieldDoesNotDependOnTheLatch` sweeps every
+  column, direction, position and depth and demands exact equality. Computing it per-branch produced
+  a 4924 DI (≈6 Nm) step at the same position, selected by history through the hysteretic channel
+  bands, and that step was the mouth oscillation.
+- **One stiffness for every lateral force.** Faces are derived from plateaus (`GuideFace`), so a
+  gentler force gets a shorter face, never a steeper one. Never give a lateral force its own ramp
+  dial — that is what made the funnel 3.5× the wall face.
+- **Depth spans are not lateral spans.** Do not reach for `WallRamp` when you need a depth distance.
+- **The guide's column boundaries are crests in the tunnel and midpoints below it.** Crests at depth
+  turn the lockout's own wall into a conveyor toward 7/R and the toll is never paid. Positional, not
+  historical, so a cold start resolves identically.
+- Barriers fade out with depth as the slot walls fade in, and they are applied in **both** branches —
+  anything indexed on the state machine puts the step back.
 - **The lockout gate positions itself** against the last main-section column
   (`GateGeometry.LockoutCentre`), and the lateral guide's column boundaries are the barrier
   crests, not the geometric midpoints. Anything that needs to know where the lockout is must ask

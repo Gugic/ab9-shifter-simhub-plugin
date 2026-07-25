@@ -120,15 +120,6 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int WallRamp = 600;
 
-        /// <summary>
-        /// How far past a column's own width the lateral guide takes to reach full strength -
-        /// both the light pull along the tunnel and the funnel that steers an off-column entry
-        /// into the slot. It is a gradient like any other, so keeping it well above
-        /// <see cref="WallRamp"/> matters: at the minimum it becomes the steepest thing in the
-        /// gate and the funnel snatches instead of guiding.
-        /// </summary>
-        public int DetentRamp = 2500;
-
         /// <summary>Distance from a barrier's crest to its peak force.</summary>
         public int BarrierWidth = 2500;
 

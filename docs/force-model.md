@@ -72,6 +72,38 @@ The barriers themselves:
   it. The width is clamped to the room available so an extreme setting cannot swallow either
   column's band.
 
+### One lateral field
+
+The lateral force is computed **once**, by a single function of position and the guide column, and
+both states call it. It used to be computed twice - a funnel-plus-confinement in the tunnel, a slot
+wall once a column was latched - and the two disagreed by a **measured 4924 DI units, nearly six
+newton-metres, at the same physical position**. Which one the lever got depended on the latch, and
+because the channel bands are hysteretic, that depended on how it had arrived. Travelling from one
+slot to another around a divider end is exactly the manoeuvre that crosses the boundary, and that is
+exactly where it rang, while the deep walls - where the two branches happened to agree and both went
+flat - stayed calm. `TheLateralFieldDoesNotDependOnTheLatch` pins it at zero now.
+
+**One stiffness.** Every lateral force's face length is derived from its plateau, so plateau over
+face is always pin force over the wall's bite. A gentler force gets a *shorter face* rather than a
+steeper one. This retired the steepest gradient in the gate: the funnel's ramp was a free parameter,
+and at the bottom of its range it produced 13.3 DI per count against a wall face of 3.8 - three and a
+half times the wall, existing only in the mouth, which is the one region the lever crosses on every
+shift.
+
+**Depth spans and lateral spans are not interchangeable.** The plateau's depth ramp uses the
+channel's own width; wiring it to the wall's bite instead meant a long bite pushed the slot wall's
+full strength tens of thousands of counts down the slot, so the wall went missing exactly where a
+gear is held. Caught by `ASlotWallStillCannotBleedIntoTheNextColumn`.
+
+**The watershed changes with depth.** In the tunnel the guide's column boundaries are the barrier
+crests, so fighting through the lockout gate hands the lever to 7/R instead of dragging it back.
+Below the tunnel they are the plain midpoints. That is not cosmetic: with crest boundaries at depth,
+a lever dragged out of 5/6 crosses the gate's crest, the guide adopts 7/R, and the wall that was
+holding it in **reverses into a conveyor** pushing it toward 7 at full pin force for thousands of
+counts - pull out of 5, drag right at depth, drop into 7, no toll at all. It has to be positional
+rather than historical so a cold start at that position resolves the same way. Pinned by
+`TheLockoutCannotBeConveyedPastAtDepth`.
+
 Lateral confinement is a fact about **depth**, not about the state machine's latch. Below the
 channel the guide hands over to the nearest column's slot wall at full strength
 (`SlotConfinementFactor`, fading in over the wall's bite), so there is nowhere at gear depth the
@@ -231,6 +263,10 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **Exempting the lockout from time shaping** | Left it as the only force still arriving raw, so it rejected the lever hard where every wall had learned not to, and rang. The flick-discount worry it was guarding against does not survive arithmetic: crossing takes tens of milliseconds, the attack lasts fifteen. |
 | **Lockout faces overhanging the band** | Ate the clearance the gate is placed with and put the onset of the toll on top of the 5/6 column, as a hard bump where a hand expects a resting place. The faces are inside the band now. |
 | **A fixed static-hold band** | Wide enough to steady a full-strength wall meant swallowing a light guide force whole, making a slide across the gate notchy. The band is proportional to the force being applied. |
+| **Computing the lateral force in two branches** | The tunnel's field and the in-column field disagreed by 4924 measured DI at the same position, selected by the latch and therefore by history. The mouth rang; deep walls did not, because there the two agreed. One function now, called by both. |
+| **A separate ramp for the lateral guide** (`DetentRamp`) | A free parameter on a gradient. At its floor it made the funnel 13.3 DI/count against a 3.8 wall face - the steepest thing in the gate, in the region crossed on every shift. Faces are derived from plateaus at the wall's stiffness now, and the dial is deleted. |
+| **Using the wall's bite as the plateau's depth span** | They are different axes. A long bite delayed the slot wall's full strength by tens of thousands of counts of depth, so the wall vanished where a gear is held. The depth span is the channel's own width. |
+| **Crest watersheds below the tunnel** | Opened a complete lockout bypass: past the gate's off-centre crest at gear depth the guide adopts 7/R and conveys the lever toward 7 at full pin force, toll unpaid. Midpoints below the tunnel. |
 | **A separate "lockout shading starts at" setting** | A second copy of the gate's position, which did nothing once the gate moved itself, and drifted from the truth. The Monitor tab asks the geometry. |
 
 The shape of the whole search, in one sentence: **soft gradient = stable but mush; stiff gradient =
