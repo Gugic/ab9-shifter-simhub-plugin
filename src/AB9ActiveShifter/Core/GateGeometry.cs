@@ -318,6 +318,41 @@ namespace AB9ActiveShifter.Core
 
 
         /// <summary>
+        /// Which way the next sequential gear lies from this slot, as -1, 0 or +1 in device x.
+        ///
+        /// Derived from the gear map rather than assumed. Gear-column m holds the odd gear 2m+1 on
+        /// its forward side and the even gear 2m+2 on its back side, so from an even gear the next
+        /// gear is in gear-column m+1, and from an odd gear the previous gear is in gear-column
+        /// m-1; every other transition stays inside one column. Each slot therefore has at most one
+        /// cross-column sequential neighbour, which is why one signed value describes it completely.
+        /// In plain terms it is the classic H zig-zag: leaving a back slot goes one way, leaving a
+        /// forward slot goes the other.
+        ///
+        /// Both mirror flags are handled where they act. MirrorSlots changes which device direction
+        /// is the even gear, so it inverts the test. MirrorColumns maps gear-column m to device
+        /// column ColumnCount-1-m, so the next gear-column becomes the previous device column.
+        ///
+        /// Returns 0 where there is no neighbour, and deliberately 0 across the lockout gap: the
+        /// toll is paid in the tunnel and a real range gate does not help you across itself either.
+        /// The gap is asked of <see cref="LockoutGapIndex"/> rather than assumed, because mirroring
+        /// moves it to the other end of the gate.
+        /// </summary>
+        public int SequentialBias(Column c, ShiftDir dir)
+        {
+            if (c == Column.None || dir == ShiftDir.None) return 0;
+
+            bool gearBack = MirrorSlots ? dir == ShiftDir.Fwd : dir == ShiftDir.Back;
+            int step = gearBack ? 1 : -1;
+            int deviceStep = MirrorColumns ? -step : step;
+
+            int target = (int)c + deviceStep;
+            if (target < 0 || target >= ColumnCount) return 0;
+            if (Math.Min((int)c, target) == LockoutGapIndex) return 0;
+
+            return deviceStep;
+        }
+
+        /// <summary>
         /// How much of the way out of the neutral channel the stick is, 0 inside the channel and
         /// 1 once clear of it. Scales the lateral guide, so entering a gear steers toward the
         /// column rather than merely being blocked by the gate wall.

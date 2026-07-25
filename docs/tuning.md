@@ -17,6 +17,7 @@ light — that is the safety cap doing its job, not a tuning problem.
 | Lockout gate, guarding 7/R | 70% | The push-through toll before 7 and R. Sits against the 5/6 column; width sets the toll with it. |
 | Funnel into the slot | 40% | Steers an off-column push into the slot instead of blocking it. |
 | Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
+| Slot mouth | Square | Shape of the divider ends where they meet the tunnel. Square is the plain notch and changes nothing. |
 | Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
 | Seated hold | 55% | What keeps a gear engaged against the base's own centring. |
 
@@ -93,6 +94,20 @@ force, and a light hold simply loses.
 **I can flick through the lockout too easily.**
 The toll is **lockout force × lockout gate half-width** — widen the band or raise the force. Check
 overall gain too: at 25% gain a 70% lockout is only ~2 Nm, which momentum beats easily.
+
+**The wall ends at the tunnel feel square and catch the lever going past them.**
+Feel → SLOT MOUTHS. *Rounded* fillets both flanks of every slot mouth, so the lever is eased past a
+divider end instead of cornered on it. *Angled* chamfers one flank only, the side the next gear in
+sequence lies on, so withdrawing with a little lateral pressure is carried that way - out of 2 toward
+3, out of 5 toward 4, and so on. All three only ever remove force; none of them pushes.
+
+*Mouth reach down the slot* (5000) is the one that matters. The base answers in 3-4 ms, in which a
+lever being shifted travels 1500 counts or more, so shaping confined to a shorter stretch than that is
+over before a single corrected force arrives - which is exactly why the first version of this feature
+was thrown away. *Mouth opening* is a share of what the geometry safely allows, so it can never reach
+the next column's slot or the lockout's band. Angled does nothing where there is no next gear (1, R)
+or where the crossing would be the lockout (6 to 7), because a range gate does not help you across
+itself.
 
 **Entering a gear feels like it fights me sideways.**
 That is the funnel. Lower **funnel into the slot** if it is too pushy; raise it if entries near a

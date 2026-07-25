@@ -96,6 +96,9 @@ namespace AB9ActiveShifter.Core
         private int _shapedX;
         private int _shapedY;
 
+        /// <summary>Widest mouth opening the settings ask for, before geometry trims it per flank.</summary>
+        private readonly int _mouthOpening;
+
         /// <summary>
         /// The column the lateral field is measured from. None until a position is seen, because a
         /// guess is a force: this used to be seeded to C2, so the first tick after a settings change
@@ -140,6 +143,17 @@ namespace AB9ActiveShifter.Core
             _snickFloor = 1.0 - yield * 0.33;
             _yieldDeadband = Math.Max(0, config.YieldVelocityDeadband);
             _yieldBlend = Math.Max(1, config.YieldVelocityBlend);
+
+            // The opening follows the reach, so the flank's slope is bounded whatever either dial is
+            // set to. The rounded profile is scaled by 2/pi because a raised cosine's steepest point
+            // is pi/2 times its average, and MouthSlopeMax is meant to be a ceiling on the steepest
+            // point rather than on the average. Geometry trims further per flank; see MouthOpeningFor.
+            double roundedScale = config.MouthShape == SlotMouthShape.Rounded ? 2.0 / Math.PI : 1.0;
+
+            _mouthOpening = config.MouthShape == SlotMouthShape.Square
+                ? 0
+                : (int)Math.Round(Math.Max(0, config.MouthDepth) * EngineConfig.MouthSlopeMax * roundedScale
+                                  * GateGeometry.Clamp(config.MouthOpenPct, 0, 100) / 100.0);
 
             _attackPerMs = config.WallAttackMs <= 0
                 ? 0
@@ -348,12 +362,82 @@ namespace AB9ActiveShifter.Core
         {
             if (_guideColumn == Column.None) return 0;
 
-            int corridor = SlotCorridor(_guideColumn);
-            int plateau = GuidePlateau(Math.Abs(y - GateGeometry.AxisCenter));
+            int depth = Math.Abs(y - GateGeometry.AxisCenter);
+            int plateau = GuidePlateau(depth);
             if (plateau <= 0) return 0;
 
-            return Saturating(
-                x - _geo.ColumnTarget(_guideColumn), plateau, GuideFace(plateau, corridor), corridor);
+            int offset = x - _geo.ColumnTarget(_guideColumn);
+            int corridor = SlotCorridor(_guideColumn) + MouthExtra(offset, depth, y);
+
+            return Saturating(offset, plateau, GuideFace(plateau, corridor), corridor);
+        }
+
+        /// <summary>
+        /// How much wider the slot is at this depth, on the flank the lever is on - the mouth shape.
+        ///
+        /// The shapes are rendered by moving the corridor's edge, never by adding a force. A
+        /// chamfered divider end does not push a lever toward the next gear; it stops holding it
+        /// back, and the hand's own lateral pressure does the rest. That is what makes the feature
+        /// safe: nothing here can push outward, so there is no positive feedback to run away with,
+        /// and the only gradient introduced is the flank's own slope, capped at
+        /// <see cref="EngineConfig.MouthSlopeMax"/> - half the wall face at worst.
+        /// </summary>
+        private int MouthExtra(int offset, int depth, int y)
+        {
+            if (_mouthOpening <= 0 || offset == 0) return 0;
+
+            int side = offset > 0 ? 1 : -1;
+            int reach = Math.Max(1, _cfg.MouthDepth);
+            int into = depth - _geo.ChannelHalfEnter;
+            if (into < 0 || into >= reach) return 0;
+
+            double u = into / (double)reach;
+            double profile;
+
+            if (_cfg.MouthShape == SlotMouthShape.Angled)
+            {
+                // One flank only, and only where a next gear exists to be steered toward.
+                if (side != _geo.SequentialBias(_guideColumn, _geo.DirectionOf(y))) return 0;
+                profile = 1.0 - u;
+            }
+            else
+            {
+                // A raised cosine rather than a circular fillet. A true circle's flank goes vertical
+                // where it meets the slot wall - an unbounded gradient at exactly the depth a hand
+                // dwells. This leaves at zero slope on both ends instead, at the cost of peaking at
+                // pi/2 times its average, which RoundedScale pays for by opening that much less.
+                profile = 0.5 * (1.0 + Math.Cos(Math.PI * u));
+            }
+
+            return (int)Math.Round(MouthOpeningFor(side) * profile);
+        }
+
+        /// <summary>
+        /// The widest this flank may open. Bounded by the neighbouring column's territory and, on a
+        /// flank facing the lockout, by the gate's band - nothing belonging to a column may reach
+        /// into the gate, or the toll's size would start depending on the mouth setting.
+        /// </summary>
+        private int MouthOpeningFor(int side)
+        {
+            int target = _geo.ColumnTarget(_guideColumn);
+            int room = (_geo.ColumnSpacing / 2) - SlotCorridor(_guideColumn) - 200;
+
+            int gapIndex = side > 0 ? (int)_guideColumn : (int)_guideColumn - 1;
+            if (gapIndex == _geo.LockoutGapIndex)
+            {
+                int edge = side > 0
+                    ? _geo.LockoutCentre - _geo.LockoutHalfWidth - target
+                    : target - (_geo.LockoutCentre + _geo.LockoutHalfWidth);
+
+                // Room for the wall's face as well as its corridor. Keeping only the corridor out of
+                // the band is not enough: widening the corridor moves where the face begins, so the
+                // force inside the gate's band changes even though nothing has crossed into it, and
+                // the size of the toll would start depending on the mouth setting.
+                int corridor = SlotCorridor(_guideColumn);
+                room = Math.Min(room, edge - corridor - SlotRamp(corridor) - 100);
+            }
+
+            return GateGeometry.Clamp(Math.Min(_mouthOpening, room), 0, Math.Max(0, room));
         }
 
         /// <summary>

@@ -172,6 +172,30 @@
                         </StackPanel>
                     </styles:SHSection>
 
+                    <styles:SHSection Title="SLOT MOUTHS" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                       Text="The ends of the dividers between slots, where they meet the neutral tunnel. Square is the plain rectangular notch the gate has always had. The other two open the slot out toward the tunnel, which a hand reads as an eased or a chamfered edge - they only ever remove force, never add it, so the shaping guides rather than shoves." />
+
+                            <TextBlock Text="Mouth shape" Margin="0,0,0,4" />
+                            <ComboBox SelectedIndex="{Binding MouthShapeIndex, Mode=TwoWay}" Margin="0,0,0,8"
+                                      HorizontalAlignment="Left" MinWidth="240">
+                                <ComboBoxItem Content="Square - a plain notch (default)" />
+                                <ComboBoxItem Content="Rounded - filleted on both sides" />
+                                <ComboBoxItem Content="Angled - chamfered toward the next gear" />
+                            </ComboBox>
+
+                            <ui:TitledSlider Title="Mouth reach down the slot (axis counts)" Minimum="1000" Maximum="12000"
+                                             TickFrequency="500" ShowResetButton="True" ResetValue="5000"
+                                             Value="{Binding MouthDepth, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Mouth opening (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="100"
+                                             Value="{Binding MouthOpenPct, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="Reach is what decides whether the shaping is felt at all. The base takes three to four milliseconds to answer, in which a lever being shifted covers fifteen hundred counts or more - so shaping confined to a shorter stretch than that is over before a single corrected force arrives. Several thousand counts spans the whole withdrawal stroke. Opening is a share of what the geometry safely allows, so it can never reach the next column's slot or the lockout's band. Angled opens one side only, toward the next gear in sequence, and does nothing at all where there is no next gear or where the crossing is the lockout." />
+                        </StackPanel>
+                    </styles:SHSection>
+
                     <styles:SHSection Title="SLIDING ACROSS THE GATE" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
