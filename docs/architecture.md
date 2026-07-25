@@ -101,16 +101,16 @@ hysteresis on every boundary (the exit band is always the looser one).
 - Engaged → Traveling past `ReleaseDepth` → **button up immediately**.
 - Traveling → Neutral on re-entering the channel.
 
-**The latch is a lock.** Once a column is latched, sideways motion never changes it — the only
-route to another gear is back through the neutral channel, exactly as a real gate works. See the
-gear lock in [force-model.md](force-model.md) for what that buys.
+**The latch is an absolute lock.** Once a column is latched, `StepTraveling` and `StepEngaged`
+ignore X entirely — no lateral distance, however large, changes or drops the gear. The only route to
+another gear is back through the neutral channel, exactly as a real gate works. There is
+deliberately no fault threshold: force cannot enforce a gate (a hand beats 12 Nm), so any distance
+at which the latch gave way would be a distance at which the rest of the pattern came back and could
+capture the lever into a gear it was never driven into. See the gear lock in
+[force-model.md](force-model.md).
 
-The fault path: if X escapes the latched column by more than half a column spacing
-(`EscapedColumn`), that is a fault, not a shift. The gear drops, the state goes Neutral, and an
-`_awaitChannel` flag blocks any new latch until the stick has been seen in the channel. Without
-that flag the very next tick would latch whatever column the stick had landed in, making the fault
-path a back door into the diagonal shift the lock forbids. `Resync` — used at startup and after a
-geometry change — deliberately does adopt the gear the stick is sitting in, and clears the flag.
+`Resync` is therefore the only way to adopt a position — startup, and a geometry change under the
+running loop, where the engine rebuilds the state machine.
 
 Gear numbering is `GearOf(column, direction)`, 1–8 with 8 = reverse. `MirrorColumns` and
 `MirrorSlots` relabel that map **only** — geometry never moves. See the invariants in

@@ -191,22 +191,31 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void AnImpossibleJumpAcrossTheGateIsTreatedAsAFault()
+        public void NoLateralDistanceWhatsoeverReleasesTheGear()
         {
-            // The remaining use for the lateral guard: a sensor jump or a geometry change under
-            // the loop, not a hand. It sits a whole column spacing out, so only a position that
-            // no lean could have produced reaches it.
+            // The lock is absolute, by design rather than by strength. Force cannot enforce it -
+            // a hand beats 12 Nm - so any distance at which the latch gave way would be a
+            // distance at which the rest of the pattern came back and could capture the lever
+            // into a gear it was never driven into. Dragged the entire width of the gate while
+            // deep in first, the gear must still be first.
             GateStateMachine sm = NewMachine();
             Sweep(sm, Center, Center, C1, Center);
             Sweep(sm, C1, Center, C1, 0);
             Hold(sm, C1, 0);
             Assert.Equal(1, sm.CurrentGear);
 
-            StateTransition t = sm.Update(50000, 0);
+            for (int x = 0; x <= Max; x += 250)
+            {
+                StateTransition t = sm.Update(x, 0);
+                Assert.Equal(1, t.Gear);
+                Assert.False(t.GearChanged);
+                Assert.Equal(GateState.Engaged, t.State);
+            }
 
-            Assert.True(t.GearChanged);
+            // Only the tunnel gives it up.
+            Sweep(sm, Max, 0, Max, Center);
             Assert.Equal(0, sm.CurrentGear);
-            Assert.Equal(1, sm.AnomalyCount);
+            Assert.Equal(GateState.Neutral, sm.State);
         }
 
         [Fact]
@@ -229,7 +238,6 @@ namespace AB9ActiveShifter.Tests
                 Assert.False(t.GearChanged);
             }
 
-            Assert.Equal(0, sm.AnomalyCount);
         }
 
         [Fact]
@@ -252,7 +260,6 @@ namespace AB9ActiveShifter.Tests
             }
 
             Assert.Equal(1, sm.CurrentGear);
-            Assert.Equal(0, sm.AnomalyCount);
 
             // Coming back through the channel is the only way to hand the gear over.
             Sweep(sm, C2, 0, C2, Center);
@@ -263,25 +270,21 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void AFaultCannotBeAShortcutIntoAnotherGear()
+        public void SittingDeepInAnotherColumnStillReportsTheLatchedGear()
         {
-            // If a fault does fire while the stick is deep in some other column, it must not hand
-            // over that column's gear on the next tick - that would be the diagonal shift again,
-            // through the back door. Nothing may latch until the channel has been seen.
+            // Even a position that could only come from a sensor jump - straight into another
+            // column's slot - must not hand over that column's gear. The latch is the truth
+            // until the channel says otherwise; Resync is the only way to adopt a position.
             GateStateMachine sm = NewMachine();
             Sweep(sm, Center, Center, C1, Center);
             Sweep(sm, C1, Center, C1, 0);
             Hold(sm, C1, 0);
 
-            sm.Update(C3, 0);               // impossible jump: straight into 5's slot
+            sm.Update(C3, 0);
             Hold(sm, C3, 0);
+            Assert.Equal(1, sm.CurrentGear);
 
-            Assert.Equal(0, sm.CurrentGear);
-            Assert.Equal(GateState.Neutral, sm.State);
-
-            Sweep(sm, C3, 0, C3, Center);   // visit the channel
-            Sweep(sm, C3, Center, C3, 0);
-            Hold(sm, C3, 0);
+            sm.Resync(C3, 0);
             Assert.Equal(5, sm.CurrentGear);
         }
 
@@ -297,7 +300,6 @@ namespace AB9ActiveShifter.Tests
 
             Assert.Equal(0, sm.CurrentGear);
             Assert.Equal(GateState.Neutral, sm.State);
-            Assert.Equal(0, sm.AnomalyCount);
         }
 
         [Fact]
@@ -342,7 +344,6 @@ namespace AB9ActiveShifter.Tests
 
             Assert.Equal(2, sm.CurrentGear);
             Assert.Contains(0, gears);          // released before re-engaging
-            Assert.Equal(0, sm.AnomalyCount);
         }
     }
 }

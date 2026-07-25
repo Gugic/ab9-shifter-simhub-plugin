@@ -54,11 +54,13 @@ column's band, and the **funnel** steers an off-column push into the slot instea
 it. If you turned **pull into a column** down to 0, the funnel still works — it is a separate dial.
 
 **I can drag the lever sideways from gear to gear along the top or bottom of the gate.**
-Fixed. Lateral confinement used to depend on the state machine's latch, so overpowering one slot
-wall dropped the latch and left no lateral wall at gear depth at all — the gate gave way and the
-guide then helped you along to each column you passed. The slot walls now belong to the depth: at
-gear depth there is nowhere laterally free, and a lever dragged sideways is pushed back to the gear
-it is in however far it goes. If it still happens, **slot wall** is set too low for your grip.
+You can still *move* it — no wall can out-push a hand on a 12 Nm base — but it can no longer
+accomplish anything. The gear stays the gear you are in, at any lateral distance, and the slot wall
+pushes back the whole way; the only route to another gear is back through the tunnel. Two things had
+to change for that: lateral confinement now belongs to the depth rather than to the state machine's
+latch (overpowering one wall used to leave no lateral wall at all, and the guide then helped you
+along to each column you passed), and the lateral release is gone entirely, because any distance at
+which it fired was a distance at which the rest of the pattern came back and could capture you.
 
 **A gear changed without my going through neutral.**
 It cannot any more: a latched gear is released only by returning through the tunnel. If you see it

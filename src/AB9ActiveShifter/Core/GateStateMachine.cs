@@ -6,16 +6,21 @@ namespace AB9ActiveShifter.Core
     /// Turns a stream of stick positions into gear selections. Pure logic, no I/O, so the
     /// whole gate can be exercised from tests with scripted coordinate traces.
     ///
-    /// The column is latched on leaving the neutral channel and then held, whatever the stick
-    /// does sideways, until it comes back through the channel. A real gate works the same way:
-    /// once the lever is in a slot the only route to another gear is back out to neutral and
-    /// along the tunnel. That makes a gear impossible to change diagonally, so a wall that is
-    /// leant on hard - or briefly overpowered - cannot hand over a gear it was guarding, and the
-    /// slot walls no longer have to reach full strength before an exit band they no longer own.
-    /// Only a gross lateral escape counts, as a fault to resynchronise from.
+    /// The column is latched on leaving the neutral channel and then held - whatever the stick
+    /// does sideways, however far - until it comes back through the channel. A real gate works
+    /// the same way: once the lever is in a slot, the only route to another gear is back out to
+    /// neutral and along the tunnel.
+    ///
+    /// There is deliberately no lateral escape at all, not even a generous one. Force cannot
+    /// enforce this: a hand beats 12 Nm, so any distance at which the latch gave way would be a
+    /// distance at which the rest of the pattern came back and could capture the lever into a
+    /// gear it was never driven into. Making the lock absolute means pushing sideways can achieve
+    /// nothing except being pushed back, which is the guarantee a gate is supposed to give. It is
+    /// also what frees the slot walls from ever having to be strong enough to win.
     ///
     /// Engage and release use separate depth thresholds so resting on the boundary cannot
-    /// chatter the button.
+    /// chatter the button. <see cref="Resync"/> remains the way to adopt whatever position the
+    /// stick is actually in, for startup and for a geometry change under the running loop.
     /// </summary>
     public sealed class GateStateMachine
     {
@@ -28,14 +33,6 @@ namespace AB9ActiveShifter.Core
         private int _gear;
         private int _engageTicks;
 
-        /// <summary>
-        /// Set after a fault: nothing may be latched until the stick has been seen in the neutral
-        /// channel. Without it a stick dragged clean out of one column and into the next would be
-        /// handed the new gear on the following tick, which is the diagonal shift the gate exists
-        /// to forbid - just reached through the fault path instead of the front door.
-        /// </summary>
-        private bool _awaitChannel;
-
         public GateStateMachine(GateGeometry geometry, int minEngageTicks)
         {
             _geo = geometry;
@@ -46,9 +43,6 @@ namespace AB9ActiveShifter.Core
         public Column Column { get { return _column; } }
         public ShiftDir Direction { get { return _direction; } }
         public int CurrentGear { get { return _gear; } }
-
-        /// <summary>Times the stick was forced out of a latched column, e.g. by overpowering a wall.</summary>
-        public long AnomalyCount { get; private set; }
 
         public StateTransition Update(int x, int y)
         {
@@ -82,12 +76,6 @@ namespace AB9ActiveShifter.Core
 
         private void StepNeutral(int x, int y)
         {
-            if (_awaitChannel)
-            {
-                if (!_geo.InChannel(y)) return;
-                _awaitChannel = false;
-            }
-
             if (!_geo.OutOfChannel(y)) return;
 
             Column c = _geo.ColumnAt(x);
@@ -106,12 +94,6 @@ namespace AB9ActiveShifter.Core
 
         private void StepTraveling(int x, int y)
         {
-            if (_geo.EscapedColumn(_column, x))
-            {
-                Fault();
-                return;
-            }
-
             if (_geo.InChannel(y))
             {
                 EnterNeutral();
@@ -135,12 +117,6 @@ namespace AB9ActiveShifter.Core
 
         private void StepEngaged(int x, int y)
         {
-            if (_geo.EscapedColumn(_column, x))
-            {
-                Fault();
-                return;
-            }
-
             if (_geo.IsReleased(_direction, y))
             {
                 _state = GateState.Traveling;
@@ -159,27 +135,11 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// The stick left a latched column by a distance no wall should have allowed. Drop the
-        /// gear and refuse to latch anything until the neutral channel has been seen, so a fault
-        /// cannot be a shortcut into the gear the stick happens to have landed on.
-        /// </summary>
-        private void Fault()
-        {
-            AnomalyCount++;
-            EnterNeutral();
-            _awaitChannel = true;
-        }
-
-        /// <summary>
         /// Derives state purely from the current position. Used at startup, after a geometry
         /// change, and to recover from an anomaly, so the engine never carries a stale latch.
         /// </summary>
         public void Resync(int x, int y)
         {
-            // An explicit resynchronisation is a statement that the position is to be trusted -
-            // at startup, or after the geometry moved - so it clears any pending fault.
-            _awaitChannel = false;
-
             if (_geo.InChannel(y))
             {
                 EnterNeutral();

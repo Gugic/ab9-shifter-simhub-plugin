@@ -153,12 +153,23 @@ behaves the same way, and it buys three things at once:
 - **No mid-lean force swap.** The old release switched the whole force field from slot walls to
   channel walls while the hand was still pushing, which was itself a jolt and a source of ringing.
 
-Only a **gross escape** counts — a whole column spacing, past where the next column even sits — and
-it is treated as a fault, not a shift: the gear drops and nothing may latch again until the channel
-has been seen. Without that last rule a fault is a back door to the diagonal shift, since the next
-tick would happily latch whatever column the stick had landed in. The threshold is deliberately
-beyond any hand's reach, so a lever dragged sideways is simply pushed back to the gear it is in,
-however far it was dragged; only a sensor jump or a geometry change under the loop gets there.
+**There is no lateral escape at all** — not a generous one, not a fault threshold. This is the
+crucial part, and it is a design decision rather than a tuning one: **force cannot enforce a gate.**
+A hand beats 12 Nm, so the walls will always be pushable, and any distance at which the latch gave
+way would be a distance at which the rest of the pattern came back and could capture the lever into
+a gear it was never driven into. Making the lock absolute means pushing sideways can accomplish
+nothing whatsoever except being pushed back — which is exactly the guarantee a mechanical gate
+gives, and it is a guarantee about *logic*, not about strength.
+
+`Resync` remains the only way to adopt a position: startup, and a geometry change under the running
+loop. Everything else goes through the tunnel.
+
+A consequence worth stating plainly: a determined hand can still drag the lever diagonally across
+the plate and arrive in the tunnel somewhere it did not set off from — including past the lockout,
+since barriers fade at depth. Nothing can prevent that, because nothing can out-push a hand. What
+the lock guarantees is that the excursion is resisted the whole way, achieves no gear change, and is
+never *helped*: no gear can appear that the lever was not deliberately driven into through the
+tunnel.
 
 Startup and geometry changes still adopt whatever gear the stick is sitting in (`Resync`), which is
 correct there and clears any pending fault.

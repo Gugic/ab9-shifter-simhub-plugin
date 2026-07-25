@@ -154,19 +154,6 @@ namespace AB9ActiveShifter.Core
             return Column.None;
         }
 
-        /// <summary>Whether x is still within the loose exit band of an already-latched column.</summary>
-        public bool StillInColumn(Column c, int x)
-        {
-            switch (c)
-            {
-                case Column.C1: return x < ColumnEdgeExit;
-                case Column.C4: return x > AxisMax - ColumnEdgeExit;
-                case Column.C2: return Math.Abs(x - _targets[1]) < ColumnInnerHalfExit;
-                case Column.C3: return Math.Abs(x - _targets[2]) < ColumnInnerHalfExit;
-                default: return false;
-            }
-        }
-
         public bool InChannel(int y)
         {
             return Math.Abs(y - AxisCenter) <= ChannelHalfEnter;
@@ -233,8 +220,10 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// The loose band a latched column is lost at, per <see cref="StillInColumn"/>. Forces
-        /// that must arrive before the gear can be lost size themselves against this.
+        /// The loose band around a column - how far off centre still counts as its territory.
+        /// No longer releases anything: a latched column is held until the stick comes back
+        /// through the channel, so this is a clearance figure, and what the lockout gate is
+        /// positioned against.
         /// </summary>
         public int ColumnExitHalfWidth(Column c)
         {
@@ -300,23 +289,6 @@ namespace AB9ActiveShifter.Core
             return c;
         }
 
-        /// <summary>
-        /// Whether the stick has left a latched column so far that it can only be a fault - a
-        /// device glitch, a geometry change under the running loop, or a hand overpowering a
-        /// wall that should not have been pushable.
-        ///
-        /// Deliberately far looser than <see cref="StillInColumn"/>, which is no longer what
-        /// releases a gear: the threshold is a whole column spacing, past where the next column
-        /// even sits. A gear is given up only by returning through the neutral channel, so the
-        /// gate cannot be crossed diagonally from one gear into another, and no lean a hand can
-        /// manage drops the gear it is holding - it is simply pushed back to it, however far it
-        /// was dragged. Only a sensor jump or a geometry change under the loop reaches this far.
-        /// </summary>
-        public bool EscapedColumn(Column c, int x)
-        {
-            if (c == Column.None) return true;
-            return Math.Abs(x - ColumnTarget(c)) > ColumnSpacing + DetentHysteresis;
-        }
 
         /// <summary>
         /// How much of the way out of the neutral channel the stick is, 0 inside the channel and
