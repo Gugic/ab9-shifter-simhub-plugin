@@ -57,6 +57,12 @@ The barriers themselves:
   energy (see below). Its width × force is the **toll** a crossing must pay, at any speed. It
   follows `MirrorColumns`, guarding whichever gap 7/R actually lives behind.
 
+  Its faces live **inside** the declared band, so the gate never reaches past its own width, and
+  they are capped at half the width so a flat core always survives. They used to overhang the band
+  by a whole bite distance, which ate the entire clearance the gate is positioned with and started
+  the toll on top of the 5/6 column — felt as a hard bump exactly where the hand expects to be
+  resting on a column.
+
   **It places itself** (`GateGeometry.LockoutCentre`): its inner face begins exactly where the
   last main-section column's band ends, rather than at the midpoint of the gap. The midpoint
   version left ~8700 counts of dead travel between 5/6 and the gate, and that gap was a usability
@@ -124,7 +130,9 @@ in velocity keep sensor jitter from softening a wall being leant on. The slot de
 milder floor, because the snick is *supposed* to do positive work.
 
 **Time shaping (`WallAttackMs`, off by default).** The wall in time instead of in space, with three
-behaviours:
+behaviours. It applies to every force a hand can lean on, the lockout included; the slot detent is
+the one exception, because the snick is a deliberate transient that has to arrive whole to read as a
+mechanism seating.
 
 - *Attack* — force may only grow at a bounded rate, so contact winds up like a real surface rather
   than landing as a delay-late blow.
@@ -134,8 +142,18 @@ behaviours:
 - *Release* — any drop, sign flip, or let-go passes **instantly**, so a retreating stick is never
   chased by stale force.
 
-Applied to **walls only**. Crossings (lockout, humps, detents) exist to charge for passage; slewing
-them would hand a fast flick a discount. Damping joins after all of this and keeps full bandwidth.
+The lockout was exempted at first, on the theory that slewing a crossing hands a fast flick a
+discount. The arithmetic does not support that and a test now encodes it: the band is thousands of
+counts wide, so even a violent flick spends tens of milliseconds inside it while the attack lasts
+fifteen or twenty — the toll survives essentially intact. What the exemption did cost was real, and
+felt: the lockout was left as the one force in the gate still arriving raw, so it rejected the lever
+hard where every wall had learned not to, and rang.
+
+The static hold band is **proportional** to the force already being applied, not a fixed figure. A
+band wide enough to steady a full-strength wall would swallow a light guide force whole, and freezing
+the gentle pull along the channel makes sliding across the gate feel notchy and sticky.
+
+Damping joins after all of this and keeps full bandwidth.
 
 Software **velocity damping** rounds it out, computed from the axis readings because the device's
 own damper is far too weak to settle anything here.
@@ -210,6 +228,9 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **Lateral confinement that depended on the latch** | Overpowering one slot wall dropped the latch, and the neutral field that took over had no lateral wall at gear depth — so the lever could be walked sideways from gear to gear along the top or bottom of the pattern. Confinement follows depth now. |
 | **Barriers acting at gear depth** | The lockout pushed back toward the main gears while the slot wall pushed on toward 7/R; the two cancelled to ~2000 of 10000 in the one region that should feel like solid plate. Barriers fade out as the slot walls fade in. |
 | **Releasing a gear on lateral exit** | Made gears fall out under a firm lean, swapped the whole force field mid-lean, and forced the slot wall's face into a fifth of its bite — which is what made the slots oscillate while the channel stayed calm. A gear now leaves only through the tunnel. |
+| **Exempting the lockout from time shaping** | Left it as the only force still arriving raw, so it rejected the lever hard where every wall had learned not to, and rang. The flick-discount worry it was guarding against does not survive arithmetic: crossing takes tens of milliseconds, the attack lasts fifteen. |
+| **Lockout faces overhanging the band** | Ate the clearance the gate is placed with and put the onset of the toll on top of the 5/6 column, as a hard bump where a hand expects a resting place. The faces are inside the band now. |
+| **A fixed static-hold band** | Wide enough to steady a full-strength wall meant swallowing a light guide force whole, making a slide across the gate notchy. The band is proportional to the force being applied. |
 | **A separate "lockout shading starts at" setting** | A second copy of the gate's position, which did nothing once the gate moved itself, and drifted from the truth. The Monitor tab asks the geometry. |
 
 The shape of the whole search, in one sentence: **soft gradient = stable but mush; stiff gradient =

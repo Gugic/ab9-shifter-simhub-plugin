@@ -105,9 +105,13 @@ runners cannot load, so anything worth testing must not touch it.
 - Damping joins **after** the yield and the time shaping, and is never slewed. It opposes motion
   by construction, so it is never the assisting force the yield exists to soften, and rate
   limiting the stabiliser would defeat it.
-- Time shaping (wall attack) applies to **walls only** — the surfaces a hand rests against.
-  Crossings (lockout, humps, detents) exist to charge a price for passage; slewing them hands a
-  fast flick a discount.
+- Time shaping (wall attack) applies to **everything a hand can lean on, the lockout included.**
+  The slot detent is the one exception — the snick must arrive whole. Do not exempt the lockout
+  again: it was tried, on the theory that slewing a crossing discounts a flick, and the arithmetic
+  refutes it (crossing takes tens of ms, the attack lasts ~15) while the cost was the lockout being
+  the only force still arriving raw, rejecting the lever hard and ringing.
+- The static hold band is **proportional** to the force being applied. A fixed band sized for a
+  full-strength wall swallows a light guide force whole and makes sliding across the gate notchy.
 
 **Geometry and state**
 

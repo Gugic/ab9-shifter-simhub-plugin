@@ -78,11 +78,16 @@ namespace AB9ActiveShifter.Core
         private readonly double _attackPerMs;
 
         /// <summary>
-        /// While pressed and still, force deviations up to this are held frozen instead of
-        /// tracked. Sized to cover the face of a default wall (a few tens of counts of micro
-        /// motion at the steepest gradient), well below any deliberate change of pressure.
+        /// While pressed and still, force deviations within this fraction of what is already
+        /// being applied are held frozen instead of tracked. Proportional rather than absolute:
+        /// a fixed band wide enough to steady a full-strength wall would swallow a light guide
+        /// force whole, and freezing the gentle pull along the channel would make sliding across
+        /// the gate feel notchy and sticky.
         /// </summary>
-        private const int StaticHoldBand = 2000;
+        private const int StaticHoldDivisor = 5;
+
+        /// <summary>Smallest static hold band, so tiny forces still settle.</summary>
+        private const int StaticHoldFloor = 200;
 
         private readonly int _constantSignX;
         private readonly int _constantSignY;
@@ -179,15 +184,21 @@ namespace AB9ActiveShifter.Core
             int boundedX = Yield(frame.ConstantX, vx, _yieldFloor);
             int boundedY = Yield(frame.ConstantY, vy, state == GateState.Neutral ? _yieldFloor : _snickFloor);
 
-            // Time shaping applies to walls only - the surfaces a hand rests against. In the
-            // neutral channel that is the fore/aft wall; in a column it is the slot wall. The
-            // lockout, the humps and the detents are crossings: they exist to charge a price
-            // for passing, and slewing them would hand a fast flick a discount.
-            bool wallX = state != GateState.Neutral;
-            bool wallY = state == GateState.Neutral;
-
-            boundedX = wallX ? ShapeInTime(ref _shapedX, boundedX, vx, dtMs) : Track(ref _shapedX, boundedX);
-            boundedY = wallY ? ShapeInTime(ref _shapedY, boundedY, vy, dtMs) : Track(ref _shapedY, boundedY);
+            // Everything the hand can lean against is shaped in time, including the lockout. It
+            // was exempted at first on the theory that slewing a crossing hands a fast flick a
+            // discount, but the arithmetic does not support that: the lockout band is thousands
+            // of counts wide, so even a violent flick spends tens of milliseconds inside it while
+            // the attack lasts fifteen or twenty. What the exemption did buy was the one force in
+            // the gate still arriving raw - so the lockout rejected the lever hard where every
+            // wall had learned not to, and rang.
+            //
+            // The slot detent is the exception that remains. The snick is a deliberate transient,
+            // over in a few milliseconds by design, and it has to arrive whole to read as a
+            // mechanism seating rather than a soft nudge.
+            boundedX = ShapeInTime(ref _shapedX, boundedX, vx, dtMs);
+            boundedY = state == GateState.Neutral
+                ? ShapeInTime(ref _shapedY, boundedY, vy, dtMs)
+                : Track(ref _shapedY, boundedY);
 
             // Damping joins after the yield and the time shaping - it opposes motion by
             // construction, so it can never be the assisting force the yield softens, and it
@@ -226,9 +237,11 @@ namespace AB9ActiveShifter.Core
 
             bool sameWall = target != 0 && shaped != 0 && Math.Sign(target) == Math.Sign(shaped);
 
+            int holdBand = Math.Max(StaticHoldFloor, Math.Abs(shaped) / StaticHoldDivisor);
+
             if (sameWall
                 && Math.Abs(velocity) <= _yieldDeadband
-                && Math.Abs(target - shaped) <= StaticHoldBand)
+                && Math.Abs(target - shaped) <= holdBand)
             {
                 return shaped;
             }
@@ -476,11 +489,14 @@ namespace AB9ActiveShifter.Core
 
             int m = Math.Abs(displacement);
 
-            // The entry face is capped against the gate's own width, so a long wall bite
-            // cannot stretch the band toward the columns.
-            int face = Math.Max(Math.Min(ramp, halfWidth), 1);
+            // The faces live *inside* the band, so the gate never reaches past the width it
+            // declares. They used to overhang it by a whole bite distance, which ate the whole
+            // clearance the gate is positioned with and started the toll on top of the 5/6
+            // column - felt as a hard bump exactly where the hand expects to be resting on a
+            // column. Capped at half the width so there is always a flat core between them.
+            int face = GateGeometry.Clamp(ramp, 1, Math.Max(1, halfWidth / 2));
 
-            double p = GateGeometry.Clamp((halfWidth + face - m) / (double)face, 0.0, 1.0);
+            double p = GateGeometry.Clamp((halfWidth - m) / (double)face, 0.0, 1.0);
 
             int force = (int)Math.Round(strength * p);
             return mirrored ? force : -force;

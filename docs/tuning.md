@@ -16,10 +16,17 @@ light — that is the safety cap doing its job, not a tuning problem.
 | Slot wall, once in a gear | 90% | The sideways walls of a slot. |
 | Lockout gate, guarding 7/R | 70% | The push-through toll before 7 and R. Sits against the 5/6 column; width sets the toll with it. |
 | Funnel into the slot | 40% | Steers an off-column push into the slot instead of blocking it. |
+| Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
 | Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
 | Seated hold | 55% | What keeps a gear engaged against the base's own centring. |
 
 ## Symptom → dial
+
+**The lockout rejects the lever hard, unlike the walls, and sets it oscillating.**
+Fixed twice over. It was the only force exempted from **wall attack**, so it alone arrived raw — that
+exemption is gone, since a crossing takes tens of milliseconds and the attack lasts fifteen, so the
+toll is unaffected. And its faces used to overhang its band by a whole bite distance, which put the
+onset of the toll on top of the 5/6 column; they are inside the band now.
 
 **A wall buzzes or vibrates while I lean on it.**
 Raise **wall bite distance** until it stops, and no further. Past its bite a wall is flat and cannot
