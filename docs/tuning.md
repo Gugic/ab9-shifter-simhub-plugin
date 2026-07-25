@@ -119,9 +119,12 @@ get hard to take.
 device's own damper is too weak to matter here, so this is computed in software from measured
 velocity.
 
-**Geometry tab.** *Wall deadband* (120) stops dithering when already on target. *Column pull ramp*
-(2500) shapes the soft neutral detent. The enter/exit pairs are hysteresis bands — the exit value
-must always be the looser one. The lockout gate has no position dial: it places
+**Geometry tab.** *Gate wall fade width* (1500) is how far sideways the fore/aft wall takes to go
+from open on a column to solid between columns — the mouth of each slot, seen from the tunnel, and
+the sideways gradient that corners are made of. *Column pull and funnel ramp* (2500) is how far past
+a column's own width the lateral guide takes to reach full strength; keep it well above the wall bite
+distance, or the funnel becomes the steepest gradient in the gate and snatches. The enter/exit pairs
+are hysteresis bands — the exit value must always be the looser one. The lockout gate has no position dial: it places
 itself against the last main-section column, and the Monitor tab draws the band where it actually
 is. *FFB loop rate* should stay at 1000; see [hardware.md](hardware.md) for
 why higher buys nothing.

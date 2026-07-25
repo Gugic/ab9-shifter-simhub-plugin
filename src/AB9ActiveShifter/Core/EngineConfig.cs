@@ -120,17 +120,26 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int WallRamp = 600;
 
-        /// <summary>How quickly the soft column detent reaches full strength.</summary>
+        /// <summary>
+        /// How far past a column's own width the lateral guide takes to reach full strength -
+        /// both the light pull along the tunnel and the funnel that steers an off-column entry
+        /// into the slot. It is a gradient like any other, so keeping it well above
+        /// <see cref="WallRamp"/> matters: at the minimum it becomes the steepest thing in the
+        /// gate and the funnel snatches instead of guiding.
+        /// </summary>
         public int DetentRamp = 2500;
 
         /// <summary>Distance from a barrier's crest to its peak force.</summary>
         public int BarrierWidth = 2500;
 
-        /// <summary>How far past a column the gate wall takes to close, so it arrives smoothly.</summary>
+        /// <summary>
+        /// How far sideways the fore/aft gate wall takes to go from open, on a column, to solid
+        /// between columns - the mouth of each slot as felt from the tunnel. Narrow and the gate
+        /// snaps shut as the stick leaves a column; wide and every entry feels vague. Being a
+        /// sideways gradient in a fore/aft force, it is also what a corner is made of, and the
+        /// one dial that softens corners without touching the walls themselves.
+        /// </summary>
         public int WallBlend = 1500;
-
-        /// <summary>No wall force within this distance of target, to stop the stick dithering.</summary>
-        public int WallDeadBand = 120;
 
         /// <summary>
         /// How much of a wall's force is given up when it is accelerating the stick along the
