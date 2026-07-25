@@ -33,7 +33,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-102 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
+113 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
 on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
 Deploy needs SimHub stopped, because it locks the DLL:
@@ -114,12 +114,15 @@ runners cannot load, so anything worth testing must not touch it.
 - Positions stay in **device coordinates end to end.** Layout preferences (`MirrorColumns`,
   `MirrorSlots`) relabel the *gear map* only. Mirroring the readings instead would put every
   force anchor on the wrong side of the gate and turn holds into repellers.
-- **A latched gear is released only by returning through the neutral channel.** Sideways motion
-  never changes gear; only a gross escape (over half a column spacing) counts, as a fault, and a
-  fault refuses to latch anything until the channel has been seen again — otherwise it becomes a
-  back door into the diagonal shift the lock exists to forbid. This is also what frees the slot
-  wall's face from the old exit-band squeeze, so do not reintroduce a lateral release without
-  re-clamping that ramp.
+- **A latched gear is released only by returning through the neutral channel — absolutely.** No
+  lateral distance changes or drops it, and there is deliberately no fault threshold. Force cannot
+  enforce a gate: a hand beats 12 Nm, so any distance at which the latch gave way would be a
+  distance at which the rest of the pattern came back and could capture the lever into a gear it
+  was never driven into. Do not reintroduce a lateral release — it is also what frees the slot
+  wall's face from its old exit-band squeeze, so restoring one would mean re-clamping that ramp.
+- **Lateral confinement is a fact about depth, not about the latch** (`SlotConfinementFactor`), and
+  barriers are the reverse — they fade out as the slot walls fade in. When confinement depended on
+  the latch, overpowering one wall left no lateral wall at gear depth at all.
 - **The lockout gate positions itself** against the last main-section column
   (`GateGeometry.LockoutCentre`), and the lateral guide's column boundaries are the barrier
   crests, not the geometric midpoints. Anything that needs to know where the lockout is must ask
