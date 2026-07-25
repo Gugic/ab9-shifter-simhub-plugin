@@ -669,6 +669,243 @@ namespace AB9ActiveShifter.Tests
             Assert.True(fresh >= 0, "a cold guide must not push away from the column it is on: " + fresh);
         }
 
+        // ---------------------------------------------------------------- slot mouths
+
+        private static EngineConfig MouthConfig(SlotMouthShape shape)
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.MouthShape = shape;
+            cfg.BarrierForcePct = 0;
+            cfg.LockoutForcePct = 0;
+            return cfg;
+        }
+
+        [Fact]
+        public void SquareIsTheGateExactlyAsItWasWithoutTheFeature()
+        {
+            // The default must be inert. Sweep the whole gate at every depth and demand that Square
+            // with the mouth dials wide open is bit-for-bit what the gate produces with them shut.
+            EngineConfig square = MouthConfig(SlotMouthShape.Square);
+            square.MouthDepth = 12000;
+            square.MouthOpenPct = 100;
+
+            EngineConfig off = MouthConfig(SlotMouthShape.Square);
+            off.MouthDepth = 1000;
+            off.MouthOpenPct = 0;
+
+            for (int x = 0; x <= Max; x += 811)
+            {
+                foreach (int depth in new[] { 0, 1400, 2400, 4000, 6000, 12000, 20000 })
+                {
+                    int a = Neutral(Composer(square), x, Center - depth).ConstantX;
+                    int b = Neutral(Composer(off), x, Center - depth).ConstantX;
+                    Assert.Equal(b, a);
+                }
+            }
+        }
+
+        [Fact]
+        public void AShapedMouthOpensAtTheTunnelAndClosesDownTheSlot()
+        {
+            // The point of the shape: the slot is wider where it meets the tunnel and narrows to its
+            // own width further in, so the lever is not cornered on the way past a divider end.
+            EngineConfig cfg = MouthConfig(SlotMouthShape.Rounded);
+            GateGeometry geo = cfg.BuildGeometry();
+            int corridor = Math.Min(cfg.SlotHalfWidth, geo.ColumnFreeHalfWidth(Column.C2) - 100);
+
+            // Just outside the plain corridor, the shaped mouth is still free near the tunnel...
+            int shallow = Neutral(Composer(cfg), C2 + corridor + 300, Center - geo.ChannelHalfEnter - 200).ConstantX;
+            Assert.Equal(0, shallow);
+
+            // ...and walled once past the reach.
+            int deep = Neutral(Composer(cfg), C2 + corridor + 300,
+                               Center - geo.ChannelHalfEnter - cfg.MouthDepth - 200).ConstantX;
+            Assert.True(deep < 0, "past the mouth's reach the slot wall must be back: " + deep);
+        }
+
+        [Fact]
+        public void TheMouthOnlyEverRemovesForce()
+        {
+            // The safety property, and the reason no shape can run away: a mouth never pushes
+            // outward. Everywhere, in every mode, the shaped force must point the same way as the
+            // square one and never be larger.
+            foreach (SlotMouthShape shape in new[] { SlotMouthShape.Rounded, SlotMouthShape.Angled })
+            {
+                EngineConfig shaped = MouthConfig(shape);
+                EngineConfig square = MouthConfig(SlotMouthShape.Square);
+
+                foreach (ShiftDir dir in new[] { ShiftDir.Fwd, ShiftDir.Back })
+                {
+                    for (int x = 0; x <= Max; x += 733)
+                    {
+                        foreach (int depth in new[] { 1500, 2400, 3000, 5000, 8000 })
+                        {
+                            int y = dir == ShiftDir.Fwd ? Center - depth : Center + depth;
+                            int a = Neutral(Composer(shaped), x, y).ConstantX;
+                            int b = Neutral(Composer(square), x, y).ConstantX;
+
+                            Assert.True(Math.Abs(a) <= Math.Abs(b) + 1,
+                                "shape added force at x=" + x + " depth " + depth + ": " + a + " vs " + b);
+                            if (a != 0 && b != 0) Assert.Equal(Math.Sign(b), Math.Sign(a));
+                        }
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void TheAngledMouthOpensOnlyTowardTheNextGear()
+        {
+            // Coming out of 2 - C1's back slot - the next gear is 3, one column to the right, so
+            // that is the flank that opens. The other flank must be exactly square.
+            EngineConfig angled = MouthConfig(SlotMouthShape.Angled);
+            EngineConfig square = MouthConfig(SlotMouthShape.Square);
+            GateGeometry geo = angled.BuildGeometry();
+
+            int corridor = Math.Min(angled.SlotHalfWidth, geo.ColumnFreeHalfWidth(Column.C1) - 100);
+            int depth = geo.ChannelHalfEnter + 400;
+            int y = Center + depth;               // back slot, so gear 2
+
+            int probe = corridor + 300;
+            Assert.True(Math.Abs(Neutral(Composer(angled), C1 + probe, y).ConstantX)
+                        < Math.Abs(Neutral(Composer(square), C1 + probe, y).ConstantX),
+                        "the flank toward gear 3 should be open");
+
+            // The forward slot of the same column is gear 1, which has no next gear at all.
+            int forward = Center - depth;
+            Assert.Equal(Neutral(Composer(square), C1 + probe, forward).ConstantX,
+                         Neutral(Composer(angled), C1 + probe, forward).ConstantX);
+        }
+
+        [Fact]
+        public void TheAngledMouthFollowsTheGearMapUnderEveryMirror()
+        {
+            // The direction rule, checked against the gear map itself rather than against a
+            // hand-written table: from an even gear the next gear is one gear-column up, from an odd
+            // gear the previous is one down, and the bias must point at whichever DEVICE column that
+            // gear-column actually is once mirroring has had its say.
+            foreach (bool mirrorColumns in new[] { false, true })
+            {
+                foreach (bool mirrorSlots in new[] { false, true })
+                {
+                    var cfg = new EngineConfig { MirrorColumns = mirrorColumns, MirrorSlots = mirrorSlots };
+                    GateGeometry geo = cfg.BuildGeometry();
+
+                    foreach (Column c in new[] { Column.C1, Column.C2, Column.C3, Column.C4 })
+                    {
+                        foreach (ShiftDir dir in new[] { ShiftDir.Fwd, ShiftDir.Back })
+                        {
+                            int bias = geo.SequentialBias(c, dir);
+                            if (bias == 0) continue;
+
+                            int gear = geo.GearFor(c, dir);
+                            int wanted = (gear % 2 == 0) ? gear + 1 : gear - 1;
+                            Column target = (Column)((int)c + bias);
+
+                            bool found = geo.GearFor(target, ShiftDir.Fwd) == wanted
+                                      || geo.GearFor(target, ShiftDir.Back) == wanted;
+
+                            Assert.True(found,
+                                "gear " + gear + " at " + c + "/" + dir + " biased to " + target +
+                                " but gear " + wanted + " is not there (mirrors " +
+                                mirrorColumns + "/" + mirrorSlots + ")");
+                        }
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void NoMouthEverReachesTheLockoutBand()
+        {
+            // A column feature inside the gate's band would make the toll's size depend on the mouth
+            // setting. Angled already refuses to open across the lockout gap; Rounded opens both
+            // flanks, so it is the one that has to be clamped.
+            foreach (SlotMouthShape shape in new[] { SlotMouthShape.Rounded, SlotMouthShape.Angled })
+            {
+                foreach (bool mirrorColumns in new[] { false, true })
+                {
+                    EngineConfig cfg = MouthConfig(shape);
+                    cfg.MirrorColumns = mirrorColumns;
+                    cfg.MouthDepth = 12000;
+                    cfg.MouthOpenPct = 100;
+                    cfg.LockoutForcePct = 100;
+
+                    GateGeometry geo = cfg.BuildGeometry();
+                    int from = geo.LockoutCentre - geo.LockoutHalfWidth;
+                    int to = geo.LockoutCentre + geo.LockoutHalfWidth;
+
+                    for (int x = from; x <= to; x += 150)
+                    {
+                        foreach (int depth in new[] { 1500, 2400, 4000, 8000 })
+                        {
+                            int shapedForce = Neutral(Composer(cfg), x, Center - depth).ConstantX;
+                            EngineConfig square = MouthConfig(SlotMouthShape.Square);
+                            square.MirrorColumns = mirrorColumns;
+                            square.LockoutForcePct = 100;
+                            int plainForce = Neutral(Composer(square), x, Center - depth).ConstantX;
+
+                            Assert.Equal(plainForce, shapedForce);
+                        }
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void AMouthFlankIsNeverSteeperThanHalfTheWallFace()
+        {
+            // The whole stability argument for the feature. The flank is a cross-gradient - lateral
+            // force changing with depth - and it must stay well inside the budget at any setting.
+            foreach (SlotMouthShape shape in new[] { SlotMouthShape.Rounded, SlotMouthShape.Angled })
+            {
+                EngineConfig cfg = MouthConfig(shape);
+                cfg.MouthDepth = 1000;      // the harshest legal reach
+                cfg.WallRamp = 2364;
+                GateGeometry geo = cfg.BuildGeometry();
+
+                EngineConfig square = MouthConfig(SlotMouthShape.Square);
+                square.MouthDepth = cfg.MouthDepth;
+                square.WallRamp = cfg.WallRamp;
+
+                double wallFace = (cfg.ColumnPinForcePct * 100.0) / cfg.WallRamp;
+                double budget = (EngineConfig.MouthSlopeMax * wallFace) + 0.1;   // +0.1 for rounding
+                int corridor = Math.Min(cfg.SlotHalfWidth, geo.ColumnFreeHalfWidth(Column.C2) - 100);
+
+                // Difference the shape against the plain gate, so what is measured is the flank alone
+                // and not the guide's own plateau ramp riding along underneath it. Measured over a
+                // window rather than count by count: the corridor edge is a whole number of counts,
+                // and one count of it is worth a whole stiffness unit, so single-count differences
+                // report the quantisation rather than the slope.
+                const int window = 100;
+                for (int offset = corridor; offset < corridor + 900; offset += 50)
+                {
+                    for (int depth = geo.ChannelHalfEnter; depth <= geo.ChannelHalfEnter + 1100; depth += window)
+                    {
+                        int a = Neutral(Composer(cfg), C2 + offset, Center - depth).ConstantX
+                              - Neutral(Composer(square), C2 + offset, Center - depth).ConstantX;
+                        int b = Neutral(Composer(cfg), C2 + offset, Center - depth - window).ConstantX
+                              - Neutral(Composer(square), C2 + offset, Center - depth - window).ConstantX;
+
+                        double slope = Math.Abs(b - a) / (double)window;
+                        Assert.True(slope <= budget,
+                            shape + " flank slope " + slope + " at depth " + depth + ", offset " + offset);
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void TheMouthReachesFarEnoughToBeFelt()
+        {
+            // Encodes the finding that killed the first design of this feature. The base answers in
+            // 3-4 ms, in which a lever being shifted covers 1500 counts or more, so shaping confined
+            // to a shorter stretch is over before one corrected force arrives. The default reach must
+            // span several of those.
+            Assert.True(new EngineConfig().MouthDepth >= 3 * 1500,
+                "the default mouth reach is too short to survive the loop's latency");
+        }
+
         // ---------------------------------------------------------------- the funnel
 
         [Fact]

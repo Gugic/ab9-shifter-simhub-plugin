@@ -72,6 +72,41 @@ The barriers themselves:
   it. The width is clamped to the room available so an extreme setting cannot swallow either
   column's band.
 
+### Slot mouths
+
+The end of each divider, where it meets the tunnel, is selectable: **Square** (the plain rectangular
+notch, and the default, so the setting is inert until chosen), **Rounded** (filleted on both flanks)
+and **Angled** (chamfered on one flank only, toward the next sequential gear).
+
+All three are the same mechanism - the slot's corridor edge widens toward the tunnel and narrows to
+the slot's own width further down - and the mechanism only ever **removes** force. A chamfered divider
+end does not push a lever toward the next gear; it stops holding it back, and the hand's own lateral
+pressure does the rest. That is what makes it safe: nothing can push outward, so there is no positive
+feedback, and the only gradient introduced is the flank's own slope.
+
+`MouthSlopeMax` (0.5 lateral counts per count of depth, not a user dial) is the whole stability
+argument in one number: the flank's force gradient is at most half the wall face however the dials are
+set. Rounded's opening is additionally scaled by 2/pi, because a raised cosine's steepest point is
+pi/2 times its average and the cap is meant to bound the steepest point. The profile is a raised
+cosine rather than a circular fillet deliberately - a true circle's flank goes **vertical** where it
+meets the slot wall, an unbounded gradient at exactly the depth a hand dwells.
+
+**Reach is what decides whether the feature exists at all.** The first design confined the shaping to
+the channel's hysteresis band, 1000 counts deep, and adversarial review killed it with arithmetic: the
+base answers in 3-4 ms, in which a lever being shifted covers 1500-2000 counts, so **not one corrected
+force sample landed inside the patch** - the assist arrived after the lever had gone. Its peak was 946
+DI at gain 100 and 197 DI at the default gain, the latter equal to the composer's own
+"not worth tracking" floor. Reaching several thousand counts down the slot instead spans the whole
+withdrawal stroke and several round trips. Measured on the live settings, Angled now removes up to
+5875 DI (7 Nm) of confinement across 4900 counts of lateral freedom - about 30x the authority, and 22%
+of the way to the next column instead of 2.3%.
+
+Two clamps keep it honest. The opening can never reach the neighbouring column's territory, and on a
+flank facing the lockout it must leave room for the wall's **face** as well as its corridor - keeping
+only the corridor out of the gate's band is not enough, because widening the corridor moves where the
+face begins, so the force inside the band changes and the toll's size starts depending on the mouth
+setting. Angled sidesteps this entirely by returning no bias across the lockout gap.
+
 ### One lateral field
 
 The lateral force is computed **once**, by a single function of position and the guide column, and
@@ -267,6 +302,8 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **A separate ramp for the lateral guide** (`DetentRamp`) | A free parameter on a gradient. At its floor it made the funnel 13.3 DI/count against a 3.8 wall face - the steepest thing in the gate, in the region crossed on every shift. Faces are derived from plateaus at the wall's stiffness now, and the dial is deleted. |
 | **Using the wall's bite as the plateau's depth span** | They are different axes. A long bite delayed the slot wall's full strength by tens of thousands of counts of depth, so the wall vanished where a gear is held. The depth span is the channel's own width. |
 | **Crest watersheds below the tunnel** | Opened a complete lockout bypass: past the gate's off-centre crest at gear depth the guide adopts 7/R and conveys the lever toward 7 at full pin force, toll unpaid. Midpoints below the tunnel. |
+| **Mouth shaping confined to the channel band** | 1000 counts deep, against a 1500-2000 count round-trip distance: zero corrected samples landed inside it at shift speed. Peak 946 DI at gain 100, 197 DI at the default - the latter equal to the static-hold floor, i.e. a mode that did nothing. The shaping spans the withdrawal stroke instead. |
+| **A circular fillet for the rounded mouth** | Its flank goes vertical where it meets the slot wall - an unbounded gradient at exactly the depth a hand dwells. A raised cosine leaves at zero slope on both ends. |
 | **A separate "lockout shading starts at" setting** | A second copy of the gate's position, which did nothing once the gate moved itself, and drifted from the truth. The Monitor tab asks the geometry. |
 
 The shape of the whole search, in one sentence: **soft gradient = stable but mush; stiff gradient =

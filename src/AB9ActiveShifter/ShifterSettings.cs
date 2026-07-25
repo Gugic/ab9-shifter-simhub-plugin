@@ -38,6 +38,9 @@ namespace AB9ActiveShifter
         private int _columnFunnelForcePct = 40;
         private int _barrierForcePct = 15;
         private int _lockoutHalfWidth = 2200;
+        private SlotMouthShape _mouthShape = SlotMouthShape.Square;
+        private int _mouthDepth = 5000;
+        private int _mouthOpenPct = 100;
         private int _wallRamp = 600;
         private int _wallAttackMs = 0;
         private int _barrierWidth = 2500;
@@ -109,6 +112,29 @@ namespace AB9ActiveShifter
         public int ColumnFunnelForcePct { get { return _columnFunnelForcePct; } set { Set(ref _columnFunnelForcePct, value); } }
         public int BarrierForcePct { get { return _barrierForcePct; } set { Set(ref _barrierForcePct, value); } }
 
+        /// <summary>Shape of the slot mouths. Square is today's rectangular notch, and the default.</summary>
+        public SlotMouthShape MouthShape { get { return _mouthShape; } set { Set(ref _mouthShape, value); } }
+
+        /// <summary>Adapter for the combo box, which binds an index rather than an enum.</summary>
+        public int MouthShapeIndex
+        {
+            get { return (int)_mouthShape; }
+            set
+            {
+                SlotMouthShape shape = (SlotMouthShape)GateGeometry.Clamp(value, 0, 2);
+                if (shape == _mouthShape) return;
+                _mouthShape = shape;
+                OnChanged("MouthShapeIndex");
+                OnChanged("MouthShape");
+            }
+        }
+
+        /// <summary>How far down the slot the mouth shaping reaches. Too shallow and it does nothing.</summary>
+        public int MouthDepth { get { return _mouthDepth; } set { Set(ref _mouthDepth, value); } }
+
+        /// <summary>How much of the safe opening to use, as a percentage.</summary>
+        public int MouthOpenPct { get { return _mouthOpenPct; } set { Set(ref _mouthOpenPct, value); } }
+
         public int WallRamp { get { return _wallRamp; } set { Set(ref _wallRamp, value); } }
 
         /// <summary>How many milliseconds a wall takes to reach full force on contact. The hammer fix.</summary>
@@ -178,6 +204,9 @@ namespace AB9ActiveShifter
                 ColumnDetentForcePct = ColumnDetentForcePct,
                 ColumnFunnelForcePct = ColumnFunnelForcePct,
                 BarrierForcePct = BarrierForcePct,
+                MouthShape = MouthShape,
+                MouthDepth = MouthDepth,
+                MouthOpenPct = MouthOpenPct,
                 WallRamp = WallRamp,
                 WallAttackMs = WallAttackMs,
                 BarrierWidth = BarrierWidth,
@@ -222,6 +251,9 @@ namespace AB9ActiveShifter
                 ColumnDetentForcePct = d.ColumnDetentForcePct;
                 ColumnFunnelForcePct = d.ColumnFunnelForcePct;
                 BarrierForcePct = d.BarrierForcePct;
+                MouthShape = d.MouthShape;
+                MouthDepth = d.MouthDepth;
+                MouthOpenPct = d.MouthOpenPct;
                 WallRamp = d.WallRamp;
                 WallAttackMs = d.WallAttackMs;
                 BarrierWidth = d.BarrierWidth;
@@ -277,7 +309,11 @@ namespace AB9ActiveShifter
         {
             if (Equals(field, value)) return;
             field = value;
+            OnChanged(propertyName);
+        }
 
+        protected void OnChanged(string propertyName)
+        {
             PropertyChangedEventHandler handler = PropertyChanged;
             if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
         }

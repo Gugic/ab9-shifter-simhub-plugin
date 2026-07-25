@@ -106,6 +106,41 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int LockoutHalfWidth = 2200;
 
+        /// <summary>
+        /// Shape of the slot mouths. Square is the rectangular notch the gate has always had, and
+        /// stays the default so the setting does nothing until it is chosen.
+        /// </summary>
+        public SlotMouthShape MouthShape = SlotMouthShape.Square;
+
+        /// <summary>
+        /// How far down the slot the mouth shaping reaches, from the edge of the tunnel.
+        ///
+        /// This is the dial that decides whether the feature does anything at all, and it is why
+        /// the first design of it was thrown away. Shaping confined to the channel's own hysteresis
+        /// band gave a patch 1000 counts deep, and a lever covers 1500-2000 counts inside the 3-4 ms
+        /// the base takes to answer - so at shift speed not one corrected force sample landed inside
+        /// the patch, and the assist arrived after the lever had gone. Reaching several thousand
+        /// counts down the slot instead means the shaping spans the whole withdrawal stroke and
+        /// several round trips, which is the difference between a feature and a rounding error.
+        /// </summary>
+        public int MouthDepth = 5000;
+
+        /// <summary>
+        /// How much of the safe opening to use, as a percentage. Expressed against a derived
+        /// maximum rather than in counts so it cannot be set into a geometry that reaches the
+        /// neighbouring column's band or the lockout's - the trap the slot corridor fell into by
+        /// being silently clamped from what the user set to less than half of it.
+        /// </summary>
+        public int MouthOpenPct = 100;
+
+        /// <summary>
+        /// Steepest mouth flank, in lateral counts per count of depth. Not a user dial: it is the
+        /// whole stability argument for the feature in one number. The flank is a cross-gradient,
+        /// and at this value its force gradient is at most half the wall face however the other
+        /// dials are set.
+        /// </summary>
+        public const double MouthSlopeMax = 0.5;
+
         // Force shaping (axis counts)
 
         /// <summary>

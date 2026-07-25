@@ -20,6 +20,24 @@ namespace AB9ActiveShifter.Core
         Back = 2
     }
 
+    /// <summary>
+    /// Shape of a divider's end where it meets the neutral tunnel - the mouth of a slot.
+    /// </summary>
+    public enum SlotMouthShape
+    {
+        /// <summary>A rectangular notch: the slot is the same width all the way up. The default.</summary>
+        Square,
+
+        /// <summary>Filleted on both flanks, so entering or leaving a slot is eased rather than cornered.</summary>
+        Rounded,
+
+        /// <summary>
+        /// Chamfered on one flank only - the side the next sequential gear lies on - so withdrawing
+        /// with a little lateral pressure is carried that way. A real gate's shift assist.
+        /// </summary>
+        Angled
+    }
+
     public enum GateState
     {
         /// <summary>In the horizontal neutral channel, no gear selected.</summary>

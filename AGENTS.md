@@ -133,6 +133,10 @@ runners cannot load, so anything worth testing must not touch it.
   gentler force gets a shorter face, never a steeper one. Never give a lateral force its own ramp
   dial — that is what made the funnel 3.5× the wall face.
 - **Depth spans are not lateral spans.** Do not reach for `WallRamp` when you need a depth distance.
+- **A mouth shape may only ever remove force.** The shapes move the corridor's edge; nothing pushes
+  outward, which is why they cannot self-excite. `TheMouthOnlyEverRemovesForce` sweeps the gate and
+  demands the shaped force is never larger nor opposite in sign to the square one. `MouthSlopeMax`
+  bounds every flank at half the wall face and is not a user dial.
 - **The guide's column boundaries are crests in the tunnel and midpoints below it.** Crests at depth
   turn the lockout's own wall into a conveyor toward 7/R and the toll is never paid. Positional, not
   historical, so a cold start resolves identically.
