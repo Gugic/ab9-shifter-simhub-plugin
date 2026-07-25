@@ -31,11 +31,19 @@ namespace AB9ActiveShifter.Tests
             return cfg.BuildGeometry().LockoutCentre;
         }
 
-        /// <summary>A point clear of the gate's band including its ramp-out face.</summary>
+        /// <summary>A point clear of the gate's band. The faces live inside it, so this is close.</summary>
         private static int OutsideGate(EngineConfig cfg, int sign)
         {
             GateGeometry geo = cfg.BuildGeometry();
-            return geo.LockoutCentre + (sign * (geo.LockoutHalfWidth + cfg.WallRamp + 500));
+            return geo.LockoutCentre + (sign * (geo.LockoutHalfWidth + 200));
+        }
+
+        /// <summary>Largest offset from the gate's centre that still sees its full force.</summary>
+        private static int GateFlatCore(EngineConfig cfg)
+        {
+            GateGeometry geo = cfg.BuildGeometry();
+            int face = Math.Min(cfg.WallRamp, Math.Max(1, geo.LockoutHalfWidth / 2));
+            return geo.LockoutHalfWidth - face;
         }
 
         private static EngineConfig FullGainConfig()
@@ -279,28 +287,61 @@ namespace AB9ActiveShifter.Tests
             cfg.BarrierForcePct = 0;
             ForceComposer c = Composer(cfg);
 
-            foreach (int offset in new[] { -2000, -800, 0, 800, 2000 })
+            int core = GateFlatCore(cfg);
+            foreach (int offset in new[] { -core, -core / 2, 0, core / 2, core })
             {
                 Assert.Equal(-7000, Neutral(c, GateCentre(cfg) + offset, Center).ConstantX);
             }
         }
 
         [Fact]
-        public void LockoutIsNeverSlewedByTheWallAttack()
+        public void TheAttackCostsTheLockoutAlmostNoneOfItsToll()
         {
-            // The attack shapes walls, the surfaces a hand rests on. The lockout is a crossing
-            // that charges a toll, and slewing it would hand a fast flick a discount: at flick
-            // speed the band is crossed in less time than the attack takes to reach full force.
-            EngineConfig cfg = FullGainConfig();
-            cfg.WallAttackMs = 20;
-            cfg.ColumnDetentForcePct = 0;
-            cfg.BarrierForcePct = 0;
-            cfg.DampingPct = 0;
-            ForceComposer c = Composer(cfg);
+            // The lockout was exempted from time shaping at first, on the theory that slewing a
+            // crossing hands a fast flick a discount. The arithmetic says otherwise, and this
+            // test is that arithmetic: the band is thousands of counts wide, so even a fast flick
+            // spends far longer inside it than the attack lasts. Cross it at speed with the
+            // attack on and off, and compare the toll actually paid.
+            //
+            // The exemption was not free - it left the lockout as the one force in the gate still
+            // arriving raw, so it rejected the lever hard where every wall had learned not to.
+            EngineConfig shaped = FullGainConfig();
+            shaped.ColumnDetentForcePct = 0;
+            shaped.BarrierForcePct = 0;
+            shaped.DampingPct = 0;
+            shaped.WallAttackMs = 20;
 
-            int first = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
-                                  GateCentre(cfg) - 1500, Center, 30000, 0, dtMs: 1).ConstantX;
-            Assert.Equal(-7000, first);
+            EngineConfig raw = FullGainConfig();
+            raw.ColumnDetentForcePct = 0;
+            raw.BarrierForcePct = 0;
+            raw.DampingPct = 0;
+            raw.WallAttackMs = 0;
+
+            long withAttack = TollAcross(shaped);
+            long without = TollAcross(raw);
+
+            Assert.True(withAttack >= without * 0.9,
+                "the attack should cost the toll almost nothing: " + withAttack + " of " + without);
+        }
+
+        /// <summary>Sums the lockout force felt crossing the whole band at a brisk 60000 counts/s.</summary>
+        private static long TollAcross(EngineConfig cfg)
+        {
+            ForceComposer c = Composer(cfg);
+            GateGeometry geo = cfg.BuildGeometry();
+
+            const int speed = 60000;          // counts per second
+            const int step = speed / 1000;    // per millisecond tick
+
+            long toll = 0;
+            for (int x = geo.LockoutCentre - geo.LockoutHalfWidth;
+                 x <= geo.LockoutCentre + geo.LockoutHalfWidth;
+                 x += step)
+            {
+                toll += Math.Abs(c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                           x, Center, speed, 0, dtMs: 1).ConstantX);
+            }
+            return toll;
         }
 
         [Fact]
@@ -334,20 +375,42 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void LockoutStaysBoundedEvenWithAHugeBite()
+        public void TheGateNeverReachesPastTheWidthItDeclares()
         {
-            // The gate's slopes are capped against its own width: a 6000-count wall bite must
-            // not stretch the lockout into a soft triangle bleeding toward the columns. The
-            // middle of the band stays flat and the outside stays free.
+            // Both faces live inside the band. They used to overhang it by a whole bite distance,
+            // which ate the clearance the gate is positioned with and put the onset of the toll on
+            // top of the 5/6 column - a hard bump exactly where the hand expects to be resting on
+            // a column. A huge bite must still not stretch the gate outward, and must still leave
+            // a flat core in the middle rather than collapsing to a spike.
             EngineConfig cfg = FullGainConfig();
             cfg.WallRamp = 6000;
             cfg.ColumnDetentForcePct = 0;
             cfg.BarrierForcePct = 0;
             ForceComposer c = Composer(cfg);
+            GateGeometry geo = cfg.BuildGeometry();
 
-            Assert.Equal(-7000, Neutral(c, GateCentre(cfg) - 1800, Center).ConstantX);
-            Assert.Equal(0, Neutral(c, OutsideGate(cfg, -1), Center).ConstantX);
-            Assert.Equal(0, Neutral(c, OutsideGate(cfg, +1), Center).ConstantX);
+            Assert.Equal(0, Neutral(c, geo.LockoutCentre - geo.LockoutHalfWidth, Center).ConstantX);
+            Assert.Equal(0, Neutral(c, geo.LockoutCentre + geo.LockoutHalfWidth, Center).ConstantX);
+            Assert.Equal(-7000, Neutral(c, GateCentre(cfg), Center).ConstantX);
+            Assert.True(GateFlatCore(cfg) > 0, "a flat core must survive any bite setting");
+        }
+
+        [Fact]
+        public void TheGateClearsTheColumnItGuards()
+        {
+            // Nothing of the gate, face included, may reach into the 5/6 column's band. That is
+            // the whole point of positioning it with a clearance.
+            EngineConfig cfg = FullGainConfig();
+            cfg.ColumnDetentForcePct = 0;
+            cfg.BarrierForcePct = 0;
+            ForceComposer c = Composer(cfg);
+            GateGeometry geo = cfg.BuildGeometry();
+
+            int columnBand = geo.ColumnTarget(Column.C3) + geo.ColumnExitHalfWidth(Column.C3);
+            for (int x = geo.ColumnTarget(Column.C3); x <= columnBand; x += 100)
+            {
+                Assert.Equal(0, Neutral(c, x, Center).ConstantX);
+            }
         }
 
         [Fact]
