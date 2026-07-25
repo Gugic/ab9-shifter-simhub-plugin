@@ -29,8 +29,26 @@ namespace AB9ActiveShifter.Core
         public int ColumnInnerHalfExit { get; private set; }
         public int EngageDepth { get; private set; }
         public int ReleaseDepth { get; private set; }
-        public int LockoutStart { get; private set; }
         public int DetentHysteresis { get; private set; }
+
+        /// <summary>Half-width of the lockout gate's band, clamped to fit the gap it guards.</summary>
+        public int LockoutHalfWidth { get; private set; }
+
+        /// <summary>
+        /// Where the lockout gate sits. Not the midpoint of the gap: the gate is placed just
+        /// outside the band of the last main-section column, so sliding across the gate finds
+        /// the gate immediately rather than after a long stretch of dead travel. That dead
+        /// travel was a usability trap - the hand stops where the gate stops it, assumes it has
+        /// arrived at a column, and finds that pushing fore or aft neither engages a gear nor
+        /// explains why.
+        /// </summary>
+        public int LockoutCentre { get; private set; }
+
+        /// <summary>Which gap the lockout guards. Mirroring moves 7/R to the other end.</summary>
+        public int LockoutGapIndex { get; private set; }
+
+        /// <summary>Distance between adjacent columns.</summary>
+        public int ColumnSpacing { get { return AxisMax / (ColumnCount - 1); } }
 
         /// <summary>Gear layout preference; see <see cref="GearOf(Column, ShiftDir)"/>.</summary>
         public bool MirrorColumns { get; private set; }
@@ -46,7 +64,7 @@ namespace AB9ActiveShifter.Core
             int columnInnerHalfExit,
             int engageDepth,
             int releaseDepth,
-            int lockoutStart,
+            int lockoutHalfWidth,
             int detentHysteresis,
             bool mirrorColumns = false,
             bool mirrorSlots = false)
@@ -65,7 +83,6 @@ namespace AB9ActiveShifter.Core
             ColumnInnerHalfExit = Math.Max(columnInnerHalfExit, columnInnerHalfEnter + 1);
             EngageDepth = engageDepth;
             ReleaseDepth = Math.Max(releaseDepth, engageDepth + 1);
-            LockoutStart = lockoutStart;
             DetentHysteresis = detentHysteresis;
 
             _targets = new int[ColumnCount];
@@ -73,6 +90,29 @@ namespace AB9ActiveShifter.Core
             {
                 _targets[i] = (int)Math.Round(i * (double)AxisMax / (ColumnCount - 1));
             }
+
+            PlaceLockout(lockoutHalfWidth);
+        }
+
+        /// <summary>
+        /// Positions the lockout gate against the last main-section column, and clamps its width
+        /// to the room actually available between that column's band and the 7/R column's, so an
+        /// extreme setting cannot swallow either.
+        /// </summary>
+        private void PlaceLockout(int requestedHalfWidth)
+        {
+            LockoutGapIndex = MirrorColumns ? 0 : ColumnCount - 2;
+
+            Column main = (Column)(MirrorColumns ? 1 : ColumnCount - 2);
+            Column locked = (Column)(MirrorColumns ? 0 : ColumnCount - 1);
+            int sign = MirrorColumns ? -1 : 1;
+
+            int clearance = ColumnExitHalfWidth(main);
+            int room = Math.Abs(_targets[(int)locked] - _targets[(int)main])
+                       - clearance - ColumnFreeHalfWidth(locked);
+
+            LockoutHalfWidth = Clamp(requestedHalfWidth, 200, Math.Max(200, room / 2));
+            LockoutCentre = _targets[(int)main] + (sign * (clearance + LockoutHalfWidth));
         }
 
         public int ColumnTarget(Column c)
@@ -164,19 +204,21 @@ namespace AB9ActiveShifter.Core
             return Clamp(travelled / span, 0.0, 1.2);
         }
 
-        public bool InLockoutZone(int x)
+        /// <summary>Whether x is inside the lockout gate's band, where its force acts.</summary>
+        public bool InLockoutGate(int x)
         {
-            return x >= LockoutStart;
+            return Math.Abs(x - LockoutCentre) <= LockoutHalfWidth;
         }
 
         /// <summary>
-        /// Where the barrier between two adjacent columns sits: the midpoint between them.
-        /// Barrier i separates column i from column i+1, so barrier 2 is the one guarding the
-        /// 7/R column - what a truck shifter calls the lockout.
+        /// Where the barrier between two adjacent columns sits. Ordinary barriers are the
+        /// midpoint between their columns; the one guarding 7/R is the lockout gate, which is
+        /// placed against the main section instead - see <see cref="LockoutCentre"/>.
         /// </summary>
         public int BarrierCentre(int index)
         {
             int i = Clamp(index, 0, ColumnCount - 2);
+            if (i == LockoutGapIndex) return LockoutCentre;
             return (_targets[i] + _targets[i + 1]) / 2;
         }
 
@@ -228,28 +270,62 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// Nearest column, with hysteresis so the neutral detent does not flip back and forth
-        /// when the stick sits on a midpoint.
+        /// Which column the lateral guide should pull toward, with hysteresis so it does not flip
+        /// back and forth when the stick sits on a boundary.
+        ///
+        /// The boundaries are the barrier crests, not the geometric midpoints between columns.
+        /// For ordinary gaps those are the same thing, but the lockout gate sits well off its
+        /// gap's midpoint, and a midpoint boundary would leave the stick pulled back toward the
+        /// main section for thousands of counts after it had already fought its way through the
+        /// gate - dragging it straight back in. Crossing a crest is what hands the stick over.
         /// </summary>
         public Column NearestColumn(int x, Column current)
         {
-            Column best = Column.C1;
-            int bestDist = int.MaxValue;
-            for (int i = 0; i < ColumnCount; i++)
+            Column plain = ColumnPastCrests(x, 0);
+            if (current == Column.None || plain == current) return plain;
+
+            // Bias every crest toward whichever column we are already parked on, so leaving it
+            // costs the hysteresis distance in whichever direction we are travelling.
+            int bias = (int)plain > (int)current ? DetentHysteresis : -DetentHysteresis;
+            return ColumnPastCrests(x, bias);
+        }
+
+        private Column ColumnPastCrests(int x, int bias)
+        {
+            Column c = Column.C1;
+            for (int i = 0; i < ColumnCount - 1; i++)
             {
-                int d = Math.Abs(x - _targets[i]);
-                if (d < bestDist)
-                {
-                    bestDist = d;
-                    best = (Column)i;
-                }
+                if (x > BarrierCentre(i) + bias) c = (Column)(i + 1);
             }
+            return c;
+        }
 
-            if (current == Column.None || best == current) return best;
+        /// <summary>
+        /// Whether the stick has left a latched column so far that it can only be a fault - a
+        /// device glitch, a geometry change under the running loop, or a hand overpowering a
+        /// wall that should not have been pushable.
+        ///
+        /// Deliberately far looser than <see cref="StillInColumn"/>, which is no longer what
+        /// releases a gear. A gear is given up only by returning through the neutral channel, so
+        /// the gate cannot be crossed diagonally from one gear into another, and a firm lean
+        /// against a slot wall can never drop the gear it is holding.
+        /// </summary>
+        public bool EscapedColumn(Column c, int x)
+        {
+            if (c == Column.None) return true;
+            return Math.Abs(x - ColumnTarget(c)) > (ColumnSpacing / 2) + DetentHysteresis;
+        }
 
-            // Only leave the current detent once clearly closer to the new one.
-            int currentDist = Math.Abs(x - _targets[(int)current]);
-            return currentDist - bestDist > DetentHysteresis ? best : current;
+        /// <summary>
+        /// How much of the way out of the neutral channel the stick is, 0 inside the channel and
+        /// 1 once clear of it. Scales the lateral guide, so entering a gear steers toward the
+        /// column rather than merely being blocked by the gate wall.
+        /// </summary>
+        public double FunnelDepthFactor(int y)
+        {
+            int depth = Math.Abs(y - AxisCenter);
+            int span = Math.Max(1, ChannelHalfExit - ChannelHalfEnter);
+            return Clamp((depth - ChannelHalfEnter) / (double)span, 0.0, 1.0);
         }
 
         /// <summary>

@@ -692,7 +692,7 @@ namespace AB9ActiveShifter.Core
                 && a.ColumnInnerHalfExit == b.ColumnInnerHalfExit
                 && a.EngageDepth == b.EngageDepth
                 && a.ReleaseDepth == b.ReleaseDepth
-                && a.LockoutStart == b.LockoutStart
+                && a.LockoutHalfWidth == b.LockoutHalfWidth
                 && a.DetentHysteresis == b.DetentHysteresis
                 && a.MinEngageTicks == b.MinEngageTicks
                 && a.MirrorColumns == b.MirrorColumns

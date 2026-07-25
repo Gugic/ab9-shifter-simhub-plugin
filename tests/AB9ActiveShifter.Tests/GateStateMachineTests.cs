@@ -208,6 +208,54 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void LeaningHardAgainstASlotWallKeepsTheGear()
+        {
+            // A gear is given up only by coming back through the neutral channel. A firm lean -
+            // even one that pushes well past the band that used to release the gear - has to hold
+            // it, or a gear falls out for no reason the hand can see. It also means the slot wall
+            // no longer has to slam on inside that band, which is what made the slots oscillate.
+            GateStateMachine sm = NewMachine();
+            Sweep(sm, Center, Center, C2, Center);
+            Sweep(sm, C2, Center, C2, 0);
+            Hold(sm, C2, 0);
+            Assert.Equal(3, sm.CurrentGear);
+
+            foreach (int offset in new[] { 2500, 4000, 6000, -6000 })
+            {
+                StateTransition t = sm.Update(C2 + offset, 0);
+                Assert.Equal(3, t.Gear);
+                Assert.False(t.GearChanged);
+            }
+
+            Assert.Equal(0, sm.AnomalyCount);
+        }
+
+        [Fact]
+        public void ADiagonalDragCannotReachAnotherGear()
+        {
+            // The whole point of the lock: no route from one gear to another except through the
+            // tunnel. Dragging clean across to the next column while still deep in the slot is a
+            // fault, and a fault must not become a shortcut into whatever gear it landed on.
+            GateStateMachine sm = NewMachine();
+            Sweep(sm, Center, Center, C1, Center);
+            Sweep(sm, C1, Center, C1, 0);
+            Hold(sm, C1, 0);
+            Assert.Equal(1, sm.CurrentGear);
+
+            Sweep(sm, C1, 0, C2, 0);
+            Hold(sm, C2, 0);
+
+            Assert.Equal(0, sm.CurrentGear);
+            Assert.True(sm.AnomalyCount > 0);
+
+            // Only after visiting the channel may a gear be taken again.
+            Sweep(sm, C2, 0, C2, Center);
+            Sweep(sm, C2, Center, C2, 0);
+            Hold(sm, C2, 0);
+            Assert.Equal(3, sm.CurrentGear);
+        }
+
+        [Fact]
         public void LeavingTheChannelBetweenColumnsSelectsNothing()
         {
             GateStateMachine sm = NewMachine();

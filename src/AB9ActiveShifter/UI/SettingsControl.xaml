@@ -192,6 +192,11 @@
                             <ui:TitledSlider Title="Pull into a column (%)" Minimum="0" Maximum="60"
                                              TickFrequency="1" ShowResetButton="True" ResetValue="12"
                                              Value="{Binding ColumnDetentForcePct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Funnel into the slot, when pushing into a gear (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="40"
+                                             Value="{Binding ColumnFunnelForcePct, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="The pull into a column is light while you slide along the channel, and grows to the funnel figure as you push out of it toward a gear - the tapered mouth a real gate has. Without it, pushing while slightly off a column is a dead end: the wall holds, no gear arrives, and nothing steers you onto the slot. There is no force at all across a column's own width, so it guides without giving the stick a centre line to hunt around." />
                         </StackPanel>
                     </styles:SHSection>
 
@@ -231,9 +236,8 @@
                             <ui:TitledSlider Title="Column pull ramp (axis counts)" Minimum="300" Maximum="8000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2500"
                                              Value="{Binding DetentRamp, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Lockout shading starts at (display only)" Minimum="35000" Maximum="62000"
-                                             TickFrequency="1000" ShowResetButton="True" ResetValue="48000"
-                                             Value="{Binding LockoutStart, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
+                                       Text="The lockout gate places itself: it sits just outside the band of the last main-section column, so sliding across the gate meets it straight away instead of after a long stretch of dead travel. Its width is on the Feel tab, and the Monitor tab draws the band where it actually is." />
                         </StackPanel>
                     </styles:SHSection>
 

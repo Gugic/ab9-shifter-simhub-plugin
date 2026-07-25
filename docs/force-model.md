@@ -29,8 +29,24 @@ All of this lives in `Core/ForceComposer.cs`, which is pure and fully unit-teste
 Four columns at X = 0, 21845, 43690, 65535. Gears: (C1 fwd/back) = 1/2, then 3/4, 5/6, and
 (C4 fwd/back) = 7/**R**.
 
-**1. Lateral, in the neutral channel.** A light detent pulling toward the nearest column
-(hysteresis on which one, so it does not chatter at a midpoint), plus one barrier per gap:
+**1. Lateral, in the neutral channel.** A guide pulling toward the nearest column, plus one
+barrier per gap.
+
+The guide does two jobs with one force. Sliding along the channel it is a light detent that parks
+the stick on a column. As the stick is pushed *out* of the channel toward a gear it strengthens
+into a **funnel** (`ColumnFunnelForcePct`), scaled by `FunnelDepthFactor` over the channel's
+hysteresis band — the tapered mouth a real gate has. Without it an off-column push is a dead end:
+the gate wall holds, no gear arrives, and nothing tells the hand which way to move. It is
+**flat-bottomed** across the column's full width, for the same reason slots are corridors — a pull
+to a centre line is an equilibrium, and this one would sit exactly where the hand is trying to
+hold still.
+
+Which column the guide pulls toward switches at the **barrier crests**, not at the geometric
+midpoints. For ordinary gaps those coincide; for the lockout gap they do not, and a midpoint
+boundary would keep pulling the stick back toward the main section for thousands of counts after
+it had fought through the gate — dragging it straight back in.
+
+The barriers themselves:
 
 - *Ordinary humps* between columns 1–3: `strength · u · exp(0.5 − 0.5u²)` where `u` is distance
   from the crest over the hump width. Zero at the crest, peaking at the width, fading beyond —
@@ -41,11 +57,25 @@ Four columns at X = 0, 21845, 43690, 65535. Gears: (C1 fwd/back) = 1/2, then 3/4
   energy (see below). Its width × force is the **toll** a crossing must pay, at any speed. It
   follows `MirrorColumns`, guarding whichever gap 7/R actually lives behind.
 
+  **It places itself** (`GateGeometry.LockoutCentre`): its inner face begins exactly where the
+  last main-section column's band ends, rather than at the midpoint of the gap. The midpoint
+  version left ~8700 counts of dead travel between 5/6 and the gate, and that gap was a usability
+  trap — the hand stops where the gate stops it, assumes it has arrived at a column, and finds
+  that pushing fore or aft neither engages a gear nor explains why. With the gate against the
+  column, meeting it means 5/6 is directly behind you, and releasing lets the guide park you on
+  it. The width is clamped to the room available so an extreme setting cannot swallow either
+  column's band.
+
 **2. Lateral, once in a column** — the vertical guide. A **free corridor** (`SlotHalfWidth`) with a
-firm wall on each side, *not* a pull toward the centre line. The ramp is clamped to reach full
-strength before the state machine's gear-exit band, so a firm lean cannot drop the gear while the
-wall is still building. Barriers are a neutral-channel affair and stay out: once committed to a
-gear there is nothing left to push through.
+firm wall on each side, *not* a pull toward the centre line. Barriers are a neutral-channel affair
+and stay out: once committed to a gear there is nothing left to push through.
+
+The face gets the **full bite distance**, same as a gate wall. It used to be squeezed into the
+state machine's lateral exit band — roughly a fifth of the configured bite — so that a lean could
+not drop the gear while the wall was still building. That squeeze made slot walls several times
+steeper than any wall a hand found stable, and it showed: the channel walls were calm while the
+slots oscillated at the same settings. The gear lock (below) removed the reason for it. The only
+bound left keeps a wall from bleeding into the neighbouring column.
 
 **3. Fore/aft** — the horizontal guide. In the neutral channel, a wall whose height is blended by
 lateral distance from a column (`ChannelBlockFactor`): nearly open when lined up with a column so
@@ -95,17 +125,37 @@ them would hand a fast flick a discount. Damping joins after all of this and kee
 Software **velocity damping** rounds it out, computed from the axis readings because the device's
 own damper is far too weak to settle anything here.
 
+## The gear lock
+
+A latched gear is released **only** by bringing the stick back through the neutral channel. Nothing
+sideways changes gear: not a lean, not a wall briefly overpowered, not a diagonal drag. A real gate
+behaves the same way, and it buys three things at once:
+
+- **No accidental shifts.** A thin wall that gets pushed through no longer hands over a gear; the
+  slot walls simply keep shoving the lever back toward the gear it is in.
+- **A calmer slot wall.** The wall no longer has to reach full strength inside the lateral exit
+  band, because that band no longer decides anything — which is what fixed the slot oscillation.
+- **No mid-lean force swap.** The old release switched the whole force field from slot walls to
+  channel walls while the hand was still pushing, which was itself a jolt and a source of ringing.
+
+Only a **gross escape** counts — more than half a column spacing from the latched column — and it
+is treated as a fault, not a shift: the gear drops and nothing may latch again until the channel
+has been seen. Without that last rule a fault is a back door to the diagonal shift, since the next
+tick would happily latch whatever column the stick had landed in.
+
+Startup and geometry changes still adopt whatever gear the stick is sitting in (`Resync`), which is
+correct there and clears any pending fault.
+
 ## Where the remaining gradients are
 
-The wall face (`WallRamp`) is the only gradient a human dial controls, and two others are not
-covered by it. If a feel complaint survives tuning the bite, suspect these:
+Both kinds of wall now share `WallRamp`, so the one gradient a human dial controls really is the
+one they are feeling. What the bite still does not cover:
 
-- **Slot walls are clamped short** — the face must finish before `ColumnInnerHalfExit` (~1150
-  counts), regardless of what `WallRamp` says. So the walls felt *in gear* can be steeper than the
-  slider implies.
 - **Corners have a lateral gradient** — near a column edge with Y pressed, the fore/aft wall's
   height swings from guide to full wall over the `WallBlend` distance, driven by *sideways* motion.
   Corners are where both axes' walls land at once, and they are the worst case for everything.
+- **The funnel is a gradient too**, though a gentle one (roughly a tenth of a wall face's slope at
+  default settings), and it acts only while entering a gear off-column.
 
 Time shaping is the tool for both, because it acts on force change regardless of which spatial
 gradient produced it.
@@ -127,6 +177,10 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **Over-centre lockout** (resist to the crest, assist after) | A fast flick sailed through for nearly nothing: ballistic crossings pay on the near side and are **refunded** on the far side, at any loop rate. Replaced by a one-way toll. |
 | **Software compensation for the firmware centring curve** | Abandoned — the coefficient measurement it needed was contaminated by too short a settle time, and configuring MOZA Cockpit made it unnecessary. |
 | **Lockout as a wide zone across the gate** | Unnecessary once the walls were firm, and it dragged the stick around half the channel. The lockout only needs to guard the *crossing*; keeping the stick in line is the walls' job. |
+| **Lockout at the midpoint of its gap** | Left ~8700 counts of dead travel between 5/6 and the gate. The hand stops at the gate, assumes it has reached a column, and then fore/aft neither engages nor explains itself. The gate now sits against the column's band. |
+| **Column boundary at the geometric midpoint** | With the gate off-centre, this pulled the stick back toward the main section for thousands of counts *after* it had paid the toll — straight back into the gate. Boundaries are the barrier crests instead. |
+| **Releasing a gear on lateral exit** | Made gears fall out under a firm lean, swapped the whole force field mid-lean, and forced the slot wall's face into a fifth of its bite — which is what made the slots oscillate while the channel stayed calm. A gear now leaves only through the tunnel. |
+| **A separate "lockout shading starts at" setting** | A second copy of the gate's position, which did nothing once the gate moved itself, and drifted from the truth. The Monitor tab asks the geometry. |
 
 The shape of the whole search, in one sentence: **soft gradient = stable but mush; stiff gradient =
 buzz; pure step = hammer.** Every fix that worked moved the problem out of the position gradient
