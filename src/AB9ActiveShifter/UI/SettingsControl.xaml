@@ -269,10 +269,10 @@
                                        Text="Axis positions run 0 to 65535 with 32767 at centre. Every pair is enter/exit hysteresis: the exit value must be the looser one." />
 
                             <ui:TitledSlider Title="Neutral channel half-width (enter)" Minimum="200" Maximum="8000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="1400"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="2600"
                                              Value="{Binding ChannelHalfEnter, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Neutral channel half-width (exit)" Minimum="200" Maximum="10000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="4000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="5200"
                                              Value="{Binding ChannelHalfExit, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Outer column band (enter)" Minimum="500" Maximum="10000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2600"
@@ -293,7 +293,7 @@
                                              TickFrequency="500" ShowResetButton="True" ResetValue="8000"
                                              Value="{Binding ReleaseDepth, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Neutral detent hysteresis" Minimum="0" Maximum="6000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="1500"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="400"
                                              Value="{Binding DetentHysteresis, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Ticks required to engage" Minimum="1" Maximum="20" TickFrequency="1"
                                              ShowResetButton="True" ResetValue="2"

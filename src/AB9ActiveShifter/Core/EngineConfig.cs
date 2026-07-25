@@ -53,20 +53,49 @@ namespace AB9ActiveShifter.Core
         public int CalibrationForcePct = 25;
 
         // Geometry (raw axis counts)
-        public int ChannelHalfEnter = 1400;
+
+        /// <summary>
+        /// How deep the neutral tunnel is free: no lateral guide, no fore/aft wall, nothing that
+        /// varies with depth. It therefore has to be at least as deep as a hand's fore/aft slop
+        /// while sliding sideways, or the hand spends its time in the transition band instead.
+        ///
+        /// Measured, from a recorded 25110-tick trace of exactly that movement: while sliding
+        /// laterally in neutral the wander is p50 1848, p75 2639, p90 3215, max 4215 counts. At the
+        /// 1400 this used to be, 65% of sliding samples were past it - the band designed to be
+        /// crossed on the way to a gear was in fact where the hand lived, and every cross-gradient
+        /// in it was being felt as the lever being pushed sideways for no visible reason. 2600 puts
+        /// three quarters of ordinary sliding back on genuinely flat ground.
+        /// </summary>
+        public int ChannelHalfEnter = 2600;
+
         /// <summary>
         /// How far out of the tunnel counts as committed to a slot. Also the whole budget for the
-        /// lateral field's one transition - free to slide across, then held in a slot - so widening
-        /// it is what keeps that transition's slope down at the wall face rather than above it.
+        /// lateral field's one transition - free to slide across, then held in a slot - so the span
+        /// between this and <see cref="ChannelHalfEnter"/> is what keeps that transition's slope down
+        /// at the wall face rather than above it. Kept at 2600 counts wide when the enter band moved,
+        /// so the slope is unchanged.
         /// </summary>
-        public int ChannelHalfExit = 4000;
+        public int ChannelHalfExit = 5200;
         public int ColumnEdgeEnter = 2600;
         public int ColumnEdgeExit = 5000;
         public int ColumnInnerHalfEnter = 1200;
         public int ColumnInnerHalfExit = 2400;
         public int EngageDepth = 4000;
         public int ReleaseDepth = 8000;
-        public int DetentHysteresis = 1500;
+        /// <summary>
+        /// How far past a boundary the lateral guide keeps hold of the column it came from.
+        ///
+        /// It used to be 1500, and it was load-bearing: the boundary was a cliff - the guide's force
+        /// reversed from one saturated plateau to the other across it - so a wide band was all that
+        /// stopped the stick chattering between two opposite full-scale forces. Now that the field is
+        /// faded to zero across every position the pick can flip at, that job is gone: a flip inside
+        /// the window costs nothing because there is no force there to change.
+        ///
+        /// So it is deliberately small, because the window has to cover it and the window is dead
+        /// space. At 400 an ordinary divider's dead strip is 800 counts rather than 3000, which is
+        /// most of the lateral guidance the relief would otherwise have cost.
+        /// </summary>
+        public int DetentHysteresis = 400;
         public int MinEngageTicks = 2;
 
         // Wall strengths, as a percentage of full scale before the overall gain. These are

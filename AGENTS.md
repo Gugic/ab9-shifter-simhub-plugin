@@ -33,7 +33,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-113 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
+132 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
 on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
 Deploy needs SimHub stopped, because it locks the DLL:
@@ -73,6 +73,7 @@ src/AB9ActiveShifter/
     ForceComposer.cs       The gate itself: position+velocity -> forces. The heart.
     PolarityCalibrator.cs  Measures effect polarity on hardware
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
+    TraceRecorder.cs       Per-tick ring buffer -> CSV, so a feel complaint can be replayed
   Device/                  DirectInput and Win32
     FfbDevice.cs           Open by VID/PID, exclusive+background, poll
     EffectSet.cs           The five effects; one force write per tick, fault handling
@@ -124,6 +125,19 @@ runners cannot load, so anything worth testing must not touch it.
   distance at which the rest of the pattern came back and could capture the lever into a gear it
   was never driven into. Do not reintroduce a lateral release — it is also what frees the slot
   wall's face from its old exit-band squeeze, so restoring one would mean re-clamping that ramp.
+- **The lateral field is faded to zero wherever the guide can change hands, and that fade is a
+  MULTIPLIER on position alone.** A nearest-column field reverses at every column boundary, so a flat
+  plateau held up to the boundary makes the reversal a step of twice the plateau — measured at 20000 DI,
+  a clamped ±12 Nm, from 100 counts of drift, and felt as the notches kicking while sliding the tunnel.
+  `GateGeometry.HandoverClearance` is the window; it spans the **hull of both boundary rules** (crest in
+  the tunnel, midpoint below), because keying it on the rule in force at the current depth moves the
+  same reversal onto the depth axis — 2403 DI from one single axis count of fore/aft. Do not reimplement
+  it as a limit on the guide's *reach*: a reach belongs to whichever column owns the field, so the
+  latched and position-picked branches then disagree by the full pin force exactly where a flat plateau
+  had made them identical (10000 DI of invented history dependence, measured). A shared scalar cannot,
+  because the field is `F_old(history) × Relief(x)`. Three tests pin this:
+  `NoSingleCountOfDriftEverStepsTheLateralField`, `NoSingleCountOfDepthEverStepsTheLateralField`,
+  `TheReliefWindowCannotInventHistoryDependence`.
 - **The lateral field must not read the state machine.** It is one function of position and the
   guide column, called by both branches; `TheLateralFieldDoesNotDependOnTheLatch` sweeps every
   column, direction, position and depth and demands exact equality. Computing it per-branch produced

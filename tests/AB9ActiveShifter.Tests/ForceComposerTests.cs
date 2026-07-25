@@ -444,11 +444,26 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(Column.C3, geo.NearestColumn(geo.LockoutCentre - 500, Column.C3));
             Assert.Equal(Column.C4, geo.NearestColumn(geo.LockoutCentre + 3000, Column.C3));
 
-            // And the guide past the gate must pull on toward 7/R, not back.
+            // And the guide past the gate must never pull BACK toward the main section - that is the
+            // property that matters, because being dragged back into a gate you have just paid for
+            // is what a midpoint boundary used to do. Across the gate's doorway the answer is now
+            // zero rather than a pull onward, because the two boundary rules disagree over that span
+            // and the field is faded out wherever a handover can happen; zero satisfies "not back".
             EngineConfig noGate = FullGainConfig();
             noGate.LockoutForcePct = 0;
-            Assert.True(Neutral(Composer(noGate), OutsideGate(noGate, +1), Center).ConstantX > 0,
-                "past the gate the guide should carry on toward 7/R");
+            GateGeometry g2 = noGate.BuildGeometry();
+
+            for (int x = OutsideGate(noGate, +1); x <= C4; x += 100)
+            {
+                Assert.True(Neutral(Composer(noGate), x, Center).ConstantX >= 0,
+                    "past the gate the guide must never pull back toward the main section, at x=" + x);
+            }
+
+            // Once clear of the handover window it carries on toward 7/R under its own steam.
+            int clear = g2.LockoutCentre + g2.LockoutHalfWidth;
+            while (g2.HandoverClearance(clear) == 0) clear += 100;
+            Assert.True(Neutral(Composer(noGate), clear + noGate.WallRamp, Center).ConstantX > 0,
+                "clear of the window the guide should carry on toward 7/R");
         }
 
         [Fact]
@@ -519,12 +534,19 @@ namespace AB9ActiveShifter.Tests
             cfg.LockoutForcePct = 0;
             ForceComposer c = Composer(cfg);
 
-            // Settle on C2, then drift just past the midpoint: the detent should not flip until
-            // the stick is clearly closer to C3, or it chatters between the two.
-            Neutral(c, C2, Center);
-            int justPast = Neutral(c, ((C2 + C3) / 2) + 200, Center).ConstantX;
+            // Settle on C2, then drift past the midpoint. The pick still holds on to C2 for the
+            // hysteresis distance - but the force there is zero either way, which is the point:
+            // the hysteresis no longer has to hide a cliff, so it can be small.
+            GateGeometry geo = cfg.BuildGeometry();
+            int midpoint = (C2 + C3) / 2;
 
-            Assert.True(justPast < 0, "should still be pulling back toward C2");
+            Neutral(c, C2, Center);
+            Assert.Equal(Column.C2, geo.NearestColumn(midpoint + 200, Column.C2));
+            Assert.Equal(0, Neutral(c, midpoint + 200, Center).ConstantX);
+
+            // Clear of the window the guide has plainly changed hands, and pulls the other way.
+            int clear = midpoint + cfg.DetentHysteresis + cfg.WallRamp + 100;
+            Assert.True(Neutral(c, clear, Center).ConstantX > 0, "past the window the pull is toward C3");
         }
 
         [Fact]
@@ -1005,6 +1027,12 @@ namespace AB9ActiveShifter.Tests
                 int face = Math.Min(cfg.WallRamp, Math.Max(200, (geo.ColumnSpacing / 2) - free));
                 if (Math.Abs(x - geo.ColumnTarget(nearest)) <= free + face) continue;
 
+                // Skip the handover windows and their flanks. The field is zero there by design, so
+                // that a change of guide column can never hand the lever a step - the fault this
+                // whole shape exists to remove. OnlyTheLockoutGapLosesItsWallToTheHandoverWindow
+                // is what stops those windows growing.
+                if (geo.HandoverClearance(x) <= face) continue;
+
                 int force = Math.Abs(Neutral(c, x, deep).ConstantX);
                 Assert.True(force >= 5000, "the gate is free at x=" + x + ", force " + force);
             }
@@ -1026,10 +1054,172 @@ namespace AB9ActiveShifter.Tests
                 int target = geo.ColumnTarget(column);
                 foreach (int offset in new[] { -6000, -3000, 3000, 6000 })
                 {
+                    // Inside a handover window there is deliberately no force at all, so there is no
+                    // direction to check. Everywhere else the wall must point home.
+                    if (geo.HandoverClearance(target + offset) == 0) continue;
+
                     // A fresh composer each time, so no earlier position biases the choice.
                     int force = Neutral(Composer(cfg), target + offset, deep).ConstantX;
                     Assert.True(Math.Sign(force) == -Math.Sign(offset),
                         column + " at " + offset + " should be pushed back, got " + force);
+                }
+            }
+        }
+
+        [Fact]
+        public void NoSingleCountOfDriftEverStepsTheLateralField()
+        {
+            // The fault this whole shape exists to remove, pinned on the axis it lived on. The guide
+            // used to hold its plateau flat up to the boundary between two columns and then reverse,
+            // so one count of drift could hand the lever twice the plateau - measured at 20000 DI,
+            // the full scale, from a hundred counts. Every lateral gradient must now be inside the
+            // wall's own stiffness, which is what the gate is built to tolerate.
+            EngineConfig cfg = FullGainConfig();
+            GateGeometry geo = cfg.BuildGeometry();
+
+            // pin over the bite, plus a unit for rounding, plus the barriers' own smooth slope.
+            int bound = (int)Math.Ceiling(
+                GateGeometry.ForceMax * cfg.ColumnPinForcePct / 100.0 / (double)Math.Max(1, cfg.WallRamp)) + 3;
+
+            foreach (int depth in new[] { 0, 1000, cfg.ChannelHalfEnter, 3000, cfg.ChannelHalfExit,
+                                          6000, cfg.EngageDepth + 500, 12000 })
+            {
+                foreach (int direction in new[] { 1, -1 })
+                {
+                    ForceComposer c = Composer(cfg);
+                    int from = direction > 0 ? 0 : Max;
+                    int previous = Neutral(c, from, Center + depth).ConstantX;
+
+                    for (int step = 1; step <= Max; step++)
+                    {
+                        int x = direction > 0 ? step : Max - step;
+                        int force = Neutral(c, x, Center + depth).ConstantX;
+
+                        Assert.True(Math.Abs(force - previous) <= bound,
+                            "step of " + (force - previous) + " at x=" + x + " depth=" + depth
+                            + " sweeping " + direction + ", bound " + bound);
+
+                        previous = force;
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void NoSingleCountOfDepthEverStepsTheLateralField()
+        {
+            // The same property on the other axis, because the natural way to write the fix - fade
+            // the guide out at whichever boundary applies AT THIS DEPTH - moves the reversal here
+            // instead. The two boundary rules are far apart at the lockout gap, so a window keyed on
+            // depth leaves the other rule's flip window on a live part of the field, and one count of
+            // fore/aft movement then reverses the guide. Measured at 2403 DI before the window was
+            // widened to span both rules. Fore/aft wander is constant and involuntary, so this axis
+            // matters at least as much as the other one.
+            EngineConfig cfg = FullGainConfig();
+
+            // Two terms, and only two. The plateau's own depth ramp, which is the one transition the
+            // field is allowed to have; and one count of the wall's stiffness, because GuideFace is
+            // an integer, so a face that grows with the plateau shifts where the lever sits on it by
+            // up to a count. The second term is quantisation, not shape - it is worth a handful of DI
+            // in practice, against the 2403 a depth-keyed relief window was measured to produce.
+            int rampPerCount = (int)Math.Ceiling(
+                GateGeometry.ForceMax * (cfg.ColumnPinForcePct - cfg.ColumnDetentForcePct) / 100.0
+                / (double)Math.Max(1, cfg.ChannelHalfExit - cfg.ChannelHalfEnter));
+
+            int quantisation = (int)Math.Ceiling(
+                GateGeometry.ForceMax * cfg.ColumnPinForcePct / 100.0 / (double)Math.Max(1, cfg.WallRamp));
+
+            int bound = rampPerCount + quantisation + 2;
+
+            for (int x = 0; x <= Max; x += 37)   // prime-ish stride, so no landmark is skipped twice
+            {
+                ForceComposer c = Composer(cfg);
+                int previous = Neutral(c, x, Center).ConstantX;
+
+                for (int depth = 1; depth <= 12000; depth++)
+                {
+                    int force = Neutral(c, x, Center + depth).ConstantX;
+
+                    Assert.True(Math.Abs(force - previous) <= bound,
+                        "depth step of " + (force - previous) + " at x=" + x
+                        + " depth=" + depth + ", bound " + bound);
+
+                    previous = force;
+                }
+            }
+        }
+
+        [Fact]
+        public void TheReliefWindowCannotInventHistoryDependence()
+        {
+            // Why the window is a MULTIPLIER on the finished force rather than a limit on the guide's
+            // reach. A reach measured from the guide column is a property of WHICH column owns the
+            // field, and the latched column and the position-picked one can differ - so the two
+            // branches disagreed by the full pin force wherever both columns lay on the same side of
+            // the lever, where a flat plateau had made them identical. Measured: 10000 DI at one
+            // physical position, selected by whether the lever had once dipped into the tunnel.
+            //
+            // A shared scalar cannot do that. The field is F_unrelieved(column) x Relief(x), and
+            // Relief reads only x, so any two histories that agreed before still agree.
+            EngineConfig cfg = FullGainConfig();
+
+            foreach (int depth in new[] { 0, 2000, cfg.ChannelHalfExit, 6000, cfg.EngageDepth + 500 })
+            {
+                for (int x = 0; x <= Max; x += 53)
+                {
+                    // Latched in a far column, versus the same position reached with that column
+                    // picked by position. Both must see the identical lateral force.
+                    foreach (Column latched in new[] { Column.C1, Column.C2, Column.C3, Column.C4 })
+                    {
+                        int viaLatch = Composer(cfg)
+                            .Compose(GateState.Traveling, latched, ShiftDir.Fwd, x, Center + depth).ConstantX;
+
+                        ForceComposer c = Composer(cfg);
+                        c.Compose(GateState.Traveling, latched, ShiftDir.Fwd,
+                                  cfg.BuildGeometry().ColumnTarget(latched), Center + depth);
+                        int afterTravel = c.Compose(GateState.Traveling, latched, ShiftDir.Fwd, x, Center + depth).ConstantX;
+
+                        Assert.Equal(viaLatch, afterTravel);
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void OnlyTheLockoutGapLosesItsWallToTheHandoverWindow()
+        {
+            // The price of the relief window, pinned so it cannot quietly grow. At an ordinary gap
+            // the two boundary rules agree, so the window is only the hysteresis either side and a
+            // slot keeps its wall almost to the boundary. At the lockout gap the crest and the
+            // midpoint are thousands of counts apart and the window spans both, which is why
+            // dragging out of 5/6 toward 7/R at gear depth goes slack across the gate's doorway.
+            EngineConfig cfg = FullGainConfig();
+            GateGeometry geo = cfg.BuildGeometry();
+
+            for (int gap = 0; gap < GateGeometry.ColumnCount - 1; gap++)
+            {
+                int crest = geo.BarrierCentre(gap);
+                int mid = (geo.ColumnTarget((Column)gap) + geo.ColumnTarget((Column)(gap + 1))) / 2;
+
+                // Both rules' flip positions are covered, whichever rule is in force at this depth.
+                Assert.Equal(0, geo.HandoverClearance(crest));
+                Assert.Equal(0, geo.HandoverClearance(mid));
+
+                int expected = Math.Abs(crest - mid) + (2 * cfg.DetentHysteresis) + 1;
+                int width = 0;
+                for (int x = Math.Min(crest, mid) - (2 * cfg.DetentHysteresis);
+                         x <= Math.Max(crest, mid) + (2 * cfg.DetentHysteresis); x++)
+                {
+                    if (geo.HandoverClearance(x) == 0) width++;
+                }
+
+                Assert.Equal(expected, width);
+
+                if (gap != geo.LockoutGapIndex)
+                {
+                    // An ordinary gap's two rules agree, so its dead strip is only the hysteresis.
+                    Assert.Equal(crest, mid);
+                    Assert.Equal((2 * cfg.DetentHysteresis) + 1, width);
                 }
             }
         }
@@ -1218,14 +1408,27 @@ namespace AB9ActiveShifter.Tests
         public void ASlotWallStillCannotBleedIntoTheNextColumn()
         {
             // The one bound left on the face: whatever the bite is set to, the wall must be at
-            // full strength before the neighbouring column's territory begins.
+            // full strength before the neighbouring column's territory begins. "Begins" is now the
+            // edge of the handover window rather than the midpoint itself, because the field is
+            // faded to zero across the window on purpose - see GateGeometry.HandoverClearance.
             EngineConfig cfg = FullGainConfig();
             cfg.WallRamp = 40000;   // absurd on purpose
             ForceComposer c = Composer(cfg);
             GateGeometry geo = cfg.BuildGeometry();
 
             int atMidpoint = C2 + (geo.ColumnSpacing / 2);
-            Assert.Equal(-9000, c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, atMidpoint, 2000).ConstantX);
+
+            int peak = 0;
+            for (int x = C2; x <= atMidpoint; x++)
+            {
+                int force = Math.Abs(c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, x, 2000).ConstantX);
+                if (force > peak) peak = force;
+            }
+
+            Assert.Equal(9000, peak);
+
+            // And zero at the boundary itself, which is the whole point of the window.
+            Assert.Equal(0, c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, atMidpoint, 2000).ConstantX);
         }
 
         // ---------------------------------------------------------------- time shaping
@@ -1529,7 +1732,9 @@ namespace AB9ActiveShifter.Tests
             EngineConfig cfg = new EngineConfig { OverallGainPct = 100, PolarityConfirmed = false };
             ForceComposer c = Composer(cfg);
 
-            int wall = Math.Abs(Neutral(c, (C2 + C3) / 2, Center - 3000).ConstantY);
+            // Sampled clear of the fore/aft wall's own face, which starts at ChannelHalfEnter.
+            int deep = Center - (cfg.ChannelHalfEnter + cfg.WallRamp + 100);
+            int wall = Math.Abs(Neutral(c, (C2 + C3) / 2, deep).ConstantY);
             int expected = (int)Math.Round(
                 GateGeometry.ForceMax * (cfg.ChannelWallForcePct / 100.0) *
                 (EngineConfig.UnconfirmedGainCapPct / 100.0));
