@@ -191,16 +191,18 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void PullingOutOfAColumnSidewaysReleasesTheGearAndCountsAnAnomaly()
+        public void AnImpossibleJumpAcrossTheGateIsTreatedAsAFault()
         {
+            // The remaining use for the lateral guard: a sensor jump or a geometry change under
+            // the loop, not a hand. It sits a whole column spacing out, so only a position that
+            // no lean could have produced reaches it.
             GateStateMachine sm = NewMachine();
             Sweep(sm, Center, Center, C1, Center);
             Sweep(sm, C1, Center, C1, 0);
             Hold(sm, C1, 0);
             Assert.Equal(1, sm.CurrentGear);
 
-            // Overpower the wall: jump clean out of C1 while still deep in the slot.
-            StateTransition t = sm.Update(20000, 0);
+            StateTransition t = sm.Update(50000, 0);
 
             Assert.True(t.GearChanged);
             Assert.Equal(0, sm.CurrentGear);
@@ -234,25 +236,53 @@ namespace AB9ActiveShifter.Tests
         public void ADiagonalDragCannotReachAnotherGear()
         {
             // The whole point of the lock: no route from one gear to another except through the
-            // tunnel. Dragging clean across to the next column while still deep in the slot is a
-            // fault, and a fault must not become a shortcut into whatever gear it landed on.
+            // tunnel. Dragged sideways along the top of the pattern - all the way to where the
+            // next column sits - the gear must neither change nor drop. It stays the gear the
+            // lever is latched to, and the slot wall keeps pushing back toward it.
             GateStateMachine sm = NewMachine();
             Sweep(sm, Center, Center, C1, Center);
             Sweep(sm, C1, Center, C1, 0);
             Hold(sm, C1, 0);
             Assert.Equal(1, sm.CurrentGear);
 
-            Sweep(sm, C1, 0, C2, 0);
-            Hold(sm, C2, 0);
+            for (int x = C1; x <= C2; x += 500)
+            {
+                StateTransition t = sm.Update(x, 0);
+                Assert.Equal(1, t.Gear);
+            }
 
-            Assert.Equal(0, sm.CurrentGear);
-            Assert.True(sm.AnomalyCount > 0);
+            Assert.Equal(1, sm.CurrentGear);
+            Assert.Equal(0, sm.AnomalyCount);
 
-            // Only after visiting the channel may a gear be taken again.
+            // Coming back through the channel is the only way to hand the gear over.
             Sweep(sm, C2, 0, C2, Center);
+            Assert.Equal(0, sm.CurrentGear);
             Sweep(sm, C2, Center, C2, 0);
             Hold(sm, C2, 0);
             Assert.Equal(3, sm.CurrentGear);
+        }
+
+        [Fact]
+        public void AFaultCannotBeAShortcutIntoAnotherGear()
+        {
+            // If a fault does fire while the stick is deep in some other column, it must not hand
+            // over that column's gear on the next tick - that would be the diagonal shift again,
+            // through the back door. Nothing may latch until the channel has been seen.
+            GateStateMachine sm = NewMachine();
+            Sweep(sm, Center, Center, C1, Center);
+            Sweep(sm, C1, Center, C1, 0);
+            Hold(sm, C1, 0);
+
+            sm.Update(C3, 0);               // impossible jump: straight into 5's slot
+            Hold(sm, C3, 0);
+
+            Assert.Equal(0, sm.CurrentGear);
+            Assert.Equal(GateState.Neutral, sm.State);
+
+            Sweep(sm, C3, 0, C3, Center);   // visit the channel
+            Sweep(sm, C3, Center, C3, 0);
+            Hold(sm, C3, 0);
+            Assert.Equal(5, sm.CurrentGear);
         }
 
         [Fact]

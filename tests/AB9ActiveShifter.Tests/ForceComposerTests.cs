@@ -500,6 +500,81 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void AtGearDepthTheSlotWallsApplyWithoutALatch()
+        {
+            // The hole that let the lever be walked sideways from gear to gear. Overpowering one
+            // slot wall dropped the latch, the neutral field took over, and down at gear depth
+            // that field had no lateral wall at all - so the gate gave way completely and the
+            // guide then adopted each column the lever passed, helping it along. Confinement is a
+            // fact about depth now, so the wall is here whether or not a column is latched.
+            EngineConfig cfg = FullGainConfig();
+            cfg.BarrierForcePct = 0;
+            cfg.LockoutForcePct = 0;
+            ForceComposer c = Composer(cfg);
+
+            // Deep, and pushed well off the column: full slot-wall strength, pushing back.
+            int deep = cfg.EngageDepth + 500;
+            int wall = Neutral(c, C2 + 6000, deep).ConstantX;
+
+            Assert.Equal(-9000, wall);
+
+            // In the channel at the same lateral offset there is no wall - that is the one place
+            // the lever is meant to travel sideways freely.
+            Assert.True(Math.Abs(Neutral(c, C2 + 6000, Center).ConstantX) < 5000,
+                "the neutral channel must stay open across the gate");
+        }
+
+        [Fact]
+        public void ThereIsNowhereLaterallyFreeAtGearDepth()
+        {
+            // Walk the whole width at gear depth. Between the columns the lever must always be
+            // under a substantial wall - that is what stops it being dragged from gear to gear
+            // along the top of the pattern. It used to be free here, held only by a guide of at
+            // most 40%, which then adopted each column it passed and helped it onward.
+            EngineConfig cfg = FullGainConfig();
+            ForceComposer c = Composer(cfg);
+            GateGeometry geo = cfg.BuildGeometry();
+            int deep = cfg.EngageDepth + 500;
+
+            for (int x = 0; x <= Max; x += 250)
+            {
+                Column nearest = geo.NearestColumn(x, Column.None);
+
+                // Skip a column's own width and the wall's face, which are meant to be soft.
+                int free = geo.ColumnFreeHalfWidth(nearest);
+                int face = Math.Min(cfg.WallRamp, Math.Max(200, (geo.ColumnSpacing / 2) - free));
+                if (Math.Abs(x - geo.ColumnTarget(nearest)) <= free + face) continue;
+
+                int force = Math.Abs(Neutral(c, x, deep).ConstantX);
+                Assert.True(force >= 5000, "the gate is free at x=" + x + ", force " + force);
+            }
+        }
+
+        [Fact]
+        public void TheWallAtGearDepthPushesBackTowardItsColumn()
+        {
+            // Direction, checked clear of the boundaries where the guide's hysteresis legitimately
+            // holds on to the column it came from.
+            EngineConfig cfg = FullGainConfig();
+            cfg.BarrierForcePct = 0;
+            cfg.LockoutForcePct = 0;
+            GateGeometry geo = cfg.BuildGeometry();
+            int deep = cfg.EngageDepth + 500;
+
+            foreach (Column column in new[] { Column.C2, Column.C3 })
+            {
+                int target = geo.ColumnTarget(column);
+                foreach (int offset in new[] { -6000, -3000, 3000, 6000 })
+                {
+                    // A fresh composer each time, so no earlier position biases the choice.
+                    int force = Neutral(Composer(cfg), target + offset, deep).ConstantX;
+                    Assert.True(Math.Sign(force) == -Math.Sign(offset),
+                        column + " at " + offset + " should be pushed back, got " + force);
+                }
+            }
+        }
+
+        [Fact]
         public void TheFunnelPushesTowardTheColumnAndIsFlatBottomed()
         {
             EngineConfig cfg = FullGainConfig();

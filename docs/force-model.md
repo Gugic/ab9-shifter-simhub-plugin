@@ -66,6 +66,21 @@ The barriers themselves:
   it. The width is clamped to the room available so an extreme setting cannot swallow either
   column's band.
 
+Lateral confinement is a fact about **depth**, not about the state machine's latch. Below the
+channel the guide hands over to the nearest column's slot wall at full strength
+(`SlotConfinementFactor`, fading in over the wall's bite), so there is nowhere at gear depth the
+lever can travel sideways freely. This is not a refinement — while confinement depended on the
+latch, overpowering one slot wall dropped the latch, the neutral field took over, and that field
+had no lateral wall down there at all. The gate gave way completely and the lever could be walked
+along the top or bottom of the pattern through every gear in turn, with the guide adopting each
+column it passed and helping it along.
+
+For the same reason the barriers work the other way round: humps and the lockout gate **fade out**
+with depth. A real plate has its gate cut into the tunnel, not into the slots. Leaving them on
+below the channel had the lockout shoving back toward the main gears while the slot wall pushed on
+toward 7/R, cancelling to almost nothing in exactly the region that should be solid plate. Nothing
+is lost, because reaching that depth between columns means overpowering the full gate wall first.
+
 **2. Lateral, once in a column** — the vertical guide. A **free corridor** (`SlotHalfWidth`) with a
 firm wall on each side, *not* a pull toward the centre line. Barriers are a neutral-channel affair
 and stay out: once committed to a gear there is nothing left to push through.
@@ -138,10 +153,12 @@ behaves the same way, and it buys three things at once:
 - **No mid-lean force swap.** The old release switched the whole force field from slot walls to
   channel walls while the hand was still pushing, which was itself a jolt and a source of ringing.
 
-Only a **gross escape** counts — more than half a column spacing from the latched column — and it
-is treated as a fault, not a shift: the gear drops and nothing may latch again until the channel
+Only a **gross escape** counts — a whole column spacing, past where the next column even sits — and
+it is treated as a fault, not a shift: the gear drops and nothing may latch again until the channel
 has been seen. Without that last rule a fault is a back door to the diagonal shift, since the next
-tick would happily latch whatever column the stick had landed in.
+tick would happily latch whatever column the stick had landed in. The threshold is deliberately
+beyond any hand's reach, so a lever dragged sideways is simply pushed back to the gear it is in,
+however far it was dragged; only a sensor jump or a geometry change under the loop gets there.
 
 Startup and geometry changes still adopt whatever gear the stick is sitting in (`Resync`), which is
 correct there and clears any pending fault.
@@ -179,6 +196,8 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **Lockout as a wide zone across the gate** | Unnecessary once the walls were firm, and it dragged the stick around half the channel. The lockout only needs to guard the *crossing*; keeping the stick in line is the walls' job. |
 | **Lockout at the midpoint of its gap** | Left ~8700 counts of dead travel between 5/6 and the gate. The hand stops at the gate, assumes it has reached a column, and then fore/aft neither engages nor explains itself. The gate now sits against the column's band. |
 | **Column boundary at the geometric midpoint** | With the gate off-centre, this pulled the stick back toward the main section for thousands of counts *after* it had paid the toll — straight back into the gate. Boundaries are the barrier crests instead. |
+| **Lateral confinement that depended on the latch** | Overpowering one slot wall dropped the latch, and the neutral field that took over had no lateral wall at gear depth — so the lever could be walked sideways from gear to gear along the top or bottom of the pattern. Confinement follows depth now. |
+| **Barriers acting at gear depth** | The lockout pushed back toward the main gears while the slot wall pushed on toward 7/R; the two cancelled to ~2000 of 10000 in the one region that should feel like solid plate. Barriers fade out as the slot walls fade in. |
 | **Releasing a gear on lateral exit** | Made gears fall out under a firm lean, swapped the whole force field mid-lean, and forced the slot wall's face into a fifth of its bite — which is what made the slots oscillate while the channel stayed calm. A gear now leaves only through the tunnel. |
 | **A separate "lockout shading starts at" setting** | A second copy of the gate's position, which did nothing once the gate moved itself, and drifted from the truth. The Monitor tab asks the geometry. |
 
