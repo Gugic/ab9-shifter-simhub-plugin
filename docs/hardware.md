@@ -15,7 +15,8 @@ update this file with what you find.
 | One `SetParameters` force write | **1.0 ms** (p50), up to ~2 ms | Hard-quantised to the USB frame clock. Not reducible. |
 | Two writes back to back (X then Y) | **2.0 ms** | They serialise on the pipe; there is no batching. |
 | `Poll` + `GetCurrentState` | ~1 µs | Effectively free, served from the driver's cache. |
-| Fresh input reports | **~940 Hz** | The stick already reports about every millisecond. |
+| Fresh input reports | **~940 Hz** | The stick already reports about every millisecond — *when the write pipe is idle*. See the next row. |
+| Distinct positions under write contention | **~500 Hz** | Measured from trace-20260726-034848: with force writes in flight every tick, alternate 1 kHz polls return an unchanged snapshot on **both** axes — a smooth ~17 000 count/s sweep polls as deltas of −34, −1, −36, −2, … |
 | Position → torque round trip | **3–4 ms floor** | ~1 ms report age + 1.0 ms write + ~1 ms firmware application. |
 
 Consequences, all of which are baked into the current design:
@@ -25,6 +26,11 @@ Consequences, all of which are baked into the current design:
   contact with one wall looks like — gets the full 1 kHz.
 - Raising the loop rate further buys nothing: reads are already fresh every millisecond and the
   write pipe is the bound.
+- **Never difference adjacent polls for velocity.** Under write contention half of them repeat,
+  so the per-tick difference alternates ~2:1 at 250–500 Hz. Anything that keys force on that
+  estimate renders the alternation as force texture — the rebound absorber at 59% produced a
+  25–50% wall-force ripple felt as grinding. `Core/VelocityEstimator.cs` differences positions
+  across a 4 ms window, an exact null for a 2 ms report clock.
 - **The 3–4 ms round trip cannot be engineered away.** It is why stability comes from force
   *shape* rather than from rate or damping, and why a fast flick covers 1500–2000 axis counts
   inside the latency window no matter how fast the loop runs.

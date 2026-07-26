@@ -336,29 +336,17 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// Smoothing applied to the measured velocity. A raw tick-to-tick difference is too
-        /// noisy to act on - the axis jitters by a few counts at rest, which at 400 Hz reads as
-        /// thousands of counts per second. But smoothing is also phase lag, and phase-lagged
-        /// damping stops damping at exactly the frequencies where a wall rings (a lagged
-        /// opposing force arrives partly in phase with the motion). 0.45 keeps the lag near a
-        /// single tick; the noise floor that remains is handled by the composer's velocity
-        /// deadband instead of by more smoothing.
+        /// Velocity estimation lives in its own Core class because it turned out to have a
+        /// hardware failure mode worth unit-testing: adjacent-tick differencing aliases the
+        /// device's ~500 Hz position refresh into a 2:1 sawtooth, which the yield rendered as
+        /// a grinding texture. See <see cref="VelocityEstimator"/> for the measurement.
         /// </summary>
-        private const double VelocitySmoothing = 0.45;
-
-        private long _velocityStamp;
-        private int _velocityLastX;
-        private int _velocityLastY;
-        private int _velocityX;
-        private int _velocityY;
-        private bool _velocityPrimed;
+        private readonly VelocityEstimator _velocity = new VelocityEstimator();
 
         /// <summary>Forgets the current motion estimate, so a jump in position is not read as speed.</summary>
         private void ResetVelocity()
         {
-            _velocityPrimed = false;
-            _velocityX = 0;
-            _velocityY = 0;
+            _velocity.Reset();
             _composeStamp = 0;
         }
 
@@ -385,39 +373,7 @@ namespace AB9ActiveShifter.Core
 
         private void UpdateVelocity(int x, int y)
         {
-            long now = Stopwatch.GetTimestamp();
-
-            if (!_velocityPrimed)
-            {
-                _velocityPrimed = true;
-                _velocityStamp = now;
-                _velocityLastX = x;
-                _velocityLastY = y;
-                _velocityX = 0;
-                _velocityY = 0;
-                return;
-            }
-
-            double dt = (now - _velocityStamp) / (double)Stopwatch.Frequency;
-            _velocityStamp = now;
-
-            // A stalled or absurdly long tick says nothing useful about speed; keep the last
-            // estimate and resynchronise from this position.
-            if (dt < 0.0002 || dt > 0.05)
-            {
-                _velocityLastX = x;
-                _velocityLastY = y;
-                return;
-            }
-
-            double rawX = (x - _velocityLastX) / dt;
-            double rawY = (y - _velocityLastY) / dt;
-
-            _velocityLastX = x;
-            _velocityLastY = y;
-
-            _velocityX += (int)Math.Round((rawX - _velocityX) * VelocitySmoothing);
-            _velocityY += (int)Math.Round((rawY - _velocityY) * VelocitySmoothing);
+            _velocity.Update(x, y, Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency);
         }
 
         private void Tick(EngineConfig cfg, long nowMs, long tickCount, double loopHz)
@@ -463,11 +419,11 @@ namespace AB9ActiveShifter.Core
 
                 double dtMs = ComposeDelta(cfg);
                 ForceFrame frame = _composer.Compose(
-                    t.State, t.Column, t.Direction, x, y, _velocityX, _velocityY, dtMs);
+                    t.State, t.Column, t.Direction, x, y, _velocity.X, _velocity.Y, dtMs);
                 _effects.Apply(frame, nowMs);
 
                 // After Apply, so what is recorded is what was actually sent.
-                _trace.Add(nowMs, x, y, _velocityX, _velocityY, dtMs,
+                _trace.Add(nowMs, x, y, _velocity.X, _velocity.Y, dtMs,
                            t.State, t.Column, t.Direction, t.Gear, frame.ConstantX, frame.ConstantY);
 
                 if (_effects.IsFaulted)

@@ -266,6 +266,21 @@ real gates behave — they are friction-damped and do not fling the lever back. 
 in velocity keep sensor jitter from softening a wall being leant on. The slot detent gets a much
 milder floor, because the snick is *supposed* to do positive work.
 
+The absorber's scale is **one-way in time**: it cuts to the speed's target instantly but climbs
+back at a fixed rate (`YieldRecoveryMs`). This exists because the speed it keys on is an estimate,
+and the estimate carries the device's report quantisation — under write contention distinct
+positions arrive at only ~500 Hz (see [hardware.md](hardware.md)), so adjacent-tick differencing
+alternates ~2:1 even during a perfectly smooth pull. At 59% absorption that swept the scale across
+its whole blend range at 250–500 Hz and rippled the wall force by 25–50%, which a hand reads not
+as vibration but as **grinding — the lever meshing against a running gear — the instant it moves
+under pressure**. Two fixes compose: `VelocityEstimator` differences positions across a 4 ms
+window (an exact null for the 2 ms report clock), and the slewed recovery bounds whatever ripple
+survives to `full-scale / YieldRecoveryMs` per millisecond. Replaying the trace that reported it:
+adjacent-tick up-down force reversals ≥ 250 DI fell from 1293 to 14, and those 14 are genuine
+direction reversals, where restoring full force instantly is the contract. The slew costs nothing
+a hand can feel — the same-direction test already restores full force the moment the wall is
+resisting again, so slewed recovery can only ever *deepen* absorption, never soften a press.
+
 **Time shaping (`WallAttackMs`, off by default).** The wall in time instead of in space, with three
 behaviours. It applies to every force a hand can lean on, the lockout included; the slot detent is
 the one exception, because the snick is a deliberate transient that has to arrive whole to read as a
@@ -381,6 +396,8 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **Mouth shaping confined to the channel band** | 1000 counts deep, against a 1500-2000 count round-trip distance: zero corrected samples landed inside it at shift speed. Peak 946 DI at gain 100, 197 DI at the default - the latter equal to the static-hold floor, i.e. a mode that did nothing. The shaping spans the withdrawal stroke instead. |
 | **A circular fillet for the rounded mouth** | Its flank goes vertical where it meets the slot wall - an unbounded gradient at exactly the depth a hand dwells. A raised cosine leaves at zero slope on both ends. |
 | **A separate "lockout shading starts at" setting** | A second copy of the gate's position, which did nothing once the gate moved itself, and drifted from the truth. The Monitor tab asks the geometry. |
+| **Adjacent-tick velocity differencing** | Under write contention distinct positions arrive at ~500 Hz, so half the 1 kHz polls repeat and the per-tick difference alternates ~2:1 — a smooth 17000 count/s pull read as 10000↔25000. Invisible until something keyed force on speed. Positions are differenced across a 4 ms window now. |
+| **An absorber that follows the speed estimate both ways** | The estimate's ripple swept the yield scale across its blend range at 250–500 Hz: a 25–50% force ripple felt as *grinding against a running gear* the moment the lever moved under pressure — instantly, needing no oscillation to start. Cuts stay instant; recovery is slewed over `YieldRecoveryMs`. More EMA smoothing instead was considered and rejected: smoothing is phase lag at every frequency, and lag is force given back after the launch the yield exists to catch, while the window nulls the one artifact frequency outright. |
 
 The shape of the whole search, in one sentence: **soft gradient = stable but mush; stiff gradient =
 buzz; pure step = hammer.** Every fix that worked moved the problem out of the position gradient
