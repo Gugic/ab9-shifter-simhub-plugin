@@ -1386,6 +1386,114 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void AnAliasedSpeedEstimateCannotGrindTheWall()
+        {
+            // The failure this pins: distinct positions arrive at ~500 Hz under write
+            // contention, so the speed estimate used to swing 2:1 on alternate ticks. An
+            // absorber that follows the estimate both ways sweeps its scale across the whole
+            // blend range at that rate - measured as a 25-50% force ripple, felt as the lever
+            // grinding against a running gear. With slewed recovery the ripple is bounded by
+            // the recovery rate instead of the blend span.
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            // Assisting speeds alternating across the blend range, one tick apart. Following
+            // them point-wise would swing the force by 0.36 of the wall every tick.
+            int previous = 0;
+            int worstStep = 0;
+            for (int i = 0; i < 40; i++)
+            {
+                int vy = (i % 2 == 0) ? -17000 : -4000;
+                int force = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                      between, Center + 3500, 0, vy, 1.0).ConstantY;
+
+                if (i > 0 && Math.Abs(force - previous) > worstStep)
+                    worstStep = Math.Abs(force - previous);
+                previous = force;
+
+                // The cut also has to hold: the wall is assisting throughout, so the force
+                // must stay near the floor rather than climbing back between dips.
+                if (i > 0) Assert.True(Math.Abs(force) <= 5600,
+                    "absorption let go between estimate dips: " + force);
+            }
+
+            // Recovery rate bound: full-scale/YieldRecoveryMs per tick, plus rounding. The
+            // unslewed absorber stepped 3206 here.
+            int bound = (int)(9000.0 / cfg.YieldRecoveryMs) + 50;
+            Assert.True(worstStep <= bound,
+                "force ripple " + worstStep + " exceeds the recovery slew " + bound);
+        }
+
+        [Fact]
+        public void TheAbsorberCutsInstantlyAndRecoversSlowly()
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            int full = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                 between, Center + 3500, 0, 0, 1.0).ConstantY;
+
+            // The launch is caught whole on its first tick - absorption is never slewed in.
+            int cut = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                between, Center + 3500, 0, -20000, 1.0).ConstantY;
+            Assert.Equal((int)Math.Round(full * 0.55), cut);
+
+            // The estimate dips to a mild assisting speed. Point-wise that reads as "mostly
+            // recovered"; the slew keeps the cut and climbs back over YieldRecoveryMs instead.
+            int afterDip = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                     between, Center + 3500, 0, -4000, 1.0).ConstantY;
+            Assert.True(Math.Abs(afterDip) < Math.Abs(full) * 0.70,
+                "one mild tick restored the wall: " + afterDip + " of " + full);
+
+            int settled = afterDip;
+            for (int i = 0; i < 15; i++)
+            {
+                settled = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                    between, Center + 3500, 0, -4000, 1.0).ConstantY;
+            }
+
+            // Sustained mild assist converges on that speed's own scale - recovery is slewed,
+            // not denied.
+            double t = (4000.0 - cfg.YieldVelocityDeadband) / cfg.YieldVelocityBlend;
+            int expected = (int)Math.Round(full * (1.0 - 0.45 * t));
+            Assert.Equal(expected, settled);
+
+            // And the moment the wall is resisting again it is whole, no matter how deep the
+            // cut was a tick ago.
+            c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                      between, Center + 3500, 0, -20000, 1.0);
+            int resisting = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                      between, Center + 3500, 0, 20000, 1.0).ConstantY;
+            Assert.Equal(full, resisting);
+        }
+
+        [Fact]
+        public void PointwiseCompositionKeepsTheUnslewedSemantics()
+        {
+            // A dt of zero bypasses the absorber's memory, the same convention as the time
+            // shaping. Every stateless property test in this file leans on that.
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            int full = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                 between, Center + 3500, 0, 0).ConstantY;
+            int deep = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                 between, Center + 3500, 0, -20000).ConstantY;
+            int mild = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                 between, Center + 3500, 0, -4000).ConstantY;
+
+            double t = (4000.0 - cfg.YieldVelocityDeadband) / cfg.YieldVelocityBlend;
+            Assert.Equal((int)Math.Round(full * 0.55), deep);
+            Assert.Equal((int)Math.Round(full * (1.0 - 0.45 * t)), mild);
+        }
+
+        [Fact]
         public void ASlotWallGetsTheSameBiteAsAGateWall()
         {
             // The slot wall's face used to be squeezed into the state machine's exit band, about

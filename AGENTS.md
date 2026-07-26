@@ -33,7 +33,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-132 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
+141 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
 on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
 Deploy needs SimHub stopped, because it locks the DLL:
@@ -73,6 +73,7 @@ src/AB9ActiveShifter/
     ForceComposer.cs       The gate itself: position+velocity -> forces. The heart.
     PolarityCalibrator.cs  Measures effect polarity on hardware
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
+    VelocityEstimator.cs   Position -> speed across a 4 ms window; per-tick differences alias
     TraceRecorder.cs       Per-tick ring buffer -> CSV, so a feel complaint can be replayed
   Device/                  DirectInput and Win32
     FfbDevice.cs           Open by VID/PID, exclusive+background, poll
@@ -84,6 +85,7 @@ tests/AB9ActiveShifter.Tests/
   ForceComposerTests.cs    Force shape, stability properties, polarity, clamps
   GateStateMachineTests.cs Transitions, hysteresis, lockout traces
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
+  VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
 ```
 
 `Core/` stays free of I/O deliberately: the vJoy wrapper is a 32-bit native DLL that test
@@ -106,6 +108,15 @@ runners cannot load, so anything worth testing must not touch it.
 - Damping joins **after** the yield and the time shaping, and is never slewed. It opposes motion
   by construction, so it is never the assisting force the yield exists to soften, and rate
   limiting the stabiliser would defeat it.
+- **Velocity is never an adjacent-tick difference, and the absorber's scale is one-way in time.**
+  Under write contention the device delivers distinct positions at only ~500 Hz, so per-tick
+  differencing alternates ~2:1 and anything keying force on it renders a 250–500 Hz ripple —
+  measured at 25–50% of the wall force, felt as grinding against a running gear. Positions are
+  differenced across a 4 ms window (`VelocityEstimator`), and the yield cuts instantly but
+  recovers over `YieldRecoveryMs` — recovery slew only ever deepens absorption, because the
+  same-direction test already restores full force the instant the wall resists. Pinned by
+  `AStaleThenJumpStreamReadsAsItsTrueMeanSpeed`, `AnAliasedSpeedEstimateCannotGrindTheWall`,
+  and `TheAbsorberCutsInstantlyAndRecoversSlowly`.
 - Time shaping (wall attack) applies to **everything a hand can lean on, the lockout included.**
   The slot detent is the one exception — the snick must arrive whole. Do not exempt the lockout
   again: it was tried, on the theory that slewing a crossing discounts a flick, and the arithmetic

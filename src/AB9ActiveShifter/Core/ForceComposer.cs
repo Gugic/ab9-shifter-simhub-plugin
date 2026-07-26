@@ -73,6 +73,21 @@ namespace AB9ActiveShifter.Core
         private readonly int _yieldDeadband;
         private readonly int _yieldBlend;
 
+        /// <summary>
+        /// How fast the absorber hands force back, in scale units per millisecond. Cuts are
+        /// instant; recovery is slewed. The speed the yield keys on is an estimate that still
+        /// carries some ripple from the device's ~500 Hz report quantisation, and an absorber
+        /// that follows the estimate both ways renders that ripple as force texture - measured
+        /// at 25-50% of the wall force at 250-500 Hz, felt as grinding against a running gear.
+        /// Slewing only the recovery removes the texture without touching the feel: the
+        /// same-direction test already returns full force the instant the wall is resisting
+        /// again, so this can only ever deepen absorption, never soften a press.
+        /// </summary>
+        private readonly double _yieldRecoverPerMs;
+
+        private double _yieldScaleX = 1.0;
+        private double _yieldScaleY = 1.0;
+
         /// <summary>Force growth rate in DirectInput units per millisecond; 0 disables shaping.</summary>
         private readonly double _attackPerMs;
 
@@ -140,6 +155,7 @@ namespace AB9ActiveShifter.Core
             _snickFloor = 1.0 - yield * 0.33;
             _yieldDeadband = Math.Max(0, config.YieldVelocityDeadband);
             _yieldBlend = Math.Max(1, config.YieldVelocityBlend);
+            _yieldRecoverPerMs = config.YieldRecoveryMs <= 0 ? 1000.0 : 1.0 / config.YieldRecoveryMs;
 
             // The opening follows the reach, so the flank's slope is bounded whatever either dial is
             // set to. The rounded profile is scaled by 2/pi because a raised cosine's steepest point
@@ -191,6 +207,8 @@ namespace AB9ActiveShifter.Core
             {
                 _shapedX = 0;
                 _shapedY = 0;
+                _yieldScaleX = 1.0;
+                _yieldScaleY = 1.0;
 
                 // Forget the guide column too. The lever can be moved anywhere while the forces are
                 // off, and coming back with a stale column would aim a saturated wall at wherever
@@ -219,8 +237,11 @@ namespace AB9ActiveShifter.Core
                 ? ComposeNeutral(x, y)
                 : ComposeInColumn(column, direction, x, y);
 
-            int boundedX = Yield(frame.ConstantX, vx, _yieldFloor);
-            int boundedY = Yield(frame.ConstantY, vy, state == GateState.Neutral ? _yieldFloor : _snickFloor);
+            int boundedX = Yield(frame.ConstantX, vx, _yieldFloor, ref _yieldScaleX, dtMs);
+            int boundedY = Yield(
+                frame.ConstantY, vy,
+                state == GateState.Neutral ? _yieldFloor : _snickFloor,
+                ref _yieldScaleY, dtMs);
 
             // Everything the hand can lean against is shaped in time, including the lockout. It
             // was exempted at first on the theory that slewing a crossing hands a fast flick a
@@ -304,9 +325,24 @@ namespace AB9ActiveShifter.Core
         /// that is effectively still, passes through untouched - leaning on a wall stays solid.
         /// A force accelerating the stick along its existing motion is scaled toward the floor
         /// as speed grows, so a bounce off a wall returns less energy than the push stored.
+        ///
+        /// The scale is one-way in time: it drops to the speed's target instantly but climbs
+        /// back at <see cref="_yieldRecoverPerMs"/>. Without that, the ripple in the speed
+        /// estimate swept the scale across its whole blend range at 250-500 Hz and the wall
+        /// force ground like gear teeth under every pressed slide. Holding the cut through the
+        /// estimate's dips costs nothing: while it holds, the wall is by definition assisting,
+        /// so a deeper cut is just more of the absorption the yield exists to provide.
+        ///
+        /// A dt of zero bypasses the memory and applies the speed's target directly, the same
+        /// convention as the time shaping.
         /// </summary>
-        private int Yield(int force, int velocity, double floor)
+        private int Yield(int force, int velocity, double floor, ref double scale, double dtMs)
         {
+            // Recovery happens on every tick, whatever else this one does; cuts are applied
+            // after it, so a cut is instant and only the climb back is slewed.
+            if (dtMs > 0)
+                scale = Math.Min(1.0, scale + _yieldRecoverPerMs * dtMs);
+
             if (force == 0 || floor >= 1.0) return force;
             if (Math.Sign(force) != Math.Sign(velocity)) return force;
 
@@ -314,7 +350,13 @@ namespace AB9ActiveShifter.Core
             if (speed <= _yieldDeadband) return force;
 
             double t = GateGeometry.Clamp((speed - _yieldDeadband) / (double)_yieldBlend, 0.0, 1.0);
-            double scale = 1.0 - (1.0 - floor) * t;
+            double target = 1.0 - (1.0 - floor) * t;
+
+            if (dtMs <= 0) return (int)Math.Round(force * target);
+
+            // The floor differs between the wall and the snick; the state is shared per axis,
+            // so it is clamped up to this call's floor rather than carrying a deeper cut across.
+            scale = Math.Max(Math.Min(scale, target), floor);
             return (int)Math.Round(force * scale);
         }
 

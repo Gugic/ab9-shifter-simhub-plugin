@@ -46,6 +46,29 @@ reluctant to turn it on: static hold is **not damping**. It freezes force update
 nearly still and never opposes motion, so it costs nothing in throw speed or lightness, and the slot
 detent is deliberately exempt so the snick still arrives whole.
 
+**With a long bite I can push to gear depth *between* columns, and no gear registers.**
+The bite's hidden upper bound. The bite is spent three times over between two columns: the slot
+wall's face rises over one bite, the handover window's relief flank falls over another, and the
+fore/aft wall's rise stretches over it too. The space between two corridors is fixed — at a slot
+width of 2400 it is about 8500 counts a side — so by a bite of ~4000 the face and the flank meet in
+the middle and the divider has **no full-strength plateau left at all**: the "wall" between gears
+is two ramps meeting at a point, soft enough to hold a lever inside at depth. The state machine is
+right not to call that a gear; the geometry should never have allowed the lever there. Keep the
+bite at or below ~3000 with the default slot width, which still leaves ~1500 counts of solid
+divider. Raising **slot width** eats the same budget from the other end.
+
+**Pressing toward a wall grinds instantly — not a bounce or a buzz, but like pushing the lever
+against a running gear.**
+Fixed structurally, and worth recognising because it is *not* the wall-face oscillation above: it
+needs no build-up, it starts the moment the lever moves under pressure, and it scales with **wall
+absorption** rather than with the bite. The absorber keys on a speed estimate, and under write
+contention the device only delivers distinct positions at ~500 Hz — differencing adjacent 1 kHz
+polls turned a smooth pull into a 2:1 speed sawtooth, and the absorber rendered it as a 25–50%
+force ripple at 250–500 Hz. Two fixes landed together: velocity is now measured across a 4 ms
+window, and the absorber's scale cuts instantly but recovers over `YieldRecoveryMs`
+(EngineConfig-only, default 20 ms). If a texture like this ever returns, suspect anything newly
+keyed on per-tick velocity before touching the feel dials.
+
 **Touching a wall kicks back at me, like ABS.**
 The bite is too short — force is arriving as a step and landing late. Lengthen the bite, or add
 **wall attack** (10–25 ms), which winds contact up over milliseconds instead of striking.

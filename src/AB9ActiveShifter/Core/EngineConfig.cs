@@ -236,6 +236,19 @@ namespace AB9ActiveShifter.Core
         public int YieldVelocityBlend = 12000;
 
         /// <summary>
+        /// Milliseconds for the absorber to hand back force it has cut. Cuts are instant -
+        /// catching the launch is the whole job - but recovery is slewed, because the speed the
+        /// yield keys on is an estimate that ripples under the device's ~500 Hz report
+        /// quantisation, and an absorber that follows the estimate both ways renders the ripple
+        /// as force texture: measured at 25-50% of the wall force at 250-500 Hz on a real
+        /// trace, and felt as the lever grinding against a running gear the moment it moved
+        /// under pressure. Slewed recovery costs nothing a hand can feel - the same-direction
+        /// test already restores full force the instant the wall resists again, so this only
+        /// ever deepens absorption while the wall assists. Zero makes recovery instant again.
+        /// </summary>
+        public int YieldRecoveryMs = 20;
+
+        /// <summary>
         /// Half-width of the free corridor inside a slot. A real shifter slot has width: you feel
         /// its walls, not a pull toward its centre line. Modelling it as a restoring force instead
         /// puts an equilibrium point in the middle of the slot, and a stiff restoring force about
