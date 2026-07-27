@@ -149,7 +149,25 @@ namespace AB9ActiveShifter
         public int ChannelFreeDepth { get { return _channelFreeDepth; } set { Set(ref _channelFreeDepth, value); } }
 
         /// <summary>Which shift pattern this profile renders.</summary>
-        public GatePattern Pattern { get { return _pattern; } set { Set(ref _pattern, value); } }
+        public GatePattern Pattern
+        {
+            get { return _pattern; }
+            set
+            {
+                if (_pattern == value) return;
+                Set(ref _pattern, value);
+
+                // Derived facts the UI keys section visibility on.
+                OnChanged("IsHPattern");
+                OnChanged("HasLockout");
+            }
+        }
+
+        /// <summary>Whether the gate machinery (mouths, humps, walls) applies at all.</summary>
+        public bool IsHPattern { get { return _pattern != GatePattern.Sequential; } }
+
+        /// <summary>Whether this pattern has a lockout gate for its sliders to mean anything.</summary>
+        public bool HasLockout { get { return _pattern == GatePattern.H7R || _pattern == GatePattern.H6R; } }
 
         /// <summary>Exposes the pattern as an index for the XAML combo box.</summary>
         public int PatternIndex
