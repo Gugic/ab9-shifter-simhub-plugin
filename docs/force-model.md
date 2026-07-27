@@ -270,6 +270,39 @@ hold freezes a lever at rest — a railed lever *at* its line feels zero force, 
 ground, unlike a lever leaning on a wall face. The retreat dial for a trembling rail is the
 rail's own strength (pin force for a column, gate wall for the tunnel), never damping.
 
+## The home spring
+
+A real H lever rests at the 3/4 gate: release it anywhere in neutral and it drifts home.
+`HomeSpringPct` (default 0, off) renders that as a lateral pull toward the column holding gears
+3 and 4 — gear-column 1, asked of the map, so the mirror flags relocate home with the gears and
+a three-column gate is symmetric either way.
+
+It is the one sanctioned pull-toward-a-place in the channel, and every part of its shape exists
+to dodge the oscillator that concept normally is:
+
+- **Dead across the home column's own width** (`ColumnFreeHalfWidth`), so the equilibrium is a
+  flat region rather than a point — the same trick that lets the column detent guide without
+  giving the lever a centre line to hunt around. A lever parked at home feels nothing.
+- **One face, one stiffness**: it rises over a face scaled so its slope equals the slot wall's,
+  with one deliberate difference from `GuideFace` — no upper clamp on the face length, because a
+  spring set *stronger* than the pin force must get a longer face at the same slope, never a
+  steeper one. Beyond the face it is a flat plateau to the ends of travel, and flat cannot ring.
+- **Fades out with depth** exactly like the humps (`1 − SlotConfinementFactor`), applied in both
+  branches through the same expression, so a held gear feels no side pull and no state-machine
+  step can reappear.
+- **Continuous in x, anchored to one fixed column** — unlike the nearest-column guide it never
+  reverses at a handover boundary, so it needs no relief window and cannot interact with the
+  pick's hysteresis. `TheHomeSpringNeverStepsTheField` sweeps the whole channel one count at a
+  time with everything on to pin this.
+
+It still has the rail gate's honest limit: an interior equilibrium rendered through 3–4 ms of
+delay has a hunt ceiling, so a lever that trembles parked at home wants the spring lowered,
+never damping raised. At the default detent (12%) and humps (15%), a spring around 25–30%
+out-pulls both and the released lever walks home across the notches; below that it reads as a
+lean toward home rather than a return. Crossing the lockout outbound the spring adds to the
+toll, and in the 7/R channel it keeps tugging toward the main gears — which is the truck-like
+behaviour the lockout's one-way force already sketched, now extended across the whole channel.
+
 ## Other patterns
 
 **Missing slots (6+R).** A slot that holds no gear is rendered by never opening its mouth: the

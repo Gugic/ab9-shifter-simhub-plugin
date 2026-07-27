@@ -36,6 +36,7 @@ namespace AB9ActiveShifter
         private int _channelGuideForcePct = 5;
         private int _columnDetentForcePct = 12;
         private int _barrierForcePct = 15;
+        private int _homeSpringPct;
         private int _lockoutHalfWidth = 2200;
         private SlotMouthShape _mouthShape = SlotMouthShape.Square;
         private int _mouthDepth = 5000;
@@ -142,6 +143,9 @@ namespace AB9ActiveShifter
         public int ColumnDetentForcePct { get { return _columnDetentForcePct; } set { Set(ref _columnDetentForcePct, value); } }
 
         public int BarrierForcePct { get { return _barrierForcePct; } set { Set(ref _barrierForcePct, value); } }
+
+        /// <summary>Neutral spring toward the 3/4 column. Zero - the default - is off.</summary>
+        public int HomeSpringPct { get { return _homeSpringPct; } set { Set(ref _homeSpringPct, value); } }
 
         /// <summary>Shape of the slot mouths. Square is today's rectangular notch, and the default.</summary>
         public SlotMouthShape MouthShape { get { return _mouthShape; } set { Set(ref _mouthShape, value); } }
@@ -324,6 +328,7 @@ namespace AB9ActiveShifter
                 ChannelGuideForcePct = ChannelGuideForcePct,
                 ColumnDetentForcePct = ColumnDetentForcePct,
                 BarrierForcePct = BarrierForcePct,
+                HomeSpringPct = HomeSpringPct,
                 MouthShape = MouthShape,
                 MouthDepth = MouthDepth,
                 MouthOpenPct = MouthOpenPct,
@@ -407,6 +412,7 @@ namespace AB9ActiveShifter
                 ChannelGuideForcePct = d.ChannelGuideForcePct;
                 ColumnDetentForcePct = d.ColumnDetentForcePct;
                 BarrierForcePct = d.BarrierForcePct;
+                HomeSpringPct = d.HomeSpringPct;
                 MouthShape = d.MouthShape;
                 MouthDepth = d.MouthDepth;
                 MouthOpenPct = d.MouthOpenPct;

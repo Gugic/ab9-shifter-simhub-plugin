@@ -15,6 +15,7 @@ light — that is the safety cap doing its job, not a tuning problem.
 | Gate wall, between columns | 90% | The fore/aft wall that stops you entering a gear you are not lined up with. |
 | Slot wall, once in a gear | 90% | The sideways walls of a slot. |
 | Lockout gate, guarding 7/R | 70% | The push-through toll before 7 and R. Sits against the 5/6 column; width sets the toll with it. |
+| Neutral spring toward 3/4 | 0% (off) | The home spring: pulls the lever along the channel toward the 3/4 column, where a real H lever rests. Around 25–30% a released lever walks home past the humps; fades out with depth so a held gear feels nothing. Follows the mirror flags. |
 | Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
 | Slot mouth | Square | Shape of the divider ends where they meet the tunnel. Square is the plain notch and changes nothing. |
 | Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
@@ -141,6 +142,13 @@ force ripple at 250–500 Hz. Two fixes landed together: velocity is now measure
 window, and the absorber's scale cuts instantly but recovers over `YieldRecoveryMs`
 (EngineConfig-only, default 20 ms). If a texture like this ever returns, suspect anything newly
 keyed on per-tick velocity before touching the feel dials.
+
+**The lever trembles resting at the 3/4 column with the neutral spring on.**
+The home spring is a pull toward a place, so it has the rail gate's hunt ceiling: an interior
+equilibrium rendered through delay is only stable at moderate strength. Lower the **neutral
+spring**, never raise damping. The spring is deliberately dead across the home column's own
+width — a lever parked there sits on flat ground — so trembling means the plateau just outside
+that dead zone is too strong for the loop's delay, exactly like a railed column that trembles.
 
 **Touching a wall kicks back at me, like ABS.**
 The bite is too short — force is arriving as a step and landing late. Lengthen the bite, or add

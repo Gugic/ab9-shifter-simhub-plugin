@@ -52,6 +52,7 @@ namespace AB9ActiveShifter.Core
         private readonly int _columnDetentForce;
         private readonly int _barrierForce;
         private readonly int _lockoutForce;
+        private readonly int _homeSpringForce;
 
         private readonly int _detentResistMax;
         private readonly int _detentPullMax;
@@ -142,6 +143,7 @@ namespace AB9ActiveShifter.Core
             _columnDetentForce = Force(config.ColumnDetentForcePct, gain);
             _barrierForce = Force(config.BarrierForcePct, gain);
             _lockoutForce = Force(config.LockoutForcePct, gain);
+            _homeSpringForce = Force(config.HomeSpringPct, gain);
 
             _detentResistMax = Force(config.DetentResistPct, gain);
             _detentPullMax = Force(config.DetentPullPct, gain);
@@ -681,17 +683,47 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// The humps and the lockout gate, faded out with depth. A plate has its gate cut into the
-        /// tunnel, not into the slots, so below the channel the slot walls own the lateral axis
-        /// alone. Applied in every state, like the guide, because anything indexed on the state
-        /// machine puts the step back.
+        /// The humps, the lockout gate, and the neutral home spring, all faded out with depth. A
+        /// plate has its gate cut into the tunnel, not into the slots, so below the channel the
+        /// slot walls own the lateral axis alone. Applied in every state, like the guide, because
+        /// anything indexed on the state machine puts the step back.
         /// </summary>
         private int BarrierForceIn(int x, int y)
         {
             double faded = 1.0 - _geo.SlotConfinementFactor(y);
             if (faded <= 0.0) return 0;
 
-            return (int)Math.Round(BarrierForceAt(x) * faded);
+            return (int)Math.Round((BarrierForceAt(x) + HomeSpringAt(x)) * faded);
+        }
+
+        /// <summary>
+        /// The neutral spring: a flat pull toward the home column - the 3/4 gate, where a real
+        /// H lever rests - dead across that column's own width, rising over one face, saturated
+        /// everywhere beyond. The deadband is what keeps it off the oscillator list: the
+        /// equilibrium is a flat region, not a point, the same trick the column detent uses.
+        /// Continuous in x and anchored to one fixed column, so unlike the nearest-column guide
+        /// it has no handover to relieve.
+        ///
+        /// The face keeps the one-stiffness rule without GuideFace's upper clamp: a spring set
+        /// stronger than the slot wall gets a LONGER face at the same slope, never a steeper
+        /// one, because that clamp's assumption - every plateau is at most the pin force - is
+        /// the one thing this dial can break.
+        /// </summary>
+        private int HomeSpringAt(int x)
+        {
+            if (_homeSpringForce <= 0) return 0;
+
+            int ramp = SlotRamp(0);
+            int face = _columnPinForce > 0
+                ? Math.Max(1, (int)Math.Round(ramp * (double)_homeSpringForce / _columnPinForce))
+                : ramp;
+
+            Column home = _geo.HomeColumn;
+            return Saturating(
+                x - _geo.ColumnTarget(home),
+                _homeSpringForce,
+                face,
+                _geo.ColumnFreeHalfWidth(home));
         }
 
         private ForceFrame ComposeNeutral(int x, int y)
