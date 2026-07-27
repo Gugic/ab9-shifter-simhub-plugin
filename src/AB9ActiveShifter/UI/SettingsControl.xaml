@@ -337,6 +337,9 @@
                             <ui:TitledSlider Title="Grind frequency (Hz)" Minimum="15" Maximum="90" TickFrequency="1"
                                              ShowResetButton="True" ResetValue="33"
                                              Value="{Binding GrindFreqHz, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Balk wall (%)" Minimum="0" Maximum="100" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="70"
+                                             Value="{Binding GrindWallPct, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Clutch counts as pressed above (%)" Minimum="5" Maximum="90"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="25"
                                              Value="{Binding GrindClutchThresholdPct, Mode=TwoWay}" />
@@ -344,7 +347,7 @@
                                              ShowResetButton="True" ResetValue="0"
                                              Value="{Binding GrindMinSpeedKmh, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
-                                       Text="Raise the speed floor if garage or pit-lane shuffling grinds when you would rather it stayed quiet. SimHub reports pedals as 0-100; if your game's clutch never crosses the threshold, watch the Clutch property in SimHub and set the threshold below what a pressed pedal reads." />
+                                       Text="The balk wall is the border a rejected shift meets: it stacks on the slot's entry resistance and stays, so the lever grinds against something solid instead of a light lean - and the grind gets louder the harder you force it. It only acts while rejection is balking the gear; zero leaves just the resistance. Raise the speed floor if garage or pit-lane shuffling grinds when you would rather it stayed quiet. SimHub reports pedals as 0-100; if your game's clutch never crosses the threshold, watch the Clutch property in SimHub and set the threshold below what a pressed pedal reads." />
                         </StackPanel>
                     </styles:SHSection>
 
@@ -355,11 +358,11 @@
                             <ui:TitledSlider Title="Volume (%)" Minimum="0" Maximum="100" TickFrequency="5"
                                              ShowResetButton="True" ResetValue="25"
                                              Value="{Binding FxEngineGainPct, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Order (vibrations per engine rev)" Minimum="0.5" Maximum="4"
-                                             TickFrequency="0.5" ShowResetButton="True" ResetValue="1"
-                                             Value="{Binding FxEngineOrder, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Frequency at 1000 rpm (Hz)" Minimum="5" Maximum="60"
+                                             TickFrequency="1" ShowResetButton="True" ResetValue="17"
+                                             Value="{Binding FxEngineFreqAt1000Rpm, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
-                                       Text="A constant tremble that rises and falls with the engine, like idle shake coming up a real linkage. Order 1 is one pulse per revolution; a four-cylinder four-stroke fires at order 2. Keep the volume low - it plays whenever the engine turns." />
+                                       Text="A constant tremble whose pitch scales with the revs: at 2000 rpm it is twice this, at 3000 three times, capped at 130 Hz where the base stops rendering pitch cleanly. Set it by what idle should feel like - an 850 rpm idle at the default 17 buzzes at about 14 Hz, a slow thud; 34 is a four-cylinder's firing pulses. Keep the volume low: it plays whenever the engine turns." />
                         </StackPanel>
                     </styles:SHSection>
 

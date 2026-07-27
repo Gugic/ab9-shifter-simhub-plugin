@@ -50,8 +50,9 @@ The toll is the gate's force (70% by default) times its width, and both are adju
 ## Game effects
 
 With a game running, the **Effects** tab can play telemetry through the lever: **gear grind on a
-clutchless shift** — push into a gear with the clutch up and the box rattles, and (optionally)
-the gear refuses to register until the clutch goes down, like a blocking synchro ring — plus
+clutchless shift** — push into a gear with the clutch up and the box rattles against a firm balk
+wall, louder the harder you force it, and (optionally) the gear refuses to register until the
+clutch goes down, like a blocking synchro ring — plus
 engine vibration that tracks the revs, a rev-limiter buzz, ABS and traction-control buzzes, a
 gear-shift confirmation pulse, and a custom effect driven by any SimHub property (which puts
 ShakeIt's exported effect groups on the lever). Everything is off by default, falls silent within

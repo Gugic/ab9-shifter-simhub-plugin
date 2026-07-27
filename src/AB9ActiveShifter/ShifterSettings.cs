@@ -55,7 +55,7 @@ namespace AB9ActiveShifter
         // Telemetry effects, all off by default: they are additions to the gate, not part of it.
         private bool _fxEngineEnabled;
         private int _fxEngineGainPct = 25;
-        private double _fxEngineOrder = 1.0;
+        private int _fxEngineFreqAt1000Rpm = 17;
         private bool _fxLimiterEnabled;
         private int _fxLimiterGainPct = 45;
         private int _fxLimiterFreqHz = 55;
@@ -77,6 +77,7 @@ namespace AB9ActiveShifter
         private bool _grindEnabled;
         private int _grindGainPct = 60;
         private int _grindFreqHz = 33;
+        private int _grindWallPct = 70;
         private int _grindClutchThresholdPct = 25;
         private int _grindMinSpeedKmh;
         private bool _grindRejectsGear = true;
@@ -229,8 +230,8 @@ namespace AB9ActiveShifter
         public bool FxEngineEnabled { get { return _fxEngineEnabled; } set { Set(ref _fxEngineEnabled, value); } }
         public int FxEngineGainPct { get { return _fxEngineGainPct; } set { Set(ref _fxEngineGainPct, value); } }
 
-        /// <summary>Vibration frequency as a multiple of engine revolutions.</summary>
-        public double FxEngineOrder { get { return _fxEngineOrder; } set { Set(ref _fxEngineOrder, value); } }
+        /// <summary>The engine carrier's frequency at 1000 rpm; pitch scales with the revs.</summary>
+        public int FxEngineFreqAt1000Rpm { get { return _fxEngineFreqAt1000Rpm; } set { Set(ref _fxEngineFreqAt1000Rpm, value); } }
 
         public bool FxLimiterEnabled { get { return _fxLimiterEnabled; } set { Set(ref _fxLimiterEnabled, value); } }
         public int FxLimiterGainPct { get { return _fxLimiterGainPct; } set { Set(ref _fxLimiterGainPct, value); } }
@@ -260,6 +261,9 @@ namespace AB9ActiveShifter
         public bool GrindEnabled { get { return _grindEnabled; } set { Set(ref _grindEnabled, value); } }
         public int GrindGainPct { get { return _grindGainPct; } set { Set(ref _grindGainPct, value); } }
         public int GrindFreqHz { get { return _grindFreqHz; } set { Set(ref _grindFreqHz, value); } }
+
+        /// <summary>The balk wall stacked on the entry resistance while a shift is rejected.</summary>
+        public int GrindWallPct { get { return _grindWallPct; } set { Set(ref _grindWallPct, value); } }
 
         /// <summary>Clutch positions below this percentage count as "clutch up" - grind territory.</summary>
         public int GrindClutchThresholdPct { get { return _grindClutchThresholdPct; } set { Set(ref _grindClutchThresholdPct, value); } }
@@ -345,7 +349,7 @@ namespace AB9ActiveShifter
 
                 FxEngineEnabled = FxEngineEnabled,
                 FxEngineGainPct = FxEngineGainPct,
-                FxEngineOrder = FxEngineOrder,
+                FxEngineFreqAt1000Rpm = FxEngineFreqAt1000Rpm,
                 FxLimiterEnabled = FxLimiterEnabled,
                 FxLimiterGainPct = FxLimiterGainPct,
                 FxLimiterFreqHz = FxLimiterFreqHz,
@@ -366,6 +370,7 @@ namespace AB9ActiveShifter
                 GrindEnabled = GrindEnabled,
                 GrindGainPct = GrindGainPct,
                 GrindFreqHz = GrindFreqHz,
+                GrindWallPct = GrindWallPct,
                 GrindClutchThresholdPct = GrindClutchThresholdPct,
                 GrindMinSpeedKmh = GrindMinSpeedKmh,
                 GrindRejectsGear = GrindRejectsGear,
@@ -452,7 +457,7 @@ namespace AB9ActiveShifter
             {
                 FxEngineEnabled = d.FxEngineEnabled;
                 FxEngineGainPct = d.FxEngineGainPct;
-                FxEngineOrder = d.FxEngineOrder;
+                FxEngineFreqAt1000Rpm = d.FxEngineFreqAt1000Rpm;
                 FxLimiterEnabled = d.FxLimiterEnabled;
                 FxLimiterGainPct = d.FxLimiterGainPct;
                 FxLimiterFreqHz = d.FxLimiterFreqHz;
@@ -474,6 +479,7 @@ namespace AB9ActiveShifter
                 GrindEnabled = d.GrindEnabled;
                 GrindGainPct = d.GrindGainPct;
                 GrindFreqHz = d.GrindFreqHz;
+                GrindWallPct = d.GrindWallPct;
                 GrindClutchThresholdPct = d.GrindClutchThresholdPct;
                 GrindMinSpeedKmh = d.GrindMinSpeedKmh;
                 GrindRejectsGear = d.GrindRejectsGear;

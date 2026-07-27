@@ -2217,6 +2217,47 @@ namespace AB9ActiveShifter.Tests
             Assert.True(seated.ConstantY < 0);
         }
 
+        [Fact]
+        public void TheBalkWallStandsBehindTheResistance()
+        {
+            // A rejected shift meets a border, not a lean: the balk wall stacks on the entry
+            // resistance and stays. At zero the old resistance-only feel remains.
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+
+            ForceFrame balked = Composer(cfg).Compose(GateState.Traveling, Column.C2, ShiftDir.Fwd,
+                                                      C2, 500, 0, 0, 0, 0, true);
+            Assert.Equal(9200, balked.ConstantY);   // 22% resistance + 70% wall
+
+            cfg.GrindWallPct = 0;
+            ForceFrame bare = Composer(cfg).Compose(GateState.Traveling, Column.C2, ShiftDir.Fwd,
+                                                    C2, 500, 0, 0, 0, 0, true);
+            Assert.Equal(2200, bare.ConstantY);
+        }
+
+        [Fact]
+        public void TheBalkWallTakesTheAttackAndTheSnickStillArrivesWhole()
+        {
+            // While balked there is no snick to protect - the detent has become a wall being
+            // leaned on, so it winds up over the attack like every wall. The moment the clutch
+            // unmutes it, the exemption returns and the pull lands in one piece.
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+            cfg.WallAttackMs = 20;
+            ForceComposer c = Composer(cfg);
+
+            ForceFrame first = c.Compose(GateState.Traveling, Column.C2, ShiftDir.Fwd,
+                                         C2, 500, 0, 0, 1.0, 0, true);
+            ForceFrame second = c.Compose(GateState.Traveling, Column.C2, ShiftDir.Fwd,
+                                          C2, 500, 0, 0, 1.0, 0, true);
+            Assert.Equal(500, first.ConstantY);     // one attack step of the wall, not the wall
+            Assert.Equal(1000, second.ConstantY);
+
+            ForceFrame seated = c.Compose(GateState.Traveling, Column.C2, ShiftDir.Fwd,
+                                          C2, 500, 0, 0, 1.0, 0, false);
+            Assert.Equal(-5500, seated.ConstantY);  // the hold, whole, the same millisecond
+        }
+
         // ---------------------------------------------------------------- the home spring
 
         /// <summary>Home spring alone: every other lateral force silenced.</summary>

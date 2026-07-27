@@ -35,7 +35,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-182 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
+185 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
 on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
 Deploy needs SimHub stopped, because it locks the DLL:
@@ -124,8 +124,9 @@ runners cannot load, so anything worth testing must not touch it.
   budget is capped (3000/4500/5000 DI in `EffectComposer`) and scaled by the effective gain, the
   10% polarity cap included. **Stale telemetry (>500 ms) silences every effect the same tick** —
   a hung game must not leave a buzz running. **The grind never touches geometry**: rejection is
-  `allowEngage` into the state machine plus a resist-only detent, never a moved or closed wall
-  (see the rejected table in docs/force-model.md).
+  `allowEngage` into the state machine plus the balk-wall detent (entry resistance +
+  `GrindWallPct`, no crossover, attack-shaped like the wall it has become), never a moved or
+  closed wall (see the rejected table in docs/force-model.md).
 - **Velocity is never an adjacent-tick difference, and the absorber's scale is one-way in time.**
   Under write contention the device delivers distinct positions at only ~500 Hz, so per-tick
   differencing alternates ~2:1 and anything keying force on it renders a 250–500 Hz ripple —

@@ -62,8 +62,13 @@ namespace AB9ActiveShifter.Core
         public bool FxEngineEnabled;
         public int FxEngineGainPct = 25;
 
-        /// <summary>Carrier frequency as a multiple of engine revolutions: 1 = once per rev.</summary>
-        public double FxEngineOrder = 1.0;
+        /// <summary>
+        /// The engine carrier's pitch anchor: its frequency at 1000 rpm, in Hz, scaling
+        /// linearly with the revs from there (capped at 130 Hz, the renderable ceiling).
+        /// Directly settable so the idle buzz is a number rather than an abstract order -
+        /// 17 here is once per revolution; firing orders are multiples.
+        /// </summary>
+        public int FxEngineFreqAt1000Rpm = 17;
 
         /// <summary>Buzz when the revs reach the limiter.</summary>
         public bool FxLimiterEnabled;
@@ -105,6 +110,16 @@ namespace AB9ActiveShifter.Core
         public bool GrindEnabled;
         public int GrindGainPct = 60;
         public int GrindFreqHz = 33;
+
+        /// <summary>
+        /// The balk wall: while a grinding shift is being rejected, this much force stacks on
+        /// top of the entry resistance and stays, so the slot is a border the lever visibly
+        /// cannot pass - a blocking synchro ring - rather than a light lean. Only acts while
+        /// <see cref="GrindRejectsGear"/> is balking the shift; zero leaves the old
+        /// resistance-only feel. Takes the wall attack like every wall, because while balked
+        /// there is no snick to exempt.
+        /// </summary>
+        public int GrindWallPct = 70;
 
         /// <summary>Clutch positions below this percentage count as "clutch up".</summary>
         public int GrindClutchThresholdPct = 25;
