@@ -145,6 +145,9 @@ namespace AB9ActiveShifter
         {
             Log.Info("FinalizePlugin (shutting the engine down).");
 
+            // Flush any edit the debounce was still holding; a duplicate save is harmless.
+            SaveStore();
+
             ShifterEngine engine;
             lock (EngineSync)
             {
@@ -272,6 +275,47 @@ namespace AB9ActiveShifter
         private void OnSettingsChanged(object sender, PropertyChangedEventArgs e)
         {
             PushSettingsToEngine();
+            ScheduleSave();
+        }
+
+        private System.Windows.Threading.DispatcherTimer _saveDebounce;
+
+        /// <summary>
+        /// Persists the store shortly after the last dial change. Without this, edits only
+        /// reached disk on a clean SimHub exit - and the deploy script force-kills SimHub, so
+        /// an afternoon of tuning could vanish with the process. Debounced so dragging a
+        /// slider writes once, not per pixel.
+        /// </summary>
+        private void ScheduleSave()
+        {
+            System.Windows.Application app = System.Windows.Application.Current;
+            if (app == null)
+            {
+                SaveStore();
+                return;
+            }
+
+            if (!app.Dispatcher.CheckAccess())
+            {
+                app.Dispatcher.BeginInvoke((Action)ScheduleSave);
+                return;
+            }
+
+            if (_saveDebounce == null)
+            {
+                _saveDebounce = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(2)
+                };
+                _saveDebounce.Tick += (s, e) =>
+                {
+                    _saveDebounce.Stop();
+                    SaveStore();
+                };
+            }
+
+            _saveDebounce.Stop();
+            _saveDebounce.Start();
         }
 
         private void OnGearChanged(int gear, int previousGear)

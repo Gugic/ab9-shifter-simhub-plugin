@@ -148,6 +148,11 @@ gear that the new geometry disowns is released, and a sequential pulse in flight
 Profile duplication copies by reflection over public read/write properties, so new dials are
 included automatically and no event subscriptions ride along.
 
+Every dial change **autosaves the store**, debounced two seconds after the last edit. SimHub only
+calls `End` (the old save point) on a clean exit, and the deploy script force-kills the process —
+without the autosave, everything tuned since the last profile switch died with it, which was
+reported from the settings page as "settings won't save".
+
 ## SimHub surface
 
 Properties: `CurrentGear`, `GearIndex`, `InGear`, `GateState`, `GateColumn`, `StickX`, `StickY`,
