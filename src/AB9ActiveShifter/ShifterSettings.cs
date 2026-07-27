@@ -45,6 +45,7 @@ namespace AB9ActiveShifter
         private int _barrierWidth = 2500;
         private int _wallBlend = 1500;
         private int _slotHalfWidth = 1100;
+        private int _channelFreeDepth = 2600;
         private int _dampingPct = 25;
         private int _wallYieldPct = 45;
         private int _damperCoeff = 800;
@@ -52,15 +53,15 @@ namespace AB9ActiveShifter
         private int _detentPullPct = 35;
         private int _detentHoldPct = 55;
 
-        private int _channelHalfEnter = 1400;
-        private int _channelHalfExit = 4000;
+        private int _channelHalfEnter = 2600;
+        private int _channelHalfExit = 5200;
         private int _columnEdgeEnter = 2600;
         private int _columnEdgeExit = 5000;
         private int _columnInnerHalfEnter = 1200;
         private int _columnInnerHalfExit = 2400;
         private int _engageDepth = 4000;
         private int _releaseDepth = 8000;
-        private int _detentHysteresis = 1500;
+        private int _detentHysteresis = 400;
         private int _minEngageTicks = 2;
 
         public bool Enabled { get { return _enabled; } set { Set(ref _enabled, value); } }
@@ -139,8 +140,11 @@ namespace AB9ActiveShifter
         public int BarrierWidth { get { return _barrierWidth; } set { Set(ref _barrierWidth, value); } }
         public int WallBlend { get { return _wallBlend; } set { Set(ref _wallBlend, value); } }
 
-        /// <summary>Free lateral corridor inside a slot. Widen it if a gear shakes when seated.</summary>
+        /// <summary>Free lateral corridor inside a slot. Widen it if a gear shakes when seated; zero rails the slot.</summary>
         public int SlotHalfWidth { get { return _slotHalfWidth; } set { Set(ref _slotHalfWidth, value); } }
+
+        /// <summary>Free fore/aft depth of the neutral tunnel before its centring begins. Zero rails the tunnel.</summary>
+        public int ChannelFreeDepth { get { return _channelFreeDepth; } set { Set(ref _channelFreeDepth, value); } }
 
         /// <summary>Velocity damping. This, not the device damper, is what settles a stiff wall.</summary>
         public int DampingPct { get { return _dampingPct; } set { Set(ref _dampingPct, value); } }
@@ -208,6 +212,7 @@ namespace AB9ActiveShifter
                 BarrierWidth = BarrierWidth,
                 WallBlend = WallBlend,
                 SlotHalfWidth = SlotHalfWidth,
+                ChannelFreeDepth = ChannelFreeDepth,
                 DamperCoeff = DamperCoeff,
                 DetentResistPct = DetentResistPct,
                 DetentPullPct = DetentPullPct,
@@ -254,6 +259,7 @@ namespace AB9ActiveShifter
                 BarrierWidth = d.BarrierWidth;
                 WallBlend = d.WallBlend;
                 SlotHalfWidth = d.SlotHalfWidth;
+                ChannelFreeDepth = d.ChannelFreeDepth;
                 DamperCoeff = d.DamperCoeff;
                 DetentResistPct = d.DetentResistPct;
                 DetentPullPct = d.DetentPullPct;

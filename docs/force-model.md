@@ -242,7 +242,33 @@ own width. Once in a column this gives way to the **slot detent**: resist on the
 centre to pull the stick home (the snick), then settle to a seated hold strong enough to beat the
 base's own centring (~90% of full force at full deflection — hence `DetentHoldPct` = 55).
 
-## The four stabilising mechanisms
+## The rail gate
+
+Trying MOZA's native shifter mode on the same base produced one load-bearing observation: **the
+native gate never has free 2D space.** At every moment exactly one axis is unlocked — in a column
+the lever moves only fore/aft with zero lateral play; in the neutral tunnel only sideways with
+zero fore/aft play — and a push between two columns is never met with a wall to lean on, it is
+resolved sideways into one column or the other. Nothing can float, so nothing can accelerate
+across a gap and land on a face, and the whole class of wall-contact instabilities has no room to
+exist.
+
+That topology is a **special case of this gate, not a different one**: it is the same field with
+the two free corridors closed. `SlotHalfWidth = 0` rails each column; `ChannelFreeDepth = 0`
+rails the tunnel. Everything else carries over unchanged — the watershed that resolves a push
+into the nearest column is the lateral guide field it always was, the notches are the barrier
+humps, the lockout keeps guarding 7/R (the one thing the native mode does not have), and the
+absorber, attack and static hold keep doing their jobs. Reopening the corridors is moving two
+sliders back, which is why this is a configuration and not a fork.
+
+One limit is honest and structural: the native mode renders its rails **in firmware at zero
+delay**, which is why they can be clamp-stiff. Ours are rendered through the 3–4 ms round trip,
+so a rail is a *groove* with a stiffness ceiling — the interior equilibrium that corridors were
+invented to remove comes back the moment a corridor closes, and a rail turned too stiff hunts
+around its line exactly the way the middle columns once shook. What has changed since that
+lesson was learned: the loop is 1 kHz, the absorber works during motion (see below), and static
+hold freezes a lever at rest — a railed lever *at* its line feels zero force, which is quiet
+ground, unlike a lever leaning on a wall face. The retreat dial for a trembling rail is the
+rail's own strength (pin force for a column, gate wall for the tunnel), never damping.
 
 A stiff wall rendered through a 3–4 ms delay is unstable — the delayed force acts as *negative*
 damping, so each overshoot returns with interest. Four independent mechanisms address it. They

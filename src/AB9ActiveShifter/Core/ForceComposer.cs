@@ -591,7 +591,12 @@ namespace AB9ActiveShifter.Core
 
             // The horizontal guide. Lined up with a column this nearly vanishes so a gear can be
             // taken; between columns it is a full wall. The channel has width for the same reason
-            // a slot does, so the stick is free within it rather than pulled to its centre line.
+            // a slot does, so the stick is free within it rather than pulled to its centre line -
+            // unless the free depth has been dialled to zero, which turns the tunnel into a rail.
+            // The force's own free depth is a separate dial from the state band on purpose, and
+            // clamped to it from above: past the enter band the lever is leaving the tunnel, so a
+            // force deadband wider than that would mean walls the state machine believes exist
+            // and the hand never meets.
             double block = _geo.ChannelBlockFactor(x, _cfg.WallBlend);
             int plateau = (int)Math.Round(_channelGuideForce + (_channelWallForce - _channelGuideForce) * block);
 
@@ -599,7 +604,7 @@ namespace AB9ActiveShifter.Core
                 y - GateGeometry.AxisCenter,
                 plateau,
                 _cfg.WallRamp,
-                _geo.ChannelHalfEnter);
+                GateGeometry.Clamp(_cfg.ChannelFreeDepth, 0, _geo.ChannelHalfEnter));
 
             return f;
         }

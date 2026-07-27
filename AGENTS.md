@@ -33,7 +33,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-141 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
+146 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
 on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
 Deploy needs SimHub stopped, because it locks the DLL:
@@ -172,9 +172,16 @@ runners cannot load, so anything worth testing must not touch it.
   crests, not the geometric midpoints. Anything that needs to know where the lockout is must ask
   the geometry — a second copy of that position silently drifts (the Monitor tab's shading used
   to be exactly that bug).
-- Slots and the neutral channel are **corridors with walls**, not pulls toward a centre line. A
-  restoring force about an interior equilibrium is an oscillator; that is what made the middle
-  columns shake while the outer ones (one-sided against the end of travel) were fine.
+- Slots and the neutral channel are **corridors with walls** by default, not pulls toward a
+  centre line. A restoring force about an interior equilibrium is an oscillator; that is what made
+  the middle columns shake while the outer ones (one-sided against the end of travel) were fine.
+  Both free widths are dials (`SlotHalfWidth`, `ChannelFreeDepth`) and **zero is a supported
+  setting** — the rail gate, the native shifter-mode topology, one axis guided everywhere (see
+  docs/force-model.md). Closing a corridor brings the interior equilibrium back, so rails are
+  only stable at moderate strengths with the full stabiliser stack; a railed column that trembles
+  wants its force lowered, never damping raised. `ChannelFreeDepth` is clamped to
+  `ChannelHalfEnter` from above — a force deadband wider than the state band would be walls the
+  state machine believes exist and the hand never meets.
 
 **Safety ordering**
 
