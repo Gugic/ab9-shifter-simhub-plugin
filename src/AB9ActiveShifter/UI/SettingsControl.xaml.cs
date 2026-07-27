@@ -69,6 +69,19 @@ namespace AB9ActiveShifter.UI
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
+            // SimHub keeps this control alive across page navigation: every leave fires
+            // Unloaded, every return fires Loaded, and the constructor only ever runs once.
+            // Everything the constructor wired must be re-wired here, or the first navigation
+            // away permanently disconnects the profile UI - Duplicate then created and
+            // activated profiles the combo never showed (read, reasonably, as the button
+            // doing nothing), and the dials stayed bound to the previously active profile.
+            if (Plugin != null)
+            {
+                Plugin.ProfileChanged -= OnProfileChanged;
+                Plugin.ProfileChanged += OnProfileChanged;
+            }
+
+            BindActiveProfile();
             RefreshStatus();
             RefreshLockoutSummary();
             RefreshProfiles();
@@ -123,7 +136,12 @@ namespace AB9ActiveShifter.UI
         private void OnAddProfile(object sender, RoutedEventArgs e)
         {
             if (Plugin == null || Plugin.Store == null) return;
-            Plugin.AddProfileFromCurrent(Plugin.Store.ActiveProfile + " copy");
+
+            // Duplicating a copy counts up instead of piling the word on: "5+R copy",
+            // "5+R copy 2", never "5+R copy copy".
+            string name = System.Text.RegularExpressions.Regex.Replace(
+                Plugin.Store.ActiveProfile ?? "Profile", @"\s+copy(\s+\d+)?$", "");
+            Plugin.AddProfileFromCurrent(name + " copy");
         }
 
         private void OnRenameProfile(object sender, RoutedEventArgs e)
