@@ -56,6 +56,7 @@ namespace AB9ActiveShifter.Core
         private readonly int _detentResistMax;
         private readonly int _detentPullMax;
         private readonly int _detentHold;
+        private readonly int _seqStopForce;
         private readonly int _damperCoeff;
 
         private readonly int _dampingForce;
@@ -145,6 +146,7 @@ namespace AB9ActiveShifter.Core
             _detentResistMax = Force(config.DetentResistPct, gain);
             _detentPullMax = Force(config.DetentPullPct, gain);
             _detentHold = Force(config.DetentHoldPct, gain);
+            _seqStopForce = Force(config.SeqStopForcePct, gain);
             _damperCoeff = Scale(config.DamperCoeff, gain);
 
             _dampingForce = Force(config.DampingPct, gain);
@@ -278,26 +280,58 @@ namespace AB9ActiveShifter.Core
             frame.ConstantY = SequentialSpring(y);
 
             // The return spring keeps the snick's floor: pulling the lever home is its job, so
-            // absorbing that assist would leave the lever limp on the way back. The click is a
-            // drop and passes the time shaping instantly; the build-up on the way out is slewed
-            // like any other wall.
-            return Bound(frame, vx, vy, dtMs, _snickFloor, shapeY: true);
+            // absorbing that assist would leave the lever limp on the way back. The end-stop is
+            // the exception - it is a wall the lever gets banged against, so it takes the walls'
+            // full absorption. The click is a drop and passes the time shaping instantly; the
+            // build-up on the way out is slewed like any other wall.
+            int stopStart = SequentialThreshold() + Math.Max(0, _cfg.SeqOvertravel);
+            double floorY = Math.Abs(y - GateGeometry.AxisCenter) >= stopStart ? _yieldFloor : _snickFloor;
+
+            return Bound(frame, vx, vy, dtMs, floorY, shapeY: true);
+        }
+
+        /// <summary>Distance from centre to the sequential firing line, in axis counts.</summary>
+        private int SequentialThreshold()
+        {
+            return Math.Max(1, GateGeometry.AxisCenter - _geo.EngageDepth);
         }
 
         /// <summary>
         /// The sequential lever's fore/aft force: rises linearly from nothing at centre to the
-        /// full resist at the shift threshold, then drops to the lighter hold - the click - and
-        /// stays there to the end of travel. Always toward centre, never over-centre: a
-        /// sequential lever must come home on release, which is also why the force is a shallow
-        /// gradient by construction (full resist over the whole engage span) rather than a wall.
+        /// full resist at the shift threshold, drops to the lighter hold - the click - for the
+        /// overtravel, then meets the end-stop wall, rising over the wall's bite on top of the
+        /// hold. Everything is measured from the firing line, so shortening the throw moves the
+        /// whole stroke together. Always toward centre, never over-centre: a sequential lever
+        /// must come home on release, and a wall rather than a pocket means releasing inside
+        /// the stop still returns it. The approach to the click is a shallow gradient by
+        /// construction - full resist over the whole engage span - so no delay can pump it.
         /// </summary>
         private int SequentialSpring(int y)
         {
             ShiftDir dir = _geo.DirectionOf(y);
-            double frac = _geo.EngageFraction(dir, y);
+            int depth = Math.Abs(y - GateGeometry.AxisCenter);
+            int threshold = SequentialThreshold();
 
-            double magnitude = frac >= 1.0 ? _detentHold : _detentResistMax * frac;
-            int force = (int)Math.Round(magnitude);
+            double magnitude;
+            if (depth < threshold)
+            {
+                magnitude = _detentResistMax * (depth / (double)threshold);
+            }
+            else
+            {
+                magnitude = _detentHold;
+
+                int intoStop = depth - threshold - Math.Max(0, _cfg.SeqOvertravel);
+                if (intoStop > 0)
+                {
+                    double t = GateGeometry.Clamp(
+                        intoStop / (double)Math.Max(1, _cfg.WallRamp), 0.0, 1.0);
+                    magnitude += _seqStopForce * t;
+                }
+            }
+
+            int force = (int)Math.Round(
+                GateGeometry.Clamp(magnitude, 0, GateGeometry.ForceMax));
 
             // Fwd is low y; the restoring push is toward +y, and vice versa.
             return dir == ShiftDir.Fwd ? force : -force;

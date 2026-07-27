@@ -289,10 +289,16 @@ shallow: full resistance is only reached at the shift threshold itself, a gradie
 1 DI per count, which no delay can destabilise. Crossing the threshold drops the resistance to a
 lighter hold — the click — and the drop passes the time shaping instantly like any release, while
 the force always points home so the lever returns on its own. The return assist keeps the snick's
-milder yield floor: absorbing the return would defeat it. One shift fires per stroke, re-armed
-only by coming back through the release threshold, and the buttons are timed pulses rather than
-held gears — with a 20 ms guaranteed gap on a re-fire, because an off-and-on inside one tick
-reads to a game's input poll as one continuous press.
+milder yield floor: absorbing the return would defeat it. Past the click, `SeqOvertravel` counts
+of landing and then an **end-stop wall** (`SeqStopForcePct`, rising over the wall bite) give the
+stroke its own bottom — without it the lever sailed on to the hardware stop through twenty
+thousand counts of nothing. The stop is measured from the firing line, so shortening the throw
+with `EngageDepth` moves the whole stroke together, and it takes the walls' full absorption
+rather than the return spring's mild one, because being banged against is its job. It is a wall
+toward centre, never a pocket, so releasing inside it still sends the lever home. One shift fires
+per stroke, re-armed only by coming back through the release threshold, and the buttons are timed
+pulses rather than held gears — with a 20 ms guaranteed gap on a re-fire, because an off-and-on
+inside one tick reads to a game's input poll as one continuous press.
 
 ## The four stabilising mechanisms
 

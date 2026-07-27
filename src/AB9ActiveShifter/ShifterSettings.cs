@@ -48,6 +48,8 @@ namespace AB9ActiveShifter
         private int _channelFreeDepth = 2600;
         private GatePattern _pattern = GatePattern.H7R;
         private int _seqPulseMs = 120;
+        private int _seqOvertravel = 2500;
+        private int _seqStopForcePct = 90;
         private int _dampingPct = 25;
         private int _wallYieldPct = 45;
         private int _damperCoeff = 800;
@@ -159,12 +161,16 @@ namespace AB9ActiveShifter
 
                 // Derived facts the UI keys section visibility on.
                 OnChanged("IsHPattern");
+                OnChanged("IsSequential");
                 OnChanged("HasLockout");
             }
         }
 
         /// <summary>Whether the gate machinery (mouths, humps, walls) applies at all.</summary>
         public bool IsHPattern { get { return _pattern != GatePattern.Sequential; } }
+
+        /// <summary>The inverse, for the sequential-only controls.</summary>
+        public bool IsSequential { get { return _pattern == GatePattern.Sequential; } }
 
         /// <summary>Whether this pattern has a lockout gate for its sliders to mean anything.</summary>
         public bool HasLockout { get { return _pattern == GatePattern.H7R || _pattern == GatePattern.H6R; } }
@@ -178,6 +184,12 @@ namespace AB9ActiveShifter
 
         /// <summary>How long a sequential shift holds its button, in milliseconds.</summary>
         public int SeqPulseMs { get { return _seqPulseMs; } set { Set(ref _seqPulseMs, value); } }
+
+        /// <summary>Stroke remaining past the sequential click before the end-stop wall.</summary>
+        public int SeqOvertravel { get { return _seqOvertravel; } set { Set(ref _seqOvertravel, value); } }
+
+        /// <summary>The end-stop wall at the bottom of a sequential stroke.</summary>
+        public int SeqStopForcePct { get { return _seqStopForcePct; } set { Set(ref _seqStopForcePct, value); } }
 
         /// <summary>Velocity damping. This, not the device damper, is what settles a stiff wall.</summary>
         public int DampingPct { get { return _dampingPct; } set { Set(ref _dampingPct, value); } }
@@ -248,6 +260,8 @@ namespace AB9ActiveShifter
                 ChannelFreeDepth = ChannelFreeDepth,
                 Pattern = Pattern,
                 SeqPulseMs = SeqPulseMs,
+                SeqOvertravel = SeqOvertravel,
+                SeqStopForcePct = SeqStopForcePct,
                 DamperCoeff = DamperCoeff,
                 DetentResistPct = DetentResistPct,
                 DetentPullPct = DetentPullPct,
@@ -296,6 +310,8 @@ namespace AB9ActiveShifter
                 SlotHalfWidth = d.SlotHalfWidth;
                 ChannelFreeDepth = d.ChannelFreeDepth;
                 SeqPulseMs = d.SeqPulseMs;
+                SeqOvertravel = d.SeqOvertravel;
+                SeqStopForcePct = d.SeqStopForcePct;
                 DamperCoeff = d.DamperCoeff;
                 DetentResistPct = d.DetentResistPct;
                 DetentPullPct = d.DetentPullPct;
