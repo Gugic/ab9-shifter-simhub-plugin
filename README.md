@@ -13,10 +13,10 @@ Four patterns, selectable per **profile** on the Setup tab: **7+R** (the full ga
 **6+R** (the slot where 7 would sit simply does not exist), **5+R** (three wider columns, no
 lockout), and **Sequential** (a sprung fore/aft lever that pulses button 9 for upshift and
 button 10 for downshift). A profile stores every dial together with its pattern, so each
-pattern keeps its own tuning and switching is one dropdown. Gears map to vJoy buttons 1..N
-with reverse as the highest button (8, 7 or 6 depending on the pattern); the sequential
-buttons sit above them all so no game binding can ever mean two things. A vJoy device with
-10+ buttons covers every pattern.
+pattern keeps its own tuning and switching is one dropdown. Forward gears map to vJoy
+buttons 1..N and reverse is always button 8, whatever the pattern, so one set of game
+bindings covers every pattern; the sequential buttons sit above them all so no game binding
+can ever mean two things. A vJoy device with 10+ buttons covers every pattern.
 
 ## The gate
 
