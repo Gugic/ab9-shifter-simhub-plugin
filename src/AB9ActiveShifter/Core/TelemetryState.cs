@@ -36,6 +36,9 @@ namespace AB9ActiveShifter.Core
         public bool AbsActive;
         public bool TcActive;
 
+        /// <summary>Vertical acceleration in G, zero when the game does not report it.</summary>
+        public double HeaveG;
+
         /// <summary>Value of the user-chosen SimHub property, expected 0..100.</summary>
         public double CustomValue;
 

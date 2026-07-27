@@ -405,6 +405,24 @@
                         </StackPanel>
                     </styles:SHSection>
 
+                    <styles:SHSection Title="CURBS AND BUMPS" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <styles:SHToggleCheckbox IsChecked="{Binding FxCurbsEnabled, Mode=TwoWay}"
+                                                     Content="Rattle over curbs and bumps" Margin="0,0,0,6" />
+                            <ui:TitledSlider Title="Volume (%)" Minimum="0" Maximum="100" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="45"
+                                             Value="{Binding FxCurbsGainPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Frequency (Hz)" Minimum="15" Maximum="120" TickFrequency="1"
+                                             ShowResetButton="True" ResetValue="40"
+                                             Value="{Binding FxCurbsFreqHz, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Full volume at (G of vertical shake)" Minimum="0.2" Maximum="3"
+                                             TickFrequency="0.1" ShowResetButton="True" ResetValue="1"
+                                             Value="{Binding FxCurbsFullAtG, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="Read out of the car's vertical acceleration, so it works in any game that reports it, with no surface data needed: a curb is a rapid shake in heave, which sustained cornering or braking load is not - a baseline tracker follows the slow part and only the shake plays, with a short ring-down that keeps a rumble strip's rhythm. Lower the full-volume G to make gentle curbs louder. Games that report no acceleration stay silent here; for per-wheel fidelity, drive the custom property below from a ShakeIt road-impacts group instead." />
+                        </StackPanel>
+                    </styles:SHSection>
+
                     <styles:SHSection Title="GEAR SHIFT PULSE" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <styles:SHToggleCheckbox IsChecked="{Binding FxShiftEnabled, Mode=TwoWay}"

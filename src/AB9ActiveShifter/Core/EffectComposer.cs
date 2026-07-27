@@ -59,13 +59,28 @@ namespace AB9ActiveShifter.Core
         /// <summary>Below this the engine is off or cranking, and nothing engine-driven plays.</summary>
         public const double MinEngineRpm = 300.0;
 
+        /// <summary>Vertical shake below this is road noise, not a curb, in G.</summary>
+        public const double HeaveDeadzoneG = 0.10;
+
+        /// <summary>How fast the heave baseline follows sustained load, in milliseconds.</summary>
+        private const double HeaveBaseTauMs = 150.0;
+
+        /// <summary>How long a curb strike rings down in the envelope, in milliseconds.</summary>
+        private const double CurbReleaseMs = 150.0;
+
         private double _enginePhase;
         private double _limiterPhase;
         private double _absPhase;
         private double _tcPhase;
+        private double _curbsPhase;
         private double _shiftPhase;
         private double _customPhase;
         private double _grindPhase;
+
+        // Curb detection state: the slow-heave baseline and the strike envelope.
+        private bool _heaveSeeded;
+        private double _heaveBase;
+        private double _curbEnv;
 
         private double _shiftPulseLeftMs;
         private string _lastGear;
@@ -94,8 +109,12 @@ namespace AB9ActiveShifter.Core
             {
                 // Everything transient dies with the telemetry, and the gear edge detector
                 // re-adopts on the next fresh frame so a game start never fires a phantom pulse.
+                // The heave baseline re-seeds too, so a session starting mid-corner is not a
+                // strike.
                 _shiftPulseLeftMs = 0;
                 _lastGear = null;
+                _curbEnv = 0;
+                _heaveSeeded = false;
                 return output;
             }
 
@@ -131,6 +150,36 @@ namespace AB9ActiveShifter.Core
             if (cfg.FxTcEnabled && t.TcActive)
             {
                 vib += Sine(ref _tcPhase, cfg.FxTcFreqHz, dtMs, Amp(cfg.FxTcGainPct, gain, VibFullScale));
+            }
+
+            // Curbs and bumps, read out of the vertical acceleration - the one signal a curb
+            // cannot hide from and sustained load cannot fake. The baseline follows the slow
+            // part (cornering, braking, crests) so only the shake remains; the envelope rises
+            // the tick a strike lands and rings down over ~150 ms, which is what keeps a
+            // rumble strip's da-da-da rhythm intact through a fixed-pitch carrier.
+            if (cfg.FxCurbsEnabled)
+            {
+                if (!_heaveSeeded)
+                {
+                    _heaveBase = t.HeaveG;
+                    _heaveSeeded = true;
+                }
+
+                if (dtMs > 0)
+                {
+                    _heaveBase += (t.HeaveG - _heaveBase) * Math.Min(1.0, dtMs / HeaveBaseTauMs);
+                    _curbEnv *= Math.Max(0.0, 1.0 - dtMs / CurbReleaseMs);
+                }
+
+                _curbEnv = Math.Max(_curbEnv, Math.Abs(t.HeaveG - _heaveBase));
+
+                double level = GateGeometry.Clamp(
+                    (_curbEnv - HeaveDeadzoneG) / Math.Max(0.1, cfg.FxCurbsFullAtG), 0.0, 1.0);
+                if (level > 0)
+                {
+                    int amp = (int)Math.Round(Amp(cfg.FxCurbsGainPct, gain, VibFullScale) * level);
+                    vib += Sine(ref _curbsPhase, cfg.FxCurbsFreqHz, dtMs, amp);
+                }
             }
 
             // Shift confirmation: one pulse when the game's own gear changes. Edge-detected on

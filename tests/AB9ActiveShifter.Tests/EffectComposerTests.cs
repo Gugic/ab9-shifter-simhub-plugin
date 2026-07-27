@@ -204,6 +204,77 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void CurbsIgnoreSmoothRoadAndSustainedLoad()
+        {
+            // Cornering, braking and crests are slow trends the baseline tracker follows;
+            // ramping half a G of heave over two seconds must stay silent, or every corner
+            // would rattle the lever.
+            EngineConfig cfg = FullGainConfig();
+            cfg.FxCurbsEnabled = true;
+            cfg.FxCurbsGainPct = 100;
+
+            var fx = new EffectComposer();
+            for (int i = 0; i < 2000; i++)
+            {
+                TelemetryState t = Driving();
+                t.HeaveG = 0.5 * i / 2000.0;
+                Assert.Equal(0, fx.Step(cfg, t, 0, 1.0, false).VibY);
+            }
+        }
+
+        [Fact]
+        public void ACurbStrikeRattlesAndRingsDown()
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.FxCurbsEnabled = true;
+            cfg.FxCurbsGainPct = 100;
+
+            var fx = new EffectComposer();
+            TelemetryState smooth = Driving();
+
+            Assert.Equal(0, PeakVib(fx, cfg, smooth, ticks: 300));
+
+            // One 60 Hz telemetry frame of a hard strike: full volume, immediately.
+            TelemetryState strike = Driving();
+            strike.HeaveG = 1.6;
+            int peak = PeakVib(fx, cfg, strike, ticks: 16);
+            peak = Math.Max(peak, PeakVib(fx, cfg, smooth, ticks: 50));
+            Assert.True(peak >= 2900, "a hard strike should reach full volume: " + peak);
+
+            // And it rings down rather than latching: silent again well under a second later.
+            PeakVib(fx, cfg, smooth, ticks: 800);
+            Assert.Equal(0, PeakVib(fx, cfg, smooth, ticks: 100));
+        }
+
+        [Fact]
+        public void CurbSensitivityScalesTheRattle()
+        {
+            // A square-wave heave of +-0.6 G - a rumble strip - through two sensitivities:
+            // full-at-1G plays about half volume, full-at-2G about a quarter.
+            Assert.InRange(RumbleStripPeak(1.0), 1300, 1750);
+            Assert.InRange(RumbleStripPeak(2.0), 600, 900);
+        }
+
+        private static int RumbleStripPeak(double fullAtG)
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.FxCurbsEnabled = true;
+            cfg.FxCurbsGainPct = 100;
+            cfg.FxCurbsFullAtG = fullAtG;
+
+            var fx = new EffectComposer();
+            int peak = 0;
+            for (int i = 0; i < 2000; i++)
+            {
+                TelemetryState t = Driving();
+                t.HeaveG = (i / 20) % 2 == 0 ? 0.6 : -0.6;
+                int v = Math.Abs(fx.Step(cfg, t, 0, 1.0, false).VibY);
+                if (i >= 1500) peak = Math.Max(peak, v);
+            }
+            return peak;
+        }
+
+        [Fact]
         public void AShiftPulseFiresOncePerGearChangeAndForItsDurationOnly()
         {
             EngineConfig cfg = FullGainConfig();
