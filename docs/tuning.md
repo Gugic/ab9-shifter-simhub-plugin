@@ -34,7 +34,11 @@ fires one press of button 1 (up) or 2 (down), re-armed when the lever comes home
 by dials that pull double duty: **detent resist** is the push-out resistance (rises to full at the
 threshold), **detent hold** is what remains past the click, **slot wall** sets the lateral rail,
 and the pulse length sits next to the pattern selector. Swap up/down with **MirrorSlots** (gear
-layout section). The engage/release depths on the Geometry tab set where it fires and re-arms.
+layout section). The engage/release depths on the Geometry tab set where it fires and re-arms —
+they measure from the **ends of travel**, so raising them shortens the throw (engage 26000 fires
+about 6800 counts from centre). The spring reaches full resistance exactly at the threshold and
+the click moves with it, so a short throw stays progressive rather than becoming a wall. Keep the
+release depth a couple of thousand counts above the engage depth for a clean re-arm.
 
 Keep one **profile** per pattern you actually use — every dial, the pattern included, is stored
 per profile, so switching is one dropdown.

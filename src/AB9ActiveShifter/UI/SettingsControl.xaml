@@ -327,12 +327,14 @@
                             <ui:TitledSlider Title="Inner column half-width (exit)" Minimum="300" Maximum="10000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2400"
                                              Value="{Binding ColumnInnerHalfExit, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Engage depth (from the end of travel)" Minimum="500" Maximum="20000"
+                            <ui:TitledSlider Title="Engage depth (from the end of travel)" Minimum="500" Maximum="28000"
                                              TickFrequency="500" ShowResetButton="True" ResetValue="4000"
                                              Value="{Binding EngageDepth, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Release depth (from the end of travel)" Minimum="1000" Maximum="25000"
+                            <ui:TitledSlider Title="Release depth (from the end of travel)" Minimum="1000" Maximum="30000"
                                              TickFrequency="500" ShowResetButton="True" ResetValue="8000"
                                              Value="{Binding ReleaseDepth, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="Both measure from the ends of travel, so raising them shortens the throw - centre is 32767, and the shift fires once the lever is within the engage depth of a stop. This is also the sequential lever's activation distance: its spring reaches full resistance exactly at the threshold and the click moves with it, so a short throw stays progressive. Keep the release depth 2000-4000 above the engage depth or the re-arm point sits on top of the firing point." />
                             <ui:TitledSlider Title="Neutral detent hysteresis" Minimum="0" Maximum="6000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="400"
                                              Value="{Binding DetentHysteresis, Mode=TwoWay}" />
