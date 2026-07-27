@@ -22,6 +22,23 @@ light — that is the safety cap doing its job, not a tuning problem.
 | Tunnel depth, free corridor | 2600 counts | Where the tunnel's fore/aft centring force begins. Ships equal to the state band, so the tunnel is simply free; dial to zero for the rail gate. Capped at the state band. |
 | Seated hold | 55% | What keeps a gear engaged against the base's own centring. |
 
+## Patterns
+
+The **pattern** lives on the Setup tab, per profile: 7+R (lockout), 6+R (no 7th slot — its divider
+just continues across), 5+R (three wider columns, no lockout), or Sequential. Gears map to vJoy
+buttons 1..N with reverse always the highest (8 / 7 / 6), so rebind in the game when you change
+pattern.
+
+**Sequential** turns the fore/aft axis into a sprung lever: push past the engage threshold and it
+fires one press of button 1 (up) or 2 (down), re-armed when the lever comes home. Its feel is set
+by dials that pull double duty: **detent resist** is the push-out resistance (rises to full at the
+threshold), **detent hold** is what remains past the click, **slot wall** sets the lateral rail,
+and the pulse length sits next to the pattern selector. Swap up/down with **MirrorSlots** (gear
+layout section). The engage/release depths on the Geometry tab set where it fires and re-arms.
+
+Keep one **profile** per pattern you actually use — every dial, the pattern included, is stored
+per profile, so switching is one dropdown.
+
 ## The rail gate recipe
 
 The native shifter mode's topology — one axis guided everywhere, no free 2D space, nothing to

@@ -1,13 +1,20 @@
 # AB9 Active Shifter
 
 A SimHub plugin that turns a **MOZA AB9 force feedback base in flight mode** into a proper
-**7+R H-pattern shifter** — including the **push-through lockout** that the base's own
+**H-pattern shifter** — including the **push-through lockout** that the base's own
 shifter mode does not have — and publishes the selected gear as **vJoy buttons** so any
 game can bind it like a real shifter.
 
 The stick is not read as a joystick. The plugin renders the gate with force feedback:
 walls between the columns, a channel to slide along, a detent that snicks into each slot,
 and a one-way gate guarding 7th and reverse.
+
+Four patterns, selectable per **profile** on the Setup tab: **7+R** (the full gate below),
+**6+R** (the slot where 7 would sit simply does not exist), **5+R** (three wider columns, no
+lockout), and **Sequential** (a sprung fore/aft lever that pulses button 1 for upshift and
+button 2 for downshift). A profile stores every dial together with its pattern, so each
+pattern keeps its own tuning and switching is one dropdown. Gears map to vJoy buttons 1..N
+with reverse as the highest button (8, 7 or 6 depending on the pattern).
 
 ## The gate
 

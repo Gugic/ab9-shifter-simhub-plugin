@@ -1196,7 +1196,7 @@ namespace AB9ActiveShifter.Tests
             EngineConfig cfg = FullGainConfig();
             GateGeometry geo = cfg.BuildGeometry();
 
-            for (int gap = 0; gap < GateGeometry.ColumnCount - 1; gap++)
+            for (int gap = 0; gap < geo.ColumnCount - 1; gap++)
             {
                 int crest = geo.BarrierCentre(gap);
                 int mid = (geo.ColumnTarget((Column)gap) + geo.ColumnTarget((Column)(gap + 1))) / 2;
@@ -2007,10 +2007,122 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(plain.BuildGeometry().ColumnTarget(Column.C1),
                          mirrored.BuildGeometry().ColumnTarget(Column.C1));
 
-            Assert.Equal(1, GateGeometry.GearOf(Column.C1, ShiftDir.Fwd));
-            Assert.Equal(7, GateGeometry.GearOf(Column.C1, ShiftDir.Fwd, mirrorColumns: true));
-            Assert.Equal(8, GateGeometry.GearOf(Column.C1, ShiftDir.Back, mirrorColumns: true));
-            Assert.Equal(2, GateGeometry.GearOf(Column.C1, ShiftDir.Fwd, mirrorSlots: true));
+            Assert.Equal(1, plain.BuildGeometry().GearFor(Column.C1, ShiftDir.Fwd));
+            Assert.Equal(7, mirrored.BuildGeometry().GearFor(Column.C1, ShiftDir.Fwd));
+            Assert.Equal(8, mirrored.BuildGeometry().GearFor(Column.C1, ShiftDir.Back));
+            Assert.Equal(2, new EngineConfig { MirrorSlots = true }.BuildGeometry()
+                                .GearFor(Column.C1, ShiftDir.Fwd));
+        }
+
+        // ---------------------------------------------------------------- patterns
+
+        [Fact]
+        public void EachPatternMapsItsGearsAndNothingElse()
+        {
+            GateGeometry h7r = new EngineConfig { Pattern = GatePattern.H7R }.BuildGeometry();
+            GateGeometry h6r = new EngineConfig { Pattern = GatePattern.H6R }.BuildGeometry();
+            GateGeometry h5r = new EngineConfig { Pattern = GatePattern.H5R }.BuildGeometry();
+
+            // 7+R: four columns, every slot filled, reverse is 8.
+            Assert.Equal(4, h7r.ColumnCount);
+            Assert.Equal(8, h7r.GearFor(Column.C4, ShiftDir.Back));
+            Assert.Equal("R", h7r.LabelFor(8));
+
+            // 6+R: the slot that would hold 7 holds nothing, and reverse compacts to 7 so the
+            // vJoy buttons stay contiguous.
+            Assert.Equal(4, h6r.ColumnCount);
+            Assert.Equal(0, h6r.GearFor(Column.C4, ShiftDir.Fwd));
+            Assert.False(h6r.SlotExists(Column.C4, ShiftDir.Fwd));
+            Assert.Equal(7, h6r.GearFor(Column.C4, ShiftDir.Back));
+            Assert.Equal("R", h6r.LabelFor(7));
+            Assert.Equal("6", h6r.LabelFor(6));
+
+            // 5+R: three columns spread over the full axis, reverse is 6, no lockout. The
+            // middle column rounds to 32768 because full travel is an odd count.
+            Assert.Equal(3, h5r.ColumnCount);
+            Assert.InRange(h5r.ColumnTarget(Column.C2), GateGeometry.AxisCenter, GateGeometry.AxisCenter + 1);
+            Assert.Equal(GateGeometry.AxisMax, h5r.ColumnTarget(Column.C3));
+            Assert.Equal(6, h5r.GearFor(Column.C3, ShiftDir.Back));
+            Assert.Equal("R", h5r.LabelFor(6));
+            Assert.False(h5r.HasLockout);
+        }
+
+        [Fact]
+        public void MirroringMovesTheMissingSlotWithTheGears()
+        {
+            // The hole lives in the gear map, so mirroring the columns puts the missing 7
+            // where the map says it should be, not wherever the device's corner happens to be.
+            GateGeometry mirrored = new EngineConfig
+            {
+                Pattern = GatePattern.H6R,
+                MirrorColumns = true
+            }.BuildGeometry();
+
+            Assert.False(mirrored.SlotExists(Column.C1, ShiftDir.Fwd));
+            Assert.Equal(7, mirrored.GearFor(Column.C1, ShiftDir.Back));
+            Assert.True(mirrored.SlotExists(Column.C4, ShiftDir.Fwd));
+        }
+
+        [Fact]
+        public void AMissingSlotsWallNeverOpens()
+        {
+            // The whole rendering of 6+R's missing 7: the fore/aft wall over the last column
+            // stays closed pushing forward, exactly as strong as squarely between columns,
+            // while pulling back into R opens as usual.
+            EngineConfig cfg = FullGainConfig();
+            cfg.Pattern = GatePattern.H6R;
+            ForceComposer c = Composer(cfg);
+
+            int closed = Math.Abs(Neutral(c, C4, Center - 3200).ConstantY);
+            int between = Math.Abs(Neutral(c, (C2 + C3) / 2, Center - 3200).ConstantY);
+            int open = Math.Abs(Neutral(c, C4, Center + 3200).ConstantY);
+
+            Assert.Equal(between, closed);
+            Assert.True(open < closed / 4,
+                "the R slot should still open: " + open + " vs " + closed);
+        }
+
+        [Fact]
+        public void TheFiveGearGateHasNoLockoutAnywhere()
+        {
+            // No lockout means no displaced crest: every barrier sits at its gap's midpoint,
+            // and no position on the axis feels the one-way toll.
+            EngineConfig cfg = FullGainConfig();
+            cfg.Pattern = GatePattern.H5R;
+            GateGeometry geo = cfg.BuildGeometry();
+
+            for (int gap = 0; gap < geo.ColumnCount - 1; gap++)
+            {
+                int mid = (geo.ColumnTarget((Column)gap) + geo.ColumnTarget((Column)(gap + 1))) / 2;
+                Assert.Equal(mid, geo.BarrierCentre(gap));
+            }
+
+            Assert.False(geo.InLockoutGate(geo.LockoutCentre));
+        }
+
+        [Fact]
+        public void ThePatternsShareTheStateMachineHonestly()
+        {
+            // Pushing into 6+R's missing 7 selects nothing however deep the lever goes, and
+            // the R slot still engages: the map, the walls and the state machine agree.
+            EngineConfig cfg = FullGainConfig();
+            cfg.Pattern = GatePattern.H6R;
+            GateGeometry geo = cfg.BuildGeometry();
+            var sm = new GateStateMachine(geo, cfg.MinEngageTicks);
+
+            sm.Update(C4, Center);
+            sm.Update(C4, 2000);
+            sm.Update(C4, 2000);
+            sm.Update(C4, 2000);
+            Assert.Equal(0, sm.CurrentGear);
+            Assert.Equal(GateState.Neutral, sm.State);
+
+            sm.Update(C4, Center);
+            sm.Update(C4, GateGeometry.AxisMax - 2000);
+            sm.Update(C4, GateGeometry.AxisMax - 2000);
+            sm.Update(C4, GateGeometry.AxisMax - 2000);
+            Assert.Equal(7, sm.CurrentGear);
+            Assert.Equal("R", geo.LabelFor(sm.CurrentGear));
         }
     }
 }

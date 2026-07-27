@@ -8,8 +8,10 @@ using AB9ActiveShifter.Core;
 namespace AB9ActiveShifter.UI
 {
     /// <summary>
-    /// Draws the 7+R gate with the lockout band shaded and the live stick position on top.
-    /// Reads the engine snapshot on a timer; it never touches the device.
+    /// Draws the configured pattern - H columns with any missing slot left blank and the
+    /// lockout band shaded where the geometry actually puts it, or the sequential lever's
+    /// single sprung track - with the live stick position on top. Reads the engine snapshot
+    /// on a timer; it never touches the device.
     /// </summary>
     public sealed class GateVisualizer : FrameworkElement
     {
@@ -31,9 +33,6 @@ namespace AB9ActiveShifter.UI
         private readonly DispatcherTimer _timer;
         private EngineSnapshot _snapshot = new EngineSnapshot();
         private ShifterSettings _settings;
-
-        private static readonly string[] ForwardLabels = { "1", "3", "5", "7" };
-        private static readonly string[] BackLabels = { "2", "4", "6", "R" };
 
         public GateVisualizer()
         {
@@ -81,22 +80,59 @@ namespace AB9ActiveShifter.UI
             double midY = (top + bottom) / 2;
 
             EngineSnapshot snap = _snapshot;
+            GateGeometry geo = _settings != null
+                ? _settings.ToEngineConfig().BuildGeometry()
+                : new EngineConfig().BuildGeometry();
+
+            if (geo.Pattern == GatePattern.Sequential)
+            {
+                // One sprung track: fore/aft only, up a gear away from you, down toward you.
+                double cx = (left + right) / 2;
+                dc.DrawLine(GatePen, new Point(cx, top), new Point(cx, bottom));
+                dc.DrawLine(GatePen, new Point(cx - 18, midY), new Point(cx + 18, midY));
+
+                bool up = snap.GearLabel == "+";
+                bool down = snap.GearLabel == "-";
+                DrawLabel(dc, "+", cx, top - 16, up);
+                DrawLabel(dc, "-", cx, bottom + 4, down);
+
+                DrawStick(dc, snap, left, right, top, bottom);
+                return;
+            }
+
             int activeColumn = snap.Column == Column.None ? -1 : (int)snap.Column;
 
-            DrawLockoutBand(dc, left, right, top, bottom);
+            DrawLockoutBand(dc, geo, left, right, top, bottom);
 
             // Neutral channel.
             dc.DrawLine(GatePen, new Point(left, midY), new Point(right, midY));
 
-            // Column slots, with the engaged one highlighted.
-            for (int i = 0; i < GateGeometry.ColumnCount; i++)
+            // Column slots, with the engaged one highlighted. A slot that holds no gear in
+            // this pattern is not drawn: the column stops at the channel on that side.
+            for (int i = 0; i < geo.ColumnCount; i++)
             {
-                double x = MapX(i * (double)AxisMax / (GateGeometry.ColumnCount - 1), left, right);
+                Column col = (Column)i;
+                double x = MapX(geo.ColumnTarget(col), left, right);
                 bool active = i == activeColumn && snap.Gear > 0;
-                dc.DrawLine(active ? ActivePen : GatePen, new Point(x, top), new Point(x, bottom));
+                Pen pen = active ? ActivePen : GatePen;
 
-                DrawLabel(dc, ForwardLabels[i], x, top - 16, IsGearLit(snap, i, ShiftDir.Fwd));
-                DrawLabel(dc, BackLabels[i], x, bottom + 4, IsGearLit(snap, i, ShiftDir.Back));
+                bool fwd = geo.SlotExists(col, ShiftDir.Fwd);
+                bool back = geo.SlotExists(col, ShiftDir.Back);
+
+                if (fwd) dc.DrawLine(pen, new Point(x, top), new Point(x, midY));
+                if (back) dc.DrawLine(pen, new Point(x, midY), new Point(x, bottom));
+
+                if (fwd)
+                {
+                    int gear = geo.GearFor(col, ShiftDir.Fwd);
+                    DrawLabel(dc, geo.LabelFor(gear), x, top - 16, snap.Gear > 0 && snap.Gear == gear);
+                }
+
+                if (back)
+                {
+                    int gear = geo.GearFor(col, ShiftDir.Back);
+                    DrawLabel(dc, geo.LabelFor(gear), x, bottom + 4, snap.Gear > 0 && snap.Gear == gear);
+                }
             }
 
             DrawStick(dc, snap, left, right, top, bottom);
@@ -107,11 +143,10 @@ namespace AB9ActiveShifter.UI
         /// to shade. The gate positions itself from the gate geometry, so asking the geometry is
         /// the only way for the drawing to stay honest when its width or the layout changes.
         /// </summary>
-        private void DrawLockoutBand(DrawingContext dc, double left, double right, double top, double bottom)
+        private void DrawLockoutBand(DrawingContext dc, GateGeometry geo, double left, double right, double top, double bottom)
         {
-            if (_settings == null) return;
+            if (!geo.HasLockout) return;
 
-            GateGeometry geo = _settings.ToEngineConfig().BuildGeometry();
             double from = MapX(geo.LockoutCentre - geo.LockoutHalfWidth, left, right);
             double to = MapX(geo.LockoutCentre + geo.LockoutHalfWidth, left, right);
             if (to <= left || from >= right) return;
@@ -136,14 +171,6 @@ namespace AB9ActiveShifter.UI
             string label = live ? snap.GearLabel : "--";
             FormattedText gear = Text(label, 30, snap.Gear > 0 ? ActiveBrush : LabelBrush, true);
             dc.DrawText(gear, new Point(right - gear.Width, top + 2));
-        }
-
-        private bool IsGearLit(EngineSnapshot snap, int columnIndex, ShiftDir dir)
-        {
-            bool mirrorColumns = _settings != null && _settings.MirrorColumns;
-            bool mirrorSlots = _settings != null && _settings.MirrorSlots;
-            return snap.Gear > 0 &&
-                   snap.Gear == GateGeometry.GearOf((Column)columnIndex, dir, mirrorColumns, mirrorSlots);
         }
 
         private void DrawLabel(DrawingContext dc, string text, double centerX, double y, bool lit)

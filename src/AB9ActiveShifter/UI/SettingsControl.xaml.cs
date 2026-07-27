@@ -29,22 +29,49 @@ namespace AB9ActiveShifter.UI
             Unloaded += OnUnloaded;
         }
 
+        private ShifterSettings _boundSettings;
+        private bool _refreshingProfiles;
+
         public SettingsControl(AB9ShifterPlugin plugin) : this()
         {
             Plugin = plugin;
 
-            DataContext = plugin.Settings;
             StatusPanel.DataContext = _status;
             ReadingsPanel.DataContext = _status;
-            Visualizer.Attach(plugin.Settings);
 
-            plugin.Settings.PropertyChanged += OnSettingsChanged;
+            BindActiveProfile();
+            RefreshProfiles();
+
+            plugin.ProfileChanged += OnProfileChanged;
+        }
+
+        /// <summary>Points every binding at the plugin's current settings object.</summary>
+        private void BindActiveProfile()
+        {
+            if (_boundSettings != null) _boundSettings.PropertyChanged -= OnSettingsChanged;
+
+            _boundSettings = Plugin != null ? Plugin.Settings : null;
+            DataContext = _boundSettings;
+
+            if (_boundSettings != null)
+            {
+                _boundSettings.PropertyChanged += OnSettingsChanged;
+                Visualizer.Attach(_boundSettings);
+            }
+        }
+
+        private void OnProfileChanged()
+        {
+            BindActiveProfile();
+            RefreshProfiles();
+            RefreshLockoutSummary();
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
             RefreshStatus();
             RefreshLockoutSummary();
+            RefreshProfiles();
             _timer.Start();
         }
 
@@ -52,10 +79,76 @@ namespace AB9ActiveShifter.UI
         {
             _timer.Stop();
 
-            if (Plugin != null && Plugin.Settings != null)
+            if (_boundSettings != null)
             {
-                Plugin.Settings.PropertyChanged -= OnSettingsChanged;
+                _boundSettings.PropertyChanged -= OnSettingsChanged;
+                _boundSettings = null;
             }
+
+            if (Plugin != null) Plugin.ProfileChanged -= OnProfileChanged;
+        }
+
+        private void RefreshProfiles()
+        {
+            if (Plugin == null || Plugin.Store == null || Plugin.Store.Profiles == null || ProfileCombo == null) return;
+
+            _refreshingProfiles = true;
+            try
+            {
+                ProfileCombo.Items.Clear();
+                foreach (ShifterProfile p in Plugin.Store.Profiles)
+                {
+                    if (p != null) ProfileCombo.Items.Add(p.Name);
+                }
+                ProfileCombo.SelectedItem = Plugin.Store.ActiveProfile;
+                ProfileCombo.Text = Plugin.Store.ActiveProfile;
+            }
+            finally
+            {
+                _refreshingProfiles = false;
+            }
+        }
+
+        private void OnProfileSelected(object sender, SelectionChangedEventArgs e)
+        {
+            if (_refreshingProfiles || Plugin == null || Plugin.Store == null) return;
+
+            string name = ProfileCombo.SelectedItem as string;
+            if (!string.IsNullOrEmpty(name) && name != Plugin.Store.ActiveProfile)
+            {
+                Plugin.ActivateProfile(name);
+            }
+        }
+
+        private void OnAddProfile(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || Plugin.Store == null) return;
+            Plugin.AddProfileFromCurrent(Plugin.Store.ActiveProfile + " copy");
+        }
+
+        private void OnRenameProfile(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || ProfileCombo == null) return;
+            Plugin.RenameActiveProfile(ProfileCombo.Text);
+        }
+
+        private void OnDeleteProfile(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || Plugin.Store == null ||
+                Plugin.Store.Profiles == null || Plugin.Store.Profiles.Count <= 1)
+            {
+                return;
+            }
+
+            if (MessageBox.Show(
+                    "Delete profile '" + Plugin.Store.ActiveProfile + "'?",
+                    "AB9 Active Shifter", MessageBoxButton.OKCancel, MessageBoxImage.Question)
+                != MessageBoxResult.OK)
+            {
+                return;
+            }
+
+            Plugin.DeleteActiveProfile();
         }
 
         private void OnSettingsChanged(object sender, PropertyChangedEventArgs e)

@@ -3,8 +3,13 @@ using System;
 namespace AB9ActiveShifter.Core
 {
     /// <summary>
-    /// Pure geometry of the 7+R gate: where the columns are, how wide the bands are, and
+    /// Pure geometry of the H gate: where the columns are, how wide the bands are, and
     /// the hysteresis pairs that keep the state machine from chattering on a boundary.
+    ///
+    /// The pattern decides how many columns there are and which slots hold a gear. A missing
+    /// slot is expressed through the gear map - <see cref="GearFor"/> returns 0 for it - so
+    /// <see cref="SlotExists"/> follows the map, and the mirror flags move the hole with the
+    /// gears rather than leaving it pinned to a device corner.
     ///
     /// Axis units are raw DirectInput 0..65535 with 32767 at centre. X grows to the right,
     /// Y grows toward the player (so a gear at low Y is "forward").
@@ -14,10 +19,20 @@ namespace AB9ActiveShifter.Core
         public const int AxisMin = 0;
         public const int AxisMax = 65535;
         public const int AxisCenter = 32767;
-        public const int ColumnCount = 4;
 
         /// <summary>Full-scale force in DirectInput units.</summary>
         public const int ForceMax = 10000;
+
+        public GatePattern Pattern { get; private set; }
+
+        /// <summary>How many columns this pattern has. Three for 5+R, four otherwise.</summary>
+        public int ColumnCount { get; private set; }
+
+        /// <summary>The gear number labelled R - always the pattern's highest gear.</summary>
+        public int ReverseGear { get; private set; }
+
+        /// <summary>Whether this pattern has a push-through gate before its last column.</summary>
+        public bool HasLockout { get; private set; }
 
         private readonly int[] _targets;
 
@@ -50,7 +65,7 @@ namespace AB9ActiveShifter.Core
         /// <summary>Distance between adjacent columns.</summary>
         public int ColumnSpacing { get { return AxisMax / (ColumnCount - 1); } }
 
-        /// <summary>Gear layout preference; see <see cref="GearOf(Column, ShiftDir)"/>.</summary>
+        /// <summary>Gear layout preference; see <see cref="GearFor(Column, ShiftDir)"/>.</summary>
         public bool MirrorColumns { get; private set; }
 
         public bool MirrorSlots { get; private set; }
@@ -67,8 +82,17 @@ namespace AB9ActiveShifter.Core
             int lockoutHalfWidth,
             int detentHysteresis,
             bool mirrorColumns = false,
-            bool mirrorSlots = false)
+            bool mirrorSlots = false,
+            GatePattern pattern = GatePattern.H7R)
         {
+            Pattern = pattern;
+            ColumnCount = pattern == GatePattern.H5R ? 3 : 4;
+            ReverseGear = pattern == GatePattern.H5R ? 6 : (pattern == GatePattern.H6R ? 7 : 8);
+
+            // 5+R has no lockout by design, and Sequential has no gate at all; the geometry
+            // stays well-formed either way so nothing downstream needs a null check.
+            HasLockout = pattern == GatePattern.H7R || pattern == GatePattern.H6R;
+
             MirrorColumns = mirrorColumns;
             MirrorSlots = mirrorSlots;
 
@@ -96,11 +120,22 @@ namespace AB9ActiveShifter.Core
 
         /// <summary>
         /// Positions the lockout gate against the last main-section column, and clamps its width
-        /// to the room actually available between that column's band and the 7/R column's, so an
-        /// extreme setting cannot swallow either.
+        /// to the room actually available between that column's band and the reverse column's, so
+        /// an extreme setting cannot swallow either. A pattern without a lockout gets no gap at
+        /// all: every barrier crest is its gap's midpoint, so the watershed and handover windows
+        /// sit where the geometry says they should instead of being displaced by a gate that
+        /// exerts nothing.
         /// </summary>
         private void PlaceLockout(int requestedHalfWidth)
         {
+            if (!HasLockout)
+            {
+                LockoutGapIndex = -1;
+                LockoutHalfWidth = 0;
+                LockoutCentre = (_targets[ColumnCount - 2] + _targets[ColumnCount - 1]) / 2;
+                return;
+            }
+
             LockoutGapIndex = MirrorColumns ? 0 : ColumnCount - 2;
 
             Column main = (Column)(MirrorColumns ? 1 : ColumnCount - 2);
@@ -148,9 +183,13 @@ namespace AB9ActiveShifter.Core
         public Column ColumnAt(int x)
         {
             if (x <= ColumnEdgeEnter) return Column.C1;
-            if (x >= AxisMax - ColumnEdgeEnter) return Column.C4;
-            if (Math.Abs(x - _targets[1]) <= ColumnInnerHalfEnter) return Column.C2;
-            if (Math.Abs(x - _targets[2]) <= ColumnInnerHalfEnter) return Column.C3;
+            if (x >= AxisMax - ColumnEdgeEnter) return (Column)(ColumnCount - 1);
+
+            for (int i = 1; i < ColumnCount - 1; i++)
+            {
+                if (Math.Abs(x - _targets[i]) <= ColumnInnerHalfEnter) return (Column)i;
+            }
+
             return Column.None;
         }
 
@@ -194,7 +233,7 @@ namespace AB9ActiveShifter.Core
         /// <summary>Whether x is inside the lockout gate's band, where its force acts.</summary>
         public bool InLockoutGate(int x)
         {
-            return Math.Abs(x - LockoutCentre) <= LockoutHalfWidth;
+            return HasLockout && Math.Abs(x - LockoutCentre) <= LockoutHalfWidth;
         }
 
         /// <summary>
@@ -256,7 +295,13 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int ColumnFreeHalfWidth(Column c)
         {
-            return (c == Column.C1 || c == Column.C4) ? ColumnEdgeEnter : ColumnInnerHalfEnter;
+            return IsEdgeColumn(c) ? ColumnEdgeEnter : ColumnInnerHalfEnter;
+        }
+
+        /// <summary>First and last columns sit at the ends of travel and get the edge bands.</summary>
+        private bool IsEdgeColumn(Column c)
+        {
+            return (int)c == 0 || (int)c == ColumnCount - 1;
         }
 
         /// <summary>
@@ -267,17 +312,22 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int ColumnExitHalfWidth(Column c)
         {
-            return (c == Column.C1 || c == Column.C4) ? ColumnEdgeExit : ColumnInnerHalfExit;
+            return IsEdgeColumn(c) ? ColumnEdgeExit : ColumnInnerHalfExit;
         }
 
         /// <summary>
-        /// How strongly the gate should resist fore/aft movement at this lateral position:
-        /// 0 when lined up with a column, where a gear can be taken, rising to 1 squarely
-        /// between columns, where the stick must stay in the neutral channel. Blended over
-        /// blendWidth counts so the wall arrives smoothly rather than snapping on at a band
-        /// edge.
+        /// How strongly the gate should resist fore/aft movement at this lateral position and
+        /// push direction: 0 when lined up with a column whose slot holds a gear that way,
+        /// rising to 1 squarely between columns. Blended over blendWidth counts so the wall
+        /// arrives smoothly rather than snapping on at a band edge.
+        ///
+        /// A column with no gear in the push direction never opens: its factor is 1 however
+        /// well lined up the lever is, which is the entire rendering of a missing slot - the
+        /// divider simply continues across where the mouth would have been. Keying on direction
+        /// is safe because the fore/aft force crosses zero at the channel centre, so the switch
+        /// between the two directions' factors happens where there is no force to step.
         /// </summary>
-        public double ChannelBlockFactor(int x, int blendWidth)
+        public double ChannelBlockFactor(int x, int blendWidth, ShiftDir dir)
         {
             Column nearest = Column.C1;
             int bestDist = int.MaxValue;
@@ -291,6 +341,8 @@ namespace AB9ActiveShifter.Core
                     nearest = (Column)i;
                 }
             }
+
+            if (!SlotExists(nearest, dir)) return 1.0;
 
             int free = ColumnFreeHalfWidth(nearest);
             if (bestDist <= free) return 0.0;
@@ -435,27 +487,39 @@ namespace AB9ActiveShifter.Core
         /// here, to the labels, rather than to the axis readings - the readings have to stay in the
         /// device's own coordinates because spring anchors are sent back to it in those same
         /// coordinates, and mirroring those would turn the gate springs into repellers.
+        ///
+        /// Returns 0 for a slot that holds no gear in this pattern. That single fact is what a
+        /// "missing slot" IS: 6+R is the four-column map with the slot that would hold 7 mapped
+        /// to nothing and reverse compacted down to 7, so the buttons stay contiguous. Because
+        /// the hole lives in the map, the mirror flags relocate it along with every other gear.
         /// </summary>
-        public static int GearOf(Column c, ShiftDir dir, bool mirrorColumns = false, bool mirrorSlots = false)
-        {
-            if (c == Column.None || dir == ShiftDir.None) return 0;
-
-            int column = mirrorColumns ? (ColumnCount - 1 - (int)c) : (int)c;
-            bool forward = mirrorSlots ? dir == ShiftDir.Back : dir == ShiftDir.Fwd;
-
-            return column * 2 + (forward ? 1 : 2);
-        }
-
         public int GearFor(Column c, ShiftDir dir)
         {
-            return GearOf(c, dir, MirrorColumns, MirrorSlots);
+            if (c == Column.None || dir == ShiftDir.None || (int)c >= ColumnCount) return 0;
+
+            int column = MirrorColumns ? (ColumnCount - 1 - (int)c) : (int)c;
+            bool forward = MirrorSlots ? dir == ShiftDir.Back : dir == ShiftDir.Fwd;
+            int raw = column * 2 + (forward ? 1 : 2);
+
+            if (Pattern == GatePattern.H6R)
+            {
+                if (raw == 7) return 0;
+                if (raw == 8) return 7;
+            }
+
+            return raw;
         }
 
-        public static string GearLabel(int gear)
+        /// <summary>Whether this slot holds a gear. A missing slot's mouth never opens.</summary>
+        public bool SlotExists(Column c, ShiftDir dir)
+        {
+            return GearFor(c, dir) > 0;
+        }
+
+        public string LabelFor(int gear)
         {
             if (gear <= 0) return "N";
-            if (gear >= 8) return "R";
-            return gear.ToString();
+            return gear == ReverseGear ? "R" : gear.ToString();
         }
     }
 }

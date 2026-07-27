@@ -237,25 +237,92 @@ namespace AB9ActiveShifter.Core
                 ? ComposeNeutral(x, y)
                 : ComposeInColumn(column, direction, x, y);
 
-            int boundedX = Yield(frame.ConstantX, vx, _yieldFloor, ref _yieldScaleX, dtMs);
-            int boundedY = Yield(
-                frame.ConstantY, vy,
-                state == GateState.Neutral ? _yieldFloor : _snickFloor,
-                ref _yieldScaleY, dtMs);
+            // The slot detent is the one force not shaped in time: the snick is a deliberate
+            // transient, over in a few milliseconds by design, and it has to arrive whole to
+            // read as a mechanism seating rather than a soft nudge. It also gets the milder
+            // rebound floor, because it is supposed to do positive work.
+            return Bound(frame, vx, vy, dtMs,
+                         state == GateState.Neutral ? _yieldFloor : _snickFloor,
+                         shapeY: state == GateState.Neutral);
+        }
 
-            // Everything the hand can lean against is shaped in time, including the lockout. It
-            // was exempted at first on the theory that slewing a crossing hands a fast flick a
-            // discount, but the arithmetic does not support that: the lockout band is thousands
-            // of counts wide, so even a violent flick spends tens of milliseconds inside it while
-            // the attack lasts fifteen or twenty. What the exemption did buy was the one force in
-            // the gate still arriving raw - so the lockout rejected the lever hard where every
-            // wall had learned not to, and rang.
-            //
-            // The slot detent is the exception that remains. The snick is a deliberate transient,
-            // over in a few milliseconds by design, and it has to arrive whole to read as a
-            // mechanism seating rather than a soft nudge.
+        /// <summary>
+        /// Forces for one sequential tick: the lever railed to the lateral centre and sprung
+        /// back to the fore/aft centre, with a click at each shift threshold. No gate, no
+        /// columns, no lockout - but the same stabiliser pipeline, and the measured polarity
+        /// signs applied once at the same single place.
+        /// </summary>
+        public ForceFrame ComposeSequential(int x, int y, int vx = 0, int vy = 0, double dtMs = 0)
+        {
+            if (_freeStick)
+            {
+                _shapedX = 0;
+                _shapedY = 0;
+                _yieldScaleX = 1.0;
+                _yieldScaleY = 1.0;
+                _guideColumn = Column.None;
+                return FreeFrame();
+            }
+
+            ForceFrame frame = new ForceFrame
+            {
+                SpringX = SpringPreset.Off,
+                SpringY = SpringPreset.Off
+            };
+
+            // The lateral rail, at the wall's own stiffness: face derived from the plateau so
+            // the one-stiffness rule holds here too.
+            int face = GuideFace(_columnPinForce, 0);
+            frame.ConstantX = Saturating(x - GateGeometry.AxisCenter, _columnPinForce, face, 0);
+
+            frame.ConstantY = SequentialSpring(y);
+
+            // The return spring keeps the snick's floor: pulling the lever home is its job, so
+            // absorbing that assist would leave the lever limp on the way back. The click is a
+            // drop and passes the time shaping instantly; the build-up on the way out is slewed
+            // like any other wall.
+            return Bound(frame, vx, vy, dtMs, _snickFloor, shapeY: true);
+        }
+
+        /// <summary>
+        /// The sequential lever's fore/aft force: rises linearly from nothing at centre to the
+        /// full resist at the shift threshold, then drops to the lighter hold - the click - and
+        /// stays there to the end of travel. Always toward centre, never over-centre: a
+        /// sequential lever must come home on release, which is also why the force is a shallow
+        /// gradient by construction (full resist over the whole engage span) rather than a wall.
+        /// </summary>
+        private int SequentialSpring(int y)
+        {
+            ShiftDir dir = _geo.DirectionOf(y);
+            double frac = _geo.EngageFraction(dir, y);
+
+            double magnitude = frac >= 1.0 ? _detentHold : _detentResistMax * frac;
+            int force = (int)Math.Round(magnitude);
+
+            // Fwd is low y; the restoring push is toward +y, and vice versa.
+            return dir == ShiftDir.Fwd ? force : -force;
+        }
+
+        /// <summary>
+        /// The shared back half of every composition: rebound yield, time shaping, damping, and
+        /// the measured polarity signs applied once at the very end - the one place in the gate
+        /// they are allowed to appear.
+        ///
+        /// Everything the hand can lean against is shaped in time, including the lockout. It
+        /// was exempted at first on the theory that slewing a crossing hands a fast flick a
+        /// discount, but the arithmetic does not support that: the lockout band is thousands
+        /// of counts wide, so even a violent flick spends tens of milliseconds inside it while
+        /// the attack lasts fifteen or twenty. What the exemption did buy was the one force in
+        /// the gate still arriving raw - so the lockout rejected the lever hard where every
+        /// wall had learned not to, and rang.
+        /// </summary>
+        private ForceFrame Bound(ForceFrame frame, int vx, int vy, double dtMs, double floorY, bool shapeY)
+        {
+            int boundedX = Yield(frame.ConstantX, vx, _yieldFloor, ref _yieldScaleX, dtMs);
+            int boundedY = Yield(frame.ConstantY, vy, floorY, ref _yieldScaleY, dtMs);
+
             boundedX = ShapeInTime(ref _shapedX, boundedX, vx, dtMs);
-            boundedY = state == GateState.Neutral
+            boundedY = shapeY
                 ? ShapeInTime(ref _shapedY, boundedY, vy, dtMs)
                 : Track(ref _shapedY, boundedY);
 
@@ -464,6 +531,11 @@ namespace AB9ActiveShifter.Core
         {
             if (_mouthOpening <= 0 || offset == 0) return 0;
 
+            // A slot that holds no gear has no mouth to shape - the divider runs straight
+            // across it, and widening the corridor there would carve an entry into a wall
+            // the state machine will never open.
+            if (!_geo.SlotExists(_guideColumn, _geo.DirectionOf(y))) return 0;
+
             int side = offset > 0 ? 1 : -1;
             int reach = Math.Max(1, _cfg.MouthDepth);
             int into = depth - _geo.ChannelHalfEnter;
@@ -597,7 +669,7 @@ namespace AB9ActiveShifter.Core
             // clamped to it from above: past the enter band the lever is leaving the tunnel, so a
             // force deadband wider than that would mean walls the state machine believes exist
             // and the hand never meets.
-            double block = _geo.ChannelBlockFactor(x, _cfg.WallBlend);
+            double block = _geo.ChannelBlockFactor(x, _cfg.WallBlend, _geo.DirectionOf(y));
             int plateau = (int)Math.Round(_channelGuideForce + (_channelWallForce - _channelGuideForce) * block);
 
             f.ConstantY = Saturating(
@@ -681,7 +753,7 @@ namespace AB9ActiveShifter.Core
         {
             int total = 0;
 
-            for (int i = 0; i < GateGeometry.ColumnCount - 1; i++)
+            for (int i = 0; i < _geo.ColumnCount - 1; i++)
             {
                 // Both the gate's position and which gap it guards come from the geometry, which
                 // places it against the main section and follows the mirrored gear map.

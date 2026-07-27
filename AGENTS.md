@@ -1,8 +1,10 @@
 # AB9 Active Shifter — working notes for agents
 
-A SimHub plugin that turns a **MOZA AB9 flight base** into a **7+R H-pattern shifter** with a
-push-through lockout. It renders the gate with DirectInput force feedback, detects the slotted
-gear from stick position, and holds a vJoy button per gear so any game sees a normal shifter.
+A SimHub plugin that turns a **MOZA AB9 flight base** into an **H-pattern shifter** (7+R with a
+push-through lockout, 6+R with no 7th slot, 5+R) or a **sequential lever**, selectable per named
+profile. It renders the gate with DirectInput force feedback, detects the slotted gear from stick
+position, and holds a vJoy button per gear (or pulses up/down buttons in sequential) so any game
+sees a normal shifter.
 
 This file is the orientation. The four documents under `docs/` hold the detail:
 
@@ -33,7 +35,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-146 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
+159 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
 on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
 Deploy needs SimHub stopped, because it locks the DLL:
@@ -64,12 +66,14 @@ is normal — something else grabbed the device briefly.
 ```
 src/AB9ActiveShifter/
   AB9ShifterPlugin.cs      SimHub shell: IPlugin/IDataPlugin/IWPFSettingsV2/IReusable,
-                           properties, events, actions, settings load/save
+                           properties, events, actions, profile management, settings load/save
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
+  ShifterProfiles.cs       ProfileStore (named settings + active), legacy migration, cloning
   Core/                    Pure, no I/O, fully unit-tested
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
     GateGeometry.cs        Column targets, hysteresis bands, gear map, unit conversions
     GateStateMachine.cs    Neutral / Traveling / Engaged with hysteresis and resync
+    SequentialStateMachine.cs One shift per stroke, engage/release hysteresis, resync
     ForceComposer.cs       The gate itself: position+velocity -> forces. The heart.
     PolarityCalibrator.cs  Measures effect polarity on hardware
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
@@ -86,6 +90,7 @@ tests/AB9ActiveShifter.Tests/
   GateStateMachineTests.cs Transitions, hysteresis, lockout traces
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
   VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
+  SequentialTests.cs       One-shift-per-stroke, re-arm, mirror, spring shape and click
 ```
 
 `Core/` stays free of I/O deliberately: the vJoy wrapper is a 32-bit native DLL that test
@@ -130,6 +135,12 @@ runners cannot load, so anything worth testing must not touch it.
 - Positions stay in **device coordinates end to end.** Layout preferences (`MirrorColumns`,
   `MirrorSlots`) relabel the *gear map* only. Mirroring the readings instead would put every
   force anchor on the wrong side of the gate and turn holds into repellers.
+- **A missing slot is a fact of the gear map, nowhere else.** `GearFor` returns 0 for it,
+  `SlotExists` follows the map, and everything derives from that one answer: the wall over it
+  never opens (the block factor is direction-keyed, safe only because the fore/aft force crosses
+  zero at the channel centre), the mouth shaping skips it, and the state machine refuses to latch
+  it. Because the hole lives in the map, mirroring relocates it with the gears. Do not encode a
+  missing slot anywhere as a position — it would stay behind when the layout flips.
 - **A latched gear is released only by returning through the neutral channel — absolutely.** No
   lateral distance changes or drops it, and there is deliberately no fault threshold. Force cannot
   enforce a gate: a hand beats 12 Nm, so any distance at which the latch gave way would be a
@@ -186,7 +197,10 @@ runners cannot load, so anything worth testing must not touch it.
 **Safety ordering**
 
 - Gear change: **buttons before forces.** A game must see the gear at least as early as the hand
-  feels it.
+  feels it. Sequential pulses obey the same order, and re-firing a button that is still down
+  inserts a ≥20 ms released gap first — an off-and-on inside one tick reads to a game's input
+  poll as one continuous press. A pattern or profile switch clears any pulse in flight along
+  with the held gear.
 - Shutdown, device loss, disable, `FinalizePlugin`: **buttons off → stop forces → unacquire**, in
   that order, always. A gear must never stay stuck down.
 - The watchdog (500 ms timer, 1 s staleness) calls `EmergencyStop`. `StopForces` is the only

@@ -46,6 +46,8 @@ namespace AB9ActiveShifter
         private int _wallBlend = 1500;
         private int _slotHalfWidth = 1100;
         private int _channelFreeDepth = 2600;
+        private GatePattern _pattern = GatePattern.H7R;
+        private int _seqPulseMs = 120;
         private int _dampingPct = 25;
         private int _wallYieldPct = 45;
         private int _damperCoeff = 800;
@@ -146,6 +148,19 @@ namespace AB9ActiveShifter
         /// <summary>Free fore/aft depth of the neutral tunnel before its centring begins. Zero rails the tunnel.</summary>
         public int ChannelFreeDepth { get { return _channelFreeDepth; } set { Set(ref _channelFreeDepth, value); } }
 
+        /// <summary>Which shift pattern this profile renders.</summary>
+        public GatePattern Pattern { get { return _pattern; } set { Set(ref _pattern, value); } }
+
+        /// <summary>Exposes the pattern as an index for the XAML combo box.</summary>
+        public int PatternIndex
+        {
+            get { return (int)_pattern; }
+            set { Pattern = (GatePattern)value; }
+        }
+
+        /// <summary>How long a sequential shift holds its button, in milliseconds.</summary>
+        public int SeqPulseMs { get { return _seqPulseMs; } set { Set(ref _seqPulseMs, value); } }
+
         /// <summary>Velocity damping. This, not the device damper, is what settles a stiff wall.</summary>
         public int DampingPct { get { return _dampingPct; } set { Set(ref _dampingPct, value); } }
 
@@ -213,6 +228,8 @@ namespace AB9ActiveShifter
                 WallBlend = WallBlend,
                 SlotHalfWidth = SlotHalfWidth,
                 ChannelFreeDepth = ChannelFreeDepth,
+                Pattern = Pattern,
+                SeqPulseMs = SeqPulseMs,
                 DamperCoeff = DamperCoeff,
                 DetentResistPct = DetentResistPct,
                 DetentPullPct = DetentPullPct,
@@ -260,6 +277,7 @@ namespace AB9ActiveShifter
                 WallBlend = d.WallBlend;
                 SlotHalfWidth = d.SlotHalfWidth;
                 ChannelFreeDepth = d.ChannelFreeDepth;
+                SeqPulseMs = d.SeqPulseMs;
                 DamperCoeff = d.DamperCoeff;
                 DetentResistPct = d.DetentResistPct;
                 DetentPullPct = d.DetentPullPct;

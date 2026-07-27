@@ -20,6 +20,21 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int TickHz = 1000;
 
+        /// <summary>
+        /// Which shift pattern to render. The H patterns share the gate engine and differ only
+        /// in geometry (column count, which slots hold gears, whether a lockout exists);
+        /// Sequential replaces the gate with a sprung fore/aft lever that pulses up/down
+        /// buttons. See <see cref="GatePattern"/>.
+        /// </summary>
+        public GatePattern Pattern = GatePattern.H7R;
+
+        /// <summary>
+        /// How long a sequential shift holds its vJoy button down, in milliseconds. Long
+        /// enough for a game polling at 60 Hz to see it several times; short enough that
+        /// banging through gears releases each press before the next stroke fires.
+        /// </summary>
+        public int SeqPulseMs = 120;
+
         // Firmware effect polarity, measured per axis and per effect family. The AB9 does not
         // treat them alike - constant force and spring can disagree on the same axis - so these
         // are four independent facts, not one.
@@ -336,7 +351,8 @@ namespace AB9ActiveShifter.Core
                 LockoutHalfWidth,
                 DetentHysteresis,
                 MirrorColumns,
-                MirrorSlots);
+                MirrorSlots,
+                Pattern);
         }
     }
 }
