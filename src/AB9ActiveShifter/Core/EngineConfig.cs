@@ -35,6 +35,24 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int SeqPulseMs = 120;
 
+        /// <summary>
+        /// How much stroke remains past the sequential click before the end-stop wall begins,
+        /// in axis counts. Measured from the firing point, so shortening the throw with
+        /// EngageDepth moves the whole stroke together: centre to click, this much landing,
+        /// then the wall. Without the stop the lever sailed on to the hardware stop through
+        /// twenty thousand counts of nothing, which is what made the stroke feel endless.
+        /// </summary>
+        public int SeqOvertravel = 2500;
+
+        /// <summary>
+        /// The end-stop wall at the bottom of a sequential stroke, as a percentage of full
+        /// scale. Rises over the wall bite past the overtravel, on top of the click's hold,
+        /// and always toward centre - a wall, not a pocket, so releasing anywhere still
+        /// returns the lever home. It gets the walls' full rebound absorption rather than
+        /// the return spring's mild one, because banging shifts against it is its job.
+        /// </summary>
+        public int SeqStopForcePct = 90;
+
         // Firmware effect polarity, measured per axis and per effect family. The AB9 does not
         // treat them alike - constant force and spring can disagree on the same axis - so these
         // are four independent facts, not one.

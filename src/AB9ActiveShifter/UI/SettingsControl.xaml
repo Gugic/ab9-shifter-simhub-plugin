@@ -174,22 +174,28 @@
 
                             <ui:TitledSlider Title="Gate wall, between columns (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="90"
+                                             Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding ChannelWallForcePct, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Slot wall, once in a gear (%)" Minimum="0" Maximum="100"
+                            <ui:TitledSlider Title="Slot wall / lateral rail (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="90"
                                              Value="{Binding ColumnPinForcePct, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Slot width, free corridor (axis counts)" Minimum="0" Maximum="2400"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="1100"
+                                             Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding SlotHalfWidth, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
                                        Text="A slot is a corridor with walls, not a pull toward its centre line. If a middle gear shakes while seated, widen this: a narrow corridor leaves the stick balanced on a point it can hunt around. The outer gears never shake because their wall only pushes one way, against the end of travel. Zero is the rail gate: the lever pulled straight onto the column line, like the native shifter mode - stable only with a moderate slot wall, so if a railed gear trembles, lower the wall force first." />
                             <ui:TitledSlider Title="Tunnel depth, free corridor (axis counts)" Minimum="0" Maximum="4000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2600"
+                                             Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding ChannelFreeDepth, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
                                        Text="The fore/aft twin of the slot width: how deep the tunnel stays free before its centring force begins. Zero closes the last free space in the gate, so the lever is guided on exactly one axis everywhere - together with zero slot width this is the native shifter-mode topology. Values above the neutral channel enter band are capped to it." />
                             <ui:TitledSlider Title="Fore/aft drag while on a column (%)" Minimum="0" Maximum="40"
                                              TickFrequency="1" ShowResetButton="True" ResetValue="5"
+                                             Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding ChannelGuideForcePct, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Wall bite distance (axis counts)" Minimum="60" Maximum="6000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="600"
@@ -205,6 +211,20 @@
                                              Value="{Binding DampingPct, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
                                        Text="A wall is flat past its bite, so the bite is where all trouble lives. Too short and it is a step - contact kicks, and a light press vibrates against it; too long and the wall goes spongy and can buzz. Raise the bite until the vibration stops, and no further. Wall attack is a second dial in time instead of space: force builds over these milliseconds on contact, releases instantly, and freezes while you press and hold still. Try 10-25 if short bites kick or corners hammer. Rebound absorption drains what a bounce returns; damping thickens the lever but cannot fix a buzz alone. The attack shapes walls only - the lockout, humps and detents stay sharp so speed cannot slip past them." />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="SEQUENTIAL STROKE" ShowSeparator="True"
+                                      Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Margin="0,4,0,8">
+                            <ui:TitledSlider Title="Stroke past the click (axis counts)" Minimum="500" Maximum="10000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="2500"
+                                             Value="{Binding SeqOvertravel, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="End-stop wall (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="90"
+                                             Value="{Binding SeqStopForcePct, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="The whole stroke, in order: centre to the firing point (engage depth, on the Geometry tab - raise it to shorten), this much landing past the click, then the end-stop wall rising over the wall bite. The stop is measured from the firing point, so shortening the throw moves everything together. It is a wall toward centre, not a pocket: release the lever anywhere and it still comes home." />
                         </StackPanel>
                     </styles:SHSection>
 

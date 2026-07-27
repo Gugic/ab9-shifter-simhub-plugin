@@ -38,7 +38,10 @@ layout section). The engage/release depths on the Geometry tab set where it fire
 they measure from the **ends of travel**, so raising them shortens the throw (engage 26000 fires
 about 6800 counts from centre). The spring reaches full resistance exactly at the threshold and
 the click moves with it, so a short throw stays progressive rather than becoming a wall. Keep the
-release depth a couple of thousand counts above the engage depth for a clean re-arm.
+release depth a couple of thousand counts above the engage depth for a clean re-arm. The stroke
+also has its own bottom: a **sequential stroke** section (Feel tab, sequential only) sets how much
+landing remains past the click and the end-stop wall behind it, both measured from the firing
+point so the whole stroke shortens as one thing.
 
 Keep one **profile** per pattern you actually use — every dial, the pattern included, is stored
 per profile, so switching is one dropdown.

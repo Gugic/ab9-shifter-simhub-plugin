@@ -146,6 +146,46 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void TheStrokeEndsAtAWallNotAtTheHardwareStop()
+        {
+            // Past the click there used to be twenty thousand counts of nothing before the
+            // hardware stop. The stroke now has its own end: hold through the overtravel,
+            // then a wall rising over the bite.
+            EngineConfig cfg = SeqConfig();
+            ForceComposer c = new ForceComposer(cfg.BuildGeometry(), cfg);
+
+            int threshold = Center - cfg.EngageDepth;
+            int landing = Math.Abs(c.ComposeSequential(
+                Center, Center - (threshold + 1000)).ConstantY);
+            int stop = Math.Abs(c.ComposeSequential(
+                Center, Center - (threshold + cfg.SeqOvertravel + cfg.WallRamp + 100)).ConstantY);
+
+            Assert.True(landing < 2000, "the landing should stay light: " + landing);
+            Assert.True(stop >= 8000, "the end-stop should be a wall: " + stop);
+        }
+
+        [Fact]
+        public void TheStopMovesWithTheThreshold()
+        {
+            // The stop is measured from the firing point, so shortening the throw shortens
+            // the whole stroke rather than leaving the wall stranded near the hardware stop.
+            EngineConfig cfg = SeqConfig();
+            cfg.EngageDepth = 26000; // fires ~6800 counts from centre
+            ForceComposer c = new ForceComposer(cfg.BuildGeometry(), cfg);
+
+            int threshold = Center - cfg.EngageDepth;
+            int depth = threshold + cfg.SeqOvertravel + cfg.WallRamp + 100;
+            int shortThrow = Math.Abs(c.ComposeSequential(Center, Center - depth).ConstantY);
+
+            EngineConfig longCfg = SeqConfig();
+            ForceComposer c2 = new ForceComposer(longCfg.BuildGeometry(), longCfg);
+            int longThrow = Math.Abs(c2.ComposeSequential(Center, Center - depth).ConstantY);
+
+            Assert.True(shortThrow >= 8000, "short throw should hit its wall here: " + shortThrow);
+            Assert.True(longThrow < 2000, "long throw should still be on its ramp here: " + longThrow);
+        }
+
+        [Fact]
         public void SequentialForcesCarryTheMeasuredPolarity()
         {
             EngineConfig cfg = SeqConfig();
