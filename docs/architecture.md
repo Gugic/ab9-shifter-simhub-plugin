@@ -130,8 +130,10 @@ Sequential bypasses the gate: `SequentialStateMachine` fires one shift per strok
 engage/release hysteresis pair on the Y axis, re-armed only by coming back inside the release
 threshold, and `ForceComposer.ComposeSequential` renders the lever railed to the lateral centre
 and sprung home fore/aft with a click at each threshold — through the same yield/attack/damping
-pipeline and the same single polarity application. Shifts are **pulsed** vJoy buttons (1 = up,
-2 = down, `SeqPulseMs` long), pressed *before* the tick's forces like every other button. Re-firing
+pipeline and the same single polarity application. Shifts are **pulsed** vJoy buttons (9 = up,
+10 = down, `SeqPulseMs` long — deliberately above every gear button, so a game still carrying
+H-pattern bindings cannot read a shift pulse as "engage 1st"), pressed *before* the tick's forces
+like every other button. Re-firing
 a button that is still down releases it and delays the next press by 20 ms, because an off-and-on
 inside one tick reads to a game's input poll as one continuous press. Pattern switches clear any
 pulse in flight along with the held gear.

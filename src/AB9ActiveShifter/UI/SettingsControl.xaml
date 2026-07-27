@@ -43,7 +43,7 @@
                                              TickFrequency="10" ShowResetButton="True" ResetValue="120"
                                              Value="{Binding SeqPulseMs, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0"
-                                       Text="A profile holds every dial on every tab, the pattern included, so each pattern can carry its own tuning. Duplicate makes a copy of the current profile to experiment in; to rename, type the new name in the box and click Rename. Gears map to vJoy buttons 1..N with reverse as the highest; sequential pulses button 1 for upshift and button 2 for downshift, and its push resistance and click are the detent dials on the Feel tab." />
+                                       Text="A profile holds every dial on every tab, the pattern included, so each pattern can carry its own tuning. Duplicate makes a copy of the current profile to experiment in; to rename, type the new name in the box and click Rename. Gears map to vJoy buttons 1..N with reverse as the highest; sequential pulses button 9 for upshift and button 10 for downshift - above every gear button, so no game binding can mean two things - and its push resistance and click are the detent dials on the Feel tab." />
                         </StackPanel>
                     </styles:SHSection>
 
@@ -82,7 +82,7 @@
                             1. In MOZA Cockpit, once: FFB Mode = DirectInput, Spring = 0, Base Force Model = Flight Base, Max Torque and Overall Intensity 100%. Without this the base fights the gate with its own centring.<LineBreak />
                             2. Fully exit MOZA Cockpit, and close any Pit House live-tuning page. They hold the stick exclusively and this plugin cannot open it while they do.<LineBreak />
                             3. Disable Steam Input for the AB9, or close Steam.<LineBreak />
-                            4. Create a vJoy device with at least 8 buttons in vJoyConf.<LineBreak />
+                            4. Create a vJoy device with at least 10 buttons in vJoyConf (gears use 1-8, sequential up/down use 9-10).<LineBreak />
                             5. Run the polarity calibration below, before turning the force up.<LineBreak />
                             6. In your game, bind gears 1-7 and reverse to vJoy buttons 1-8, and do not bind the AB9 axes.
                         </TextBlock>

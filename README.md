@@ -11,10 +11,12 @@ and a one-way gate guarding 7th and reverse.
 
 Four patterns, selectable per **profile** on the Setup tab: **7+R** (the full gate below),
 **6+R** (the slot where 7 would sit simply does not exist), **5+R** (three wider columns, no
-lockout), and **Sequential** (a sprung fore/aft lever that pulses button 1 for upshift and
-button 2 for downshift). A profile stores every dial together with its pattern, so each
+lockout), and **Sequential** (a sprung fore/aft lever that pulses button 9 for upshift and
+button 10 for downshift). A profile stores every dial together with its pattern, so each
 pattern keeps its own tuning and switching is one dropdown. Gears map to vJoy buttons 1..N
-with reverse as the highest button (8, 7 or 6 depending on the pattern).
+with reverse as the highest button (8, 7 or 6 depending on the pattern); the sequential
+buttons sit above them all so no game binding can ever mean two things. A vJoy device with
+10+ buttons covers every pattern.
 
 ## The gate
 
@@ -45,7 +47,8 @@ The toll is the gate's force (70% by default) times its width, and both are adju
 
 - SimHub (developed against 9.11.21)
 - MOZA AB9 base, configured once in **MOZA Cockpit** — see below
-- [vJoy](https://sourceforge.net/projects/vjoystick/) with a device exposing **at least 8 buttons**
+- [vJoy](https://sourceforge.net/projects/vjoystick/) with a device exposing **at least 10 buttons**
+  (8 cover the H patterns alone; 9/10 are the sequential up/down)
 - .NET Framework 4.8 (already present if SimHub runs)
 
 ## Install
@@ -79,7 +82,7 @@ If SimHub is installed somewhere other than `C:\Program Files (x86)\SimHub\`, co
 2. **Fully exit MOZA Cockpit** and close any Pit House live-tuning page. They hold the
    stick exclusively; the plugin cannot open it while they do.
 3. **Disable Steam Input** for the AB9, or close Steam.
-4. **Create a vJoy device** with at least 8 buttons in `vJoyConf`.
+4. **Create a vJoy device** with at least 10 buttons in `vJoyConf`.
 5. **Run the polarity calibration** (below) before turning the force up.
 6. In your game, bind gears **1–7 and reverse to vJoy buttons 1–8**. Do **not** bind the
    AB9's axes in the game.
