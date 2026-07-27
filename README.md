@@ -54,8 +54,9 @@ clutchless shift** — push into a gear with the clutch up and the box rattles a
 wall, louder the harder you force it, and (optionally) the gear refuses to register until the
 clutch goes down, like a blocking synchro ring — plus
 engine vibration that tracks the revs, a rev-limiter buzz, ABS and traction-control buzzes, a
-gear-shift confirmation pulse, and a custom effect driven by any SimHub property (which puts
-ShakeIt's exported effect groups on the lever). Everything is off by default, falls silent within
+curb-and-bump rattle read out of the car's vertical acceleration, a gear-shift confirmation
+pulse, and a custom effect driven by any SimHub property (which puts ShakeIt's exported effect
+groups on the lever). Everything is off by default, falls silent within
 half a second of the game pausing or closing, and rides on top of the gate without touching its
 geometry. The grind needs a game that reports the clutch pedal.
 

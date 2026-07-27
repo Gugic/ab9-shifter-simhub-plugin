@@ -66,6 +66,10 @@ namespace AB9ActiveShifter
         private bool _fxTcEnabled;
         private int _fxTcGainPct = 35;
         private int _fxTcFreqHz = 60;
+        private bool _fxCurbsEnabled;
+        private int _fxCurbsGainPct = 45;
+        private int _fxCurbsFreqHz = 40;
+        private double _fxCurbsFullAtG = 1.0;
         private bool _fxShiftEnabled;
         private int _fxShiftGainPct = 45;
         private int _fxShiftFreqHz = 44;
@@ -246,6 +250,13 @@ namespace AB9ActiveShifter
         public int FxTcGainPct { get { return _fxTcGainPct; } set { Set(ref _fxTcGainPct, value); } }
         public int FxTcFreqHz { get { return _fxTcFreqHz; } set { Set(ref _fxTcFreqHz, value); } }
 
+        public bool FxCurbsEnabled { get { return _fxCurbsEnabled; } set { Set(ref _fxCurbsEnabled, value); } }
+        public int FxCurbsGainPct { get { return _fxCurbsGainPct; } set { Set(ref _fxCurbsGainPct, value); } }
+        public int FxCurbsFreqHz { get { return _fxCurbsFreqHz; } set { Set(ref _fxCurbsFreqHz, value); } }
+
+        /// <summary>Vertical shake, in G, at which the curb rattle reaches full volume.</summary>
+        public double FxCurbsFullAtG { get { return _fxCurbsFullAtG; } set { Set(ref _fxCurbsFullAtG, value); } }
+
         public bool FxShiftEnabled { get { return _fxShiftEnabled; } set { Set(ref _fxShiftEnabled, value); } }
         public int FxShiftGainPct { get { return _fxShiftGainPct; } set { Set(ref _fxShiftGainPct, value); } }
         public int FxShiftFreqHz { get { return _fxShiftFreqHz; } set { Set(ref _fxShiftFreqHz, value); } }
@@ -360,6 +371,10 @@ namespace AB9ActiveShifter
                 FxTcEnabled = FxTcEnabled,
                 FxTcGainPct = FxTcGainPct,
                 FxTcFreqHz = FxTcFreqHz,
+                FxCurbsEnabled = FxCurbsEnabled,
+                FxCurbsGainPct = FxCurbsGainPct,
+                FxCurbsFreqHz = FxCurbsFreqHz,
+                FxCurbsFullAtG = FxCurbsFullAtG,
                 FxShiftEnabled = FxShiftEnabled,
                 FxShiftGainPct = FxShiftGainPct,
                 FxShiftFreqHz = FxShiftFreqHz,
@@ -468,6 +483,10 @@ namespace AB9ActiveShifter
                 FxTcEnabled = d.FxTcEnabled;
                 FxTcGainPct = d.FxTcGainPct;
                 FxTcFreqHz = d.FxTcFreqHz;
+                FxCurbsEnabled = d.FxCurbsEnabled;
+                FxCurbsGainPct = d.FxCurbsGainPct;
+                FxCurbsFreqHz = d.FxCurbsFreqHz;
+                FxCurbsFullAtG = d.FxCurbsFullAtG;
                 FxShiftEnabled = d.FxShiftEnabled;
                 FxShiftGainPct = d.FxShiftGainPct;
                 FxShiftFreqHz = d.FxShiftFreqHz;

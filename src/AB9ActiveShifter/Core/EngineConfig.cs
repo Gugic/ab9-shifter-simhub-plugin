@@ -88,6 +88,18 @@ namespace AB9ActiveShifter.Core
         public int FxTcGainPct = 35;
         public int FxTcFreqHz = 60;
 
+        /// <summary>
+        /// Curbs and bumps, read out of the vertical acceleration - no game-specific surface
+        /// data needed. A curb is a rapid shake in heave, which sustained load is not: a
+        /// baseline tracker follows the slow part and only the shake drives the carrier.
+        /// </summary>
+        public bool FxCurbsEnabled;
+        public int FxCurbsGainPct = 45;
+        public int FxCurbsFreqHz = 40;
+
+        /// <summary>Vertical shake, in G, at which the curb rattle reaches full volume.</summary>
+        public double FxCurbsFullAtG = 1.0;
+
         /// <summary>One pulse when the game's own gear changes - confirmation up the lever.</summary>
         public bool FxShiftEnabled;
         public int FxShiftGainPct = 45;

@@ -62,6 +62,7 @@ included). Each row is enable + volume + frequency:
 | Engine vibration | Whenever the engine turns | Pitch scales with the revs, anchored by **frequency at 1000 rpm** — set what idle should feel like; 17 is once per revolution, 34 ≈ a four-cylinder's firing pulses. Capped at 130 Hz. Keep the volume low — it never stops. |
 | Rev limiter | Revs ≥ the redline percentage | Silent when the game reports no redline. |
 | ABS / TC | The game's own ABS-active / TC-active flags | Different default pitches (44 / 60 Hz) so both firing in one corner stay distinguishable. |
+| Curbs and bumps | Rapid shake in the car's vertical acceleration | No surface data needed: a baseline tracker follows sustained load (corners, braking) so only the shake plays, with a ~150 ms ring-down that keeps a rumble strip's rhythm. **Full volume at (G)** is the sensitivity — lower it to make gentle curbs louder. Silent in games that report no acceleration; the ShakeIt bridge below is the per-wheel alternative. |
 | Gear shift pulse | The game's reported gear changes | Confirms what the game *accepted* — useful in sequential and with paddle cars. |
 | Custom property | Any SimHub property, 0–100 → volume | Try `DataCorePlugin.GameData.Throttle` to hear it work. The real use: a ShakeIt Bass Shakers effect group with *Export property* enabled puts road rumble, wheel slip and impacts on the lever with all of ShakeIt's own tuning. |
 

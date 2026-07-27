@@ -170,6 +170,7 @@ namespace AB9ActiveShifter
                 Gear = d.Gear,
                 AbsActive = d.ABSActive != 0,
                 TcActive = d.TCActive != 0,
+                HeaveG = d.AccelerationHeave ?? 0.0,
                 CustomValue = custom,
                 CapturedAtTick = Environment.TickCount
             });

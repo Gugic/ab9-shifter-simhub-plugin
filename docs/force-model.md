@@ -452,8 +452,9 @@ gradient produced it.
 ## The vibration channel and the grind
 
 The telemetry effects (`Core/EffectComposer.cs`) are the one family of force that is neither a
-wall nor a guide: **zero-mean carriers** — sine for the engine / limiter / ABS / TC / shift-pulse
-/ custom-property effects, a square wave with per-half-cycle amplitude jitter for the grind —
+wall nor a guide: **zero-mean carriers** — sine for the engine / limiter / ABS / TC / curbs /
+shift-pulse / custom-property effects, a square wave with per-half-cycle amplitude jitter for
+the grind —
 summed onto the fore/aft force **after the yield and the attack, before the clamp and the
 polarity signs** (the same joining point as damping, and for a mirror-image reason).
 

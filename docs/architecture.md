@@ -77,7 +77,7 @@ SimHub **rebuilds plugins at game change**, so the engine must survive it:
 | `ProcessExit` hook | Backstop |
 
 `DataUpdate` feeds the telemetry effects: it builds an immutable `TelemetryState` snapshot (rpm,
-clutch, speed, gear string, ABS/TC flags, the sampled custom property) and hands it to the engine
+clutch, speed, gear string, ABS/TC flags, heave G, the sampled custom property) and hands it to the engine
 through one volatile reference — no locks, one small allocation, nothing else on SimHub's critical
 path. The FFB loop still deliberately does not *run* off it, because the gate must work with no
 game running.
@@ -196,7 +196,7 @@ that the loop is keeping up.
 UI tabs: **Setup** (profile & pattern, status, enable, free stick, pre-flight checklist, polarity
 calibration, manual overrides, gear layout), **Feel** (master gain, gate walls, sliding across the
 gate, slot detent), **Effects** (the telemetry effects: grind, engine vibration, limiter, ABS/TC,
-shift pulse, custom property — each with enable, volume and frequency), **Geometry** (force
+curbs, shift pulse, custom property — each with enable, volume and frequency), **Geometry** (force
 shaping, hysteresis bands, vJoy device, loop rate, resets), **Monitor** (live drawing of the
 configured pattern — missing slots left blank, the lockout shaded where the geometry puts it, or
 the sequential track).

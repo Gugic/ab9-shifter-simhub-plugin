@@ -35,7 +35,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-185 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
+188 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
 on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
 Deploy needs SimHub stopped, because it locks the DLL:
