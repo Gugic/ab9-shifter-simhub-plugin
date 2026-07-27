@@ -30,7 +30,8 @@ buttons 1..N with reverse always the highest (8 / 7 / 6), so rebind in the game 
 pattern.
 
 **Sequential** turns the fore/aft axis into a sprung lever: push past the engage threshold and it
-fires one press of button 1 (up) or 2 (down), re-armed when the lever comes home. Its feel is set
+fires one press of button 9 (up) or 10 (down) — above every gear button, so a game still carrying
+H-pattern bindings cannot read a shift pulse as a gear — re-armed when the lever comes home. Its feel is set
 by dials that pull double duty: **detent resist** is the push-out resistance (rises to full at the
 threshold), **detent hold** is what remains past the click, **slot wall** sets the lateral rail,
 and the pulse length sits next to the pattern selector. Swap up/down with **MirrorSlots** (gear

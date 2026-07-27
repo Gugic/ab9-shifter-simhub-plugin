@@ -151,7 +151,9 @@ Assemblies referenced from the SimHub root with `Private=false` (never NuGet, ne
 `SimHub.Plugins`, `GameReaderCommon`, `SimHub.Logging`, `log4net`, `SharpDX`,
 `SharpDX.DirectInput` 4.2.0, `vJoyInterfaceWrap` 2.2.2, `MahApps.Metro`.
 
-vJoy 2.2.2, device 1, **8 buttons** — exactly enough for 7+R. Gear *i* holds button *i*, reverse
+vJoy 2.2.2, device 1 — needs **10 buttons** (8 for the gears, 9/10 for the sequential
+up/down pulses, kept above the gear range so no game binding can mean two things; this rig's
+device exposes 32). Gear *i* holds button *i*, reverse
 is gear 8. The bundled `vJoyInterface.dll` is 32-bit, matching the host; this is why `Output/` is
 behind an interface and never touched by tests.
 

@@ -74,11 +74,14 @@ namespace AB9ActiveShifter.Output
                     }
 
                     int buttons = _vjoy.GetVJDButtonNumber(_deviceId);
-                    if (buttons < GearCount)
+                    if (buttons < 10)
                     {
-                        // Not fatal: the low gears still work, so run and tell the user what is missing.
-                        LastError = "vJoy device " + _deviceId + " exposes only " + buttons + " buttons; " +
-                                    GearCount + " are needed for 7+R. Raise the button count in vJoyConf.";
+                        // Not fatal: whatever buttons exist still work, so run and tell the
+                        // user what is missing. Gears use 1..8; the sequential up/down pulses
+                        // use 9/10, kept above the gear range so no binding means two things.
+                        LastError = "vJoy device " + _deviceId + " exposes only " + buttons +
+                                    " buttons; gears use 1-8 and sequential up/down use 9-10. " +
+                                    "Raise the button count in vJoyConf.";
                         Log.Warn(LastError);
                     }
                     else

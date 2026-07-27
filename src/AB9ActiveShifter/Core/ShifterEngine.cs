@@ -43,8 +43,13 @@ namespace AB9ActiveShifter.Core
         // Sequential pulse bookkeeping, engine thread only. A pending press exists so that
         // re-firing the same button leaves a gap a 60 Hz game poll can actually see - an
         // off-and-on inside one tick reads as one long press.
-        private const int SeqUpButton = 1;
-        private const int SeqDownButton = 2;
+        //
+        // The pulse buttons sit ABOVE every gear button (the highest is 8, 7+R's reverse) so
+        // no game binding can mean two things. On buttons 1/2 they collided with 1st and 2nd
+        // gear: a game still carrying H-pattern bindings would read an upshift pulse as
+        // "engage 1st", at any speed.
+        private const int SeqUpButton = 9;
+        private const int SeqDownButton = 10;
         private const int SeqRefireGapMs = 20;
         private int _pulseButton;
         private int _pulsePending;
