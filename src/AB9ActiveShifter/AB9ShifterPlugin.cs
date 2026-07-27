@@ -31,6 +31,12 @@ namespace AB9ActiveShifter
 
         public ShifterSettings Settings { get; private set; }
 
+        /// <summary>Every profile plus which one is live. What actually gets persisted.</summary>
+        public ProfileStore Store { get; private set; }
+
+        /// <summary>Raised after the active profile changes, so the UI can rebind.</summary>
+        public event Action ProfileChanged;
+
         public PluginManager PluginManager { get; set; }
 
         public string LeftMenuTitle { get { return "AB9 Shifter"; } }
@@ -57,7 +63,28 @@ namespace AB9ActiveShifter
         {
             Log.Info("Init (plugin instance created).");
 
-            Settings = this.ReadCommonSettings<ShifterSettings>(SettingsKey, () => new ShifterSettings());
+            Store = this.ReadCommonSettings<ProfileStore>(SettingsKey, () => new ProfileStore());
+            if (Store == null) Store = new ProfileStore();
+
+            if (Store.FindActive() == null)
+            {
+                // Either a fresh install or a settings file from before profiles existed. A
+                // legacy file deserialises into an empty store, so re-read it as the flat
+                // settings it was and carry every tuned dial into the first profile.
+                ShifterSettings legacy =
+                    this.ReadCommonSettings<ShifterSettings>(SettingsKey, () => new ShifterSettings());
+
+                Store.Profiles = new System.Collections.Generic.List<ShifterProfile>
+                {
+                    new ShifterProfile { Name = "Default", Settings = legacy ?? new ShifterSettings() }
+                };
+                Store.ActiveProfile = "Default";
+                Log.Info("Settings migrated into profile 'Default'.");
+            }
+
+            ShifterProfile active = Store.FindActive();
+            Store.ActiveProfile = active.Name;
+            Settings = active.Settings;
 
             lock (EngineSync)
             {
@@ -110,7 +137,7 @@ namespace AB9ActiveShifter
         public void End(PluginManager pluginManager)
         {
             Log.Info("End (saving settings; engine left running).");
-            this.SaveCommonSettings(SettingsKey, Settings);
+            this.SaveCommonSettings(SettingsKey, Store);
         }
 
         /// <summary>IReusable: the genuine shutdown, when SimHub is really done with us.</summary>
@@ -143,6 +170,91 @@ namespace AB9ActiveShifter
         public System.Windows.Controls.Control GetWPFSettingsControl(PluginManager pluginManager)
         {
             return new UI.SettingsControl(this);
+        }
+
+        /// <summary>
+        /// Makes the named profile live: rebinds the change notifications, pushes its
+        /// configuration to the engine, and persists which profile is active. The engine
+        /// handles the swap like any config change - gears release if the new geometry says
+        /// the stick is not in one, and a sequential pulse in flight is cleared.
+        /// </summary>
+        public void ActivateProfile(string name)
+        {
+            if (Store == null || Store.Profiles == null) return;
+
+            ShifterProfile target = null;
+            foreach (ShifterProfile p in Store.Profiles)
+            {
+                if (p != null && p.Name == name && p.Settings != null) { target = p; break; }
+            }
+            if (target == null || target.Settings == Settings) return;
+
+            if (Settings != null) Settings.PropertyChanged -= OnSettingsChanged;
+            Settings = target.Settings;
+            Settings.PropertyChanged += OnSettingsChanged;
+            Store.ActiveProfile = target.Name;
+
+            PushSettingsToEngine();
+            SaveStore();
+            RaiseProfileChanged();
+            Log.Info("Profile '" + target.Name + "' activated.");
+        }
+
+        /// <summary>Adds a copy of the current profile under the given name and makes it live.</summary>
+        public void AddProfileFromCurrent(string requestedName)
+        {
+            if (Store == null) return;
+            if (Store.Profiles == null) Store.Profiles = new System.Collections.Generic.List<ShifterProfile>();
+
+            var profile = new ShifterProfile
+            {
+                Name = Store.UniqueName(requestedName),
+                Settings = SettingsCloner.Clone(Settings)
+            };
+
+            Store.Profiles.Add(profile);
+            ActivateProfile(profile.Name);
+        }
+
+        /// <summary>Deletes the active profile. The last profile cannot be deleted.</summary>
+        public void DeleteActiveProfile()
+        {
+            if (Store == null || Store.Profiles == null || Store.Profiles.Count <= 1) return;
+
+            ShifterProfile active = Store.FindActive();
+            if (active == null) return;
+
+            Store.Profiles.Remove(active);
+            ShifterProfile next = Store.FindActive();
+            if (next != null) ActivateProfile(next.Name);
+        }
+
+        /// <summary>Renames the active profile, keeping names unique.</summary>
+        public void RenameActiveProfile(string newName)
+        {
+            if (Store == null || string.IsNullOrWhiteSpace(newName)) return;
+
+            ShifterProfile active = Store.FindActive();
+            if (active == null || active.Name == newName.Trim()) return;
+
+            active.Name = Store.UniqueName(newName);
+            Store.ActiveProfile = active.Name;
+            SaveStore();
+            RaiseProfileChanged();
+        }
+
+        private void SaveStore()
+        {
+            try { this.SaveCommonSettings(SettingsKey, Store); }
+            catch (Exception ex) { Log.Error("Could not save profiles", ex); }
+        }
+
+        private void RaiseProfileChanged()
+        {
+            Action handler = ProfileChanged;
+            if (handler == null) return;
+            try { handler(); }
+            catch (Exception ex) { Log.Error("Profile change handler failed", ex); }
         }
 
         /// <summary>Rebuilds the engine configuration from the current settings.</summary>
@@ -233,7 +345,7 @@ namespace AB9ActiveShifter
                 // Persist now rather than waiting for plugin shutdown. This result describes the
                 // hardware and was earned by moving the stick; losing it to a crash would mean
                 // running the gate backwards on the next start.
-                try { this.SaveCommonSettings(SettingsKey, Settings); }
+                try { this.SaveCommonSettings(SettingsKey, Store); }
                 catch (Exception ex) { Log.Error("Could not save settings after calibration", ex); }
             });
         }

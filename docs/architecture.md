@@ -112,9 +112,41 @@ capture the lever into a gear it was never driven into. See the gear lock in
 `Resync` is therefore the only way to adopt a position — startup, and a geometry change under the
 running loop, where the engine rebuilds the state machine.
 
-Gear numbering is `GearOf(column, direction)`, 1–8 with 8 = reverse. `MirrorColumns` and
-`MirrorSlots` relabel that map **only** — geometry never moves. See the invariants in
-[../AGENTS.md](../AGENTS.md) for why.
+Gear numbering is `GateGeometry.GearFor(column, direction)`, 1..N with N = reverse — 8 for 7+R, 7
+for 6+R, 6 for 5+R, so the vJoy buttons stay contiguous whatever the pattern. A slot that holds no
+gear (6+R's missing 7) is simply a slot the map sends to 0: `SlotExists` follows the map, the wall
+over it never opens, and the state machine refuses to latch it. Because the hole lives in the map,
+`MirrorColumns` and `MirrorSlots` relocate it along with the gears. Both flags relabel the map
+**only** — geometry never moves. See the invariants in [../AGENTS.md](../AGENTS.md) for why.
+
+## Patterns and the sequential mode
+
+`GatePattern` selects the topology. The H patterns (7+R, 6+R, 5+R) all run the same gate engine —
+`GateGeometry` derives column count (three for 5+R, spread over the full axis), the gear map, and
+whether a lockout gap exists (5+R has none: every barrier crest is then its gap's midpoint, so no
+watershed is displaced by a gate that exerts nothing).
+
+Sequential bypasses the gate: `SequentialStateMachine` fires one shift per stroke using the same
+engage/release hysteresis pair on the Y axis, re-armed only by coming back inside the release
+threshold, and `ForceComposer.ComposeSequential` renders the lever railed to the lateral centre
+and sprung home fore/aft with a click at each threshold — through the same yield/attack/damping
+pipeline and the same single polarity application. Shifts are **pulsed** vJoy buttons (1 = up,
+2 = down, `SeqPulseMs` long), pressed *before* the tick's forces like every other button. Re-firing
+a button that is still down releases it and delays the next press by 20 ms, because an off-and-on
+inside one tick reads to a game's input poll as one continuous press. Pattern switches clear any
+pulse in flight along with the held gear.
+
+## Profiles
+
+The settings file now holds a `ProfileStore` — a list of named `ShifterSettings` plus which one is
+active — instead of one flat settings object. Each profile carries everything, the pattern
+included, so each pattern keeps its own tuning. A pre-profile settings file deserialises into an
+empty store (its properties do not match), which is the migration signal: the plugin re-reads the
+file as flat settings and wraps them as profile "Default", so nothing tuned is lost. Switching
+profiles is an ordinary config swap in the engine — the state machines rebuild and resync, a held
+gear that the new geometry disowns is released, and a sequential pulse in flight is cleared.
+Profile duplication copies by reflection over public read/write properties, so new dials are
+included automatically and no event subscriptions ride along.
 
 ## SimHub surface
 
@@ -125,10 +157,11 @@ Events: `GearEngaged`, `GearReleased`. Actions: `ToggleShifterFFB`, `ReleaseAllG
 `LoopHz` is measured from real tick intervals, not echoed from the setting — it is the honest check
 that the loop is keeping up.
 
-UI tabs: **Setup** (status, enable, free stick, pre-flight checklist, polarity calibration, manual
-overrides, gear layout), **Feel** (master gain, gate walls, sliding across the gate, slot detent),
-**Geometry** (force shaping, hysteresis bands, vJoy device, loop rate, resets), **Monitor** (live
-gate drawing).
+UI tabs: **Setup** (profile & pattern, status, enable, free stick, pre-flight checklist, polarity
+calibration, manual overrides, gear layout), **Feel** (master gain, gate walls, sliding across the
+gate, slot detent), **Geometry** (force shaping, hysteresis bands, vJoy device, loop rate, resets),
+**Monitor** (live drawing of the configured pattern — missing slots left blank, the lockout shaded
+where the geometry puts it, or the sequential track).
 
 ## Build
 

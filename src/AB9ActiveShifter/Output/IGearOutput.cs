@@ -16,6 +16,12 @@ namespace AB9ActiveShifter.Output
         /// <summary>Holds the button for <paramref name="gear"/> (1..8) and releases every other. 0 clears all.</summary>
         void SetGear(int gear);
 
+        /// <summary>
+        /// Raw single-button control, for the sequential pattern's pulsed up/down presses.
+        /// Independent of the held-gear bookkeeping; <see cref="ReleaseAll"/> clears these too.
+        /// </summary>
+        void SetButton(int button, bool down);
+
         void ReleaseAll();
 
         void Disconnect();

@@ -89,7 +89,7 @@ namespace AB9ActiveShifter.Tests
             Hold(sm, C4, Max);
 
             Assert.Equal(8, sm.CurrentGear);
-            Assert.Equal("R", GateGeometry.GearLabel(sm.CurrentGear));
+            Assert.Equal("R", new EngineConfig().BuildGeometry().LabelFor(sm.CurrentGear));
         }
 
         [Fact]
@@ -101,7 +101,7 @@ namespace AB9ActiveShifter.Tests
             Hold(sm, C4, 0);
 
             Assert.Equal(7, sm.CurrentGear);
-            Assert.Equal("7", GateGeometry.GearLabel(sm.CurrentGear));
+            Assert.Equal("7", new EngineConfig().BuildGeometry().LabelFor(sm.CurrentGear));
         }
 
         [Fact]

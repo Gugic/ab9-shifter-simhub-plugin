@@ -270,6 +270,32 @@ hold freezes a lever at rest — a railed lever *at* its line feels zero force, 
 ground, unlike a lever leaning on a wall face. The retreat dial for a trembling rail is the
 rail's own strength (pin force for a column, gate wall for the tunnel), never damping.
 
+## Other patterns
+
+**Missing slots (6+R).** A slot that holds no gear is rendered by never opening its mouth: the
+fore/aft wall's block factor is keyed on push direction as well as position, and a column whose
+slot is empty that way stays at full wall however well lined up the lever is — the divider simply
+continues across. Keying a force on direction is safe in exactly one place, and this is it: the
+fore/aft force crosses zero at the channel centre, so the switch between the two directions'
+factors happens where there is no force to step. The mouth shaping skips a missing slot for the
+same reason, and the state machine refuses to latch it, so map, wall and logic agree. 5+R needs
+none of this — it is simply three columns spread over the full axis, with no lockout and every
+barrier crest at its gap's midpoint.
+
+**Sequential.** No gate at all: the lever is railed to the lateral centre and sprung home
+fore/aft. The "spring" is not a DirectInput spring — those cannot hold a lever on this base (see
+the effect-strength section) — but the usual saturating constant-force profile, made deliberately
+shallow: full resistance is only reached at the shift threshold itself, a gradient of well under
+1 DI per count, which no delay can destabilise. Crossing the threshold drops the resistance to a
+lighter hold — the click — and the drop passes the time shaping instantly like any release, while
+the force always points home so the lever returns on its own. The return assist keeps the snick's
+milder yield floor: absorbing the return would defeat it. One shift fires per stroke, re-armed
+only by coming back through the release threshold, and the buttons are timed pulses rather than
+held gears — with a 20 ms guaranteed gap on a re-fire, because an off-and-on inside one tick
+reads to a game's input poll as one continuous press.
+
+## The four stabilising mechanisms
+
 A stiff wall rendered through a 3–4 ms delay is unstable — the delayed force acts as *negative*
 damping, so each overshoot returns with interest. Four independent mechanisms address it. They
 compose; none alone was sufficient.

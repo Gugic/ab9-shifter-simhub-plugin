@@ -16,6 +16,33 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="8">
 
+                    <styles:SHSection Title="PROFILE &amp; PATTERN" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="Profile" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox x:Name="ProfileCombo" Width="220" Margin="0,0,8,0" IsEditable="True"
+                                          SelectionChanged="OnProfileSelected" />
+                                <styles:SHButtonSecondary Click="OnAddProfile" Content="Duplicate" Padding="10,3" Margin="0,0,6,0" />
+                                <styles:SHButtonSecondary Click="OnRenameProfile" Content="Rename" Padding="10,3" Margin="0,0,6,0" />
+                                <styles:SHButtonSecondary Click="OnDeleteProfile" Content="Delete" Padding="10,3" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="Pattern" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox Width="220" SelectedIndex="{Binding PatternIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="H pattern, 7 gears + R (lockout)" />
+                                    <ComboBoxItem Content="H pattern, 6 gears + R (no 7th slot)" />
+                                    <ComboBoxItem Content="H pattern, 5 gears + R" />
+                                    <ComboBoxItem Content="Sequential (+ / -)" />
+                                </ComboBox>
+                            </StackPanel>
+                            <ui:TitledSlider Title="Sequential pulse length (ms)" Minimum="20" Maximum="400"
+                                             TickFrequency="10" ShowResetButton="True" ResetValue="120"
+                                             Value="{Binding SeqPulseMs, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0"
+                                       Text="A profile holds every dial on every tab, the pattern included, so each pattern can carry its own tuning. Duplicate makes a copy of the current profile to experiment in; to rename, type the new name in the box and click Rename. Gears map to vJoy buttons 1..N with reverse as the highest; sequential pulses button 1 for upshift and button 2 for downshift, and its push resistance and click are the detent dials on the Feel tab." />
+                        </StackPanel>
+                    </styles:SHSection>
+
                     <styles:SHSection Title="STATUS" ShowSeparator="True">
                         <StackPanel x:Name="StatusPanel" Margin="0,4,0,8">
                             <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,6" />

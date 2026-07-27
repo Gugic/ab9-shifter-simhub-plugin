@@ -129,6 +129,23 @@ namespace AB9ActiveShifter.Output
             }
         }
 
+        public void SetButton(int button, bool down)
+        {
+            lock (_sync)
+            {
+                if (!_acquired || button < 1) return;
+
+                try
+                {
+                    _vjoy.SetBtn(down, _deviceId, (uint)button);
+                }
+                catch (Exception ex)
+                {
+                    Log.ErrorThrottled("vjoy-setbtn", "vJoy button update failed", ex);
+                }
+            }
+        }
+
         public void ReleaseAll()
         {
             lock (_sync)

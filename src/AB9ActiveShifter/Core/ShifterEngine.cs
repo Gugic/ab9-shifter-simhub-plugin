@@ -37,7 +37,20 @@ namespace AB9ActiveShifter.Core
         private EngineConfig _activeConfig;
         private GateGeometry _geometry;
         private GateStateMachine _stateMachine;
+        private SequentialStateMachine _seqMachine;
         private ForceComposer _composer;
+
+        // Sequential pulse bookkeeping, engine thread only. A pending press exists so that
+        // re-firing the same button leaves a gap a 60 Hz game poll can actually see - an
+        // off-and-on inside one tick reads as one long press.
+        private const int SeqUpButton = 1;
+        private const int SeqDownButton = 2;
+        private const int SeqRefireGapMs = 20;
+        private int _pulseButton;
+        private int _pulsePending;
+        private long _pulseOffAtMs;
+        private long _pulseOnAtMs;
+        private ShiftDir _seqPushed = ShiftDir.None;
 
         private FfbDevice _device;
         private EffectSet _effects;
@@ -399,32 +412,66 @@ namespace AB9ActiveShifter.Core
 
                 if (HandleCalibration(cfg, nowMs, x, y, loopHz)) return;
 
-                StateTransition t = _stateMachine.Update(x, y);
+                UpdateVelocity(x, y);
+                double dtMs = ComposeDelta(cfg);
+                ForceFrame frame;
+                GateState traceState;
+                Column traceColumn;
+                ShiftDir traceDir;
+                int traceGear;
 
-                if (t.GearChanged)
+                bool gearChanged = false;
+
+                if (cfg.Pattern == GatePattern.Sequential)
                 {
-                    // Buttons before forces: a game must see the gear change at least as
-                    // early as the hand feels it, never later.
-                    if (_output != null) _output.SetGear(t.Gear);
+                    SeqTransition st = _seqMachine.Update(y);
+                    gearChanged = st.Shift != 0 || _seqPushed != st.Pushed;
+                    _seqPushed = st.Pushed;
 
-                    Action<int, int> handler = GearChanged;
-                    if (handler != null)
+                    // Buttons before forces, pulses included: the game sees the shift at
+                    // least as early as the hand feels the click.
+                    StepPulse(cfg, nowMs, st.Shift);
+
+                    frame = _composer.ComposeSequential(x, y, _velocity.X, _velocity.Y, dtMs);
+
+                    traceState = GateState.Neutral;
+                    traceColumn = Column.None;
+                    traceDir = st.Pushed;
+                    traceGear = 0;
+                }
+                else
+                {
+                    StateTransition t = _stateMachine.Update(x, y);
+                    gearChanged = t.GearChanged;
+
+                    if (t.GearChanged)
                     {
-                        try { handler(t.Gear, t.PreviousGear); }
-                        catch (Exception ex) { Log.ErrorThrottled("gear-event", "Gear change handler threw", ex); }
+                        // Buttons before forces: a game must see the gear change at least as
+                        // early as the hand feels it, never later.
+                        if (_output != null) _output.SetGear(t.Gear);
+
+                        Action<int, int> handler = GearChanged;
+                        if (handler != null)
+                        {
+                            try { handler(t.Gear, t.PreviousGear); }
+                            catch (Exception ex) { Log.ErrorThrottled("gear-event", "Gear change handler threw", ex); }
+                        }
                     }
+
+                    frame = _composer.Compose(
+                        t.State, t.Column, t.Direction, x, y, _velocity.X, _velocity.Y, dtMs);
+
+                    traceState = t.State;
+                    traceColumn = t.Column;
+                    traceDir = t.Direction;
+                    traceGear = t.Gear;
                 }
 
-                UpdateVelocity(x, y);
-
-                double dtMs = ComposeDelta(cfg);
-                ForceFrame frame = _composer.Compose(
-                    t.State, t.Column, t.Direction, x, y, _velocity.X, _velocity.Y, dtMs);
                 _effects.Apply(frame, nowMs);
 
                 // After Apply, so what is recorded is what was actually sent.
                 _trace.Add(nowMs, x, y, _velocity.X, _velocity.Y, dtMs,
-                           t.State, t.Column, t.Direction, t.Gear, frame.ConstantX, frame.ConstantY);
+                           traceState, traceColumn, traceDir, traceGear, frame.ConstantX, frame.ConstantY);
 
                 if (_effects.IsFaulted)
                 {
@@ -432,7 +479,7 @@ namespace AB9ActiveShifter.Core
                     return;
                 }
 
-                if (tickCount % SnapshotEveryTicks == 0 || t.GearChanged)
+                if (tickCount % SnapshotEveryTicks == 0 || gearChanged)
                 {
                     PublishSnapshot(x, y, loopHz);
                 }
@@ -458,10 +505,17 @@ namespace AB9ActiveShifter.Core
                 _calibrationQueue.Enqueue(CalibrationTarget.SpringY);
                 _calibrator = null;
 
-                // Drop any held gear: the probes move the stick, and a button left down through
-                // that would look to a game like a gear change the user never made.
-                if (_output != null) _output.SetGear(0);
+                // Drop any held gear or pulse: the probes move the stick, and a button left
+                // down through that would look to a game like a shift the user never made.
+                if (_output != null)
+                {
+                    _output.SetGear(0);
+                    if (_pulseButton != 0) _output.SetButton(_pulseButton, false);
+                }
+                _pulseButton = 0;
+                _pulsePending = 0;
                 _stateMachine.Resync(x, y);
+                _seqMachine.Resync(y);
 
                 Log.Info("Polarity calibration requested (probe force " + cfg.CalibrationForcePct + "%).");
             }
@@ -494,11 +548,16 @@ namespace AB9ActiveShifter.Core
 
                 if (_calibrationQueue.Count == 0)
                 {
-                    // Back to a known state before the gate takes over again.
+                    // Back to a known state before the gate takes over again. In sequential
+                    // the resync arms without firing, and no gear button is ever held.
                     _effects.Apply(ForceComposer.FreeFrame(), nowMs);
 
                     _stateMachine.Resync(x, y);
-                    if (_output != null) _output.SetGear(_stateMachine.CurrentGear);
+                    _seqMachine.Resync(y);
+                    if (_output != null && cfg.Pattern != GatePattern.Sequential)
+                    {
+                        _output.SetGear(_stateMachine.CurrentGear);
+                    }
 
                     RaiseCalibrationFinished();
                 }
@@ -584,7 +643,11 @@ namespace AB9ActiveShifter.Core
 
                 int x, y;
                 string pollError;
-                if (_device.TryPoll(out x, out y, out pollError)) _stateMachine.Resync(x, y);
+                if (_device.TryPoll(out x, out y, out pollError))
+                {
+                    _stateMachine.Resync(x, y);
+                    _seqMachine.Resync(y);
+                }
 
                 Log.ResetThrottle("device-open");
                 _phase = EnginePhase.Run;
@@ -634,15 +697,30 @@ namespace AB9ActiveShifter.Core
             if (_stateMachine == null || !GeometryUnchanged(previous, cfg))
             {
                 _stateMachine = new GateStateMachine(_geometry, cfg.MinEngageTicks);
+                _seqMachine = new SequentialStateMachine(_geometry, cfg.MinEngageTicks);
 
                 int x, y;
                 string error;
-                if (_device != null && _device.TryPoll(out x, out y, out error)) _stateMachine.Resync(x, y);
+                if (_device != null && _device.TryPoll(out x, out y, out error))
+                {
+                    _stateMachine.Resync(x, y);
+                    _seqMachine.Resync(y);
+                }
 
                 // The rebuilt machine may disagree with what is currently held - new geometry
                 // can put the stick outside the gear it was in. Push the truth to vJoy now,
-                // or the old button would stay down with nothing left to release it.
-                if (_output != null) _output.SetGear(_stateMachine.CurrentGear);
+                // or the old button would stay down with nothing left to release it. A pulse
+                // in flight is cleared the same way, or switching pattern mid-press would
+                // leave an up/down button held as a phantom gear.
+                if (_output != null)
+                {
+                    if (_pulseButton != 0) _output.SetButton(_pulseButton, false);
+                    _output.SetGear(cfg.Pattern == GatePattern.Sequential ? 0 : _stateMachine.CurrentGear);
+                }
+
+                _pulseButton = 0;
+                _pulsePending = 0;
+                _seqPushed = ShiftDir.None;
             }
 
             // Only a change of identity needs a reopen. Forces, damping and geometry are all
@@ -667,12 +745,61 @@ namespace AB9ActiveShifter.Core
             }
         }
 
+        /// <summary>
+        /// Runs the sequential button pulse. A fresh shift presses its button and schedules the
+        /// release; re-firing a button that is still down releases it first and delays the next
+        /// press by a gap long enough for a game's input poll to observe, because an off-and-on
+        /// inside one millisecond reads as one continuous press.
+        /// </summary>
+        private void StepPulse(EngineConfig cfg, long nowMs, int shift)
+        {
+            if (_output == null) return;
+
+            int hold = Math.Max(SeqRefireGapMs, cfg.SeqPulseMs);
+
+            if (shift != 0)
+            {
+                int button = shift > 0 ? SeqUpButton : SeqDownButton;
+
+                if (_pulseButton == button)
+                {
+                    _output.SetButton(button, false);
+                    _pulseButton = 0;
+                    _pulsePending = button;
+                    _pulseOnAtMs = nowMs + SeqRefireGapMs;
+                }
+                else
+                {
+                    if (_pulseButton != 0) _output.SetButton(_pulseButton, false);
+                    _pulseButton = button;
+                    _pulsePending = 0;
+                    _pulseOffAtMs = nowMs + hold;
+                    _output.SetButton(button, true);
+                }
+                return;
+            }
+
+            if (_pulsePending != 0 && nowMs >= _pulseOnAtMs)
+            {
+                _pulseButton = _pulsePending;
+                _pulsePending = 0;
+                _pulseOffAtMs = nowMs + hold;
+                _output.SetButton(_pulseButton, true);
+            }
+            else if (_pulseButton != 0 && nowMs >= _pulseOffAtMs)
+            {
+                _output.SetButton(_pulseButton, false);
+                _pulseButton = 0;
+            }
+        }
+
         /// <summary>True when nothing that changes where the gears are has moved.</summary>
         private static bool GeometryUnchanged(EngineConfig a, EngineConfig b)
         {
             if (a == null || b == null) return false;
 
-            return a.ChannelHalfEnter == b.ChannelHalfEnter
+            return a.Pattern == b.Pattern
+                && a.ChannelHalfEnter == b.ChannelHalfEnter
                 && a.ChannelHalfExit == b.ChannelHalfExit
                 && a.ColumnEdgeEnter == b.ColumnEdgeEnter
                 && a.ColumnEdgeExit == b.ColumnEdgeExit
@@ -690,6 +817,21 @@ namespace AB9ActiveShifter.Core
         private void PublishSnapshot(int x, int y, double loopHz)
         {
             GateStateMachine sm = _stateMachine;
+            GateGeometry geo = _geometry;
+            EngineConfig cfg = _activeConfig;
+            bool sequential = cfg != null && cfg.Pattern == GatePattern.Sequential;
+
+            string label;
+            if (sequential)
+            {
+                label = _seqPushed == ShiftDir.Fwd ? "+" : (_seqPushed == ShiftDir.Back ? "-" : "N");
+            }
+            else
+            {
+                int gear = sm != null ? sm.CurrentGear : 0;
+                label = geo != null ? geo.LabelFor(gear) : "N";
+            }
+
             var snapshot = new EngineSnapshot
             {
                 Phase = _phase,
@@ -699,10 +841,10 @@ namespace AB9ActiveShifter.Core
                 RawY = y,
                 X = x,
                 Y = y,
-                State = sm != null ? sm.State : GateState.Neutral,
-                Column = sm != null ? sm.Column : Column.None,
-                Gear = sm != null ? sm.CurrentGear : 0,
-                GearLabel = GateGeometry.GearLabel(sm != null ? sm.CurrentGear : 0),
+                State = !sequential && sm != null ? sm.State : GateState.Neutral,
+                Column = !sequential && sm != null ? sm.Column : Column.None,
+                Gear = !sequential && sm != null ? sm.CurrentGear : 0,
+                GearLabel = label,
                 LoopHz = loopHz,
                 StatusMessage = _status,
                 DeviceName = _device != null ? (_device.ProductName ?? "") : ""

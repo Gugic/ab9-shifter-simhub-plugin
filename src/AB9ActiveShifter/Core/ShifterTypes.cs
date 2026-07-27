@@ -2,7 +2,27 @@ using System;
 
 namespace AB9ActiveShifter.Core
 {
-    /// <summary>Gate columns, left to right. C4 is the lockout-protected 7/R column.</summary>
+    /// <summary>
+    /// The shift pattern the gate renders. The H patterns share one geometry engine - they
+    /// differ only in column count and which slots hold a gear - while Sequential bypasses the
+    /// gate entirely for a sprung fore/aft lever with pulsed up/down buttons.
+    /// </summary>
+    public enum GatePattern
+    {
+        /// <summary>Four columns, 1-7 plus R bottom-right, lockout before the 7/R column.</summary>
+        H7R = 0,
+
+        /// <summary>Four columns, 1-6 plus R bottom-right; the slot where 7 would sit does not exist.</summary>
+        H6R = 1,
+
+        /// <summary>Three columns, 1-5 plus R bottom-right, no lockout.</summary>
+        H5R = 2,
+
+        /// <summary>Fore/aft lever sprung to centre; push fires an up/down button pulse.</summary>
+        Sequential = 3
+    }
+
+    /// <summary>Gate columns, left to right. The last column of the pattern holds reverse.</summary>
     public enum Column
     {
         None = -1,
@@ -142,6 +162,19 @@ namespace AB9ActiveShifter.Core
         /// <summary>Anti-oscillation damping, 0..10000. Carried per frame so a gain change
         /// can be applied without recreating the effect.</summary>
         public int DamperCoefficient;
+    }
+
+    /// <summary>Result of one sequential state machine step.</summary>
+    public struct SeqTransition
+    {
+        /// <summary>+1 fires an upshift this tick, -1 a downshift, 0 nothing.</summary>
+        public int Shift;
+
+        /// <summary>Whether the lever is back near centre and a new shift can fire.</summary>
+        public bool Armed;
+
+        /// <summary>The direction currently held past its threshold, for display.</summary>
+        public ShiftDir Pushed;
     }
 
     /// <summary>Result of one state machine step.</summary>

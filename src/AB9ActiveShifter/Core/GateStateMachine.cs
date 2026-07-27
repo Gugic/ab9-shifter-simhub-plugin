@@ -86,8 +86,17 @@ namespace AB9ActiveShifter.Core
                 return;
             }
 
+            ShiftDir dir = _geo.DirectionOf(y);
+            if (!_geo.SlotExists(c, dir))
+            {
+                // A slot that holds no gear in this pattern - 6+R's missing 7. The wall is
+                // closed there too, so being here means the hand overpowered it; there is
+                // still nothing to select.
+                return;
+            }
+
             _column = c;
-            _direction = _geo.DirectionOf(y);
+            _direction = dir;
             _state = GateState.Traveling;
             _engageTicks = 0;
         }
@@ -147,7 +156,7 @@ namespace AB9ActiveShifter.Core
             }
 
             Column c = _geo.ColumnAt(x);
-            if (c == Column.None)
+            if (c == Column.None || !_geo.SlotExists(c, _geo.DirectionOf(y)))
             {
                 EnterNeutral();
                 return;
