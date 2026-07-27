@@ -25,9 +25,11 @@ light — that is the safety cap doing its job, not a tuning problem.
 ## Patterns
 
 The **pattern** lives on the Setup tab, per profile: 7+R (lockout), 6+R (no 7th slot — its divider
-just continues across), 5+R (three wider columns, no lockout), or Sequential. Gears map to vJoy
-buttons 1..N with reverse always the highest (8 / 7 / 6), so rebind in the game when you change
-pattern.
+just continues across), 5+R (three wider columns, no lockout), or Sequential. Forward gears map to
+vJoy buttons 1..N and **reverse is always button 8**, whatever the pattern — so one set of game
+bindings covers every pattern and switching profiles never needs a rebind. (Reverse used to be the
+highest gear of the pattern, which put 5+R's R on button 6 — read by a game bound for 7+R as sixth
+gear, at speed.)
 
 **Sequential** turns the fore/aft axis into a sprung lever: push past the engage threshold and it
 fires one press of button 9 (up) or 10 (down) — above every gear button, so a game still carrying

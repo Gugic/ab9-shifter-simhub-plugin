@@ -112,12 +112,15 @@ capture the lever into a gear it was never driven into. See the gear lock in
 `Resync` is therefore the only way to adopt a position — startup, and a geometry change under the
 running loop, where the engine rebuilds the state machine.
 
-Gear numbering is `GateGeometry.GearFor(column, direction)`, 1..N with N = reverse — 8 for 7+R, 7
-for 6+R, 6 for 5+R, so the vJoy buttons stay contiguous whatever the pattern. A slot that holds no
-gear (6+R's missing 7) is simply a slot the map sends to 0: `SlotExists` follows the map, the wall
-over it never opens, and the state machine refuses to latch it. Because the hole lives in the map,
-`MirrorColumns` and `MirrorSlots` relocate it along with the gears. Both flags relabel the map
-**only** — geometry never moves. See the invariants in [../AGENTS.md](../AGENTS.md) for why.
+Gear numbering is `GateGeometry.GearFor(column, direction)`: forward gears 1..N, and **reverse
+always 8**, whatever the pattern. The buttons are deliberately not contiguous — reverse used to
+compact down to the pattern's highest gear (8/7/6), and that put 5+R's reverse on button 6, which
+a game still carrying 7+R bindings read as "engage sixth", at speed. A fixed reverse button means
+one set of game bindings survives switching patterns. A slot that holds no gear (6+R's missing 7)
+is simply a slot the map sends to 0: `SlotExists` follows the map, the wall over it never opens,
+and the state machine refuses to latch it. Because the hole lives in the map, `MirrorColumns` and
+`MirrorSlots` relocate it along with the gears. Both flags relabel the map **only** — geometry
+never moves. See the invariants in [../AGENTS.md](../AGENTS.md) for why.
 
 ## Patterns and the sequential mode
 

@@ -2028,22 +2028,26 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(8, h7r.GearFor(Column.C4, ShiftDir.Back));
             Assert.Equal("R", h7r.LabelFor(8));
 
-            // 6+R: the slot that would hold 7 holds nothing, and reverse compacts to 7 so the
-            // vJoy buttons stay contiguous.
+            // 6+R: the slot that would hold 7 holds nothing. Reverse stays on button 8 - NOT
+            // compacted down to fill the hole - so a game bound for any other pattern still
+            // reads this pattern's R as reverse.
             Assert.Equal(4, h6r.ColumnCount);
             Assert.Equal(0, h6r.GearFor(Column.C4, ShiftDir.Fwd));
             Assert.False(h6r.SlotExists(Column.C4, ShiftDir.Fwd));
-            Assert.Equal(7, h6r.GearFor(Column.C4, ShiftDir.Back));
-            Assert.Equal("R", h6r.LabelFor(7));
+            Assert.Equal(8, h6r.GearFor(Column.C4, ShiftDir.Back));
+            Assert.Equal("R", h6r.LabelFor(8));
             Assert.Equal("6", h6r.LabelFor(6));
 
-            // 5+R: three columns spread over the full axis, reverse is 6, no lockout. The
-            // middle column rounds to 32768 because full travel is an odd count.
+            // 5+R: three columns spread over the full axis, no lockout, and reverse is still
+            // button 8. It used to be 6, which a game carrying 7+R bindings read as sixth
+            // gear - reverse engaged at speed, reported from the driver's seat. The middle
+            // column rounds to 32768 because full travel is an odd count.
             Assert.Equal(3, h5r.ColumnCount);
             Assert.InRange(h5r.ColumnTarget(Column.C2), GateGeometry.AxisCenter, GateGeometry.AxisCenter + 1);
             Assert.Equal(GateGeometry.AxisMax, h5r.ColumnTarget(Column.C3));
-            Assert.Equal(6, h5r.GearFor(Column.C3, ShiftDir.Back));
-            Assert.Equal("R", h5r.LabelFor(6));
+            Assert.Equal(5, h5r.GearFor(Column.C3, ShiftDir.Fwd));
+            Assert.Equal(8, h5r.GearFor(Column.C3, ShiftDir.Back));
+            Assert.Equal("R", h5r.LabelFor(8));
             Assert.False(h5r.HasLockout);
         }
 
@@ -2059,7 +2063,7 @@ namespace AB9ActiveShifter.Tests
             }.BuildGeometry();
 
             Assert.False(mirrored.SlotExists(Column.C1, ShiftDir.Fwd));
-            Assert.Equal(7, mirrored.GearFor(Column.C1, ShiftDir.Back));
+            Assert.Equal(8, mirrored.GearFor(Column.C1, ShiftDir.Back));
             Assert.True(mirrored.SlotExists(Column.C4, ShiftDir.Fwd));
         }
 
@@ -2121,7 +2125,7 @@ namespace AB9ActiveShifter.Tests
             sm.Update(C4, GateGeometry.AxisMax - 2000);
             sm.Update(C4, GateGeometry.AxisMax - 2000);
             sm.Update(C4, GateGeometry.AxisMax - 2000);
-            Assert.Equal(7, sm.CurrentGear);
+            Assert.Equal(8, sm.CurrentGear);
             Assert.Equal("R", geo.LabelFor(sm.CurrentGear));
         }
     }

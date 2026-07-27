@@ -28,7 +28,14 @@ namespace AB9ActiveShifter.Core
         /// <summary>How many columns this pattern has. Three for 5+R, four otherwise.</summary>
         public int ColumnCount { get; private set; }
 
-        /// <summary>The gear number labelled R - always the pattern's highest gear.</summary>
+        /// <summary>
+        /// The gear number labelled R: always 8, whatever the pattern. Reverse used to be the
+        /// pattern's highest gear - 8, 7 or 6 - which kept the vJoy buttons contiguous and was
+        /// wrong in the way that matters: a game bound for one pattern read another pattern's
+        /// reverse as a forward gear (5+R's R landed on button 6, "sixth gear", at speed).
+        /// Pinning R to button 8 means one set of game bindings survives switching patterns;
+        /// the unused buttons in between cost nothing.
+        /// </summary>
         public int ReverseGear { get; private set; }
 
         /// <summary>Whether this pattern has a push-through gate before its last column.</summary>
@@ -87,7 +94,7 @@ namespace AB9ActiveShifter.Core
         {
             Pattern = pattern;
             ColumnCount = pattern == GatePattern.H5R ? 3 : 4;
-            ReverseGear = pattern == GatePattern.H5R ? 6 : (pattern == GatePattern.H6R ? 7 : 8);
+            ReverseGear = 8;
 
             // 5+R has no lockout by design, and Sequential has no gate at all; the geometry
             // stays well-formed either way so nothing downstream needs a null check.
@@ -490,8 +497,11 @@ namespace AB9ActiveShifter.Core
         ///
         /// Returns 0 for a slot that holds no gear in this pattern. That single fact is what a
         /// "missing slot" IS: 6+R is the four-column map with the slot that would hold 7 mapped
-        /// to nothing and reverse compacted down to 7, so the buttons stay contiguous. Because
-        /// the hole lives in the map, the mirror flags relocate it along with every other gear.
+        /// to nothing. Because the hole lives in the map, the mirror flags relocate it along
+        /// with every other gear.
+        ///
+        /// Reverse is the last gear-column's back slot and is always gear 8 - see
+        /// <see cref="ReverseGear"/> for why the buttons are deliberately not contiguous.
         /// </summary>
         public int GearFor(Column c, ShiftDir dir)
         {
@@ -499,13 +509,11 @@ namespace AB9ActiveShifter.Core
 
             int column = MirrorColumns ? (ColumnCount - 1 - (int)c) : (int)c;
             bool forward = MirrorSlots ? dir == ShiftDir.Back : dir == ShiftDir.Fwd;
-            int raw = column * 2 + (forward ? 1 : 2);
 
-            if (Pattern == GatePattern.H6R)
-            {
-                if (raw == 7) return 0;
-                if (raw == 8) return 7;
-            }
+            if (column == ColumnCount - 1 && !forward) return ReverseGear;
+
+            int raw = column * 2 + (forward ? 1 : 2);
+            if (Pattern == GatePattern.H6R && raw == 7) return 0;
 
             return raw;
         }
