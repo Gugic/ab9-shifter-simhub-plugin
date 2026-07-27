@@ -180,17 +180,31 @@ namespace AB9ActiveShifter.UI
             ShifterSettings s = Plugin.Settings;
             EngineConfig cfg = s.ToEngineConfig();
 
-            double wall = cfg.EffectiveGain * s.ChannelWallForcePct;
-            double lockout = cfg.EffectiveGain * s.LockoutForcePct;
-
             string capped = cfg.PolarityConfirmed
                 ? ""
                 : "  Gain is capped at " + EngineConfig.UnconfirmedGainCapPct +
                   "% until polarity is measured, so everything will feel light.";
 
-            LockoutSummary.Text = string.Format(
-                "Of what the base can produce: gate walls about {0:0}%, the 7/R lockout about {1:0}%.{2}",
-                wall, lockout, capped);
+            if (!s.IsHPattern)
+            {
+                LockoutSummary.Text = string.Format(
+                    "Of what the base can produce: push resistance about {0:0}%, lateral rail about {1:0}%.{2}",
+                    cfg.EffectiveGain * s.DetentResistPct,
+                    cfg.EffectiveGain * s.ColumnPinForcePct,
+                    capped);
+                return;
+            }
+
+            double wall = cfg.EffectiveGain * s.ChannelWallForcePct;
+            double lockout = cfg.EffectiveGain * s.LockoutForcePct;
+
+            LockoutSummary.Text = s.HasLockout
+                ? string.Format(
+                    "Of what the base can produce: gate walls about {0:0}%, the R-column lockout about {1:0}%.{2}",
+                    wall, lockout, capped)
+                : string.Format(
+                    "Of what the base can produce: gate walls about {0:0}%.{1}",
+                    wall, capped);
         }
 
         private void OnCalibrate(object sender, RoutedEventArgs e)

@@ -9,6 +9,10 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              d:DesignWidth="900">
 
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+
     <styles:SHTabControl>
 
         <!-- ============================ SETUP ============================ -->
@@ -204,7 +208,8 @@
                         </StackPanel>
                     </styles:SHSection>
 
-                    <styles:SHSection Title="SLOT MOUTHS" ShowSeparator="True">
+                    <styles:SHSection Title="SLOT MOUTHS" ShowSeparator="True"
+                                      Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                         <StackPanel Margin="0,4,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
                                        Text="The ends of the dividers between slots, where they meet the neutral tunnel. Square is the plain rectangular notch the gate has always had. The other two open the slot out toward the tunnel, which a hand reads as an eased or a chamfered edge - they only ever remove force, never add it, so the shaping guides rather than shoves." />
@@ -228,16 +233,19 @@
                         </StackPanel>
                     </styles:SHSection>
 
-                    <styles:SHSection Title="SLIDING ACROSS THE GATE" ShowSeparator="True">
+                    <styles:SHSection Title="SLIDING ACROSS THE GATE" ShowSeparator="True"
+                                      Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                         <StackPanel Margin="0,4,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
                                        Text="What the hand feels moving along the neutral channel: a light pull into each column, a hump to climb between the ordinary columns, and the lockout gate before 7/R - a one-way fight, flat toward the main gears across a compact band, so a fast flick pays the same price as a slow push. Leaving 7/R is assisted, like a real range gate. Its width times its force is the toll: if slams still get through, widen or strengthen it." />
 
-                            <ui:TitledSlider Title="Lockout gate, guarding 7/R (%)" Minimum="0" Maximum="100"
+                            <ui:TitledSlider Title="Lockout gate, guarding the R column (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="70"
+                                             Visibility="{Binding HasLockout, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding LockoutForcePct, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Lockout gate half-width (axis counts)" Minimum="500" Maximum="6000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2200"
+                                             Visibility="{Binding HasLockout, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding LockoutHalfWidth, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Humps between the other columns (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="15"
@@ -260,6 +268,7 @@
                                              Value="{Binding DetentResistPct, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Pull into the slot, the snick (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="35"
+                                             Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding DetentPullPct, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Seated hold, keeps the gear in (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="55"
