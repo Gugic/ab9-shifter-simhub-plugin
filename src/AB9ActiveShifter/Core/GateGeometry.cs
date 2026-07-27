@@ -72,6 +72,16 @@ namespace AB9ActiveShifter.Core
         /// <summary>Distance between adjacent columns.</summary>
         public int ColumnSpacing { get { return AxisMax / (ColumnCount - 1); } }
 
+        /// <summary>
+        /// The column the neutral spring pulls toward: the one holding gears 3 and 4, where a
+        /// real H lever rests. Gear-column 1 in map space, so mirroring relocates it with the
+        /// gears - and the middle column of a three-column gate either way.
+        /// </summary>
+        public Column HomeColumn
+        {
+            get { return (Column)(MirrorColumns ? ColumnCount - 2 : 1); }
+        }
+
         /// <summary>Gear layout preference; see <see cref="GearFor(Column, ShiftDir)"/>.</summary>
         public bool MirrorColumns { get; private set; }
 

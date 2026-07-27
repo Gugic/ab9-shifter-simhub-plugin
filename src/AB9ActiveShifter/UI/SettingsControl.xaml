@@ -276,6 +276,11 @@
                             <ui:TitledSlider Title="Pull into a column (%)" Minimum="0" Maximum="60"
                                              TickFrequency="1" ShowResetButton="True" ResetValue="12"
                                              Value="{Binding ColumnDetentForcePct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Neutral spring toward 3/4 (%)" Minimum="0" Maximum="60"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="0"
+                                             Value="{Binding HomeSpringPct, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
+                                       Text="Off at zero. A real H lever rests at the 3/4 gate: this pulls the lever there whenever it is in the neutral channel, fading out with depth so a held gear feels no side pull. Around 25-30% it out-pulls the default column detent and humps and a released lever walks home from anywhere in the channel; below that it is a lean rather than a return. It follows the gear layout, so mirrored columns move home with the gears. If the lever trembles parked at 3/4, lower it - like every pull toward a place, it is only stable in moderation." />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
                                        Text="The pull into a column is light while you slide along the channel and rises in one straight line to the full slot wall by the time you have left it, so the same dial also sets how firmly an entry taken slightly off a column is steered onto its slot. There is no force at all across a column's own width, so it guides without giving the lever a centre line to hunt around. It has no separate funnel strength: a second waypoint would either make one leg steeper than the walls or land exactly on this line." />
                         </StackPanel>

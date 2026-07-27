@@ -2216,5 +2216,95 @@ namespace AB9ActiveShifter.Tests
                                           C2, 500, 0, 0, 0, 0, false);
             Assert.True(seated.ConstantY < 0);
         }
+
+        // ---------------------------------------------------------------- the home spring
+
+        /// <summary>Home spring alone: every other lateral force silenced.</summary>
+        private static EngineConfig HomeSpringOnly()
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.HomeSpringPct = 30;
+            cfg.ColumnDetentForcePct = 0;
+            cfg.BarrierForcePct = 0;
+            cfg.LockoutForcePct = 0;
+            cfg.DampingPct = 0;
+            return cfg;
+        }
+
+        [Fact]
+        public void TheHomeSpringPullsTowardTheThreeFourColumn()
+        {
+            // A real H lever rests at the 3/4 gate. In the channel the spring is a flat pull
+            // toward that column from either side, and dead across the column's own width -
+            // the equilibrium is a region, not a point, so there is nothing to hunt around.
+            ForceComposer c = Composer(HomeSpringOnly());
+
+            Assert.Equal(3000, Neutral(c, C1, Center).ConstantX);
+            Assert.Equal(-3000, Neutral(c, C3, Center).ConstantX);
+            Assert.Equal(0, Neutral(c, C2, Center).ConstantX);
+
+            // Flat beyond the face: the far end of the gate feels the same pull as halfway,
+            // because a gradient that kept growing would be a spring this base cannot render
+            // and an oscillator this project will not.
+            Assert.Equal(Neutral(c, C3, Center).ConstantX, Neutral(c, Max, Center).ConstantX);
+        }
+
+        [Fact]
+        public void TheHomeSpringFadesOutWithDepthLikeTheHumps()
+        {
+            // A held gear must feel no sideways pull toward home - below the channel the slot
+            // walls own the lateral axis alone. Pin force zeroed too, so anything left at
+            // depth could only be the spring failing to fade.
+            EngineConfig cfg = HomeSpringOnly();
+            cfg.ColumnPinForcePct = 0;
+            ForceComposer c = Composer(cfg);
+
+            Assert.Equal(3000, Neutral(c, C1, Center).ConstantX);
+
+            ForceFrame deep = c.Compose(GateState.Traveling, Column.C1, ShiftDir.Fwd,
+                                        C1, 2000, 0, 0, 0);
+            Assert.Equal(0, deep.ConstantX);
+        }
+
+        [Fact]
+        public void MirroringMovesTheHomeColumnWithTheGears()
+        {
+            // Home is gear-column 1 - the one holding 3 and 4 - not a device position, so the
+            // mirror flags relocate it exactly as they relocate the gears themselves.
+            Assert.Equal(Column.C2, new EngineConfig().BuildGeometry().HomeColumn);
+            Assert.Equal(Column.C3, new EngineConfig { MirrorColumns = true }.BuildGeometry().HomeColumn);
+
+            // A three-column gate is symmetric: home is the middle either way.
+            Assert.Equal(Column.C2, new EngineConfig { Pattern = GatePattern.H5R }.BuildGeometry().HomeColumn);
+            Assert.Equal(Column.C2, new EngineConfig { Pattern = GatePattern.H5R, MirrorColumns = true }
+                                        .BuildGeometry().HomeColumn);
+
+            EngineConfig mirrored = HomeSpringOnly();
+            mirrored.MirrorColumns = true;
+            ForceComposer c = Composer(mirrored);
+
+            Assert.Equal(3000, Neutral(c, C2, Center).ConstantX);
+            Assert.Equal(0, Neutral(c, C3, Center).ConstantX);
+        }
+
+        [Fact]
+        public void TheHomeSpringNeverStepsTheField()
+        {
+            // The whole lateral field, every force on, spring at full slider, one count at a
+            // time across the entire channel: no adjacent pair may differ by more than the
+            // steepest sanctioned face. A step here is the mouth-oscillation bug reborn.
+            EngineConfig cfg = FullGainConfig();
+            cfg.HomeSpringPct = 60;
+            ForceComposer c = Composer(cfg);
+
+            int previous = Neutral(c, 0, Center).ConstantX;
+            for (int x = 1; x <= Max; x++)
+            {
+                int fx = Neutral(c, x, Center).ConstantX;
+                Assert.True(Math.Abs(fx - previous) <= 120,
+                    "lateral field stepped " + Math.Abs(fx - previous) + " DI at x=" + x);
+                previous = fx;
+            }
+        }
     }
 }

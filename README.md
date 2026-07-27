@@ -41,6 +41,10 @@ hand you a different gear, it just pushes you back into the one you are in. And 
 a gear slightly off-column is **funnelled** onto the slot rather than blocked, the way the
 tapered mouth of a real gate guides the lever in.
 
+An optional **neutral spring** (off by default) pulls the lever toward the 3/4 column while in
+neutral, fading out with depth — dial it up and a released lever drifts home across the
+notches, the way a real H lever rests at the 3/4 gate.
+
 The toll is the gate's force (70% by default) times its width, and both are adjustable.
 
 ## Game effects

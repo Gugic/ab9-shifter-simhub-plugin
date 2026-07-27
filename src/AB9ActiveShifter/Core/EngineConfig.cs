@@ -216,6 +216,23 @@ namespace AB9ActiveShifter.Core
         /// <summary>Humps between the ordinary columns, felt as you slide across the gate.</summary>
         public int BarrierForcePct = 15;
 
+        /// <summary>
+        /// The neutral spring: a lateral pull toward the 3/4 column while in the channel, so a
+        /// released lever drifts home the way a real H lever rests at the 3/4 gate. Zero - the
+        /// default - is off entirely.
+        ///
+        /// A constant-force render like everything else (a DirectInput spring cannot reach
+        /// usable strength on this base), and shaped to dodge the oscillator trap that pulls
+        /// toward a line fall into: no force at all across the home column's own width, so the
+        /// equilibrium is a flat region rather than a point; one wall-stiffness face; a flat
+        /// plateau everywhere beyond. It fades out with depth exactly like the humps, so a held
+        /// gear feels no sideways pull, and it is continuous in x - anchored to one fixed
+        /// column - so unlike the nearest-column guide it has no handover to relieve. Around
+        /// 25-30% it out-pulls the default detent and humps and the lever self-returns from
+        /// anywhere in the channel; like every pull toward a place, raise it in moderation.
+        /// </summary>
+        public int HomeSpringPct = 0;
+
         /// <summary>The lockout gate before 7/R: a flat one-way fight at this force, all the way across.</summary>
         public int LockoutForcePct = 70;
 

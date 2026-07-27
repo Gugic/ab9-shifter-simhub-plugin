@@ -35,7 +35,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-178 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
+182 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
 on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
 Deploy needs SimHub stopped, because it locks the DLL:
@@ -205,7 +205,12 @@ runners cannot load, so anything worth testing must not touch it.
   only stable at moderate strengths with the full stabiliser stack; a railed column that trembles
   wants its force lowered, never damping raised. `ChannelFreeDepth` is clamped to
   `ChannelHalfEnter` from above — a force deadband wider than the state band would be walls the
-  state machine believes exist and the hand never meets.
+  state machine believes exist and the hand never meets. The one sanctioned pull-toward-a-place
+  is the **home spring** (`HomeSpringPct`, default 0): dead across the home column's width so
+  the equilibrium is a region not a point, one-stiffness face with no upper clamp (a spring
+  stronger than the pin gets a longer face, never a steeper one), flat plateau beyond, faded
+  with depth like the humps, anchored to the map's gear-column 1 so mirroring moves it. It has
+  the rail's hunt ceiling: a lever trembling at home wants the spring lowered, never damping.
 
 **Safety ordering**
 
