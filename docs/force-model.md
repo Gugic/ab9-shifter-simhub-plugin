@@ -485,13 +485,18 @@ engaged gear never grinds — meshed dogs cannot be balked — and sequential is
 clutchless shifting is what a dog box is for.
 
 With **rejection** on, a grinding shift is also balked, in two coordinated moves: the state
-machine refuses the Traveling→Engaged transition (`allowEngage`), and the slot detent renders
-**resist-only** — the entry resistance rises and then simply stays, with no crossover, no snick
-and no hold, so the slot pushes the lever back out the way a blocking synchro ring does. Press
-the clutch mid-push and the normal profile returns instantly — the pull arrives whole, like the
-snick it is — and the gear registers after the standard debounce. The lever *can* physically
-reach the bottom of a slot it will never own; see the rejected table for why the wall is not
-closed over it.
+machine refuses the Traveling→Engaged transition (`allowEngage`), and the slot detent becomes
+the **balk wall** — the entry resistance with `GrindWallPct` stacked on top, rising and then
+simply staying, with no crossover, no snick and no hold, so the slot is a border the lever
+grinds against rather than a lean, the way a blocking synchro ring stops the lever a third of
+the way in. The grind's loudness follows depth — forcing the lever against the balk presses the
+teeth together harder — and while balked the detent is treated as the wall it has become: it
+takes the attack shaping and the walls' full rebound absorption (the snick's exemptions exist
+to protect a transient that cannot occur while balked, and return the moment the clutch unmutes
+it). Press the clutch mid-push and the normal profile returns instantly — the pull arrives
+whole, like the snick it is — and the gear registers after the standard debounce. The lever
+*can* still be forced to the bottom of a slot it will never own; see the rejected table for why
+the wall is not closed over it.
 
 ## Rejected approaches
 

@@ -81,9 +81,11 @@ namespace AB9ActiveShifter.Core
         /// One tick of effects. <paramref name="ageMs"/> is how old the telemetry snapshot is;
         /// <paramref name="approachingSlot"/> is whether an H-pattern lever is currently
         /// travelling into a slot (the engine passes last tick's state, which at 1 kHz is the
-        /// same fact one millisecond late).
+        /// same fact one millisecond late), and <paramref name="slotDepth"/> how far into it,
+        /// 0..1 - the grind gets louder the harder the lever is forced against the balk.
         /// </summary>
-        public EffectOutput Step(EngineConfig cfg, TelemetryState t, int ageMs, double dtMs, bool approachingSlot)
+        public EffectOutput Step(EngineConfig cfg, TelemetryState t, int ageMs, double dtMs,
+                                 bool approachingSlot, double slotDepth = 1.0)
         {
             EffectOutput output = default(EffectOutput);
 
@@ -100,12 +102,15 @@ namespace AB9ActiveShifter.Core
             double gain = cfg.EffectiveGain;
             int vib = 0;
 
-            // Engine vibration: the carrier tracks engine speed times the order dial, like the
-            // firing pulses of a real engine coming up the linkage. Order 1 is one pulse per
-            // revolution; a four-cylinder four-stroke fires at order 2.
+            // Engine vibration: the carrier's pitch scales with engine speed, anchored by a
+            // directly settable frequency at 1000 rpm - so the idle buzz is a number a hand
+            // can dial, and revving still raises it proportionally, like firing pulses coming
+            // up a real linkage. 17 Hz per 1000 rpm is once per revolution; engine firing
+            // orders are multiples of that. Capped where the write rate stops rendering pitch.
             if (cfg.FxEngineEnabled && t.Rpms > MinEngineRpm)
             {
-                double freq = GateGeometry.Clamp(t.Rpms / 60.0 * cfg.FxEngineOrder, 4.0, 130.0);
+                double freq = GateGeometry.Clamp(
+                    t.Rpms / 1000.0 * cfg.FxEngineFreqAt1000Rpm, 4.0, 130.0);
                 vib += Sine(ref _enginePhase, freq, dtMs, Amp(cfg.FxEngineGainPct, gain, VibFullScale));
             }
 
@@ -163,6 +168,8 @@ namespace AB9ActiveShifter.Core
 
             // The grind. Every condition at once: enabled, an H lever pushing into a slot,
             // the clutch up, the car moving at least the floor speed, the engine turning.
+            // Louder the deeper the lever is forced - the teeth are being pressed together
+            // harder - never fully silent while active, so the mouth still warns.
             if (cfg.GrindEnabled && approachingSlot
                 && t.Clutch < cfg.GrindClutchThresholdPct
                 && t.SpeedKmh >= cfg.GrindMinSpeedKmh
@@ -172,8 +179,9 @@ namespace AB9ActiveShifter.Core
                 output.BlockEngage = cfg.GrindRejectsGear;
                 output.MuteDetent = cfg.GrindRejectsGear;
 
-                vib += Square(ref _grindPhase, cfg.GrindFreqHz, dtMs,
-                              Amp(cfg.GrindGainPct, gain, GrindFullScale));
+                double press = 0.4 + 0.6 * GateGeometry.Clamp(slotDepth, 0.0, 1.0);
+                int amp = (int)Math.Round(Amp(cfg.GrindGainPct, gain, GrindFullScale) * press);
+                vib += Square(ref _grindPhase, cfg.GrindFreqHz, dtMs, amp);
             }
 
             output.VibY = GateGeometry.Clamp(vib, -VibTotalMax, VibTotalMax);

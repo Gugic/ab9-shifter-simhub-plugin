@@ -164,17 +164,18 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void EngineVibrationTracksTheRevsThroughItsOrder()
+        public void EngineVibrationScalesItsPitchWithTheRevs()
         {
             EngineConfig cfg = FullGainConfig();
             cfg.FxEngineEnabled = true;
             cfg.FxEngineGainPct = 100;
 
-            // 3000 rpm at order 1 is 50 Hz: a thousand 1 ms ticks hold a hundred sign flips.
-            Assert.InRange(CountSignFlips(cfg, 3000, 1.0), 90, 110);
+            // The anchor is Hz at 1000 rpm: 17 at 3000 rpm is 51 Hz, so a thousand 1 ms ticks
+            // hold about a hundred sign flips.
+            Assert.InRange(CountSignFlips(cfg, 3000, 17), 92, 112);
 
-            // Order 2 doubles the pitch without touching anything else.
-            Assert.InRange(CountSignFlips(cfg, 3000, 2.0), 180, 220);
+            // Doubling the anchor doubles the pitch without touching anything else.
+            Assert.InRange(CountSignFlips(cfg, 3000, 34), 185, 225);
 
             // An engine that is not turning is silent - no idle hum in the menus.
             TelemetryState off = Driving();
@@ -182,9 +183,9 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(0, PeakVib(new EffectComposer(), cfg, off));
         }
 
-        private static int CountSignFlips(EngineConfig cfg, double rpm, double order)
+        private static int CountSignFlips(EngineConfig cfg, double rpm, int freqAt1000)
         {
-            cfg.FxEngineOrder = order;
+            cfg.FxEngineFreqAt1000Rpm = freqAt1000;
             TelemetryState t = Driving();
             t.Rpms = rpm;
 
@@ -275,6 +276,22 @@ namespace AB9ActiveShifter.Tests
             TelemetryState crawling = Driving();
             crawling.SpeedKmh = 5;
             Assert.False(fx.Step(cfg, crawling, 0, 1.0, true).GrindActive);
+        }
+
+        [Fact]
+        public void TheGrindGetsLouderTheHarderYouPush()
+        {
+            // Depth feeds loudness: forcing the lever against the balk presses the teeth
+            // together harder. Never silent while active, so the mouth still warns.
+            EngineConfig cfg = FullGainConfig();
+            cfg.GrindEnabled = true;
+            cfg.GrindGainPct = 100;
+
+            EffectOutput atMouth = new EffectComposer().Step(cfg, Driving(), 0, 1.0, true, 0.0);
+            EffectOutput atBalk = new EffectComposer().Step(cfg, Driving(), 0, 1.0, true, 1.0);
+
+            Assert.Equal(1800, Math.Abs(atMouth.VibY));
+            Assert.Equal(EffectComposer.GrindFullScale, Math.Abs(atBalk.VibY));
         }
 
         [Fact]

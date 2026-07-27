@@ -161,8 +161,9 @@ and attack stages and inside the final clamp and polarity signs; the reasoning l
 The grind is the one effect with mechanical consequences, and it touches exactly two things:
 `GateStateMachine.Update` takes an `allowEngage` flag that refuses the Traveling→Engaged
 transition (the debounce counter holds at zero, so engagement after the clutch goes down still
-takes the full `MinEngageTicks`), and `ForceComposer` renders the slot detent resist-only while
-balked. Geometry is never touched at runtime, an engaged gear is never dropped, and everything
+takes the full `MinEngageTicks`), and `ForceComposer` renders the slot detent as the balk wall
+while balked — entry resistance plus `GrindWallPct`, no crossover, attack-shaped and
+full-absorbed like the wall it has become. Geometry is never touched at runtime, an engaged gear is never dropped, and everything
 else — buttons before forces, the release path, the watchdog — is unchanged. Both flags are
 plumbed per tick, so a settings change or telemetry loss reverts on the next millisecond.
 

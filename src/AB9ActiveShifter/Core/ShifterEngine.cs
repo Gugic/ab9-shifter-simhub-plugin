@@ -474,10 +474,14 @@ namespace AB9ActiveShifter.Core
                     // The grind wants to know whether the lever is pushing into a slot, which
                     // is read off the state machine BEFORE this tick's update - last tick's
                     // fact, one millisecond old - so that this tick's engage decision can
-                    // depend on the answer.
+                    // depend on the answer. Depth feeds the grind's loudness: forcing the
+                    // lever against the balk presses the teeth together harder.
+                    bool approaching = _stateMachine.State == GateState.Traveling;
+                    double slotDepth = approaching
+                        ? _geometry.EngageFraction(_stateMachine.Direction, y)
+                        : 0.0;
                     EffectOutput fx = _gameEffects.Step(
-                        cfg, telemetry, telemetryAge, dtMs,
-                        _stateMachine.State == GateState.Traveling);
+                        cfg, telemetry, telemetryAge, dtMs, approaching, slotDepth);
 
                     StateTransition t = _stateMachine.Update(x, y, !fx.BlockEngage);
                     gearChanged = t.GearChanged;

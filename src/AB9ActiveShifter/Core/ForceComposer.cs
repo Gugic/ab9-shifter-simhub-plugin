@@ -57,6 +57,7 @@ namespace AB9ActiveShifter.Core
         private readonly int _detentResistMax;
         private readonly int _detentPullMax;
         private readonly int _detentHold;
+        private readonly int _grindWallForce;
         private readonly int _seqStopForce;
         private readonly int _damperCoeff;
 
@@ -148,6 +149,7 @@ namespace AB9ActiveShifter.Core
             _detentResistMax = Force(config.DetentResistPct, gain);
             _detentPullMax = Force(config.DetentPullPct, gain);
             _detentHold = Force(config.DetentHoldPct, gain);
+            _grindWallForce = Force(config.GrindWallPct, gain);
             _seqStopForce = Force(config.SeqStopForcePct, gain);
             _damperCoeff = Scale(config.DamperCoeff, gain);
 
@@ -245,9 +247,15 @@ namespace AB9ActiveShifter.Core
             // transient, over in a few milliseconds by design, and it has to arrive whole to
             // read as a mechanism seating rather than a soft nudge. It also gets the milder
             // rebound floor, because it is supposed to do positive work.
+            //
+            // A balked slot is the exception to the exception: while the grind is rejecting
+            // the gear there is no snick to protect - the detent has become a wall being
+            // leaned on - so it takes the attack and the walls' full absorption like every
+            // wall. The moment the clutch unmutes it, the snick's exemptions return with it.
+            bool wallLike = state == GateState.Neutral || muteDetent;
             return Bound(frame, vx, vy, dtMs,
-                         state == GateState.Neutral ? _yieldFloor : _snickFloor,
-                         shapeY: state == GateState.Neutral,
+                         wallLike ? _yieldFloor : _snickFloor,
+                         shapeY: wallLike,
                          vibY: vibY);
         }
 
@@ -891,9 +899,10 @@ namespace AB9ActiveShifter.Core
         /// into the slot, then settles to a lighter seated hold.
         ///
         /// Muted - a grinding shift being balked - there is no crossover at all: the entry
-        /// resistance rises and then simply stays, pushing the lever back out however deep it
-        /// is held, the way a blocking synchro ring does. The moment the clutch goes down the
-        /// normal profile returns and the pull arrives whole, like the snick it is.
+        /// resistance rises with the balk wall stacked on top, and simply stays, pushing the
+        /// lever back out however deep it is held - a border, the way a blocking synchro ring
+        /// stops the lever a third of the way in, not a lean. The moment the clutch goes down
+        /// the normal profile returns and the pull arrives whole, like the snick it is.
         /// </summary>
         private int DetentMagnitude(ShiftDir direction, int y, bool muted)
         {
@@ -902,7 +911,7 @@ namespace AB9ActiveShifter.Core
             double restoring;
             if (muted)
             {
-                restoring = _detentResistMax * Math.Min(1.0, d / 0.55);
+                restoring = (_detentResistMax + _grindWallForce) * Math.Min(1.0, d / 0.55);
             }
             else if (d < 0.55)
             {
