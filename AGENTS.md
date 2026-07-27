@@ -35,7 +35,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-159 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
+178 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
 on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
 Deploy needs SimHub stopped, because it locks the DLL:
@@ -66,7 +66,8 @@ is normal — something else grabbed the device briefly.
 ```
 src/AB9ActiveShifter/
   AB9ShifterPlugin.cs      SimHub shell: IPlugin/IDataPlugin/IWPFSettingsV2/IReusable,
-                           properties, events, actions, profile management, settings load/save
+                           properties, events, actions, profile management, settings load/save,
+                           DataUpdate -> TelemetryState for the effects
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
   ShifterProfiles.cs       ProfileStore (named settings + active), legacy migration, cloning
   Core/                    Pure, no I/O, fully unit-tested
@@ -75,6 +76,8 @@ src/AB9ActiveShifter/
     GateStateMachine.cs    Neutral / Traveling / Engaged with hysteresis and resync
     SequentialStateMachine.cs One shift per stroke, engage/release hysteresis, resync
     ForceComposer.cs       The gate itself: position+velocity -> forces. The heart.
+    EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
+    TelemetryState.cs      Immutable game-telemetry snapshot, data thread -> engine thread
     PolarityCalibrator.cs  Measures effect polarity on hardware
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
     VelocityEstimator.cs   Position -> speed across a 4 ms window; per-tick differences alias
@@ -84,9 +87,10 @@ src/AB9ActiveShifter/
     EffectSet.cs           The five effects; one force write per tick, fault handling
     NativeMethods.cs       timeBeginPeriod + high-resolution waitable timer
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
-  UI/                      SettingsControl.xaml (Setup/Feel/Geometry/Monitor) + GateVisualizer
+  UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor) + GateVisualizer
 tests/AB9ActiveShifter.Tests/
   ForceComposerTests.cs    Force shape, stability properties, polarity, clamps
+  EffectComposerTests.cs   Carrier amplitudes and gain cap, staleness cut, grind conditions
   GateStateMachineTests.cs Transitions, hysteresis, lockout traces
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
   VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
@@ -113,6 +117,15 @@ runners cannot load, so anything worth testing must not touch it.
 - Damping joins **after** the yield and the time shaping, and is never slewed. It opposes motion
   by construction, so it is never the assisting force the yield exists to soften, and rate
   limiting the stabiliser would defeat it.
+- **Telemetry vibration joins at the same point, and never passes through the stabilisers.** A
+  carrier is keyed on time, not position, so it cannot form the loop the yield and attack
+  stabilise — and the yield would chop a zero-mean carrier every half cycle (the grinding-bug
+  texture, made deliberately). It stays inside the final clamp and the polarity signs, its
+  budget is capped (3000/4500/5000 DI in `EffectComposer`) and scaled by the effective gain, the
+  10% polarity cap included. **Stale telemetry (>500 ms) silences every effect the same tick** —
+  a hung game must not leave a buzz running. **The grind never touches geometry**: rejection is
+  `allowEngage` into the state machine plus a resist-only detent, never a moved or closed wall
+  (see the rejected table in docs/force-model.md).
 - **Velocity is never an adjacent-tick difference, and the absorber's scale is one-way in time.**
   Under write contention the device delivers distinct positions at only ~500 Hz, so per-tick
   differencing alternates ~2:1 and anything keying force on it renders a 250–500 Hz ripple —
@@ -261,6 +274,8 @@ Working and verified on hardware: device acquisition, polarity measurement, the 
 full gate (walls, corridors, barriers, one-way lockout, slot detents), gear detection, vJoy
 output, the settings UI, and the reset/free-stick escapes.
 
-Still open: end-to-end vJoy verification in a game, a safety soak (forced-hang watchdog test and
-reconnect cycling), and telemetry-driven effects — grind and synchro — which are deliberately out
-of scope until the mechanical gate is finished. `DataUpdate` is empty and reserved for them.
+Telemetry effects shipped in v1 form — the clutch grind with gear rejection, engine vibration,
+rev limiter, ABS/TC, the shift pulse, and the custom-property bridge to ShakeIt — awaiting
+verification against a real game. Still open: end-to-end vJoy verification in a game, a safety
+soak (forced-hang watchdog test and reconnect cycling), and a synchro/rev-match model for the
+grind (today it is a threshold on the clutch, not a speed-difference model).

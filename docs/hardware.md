@@ -34,6 +34,10 @@ Consequences, all of which are baked into the current design:
 - **The 3–4 ms round trip cannot be engineered away.** It is why stability comes from force
   *shape* rather than from rate or damping, and why a fast flick covers 1500–2000 axis counts
   inside the latency window no matter how fast the loop runs.
+- **Vibration carriers render cleanly up to roughly 100–130 Hz.** One force write per tick at
+  1 kHz gives ≈10 samples per cycle at 100 Hz; under two-axis contention each axis gets ~500 Hz,
+  still ≈8 samples at 60 Hz. The telemetry effects' frequency dials stop at 120 Hz for this
+  reason — above that the carrier degrades into aliasing rather than pitch.
 - Pacing a 1 ms tick needs a high-resolution waitable timer
   (`CREATE_WAITABLE_TIMER_HIGH_RESOLUTION`). `Thread.Sleep(1)` overshoots the entire budget;
   spinning burns a core. Both fallbacks remain for Windows builds without the flag.

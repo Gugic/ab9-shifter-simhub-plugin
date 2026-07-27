@@ -61,6 +61,11 @@ namespace AB9ActiveShifter.Core
         private EffectSet _effects;
         private VJoyGearOutput _output;
 
+        // Telemetry effects. The composer keeps carrier phases and lives on the engine
+        // thread; the snapshot is written by SimHub's data thread and read here, whole.
+        private readonly EffectComposer _gameEffects = new EffectComposer();
+        private volatile TelemetryState _telemetry = TelemetryState.Inactive;
+
         private Timer _watchdog;
         private long _lastTickStamp;
 
@@ -115,6 +120,16 @@ namespace AB9ActiveShifter.Core
             if (config == null) return;
             _config = config;
             _configDirty = true;
+        }
+
+        /// <summary>
+        /// Hands the engine the latest game telemetry. Called from SimHub's data thread; the
+        /// tick reads whichever snapshot is current and judges freshness from its capture
+        /// stamp, so a game that stops updating cannot leave an effect running.
+        /// </summary>
+        public void SetTelemetry(TelemetryState telemetry)
+        {
+            if (telemetry != null) _telemetry = telemetry;
         }
 
         public void Start()
@@ -419,6 +434,12 @@ namespace AB9ActiveShifter.Core
 
                 UpdateVelocity(x, y);
                 double dtMs = ComposeDelta(cfg);
+
+                // The telemetry effects run on whatever snapshot is current; its age is what
+                // silences them when the game pauses or goes away.
+                TelemetryState telemetry = _telemetry;
+                int telemetryAge = unchecked(Environment.TickCount - telemetry.CapturedAtTick);
+
                 ForceFrame frame;
                 GateState traceState;
                 Column traceColumn;
@@ -429,6 +450,10 @@ namespace AB9ActiveShifter.Core
 
                 if (cfg.Pattern == GatePattern.Sequential)
                 {
+                    // No grind in sequential - clutchless shifting is what a dog box is for -
+                    // so the effects only contribute vibration here.
+                    EffectOutput fx = _gameEffects.Step(cfg, telemetry, telemetryAge, dtMs, false);
+
                     SeqTransition st = _seqMachine.Update(y);
                     gearChanged = st.Shift != 0 || _seqPushed != st.Pushed;
                     _seqPushed = st.Pushed;
@@ -437,7 +462,7 @@ namespace AB9ActiveShifter.Core
                     // least as early as the hand feels the click.
                     StepPulse(cfg, nowMs, st.Shift);
 
-                    frame = _composer.ComposeSequential(x, y, _velocity.X, _velocity.Y, dtMs);
+                    frame = _composer.ComposeSequential(x, y, _velocity.X, _velocity.Y, dtMs, fx.VibY);
 
                     traceState = GateState.Neutral;
                     traceColumn = Column.None;
@@ -446,7 +471,15 @@ namespace AB9ActiveShifter.Core
                 }
                 else
                 {
-                    StateTransition t = _stateMachine.Update(x, y);
+                    // The grind wants to know whether the lever is pushing into a slot, which
+                    // is read off the state machine BEFORE this tick's update - last tick's
+                    // fact, one millisecond old - so that this tick's engage decision can
+                    // depend on the answer.
+                    EffectOutput fx = _gameEffects.Step(
+                        cfg, telemetry, telemetryAge, dtMs,
+                        _stateMachine.State == GateState.Traveling);
+
+                    StateTransition t = _stateMachine.Update(x, y, !fx.BlockEngage);
                     gearChanged = t.GearChanged;
 
                     if (t.GearChanged)
@@ -464,7 +497,8 @@ namespace AB9ActiveShifter.Core
                     }
 
                     frame = _composer.Compose(
-                        t.State, t.Column, t.Direction, x, y, _velocity.X, _velocity.Y, dtMs);
+                        t.State, t.Column, t.Direction, x, y, _velocity.X, _velocity.Y, dtMs,
+                        fx.VibY, fx.MuteDetent);
 
                     traceState = t.State;
                     traceColumn = t.Column;

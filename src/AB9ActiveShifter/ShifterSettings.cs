@@ -50,6 +50,35 @@ namespace AB9ActiveShifter
         private int _seqPulseMs = 120;
         private int _seqOvertravel = 2500;
         private int _seqStopForcePct = 90;
+
+        // Telemetry effects, all off by default: they are additions to the gate, not part of it.
+        private bool _fxEngineEnabled;
+        private int _fxEngineGainPct = 25;
+        private double _fxEngineOrder = 1.0;
+        private bool _fxLimiterEnabled;
+        private int _fxLimiterGainPct = 45;
+        private int _fxLimiterFreqHz = 55;
+        private int _fxLimiterFromPct = 96;
+        private bool _fxAbsEnabled;
+        private int _fxAbsGainPct = 40;
+        private int _fxAbsFreqHz = 44;
+        private bool _fxTcEnabled;
+        private int _fxTcGainPct = 35;
+        private int _fxTcFreqHz = 60;
+        private bool _fxShiftEnabled;
+        private int _fxShiftGainPct = 45;
+        private int _fxShiftFreqHz = 44;
+        private int _fxShiftDurationMs = 80;
+        private bool _fxCustomEnabled;
+        private string _fxCustomProperty = "";
+        private int _fxCustomGainPct = 30;
+        private int _fxCustomFreqHz = 44;
+        private bool _grindEnabled;
+        private int _grindGainPct = 60;
+        private int _grindFreqHz = 33;
+        private int _grindClutchThresholdPct = 25;
+        private int _grindMinSpeedKmh;
+        private bool _grindRejectsGear = true;
         private int _dampingPct = 25;
         private int _wallYieldPct = 45;
         private int _damperCoeff = 800;
@@ -191,6 +220,52 @@ namespace AB9ActiveShifter
         /// <summary>The end-stop wall at the bottom of a sequential stroke.</summary>
         public int SeqStopForcePct { get { return _seqStopForcePct; } set { Set(ref _seqStopForcePct, value); } }
 
+        // Telemetry effects: per-effect enable, volume and pitch, mirrored into EngineConfig.
+
+        public bool FxEngineEnabled { get { return _fxEngineEnabled; } set { Set(ref _fxEngineEnabled, value); } }
+        public int FxEngineGainPct { get { return _fxEngineGainPct; } set { Set(ref _fxEngineGainPct, value); } }
+
+        /// <summary>Vibration frequency as a multiple of engine revolutions.</summary>
+        public double FxEngineOrder { get { return _fxEngineOrder; } set { Set(ref _fxEngineOrder, value); } }
+
+        public bool FxLimiterEnabled { get { return _fxLimiterEnabled; } set { Set(ref _fxLimiterEnabled, value); } }
+        public int FxLimiterGainPct { get { return _fxLimiterGainPct; } set { Set(ref _fxLimiterGainPct, value); } }
+        public int FxLimiterFreqHz { get { return _fxLimiterFreqHz; } set { Set(ref _fxLimiterFreqHz, value); } }
+        public int FxLimiterFromPct { get { return _fxLimiterFromPct; } set { Set(ref _fxLimiterFromPct, value); } }
+
+        public bool FxAbsEnabled { get { return _fxAbsEnabled; } set { Set(ref _fxAbsEnabled, value); } }
+        public int FxAbsGainPct { get { return _fxAbsGainPct; } set { Set(ref _fxAbsGainPct, value); } }
+        public int FxAbsFreqHz { get { return _fxAbsFreqHz; } set { Set(ref _fxAbsFreqHz, value); } }
+
+        public bool FxTcEnabled { get { return _fxTcEnabled; } set { Set(ref _fxTcEnabled, value); } }
+        public int FxTcGainPct { get { return _fxTcGainPct; } set { Set(ref _fxTcGainPct, value); } }
+        public int FxTcFreqHz { get { return _fxTcFreqHz; } set { Set(ref _fxTcFreqHz, value); } }
+
+        public bool FxShiftEnabled { get { return _fxShiftEnabled; } set { Set(ref _fxShiftEnabled, value); } }
+        public int FxShiftGainPct { get { return _fxShiftGainPct; } set { Set(ref _fxShiftGainPct, value); } }
+        public int FxShiftFreqHz { get { return _fxShiftFreqHz; } set { Set(ref _fxShiftFreqHz, value); } }
+        public int FxShiftDurationMs { get { return _fxShiftDurationMs; } set { Set(ref _fxShiftDurationMs, value); } }
+
+        public bool FxCustomEnabled { get { return _fxCustomEnabled; } set { Set(ref _fxCustomEnabled, value); } }
+
+        /// <summary>Full SimHub property name whose 0..100 value drives the custom effect.</summary>
+        public string FxCustomProperty { get { return _fxCustomProperty; } set { Set(ref _fxCustomProperty, value); } }
+        public int FxCustomGainPct { get { return _fxCustomGainPct; } set { Set(ref _fxCustomGainPct, value); } }
+        public int FxCustomFreqHz { get { return _fxCustomFreqHz; } set { Set(ref _fxCustomFreqHz, value); } }
+
+        public bool GrindEnabled { get { return _grindEnabled; } set { Set(ref _grindEnabled, value); } }
+        public int GrindGainPct { get { return _grindGainPct; } set { Set(ref _grindGainPct, value); } }
+        public int GrindFreqHz { get { return _grindFreqHz; } set { Set(ref _grindFreqHz, value); } }
+
+        /// <summary>Clutch positions below this percentage count as "clutch up" - grind territory.</summary>
+        public int GrindClutchThresholdPct { get { return _grindClutchThresholdPct; } set { Set(ref _grindClutchThresholdPct, value); } }
+
+        /// <summary>No grind below this speed. Zero grinds whenever the engine turns.</summary>
+        public int GrindMinSpeedKmh { get { return _grindMinSpeedKmh; } set { Set(ref _grindMinSpeedKmh, value); } }
+
+        /// <summary>Whether a grinding shift is balked: no registration until the clutch goes down.</summary>
+        public bool GrindRejectsGear { get { return _grindRejectsGear; } set { Set(ref _grindRejectsGear, value); } }
+
         /// <summary>Velocity damping. This, not the device damper, is what settles a stiff wall.</summary>
         public int DampingPct { get { return _dampingPct; } set { Set(ref _dampingPct, value); } }
 
@@ -262,6 +337,33 @@ namespace AB9ActiveShifter
                 SeqPulseMs = SeqPulseMs,
                 SeqOvertravel = SeqOvertravel,
                 SeqStopForcePct = SeqStopForcePct,
+
+                FxEngineEnabled = FxEngineEnabled,
+                FxEngineGainPct = FxEngineGainPct,
+                FxEngineOrder = FxEngineOrder,
+                FxLimiterEnabled = FxLimiterEnabled,
+                FxLimiterGainPct = FxLimiterGainPct,
+                FxLimiterFreqHz = FxLimiterFreqHz,
+                FxLimiterFromPct = FxLimiterFromPct,
+                FxAbsEnabled = FxAbsEnabled,
+                FxAbsGainPct = FxAbsGainPct,
+                FxAbsFreqHz = FxAbsFreqHz,
+                FxTcEnabled = FxTcEnabled,
+                FxTcGainPct = FxTcGainPct,
+                FxTcFreqHz = FxTcFreqHz,
+                FxShiftEnabled = FxShiftEnabled,
+                FxShiftGainPct = FxShiftGainPct,
+                FxShiftFreqHz = FxShiftFreqHz,
+                FxShiftDurationMs = FxShiftDurationMs,
+                FxCustomEnabled = FxCustomEnabled,
+                FxCustomGainPct = FxCustomGainPct,
+                FxCustomFreqHz = FxCustomFreqHz,
+                GrindEnabled = GrindEnabled,
+                GrindGainPct = GrindGainPct,
+                GrindFreqHz = GrindFreqHz,
+                GrindClutchThresholdPct = GrindClutchThresholdPct,
+                GrindMinSpeedKmh = GrindMinSpeedKmh,
+                GrindRejectsGear = GrindRejectsGear,
                 DamperCoeff = DamperCoeff,
                 DetentResistPct = DetentResistPct,
                 DetentPullPct = DetentPullPct,
@@ -283,6 +385,11 @@ namespace AB9ActiveShifter
             Forces,
             Geometry,
             Calibration,
+
+            /// <summary>The telemetry effects and the grind. Separate from Forces on purpose:
+            /// resetting the gate should not silently turn a tuned effect set off.</summary>
+            Effects,
+
             Everything
         }
 
@@ -333,6 +440,37 @@ namespace AB9ActiveShifter
                 DetentHysteresis = d.DetentHysteresis;
                 MinEngageTicks = d.MinEngageTicks;
                 TickHz = d.TickHz;
+            }
+
+            if (scope == ResetScope.Effects || scope == ResetScope.Everything)
+            {
+                FxEngineEnabled = d.FxEngineEnabled;
+                FxEngineGainPct = d.FxEngineGainPct;
+                FxEngineOrder = d.FxEngineOrder;
+                FxLimiterEnabled = d.FxLimiterEnabled;
+                FxLimiterGainPct = d.FxLimiterGainPct;
+                FxLimiterFreqHz = d.FxLimiterFreqHz;
+                FxLimiterFromPct = d.FxLimiterFromPct;
+                FxAbsEnabled = d.FxAbsEnabled;
+                FxAbsGainPct = d.FxAbsGainPct;
+                FxAbsFreqHz = d.FxAbsFreqHz;
+                FxTcEnabled = d.FxTcEnabled;
+                FxTcGainPct = d.FxTcGainPct;
+                FxTcFreqHz = d.FxTcFreqHz;
+                FxShiftEnabled = d.FxShiftEnabled;
+                FxShiftGainPct = d.FxShiftGainPct;
+                FxShiftFreqHz = d.FxShiftFreqHz;
+                FxShiftDurationMs = d.FxShiftDurationMs;
+                FxCustomEnabled = d.FxCustomEnabled;
+                FxCustomProperty = d.FxCustomProperty;
+                FxCustomGainPct = d.FxCustomGainPct;
+                FxCustomFreqHz = d.FxCustomFreqHz;
+                GrindEnabled = d.GrindEnabled;
+                GrindGainPct = d.GrindGainPct;
+                GrindFreqHz = d.GrindFreqHz;
+                GrindClutchThresholdPct = d.GrindClutchThresholdPct;
+                GrindMinSpeedKmh = d.GrindMinSpeedKmh;
+                GrindRejectsGear = d.GrindRejectsGear;
             }
 
             if (scope == ResetScope.Calibration || scope == ResetScope.Everything)

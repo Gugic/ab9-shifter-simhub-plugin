@@ -53,6 +53,68 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int SeqStopForcePct = 90;
 
+        // Telemetry-driven effects: vibration carriers summed onto the composed forces, and
+        // the clutch grind. All off by default - they are additions to the gate, not part of
+        // it - and every one dies when telemetry goes stale. Volumes are shares of the fixed
+        // budgets in EffectComposer, scaled by the same effective gain as the gate.
+
+        /// <summary>Continuous engine vibration whose pitch follows the revs.</summary>
+        public bool FxEngineEnabled;
+        public int FxEngineGainPct = 25;
+
+        /// <summary>Carrier frequency as a multiple of engine revolutions: 1 = once per rev.</summary>
+        public double FxEngineOrder = 1.0;
+
+        /// <summary>Buzz when the revs reach the limiter.</summary>
+        public bool FxLimiterEnabled;
+        public int FxLimiterGainPct = 45;
+        public int FxLimiterFreqHz = 55;
+
+        /// <summary>Where the limiter buzz starts, as a percentage of the reported redline.</summary>
+        public int FxLimiterFromPct = 96;
+
+        /// <summary>Buzz while the game reports ABS actively pulsing.</summary>
+        public bool FxAbsEnabled;
+        public int FxAbsGainPct = 40;
+        public int FxAbsFreqHz = 44;
+
+        /// <summary>Buzz while traction control is cutting in.</summary>
+        public bool FxTcEnabled;
+        public int FxTcGainPct = 35;
+        public int FxTcFreqHz = 60;
+
+        /// <summary>One pulse when the game's own gear changes - confirmation up the lever.</summary>
+        public bool FxShiftEnabled;
+        public int FxShiftGainPct = 45;
+        public int FxShiftFreqHz = 44;
+        public int FxShiftDurationMs = 80;
+
+        /// <summary>
+        /// Volume follows a user-chosen SimHub property (0..100). The property name itself
+        /// lives in ShifterSettings - the engine only ever sees the sampled value.
+        /// </summary>
+        public bool FxCustomEnabled;
+        public int FxCustomGainPct = 30;
+        public int FxCustomFreqHz = 44;
+
+        /// <summary>
+        /// Gear grind on a clutchless shift: pushing into a slot with the clutch above ground
+        /// while the engine turns rattles the lever, and with <see cref="GrindRejectsGear"/>
+        /// the gear refuses to register until the clutch goes down. H patterns only.
+        /// </summary>
+        public bool GrindEnabled;
+        public int GrindGainPct = 60;
+        public int GrindFreqHz = 33;
+
+        /// <summary>Clutch positions below this percentage count as "clutch up".</summary>
+        public int GrindClutchThresholdPct = 25;
+
+        /// <summary>No grind below this speed, so garage shuffling stays quiet. Zero = always.</summary>
+        public int GrindMinSpeedKmh;
+
+        /// <summary>Whether a grinding shift is also balked: no registration, resist-only detent.</summary>
+        public bool GrindRejectsGear = true;
+
         // Firmware effect polarity, measured per axis and per effect family. The AB9 does not
         // treat them alike - constant force and spring can disagree on the same axis - so these
         // are four independent facts, not one.

@@ -44,7 +44,15 @@ namespace AB9ActiveShifter.Core
         public ShiftDir Direction { get { return _direction; } }
         public int CurrentGear { get { return _gear; } }
 
-        public StateTransition Update(int x, int y)
+        /// <summary>
+        /// One tick. <paramref name="allowEngage"/> false refuses the Traveling-to-Engaged
+        /// transition - the grind rejecting a clutchless shift - while every other transition
+        /// runs normally: the lever still travels, still returns to neutral, and a gear that
+        /// is already engaged is never touched (meshed dogs cannot be balked). The debounce
+        /// counter holds at zero while refused, so engagement after the clutch goes down still
+        /// takes the full MinEngageTicks.
+        /// </summary>
+        public StateTransition Update(int x, int y, bool allowEngage = true)
         {
             int previousGear = _gear;
 
@@ -55,7 +63,7 @@ namespace AB9ActiveShifter.Core
                     break;
 
                 case GateState.Traveling:
-                    StepTraveling(x, y);
+                    StepTraveling(x, y, allowEngage);
                     break;
 
                 case GateState.Engaged:
@@ -101,7 +109,7 @@ namespace AB9ActiveShifter.Core
             _engageTicks = 0;
         }
 
-        private void StepTraveling(int x, int y)
+        private void StepTraveling(int x, int y, bool allowEngage)
         {
             if (_geo.InChannel(y))
             {
@@ -109,7 +117,7 @@ namespace AB9ActiveShifter.Core
                 return;
             }
 
-            if (_geo.IsEngaged(_direction, y))
+            if (allowEngage && _geo.IsEngaged(_direction, y))
             {
                 _engageTicks++;
                 if (_engageTicks >= _minEngageTicks)

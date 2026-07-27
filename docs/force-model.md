@@ -416,6 +416,50 @@ one they are feeling. What the bite still does not cover:
 Time shaping is the tool for both, because it acts on force change regardless of which spatial
 gradient produced it.
 
+## The vibration channel and the grind
+
+The telemetry effects (`Core/EffectComposer.cs`) are the one family of force that is neither a
+wall nor a guide: **zero-mean carriers** — sine for the engine / limiter / ABS / TC / shift-pulse
+/ custom-property effects, a square wave with per-half-cycle amplitude jitter for the grind —
+summed onto the fore/aft force **after the yield and the attack, before the clamp and the
+polarity signs** (the same joining point as damping, and for a mirror-image reason).
+
+That placement is both safe and required:
+
+- A carrier is keyed on **time, not position**. Moving the stick does not change what the carrier
+  will do next, so it cannot form the position→force→position loop that makes gradients through
+  delay unstable — there is nothing for the delay to pump. This is the entire stability argument,
+  and it is why no new stabiliser was needed.
+- Passing a carrier *through* the stabilisers would not make it safer, it would erase it. The
+  attack is a slew (15 ms is most of a cycle at 44 Hz), and the yield keys on force-against-
+  velocity sign, which a zero-mean carrier flips every half cycle — the yield would chop it
+  exactly the way the aliased velocity estimate once chopped the wall force. That artifact was
+  the grinding bug; the grind effect produces the texture deliberately, on demand, instead.
+- The amplitudes live inside a fixed budget: 3000 DI per ordinary effect, 4500 for the grind,
+  the sum clamped at 5000, everything scaled by the same effective gain as the gate — the 10%
+  unconfirmed-polarity cap included, because a symmetric carrier has no polarity but 12 Nm of
+  anything needs the cap. The final ±10000 clamp still rules the composed total.
+- **Staleness is a safety property.** Telemetry older than 500 ms, or a game that is not
+  running, silences every effect the same tick. A paused or hung game must not leave a buzz
+  running against the hand.
+- Renderable pitch: with one force write per tick at 1 kHz (≈500 Hz per axis when both are hot),
+  carriers render cleanly up to roughly 100–130 Hz. The dials stop there.
+
+**The grind** is the first telemetry effect with mechanical consequences. Conditions, all at
+once: effect enabled, an H-pattern lever currently *Traveling* into a slot, fresh telemetry,
+clutch below its threshold, engine turning, and the car above the optional speed floor. An
+engaged gear never grinds — meshed dogs cannot be balked — and sequential is exempt because
+clutchless shifting is what a dog box is for.
+
+With **rejection** on, a grinding shift is also balked, in two coordinated moves: the state
+machine refuses the Traveling→Engaged transition (`allowEngage`), and the slot detent renders
+**resist-only** — the entry resistance rises and then simply stays, with no crossover, no snick
+and no hold, so the slot pushes the lever back out the way a blocking synchro ring does. Press
+the clutch mid-push and the normal profile returns instantly — the pull arrives whole, like the
+snick it is — and the gear registers after the standard debounce. The lever *can* physically
+reach the bottom of a slot it will never own; see the rejected table for why the wall is not
+closed over it.
+
 ## Rejected approaches
 
 Kept permanently. Each line is a thing that was built, felt on hardware, and abandoned.
@@ -455,6 +499,7 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **A circular fillet for the rounded mouth** | Its flank goes vertical where it meets the slot wall - an unbounded gradient at exactly the depth a hand dwells. A raised cosine leaves at zero slope on both ends. |
 | **A separate "lockout shading starts at" setting** | A second copy of the gate's position, which did nothing once the gate moved itself, and drifted from the truth. The Monitor tab asks the geometry. |
 | **Adjacent-tick velocity differencing** | Under write contention distinct positions arrive at ~500 Hz, so half the 1 kHz polls repeat and the per-tick difference alternates ~2:1 — a smooth 17000 count/s pull read as 10000↔25000. Invisible until something keyed force on speed. Positions are differenced across a 4 ms window now. |
+| **Closing the slot wall dynamically while the grind balks a gear** | The honest render of a balk would be the wall refusing to open, but a wall that appears under a moving lever is a step of full wall force at whatever depth the lever happens to be, keyed on a 60 Hz telemetry bit — and "a missing slot is a fact of the gear map" exists precisely because holes encoded anywhere else go wrong. The balk is rendered as resist-only detent plus a refused latch instead; geometry never moves at runtime. |
 | **An absorber that follows the speed estimate both ways** | The estimate's ripple swept the yield scale across its blend range at 250–500 Hz: a 25–50% force ripple felt as *grinding against a running gear* the moment the lever moved under pressure — instantly, needing no oscillation to start. Cuts stay instant; recovery is slewed over `YieldRecoveryMs`. More EMA smoothing instead was considered and rejected: smoothing is phase lag at every frequency, and lag is force given back after the launch the yield exists to catch, while the window nulls the one artifact frequency outright. |
 
 The shape of the whole search, in one sentence: **soft gradient = stable but mush; stiff gradient =

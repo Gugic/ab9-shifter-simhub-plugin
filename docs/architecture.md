@@ -21,14 +21,18 @@ The thread runs `SearchDevice → OpenDevice → Run`, with 1/2/5 s backoff on f
 
 1. Poll position (cheap, and first, so every computation runs on data <1 ms old).
 2. If calibration is active, run that instead and return.
-3. State machine update.
-4. On a gear change: **vJoy buttons first**, then raise the event.
-5. Update the velocity estimate (EMA, smoothing 0.45, with `dt` sanity guards).
-6. Compose forces, passing position, velocity, and the real elapsed time since the last
-   composition (the attack shaping needs true `dt`, clamped so a stalled tick cannot dump a whole
-   attack at once).
-7. Apply — at most one constant-force write.
-8. Publish a snapshot periodically, or immediately on a gear change.
+3. Update the velocity estimate (4 ms window + EMA, with `dt` sanity guards).
+4. Step the telemetry effects: read the current telemetry snapshot, judge its freshness, and
+   compute this tick's vibration and grind decision. The grind's "pushing into a slot" fact is
+   read off the state machine *before* its update — last tick's state, one millisecond old — so
+   this tick's engage decision can depend on the answer.
+5. State machine update (with the grind's `allowEngage` refusal, if any).
+6. On a gear change: **vJoy buttons first**, then raise the event.
+7. Compose forces, passing position, velocity, the real elapsed time since the last composition
+   (the attack shaping needs true `dt`, clamped so a stalled tick cannot dump a whole attack at
+   once), and the effects' vibration and detent-mute.
+8. Apply — at most one constant-force write.
+9. Publish a snapshot periodically, or immediately on a gear change.
 
 Pacing uses a high-resolution waitable timer, with `timeBeginPeriod(1)` and a sleep/spin fallback.
 
@@ -72,8 +76,11 @@ SimHub **rebuilds plugins at game change**, so the engine must survive it:
 | `FinalizePlugin` (`IReusable`) | The real teardown |
 | `ProcessExit` hook | Backstop |
 
-`DataUpdate` is deliberately empty, reserved for telemetry-driven effects (grind, synchro) that are
-out of scope until the mechanical gate is finished.
+`DataUpdate` feeds the telemetry effects: it builds an immutable `TelemetryState` snapshot (rpm,
+clutch, speed, gear string, ABS/TC flags, the sampled custom property) and hands it to the engine
+through one volatile reference — no locks, one small allocation, nothing else on SimHub's critical
+path. The FFB loop still deliberately does not *run* off it, because the gate must work with no
+game running.
 
 ## Safety
 
@@ -141,6 +148,24 @@ a button that is still down releases it and delays the next press by 20 ms, beca
 inside one tick reads to a game's input poll as one continuous press. Pattern switches clear any
 pulse in flight along with the held gear.
 
+## Telemetry effects and the grind
+
+`EffectComposer` lives on the engine thread and keeps the carrier phases; `TelemetryState` is
+written whole by SimHub's data thread and read whole by the tick, so there is nothing to lock.
+Freshness is judged from the snapshot's `Environment.TickCount` capture stamp (unchecked
+subtraction, wrap-safe): anything older than 500 ms — game paused, hung, or gone — silences every
+effect the same tick. The vibration is summed into the composed fore/aft force after the yield
+and attack stages and inside the final clamp and polarity signs; the reasoning lives in
+[force-model.md](force-model.md), "The vibration channel and the grind".
+
+The grind is the one effect with mechanical consequences, and it touches exactly two things:
+`GateStateMachine.Update` takes an `allowEngage` flag that refuses the Traveling→Engaged
+transition (the debounce counter holds at zero, so engagement after the clutch goes down still
+takes the full `MinEngageTicks`), and `ForceComposer` renders the slot detent resist-only while
+balked. Geometry is never touched at runtime, an engaged gear is never dropped, and everything
+else — buttons before forces, the release path, the watchdog — is unchanged. Both flags are
+plumbed per tick, so a settings change or telemetry loss reverts on the next millisecond.
+
 ## Profiles
 
 The settings file now holds a `ProfileStore` — a list of named `ShifterSettings` plus which one is
@@ -169,9 +194,11 @@ that the loop is keeping up.
 
 UI tabs: **Setup** (profile & pattern, status, enable, free stick, pre-flight checklist, polarity
 calibration, manual overrides, gear layout), **Feel** (master gain, gate walls, sliding across the
-gate, slot detent), **Geometry** (force shaping, hysteresis bands, vJoy device, loop rate, resets),
-**Monitor** (live drawing of the configured pattern — missing slots left blank, the lockout shaded
-where the geometry puts it, or the sequential track).
+gate, slot detent), **Effects** (the telemetry effects: grind, engine vibration, limiter, ABS/TC,
+shift pulse, custom property — each with enable, volume and frequency), **Geometry** (force
+shaping, hysteresis bands, vJoy device, loop rate, resets), **Monitor** (live drawing of the
+configured pattern — missing slots left blank, the lockout shaded where the geometry puts it, or
+the sequential track).
 
 ## Build
 
