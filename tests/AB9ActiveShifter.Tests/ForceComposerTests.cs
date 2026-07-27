@@ -2128,5 +2128,93 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(8, sm.CurrentGear);
             Assert.Equal("R", geo.LabelFor(sm.CurrentGear));
         }
+
+        // ---------------------------------------------------------------- telemetry vibration
+
+        [Fact]
+        public void VibrationRidesThroughUntouchedByYieldAndAttack()
+        {
+            // A carrier is keyed on time, not position, so it cannot form the loop the yield
+            // and the attack stabilise - and shaping it would just filter the texture away.
+            // Two identical composers, one fed vibration: the outputs must differ by exactly
+            // the carrier, mid-attack and mid-yield alike.
+            EngineConfig cfg = FullGainConfig();
+            cfg.WallAttackMs = 20;
+            cfg.DampingPct = 0;
+
+            ForceComposer plain = Composer(cfg);
+            ForceComposer buzzing = Composer(cfg);
+
+            int between = (C2 + C3) / 2;
+            int y = Center - 4000;
+
+            // First against the wall (resisting velocity, attack still rising), then bouncing
+            // off it (assisting velocity, yield actively cutting).
+            foreach (int vy in new[] { -20000, 20000 })
+            {
+                for (int i = 0; i < 12; i++)
+                {
+                    ForceFrame a = plain.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                                 between, y, 0, vy, 1.0);
+                    ForceFrame b = buzzing.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                                   between, y, 0, vy, 1.0, 1500);
+                    Assert.Equal(a.ConstantY + 1500, b.ConstantY);
+                }
+            }
+        }
+
+        [Fact]
+        public void FreeStickSilencesVibrationToo()
+        {
+            // Free stick is the escape hatch and the diagnostic baseline: with it on, nothing
+            // the plugin renders may reach the hand - the game effects included.
+            EngineConfig cfg = FullGainConfig();
+            cfg.FreeStick = true;
+
+            ForceFrame f = Composer(cfg).Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                                 Center, Center, 0, 0, 1.0, 3000);
+            Assert.Equal(0, f.ConstantX);
+            Assert.Equal(0, f.ConstantY);
+        }
+
+        [Fact]
+        public void TheFinalClampStillRulesWithVibration()
+        {
+            // A full-strength wall plus a hostile carrier must still never exceed full scale.
+            EngineConfig cfg = FullGainConfig();
+            cfg.ChannelWallForcePct = 100;
+            cfg.DampingPct = 0;
+
+            int between = (C2 + C3) / 2;
+            ForceFrame f = Composer(cfg).Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                                 between, Center - 4000, 0, 0, 0, 9000);
+
+            Assert.Equal(GateGeometry.ForceMax, Math.Abs(f.ConstantY));
+        }
+
+        [Fact]
+        public void ABalkedSlotOnlyEverPushesTheLeverOut()
+        {
+            // The grind's rejection, rendered: with the detent muted there is no crossover, no
+            // snick and no hold - entry resistance rises and then simply stays, however deep
+            // the lever is held, the way a blocking synchro ring balks it. For a forward slot
+            // that means the fore/aft force never goes negative.
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+
+            for (int y = Center - cfg.ChannelHalfExit; y >= 0; y -= 400)
+            {
+                ForceFrame f = c.Compose(GateState.Traveling, Column.C2, ShiftDir.Fwd,
+                                         C2, y, 0, 0, 0, 0, true);
+                Assert.True(f.ConstantY >= 0,
+                    "balked detent pulled inward at y=" + y + ": " + f.ConstantY);
+            }
+
+            // The same depth unmuted seats the gear: the pull points into the slot.
+            ForceFrame seated = c.Compose(GateState.Traveling, Column.C2, ShiftDir.Fwd,
+                                          C2, 500, 0, 0, 0, 0, false);
+            Assert.True(seated.ConstantY < 0);
+        }
     }
 }

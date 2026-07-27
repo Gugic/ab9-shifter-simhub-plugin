@@ -43,6 +43,17 @@ tapered mouth of a real gate guides the lever in.
 
 The toll is the gate's force (70% by default) times its width, and both are adjustable.
 
+## Game effects
+
+With a game running, the **Effects** tab can play telemetry through the lever: **gear grind on a
+clutchless shift** — push into a gear with the clutch up and the box rattles, and (optionally)
+the gear refuses to register until the clutch goes down, like a blocking synchro ring — plus
+engine vibration that tracks the revs, a rev-limiter buzz, ABS and traction-control buzzes, a
+gear-shift confirmation pulse, and a custom effect driven by any SimHub property (which puts
+ShakeIt's exported effect groups on the lever). Everything is off by default, falls silent within
+half a second of the game pausing or closing, and rides on top of the gate without touching its
+geometry. The grind needs a game that reports the clutch pedal.
+
 ## Requirements
 
 - SimHub (developed against 9.11.21)
@@ -143,6 +154,8 @@ Raise the overall gain slowly afterwards — this is a 12 Nm base.
 - **Feel** — master gain; the gate and slot walls with their bite distance, attack, rebound
   absorption and damping; the lockout gate and the humps; the three slot-detent forces
   (resistance, pull, seated hold).
+- **Effects** — the telemetry effects: the clutch grind and its rejection, engine vibration,
+  rev limiter, ABS/TC, the shift pulse, and the custom property, each with volume and frequency.
 - **Geometry** — force shaping, the enter/exit hysteresis bands for the channel and columns,
   engage and release depth, vJoy device, loop rate, and scoped resets.
 - **Monitor** — live gate drawing with the stick position and the shaded lockout band.

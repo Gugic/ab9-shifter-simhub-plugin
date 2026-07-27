@@ -123,11 +123,56 @@ namespace AB9ActiveShifter
         }
 
         /// <summary>
-        /// Intentionally empty. The FFB loop runs on its own thread because it must work
-        /// with no game running. Reserved for telemetry-driven effects (grind, synchro).
+        /// Feeds the telemetry effects. The FFB loop itself deliberately does not run off this
+        /// - it must work with no game running - so this only publishes a snapshot the engine
+        /// reads at its own pace. On SimHub's critical path: no locks, one small allocation.
         /// </summary>
         public void DataUpdate(PluginManager pluginManager, ref GameData data)
         {
+            ShifterEngine engine = _engine;
+            if (engine == null) return;
+
+            if (data == null || !data.GameRunning || data.NewData == null)
+            {
+                engine.SetTelemetry(TelemetryState.Inactive);
+                return;
+            }
+
+            StatusDataBase d = data.NewData;
+
+            // The custom effect's source property is sampled here, where the property system
+            // lives; the engine only ever sees the value.
+            double custom = 0;
+            ShifterSettings settings = Settings;
+            if (settings != null && settings.FxCustomEnabled && !string.IsNullOrWhiteSpace(settings.FxCustomProperty))
+            {
+                try
+                {
+                    object raw = pluginManager.GetPropertyValue(settings.FxCustomProperty.Trim());
+                    if (raw != null)
+                    {
+                        custom = Convert.ToDouble(raw, System.Globalization.CultureInfo.InvariantCulture);
+                    }
+                }
+                catch
+                {
+                    custom = 0;
+                }
+            }
+
+            engine.SetTelemetry(new TelemetryState
+            {
+                GameRunning = true,
+                Rpms = d.Rpms,
+                MaxRpm = d.MaxRpm,
+                SpeedKmh = d.SpeedKmh,
+                Clutch = d.Clutch,
+                Gear = d.Gear,
+                AbsActive = d.ABSActive != 0,
+                TcActive = d.TCActive != 0,
+                CustomValue = custom,
+                CapturedAtTick = Environment.TickCount
+            });
         }
 
         /// <summary>

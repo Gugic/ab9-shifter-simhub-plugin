@@ -302,6 +302,142 @@
             </ScrollViewer>
         </styles:SHTabItem>
 
+        <!-- =========================== EFFECTS ============================ -->
+        <styles:SHTabItem Header="Effects">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="8">
+
+                    <styles:SHSection Title="TELEMETRY EFFECTS" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75"
+                                       Text="Vibration driven by the game, played through the lever on top of the gate. Every effect is a zero-mean buzz - it can make the lever tremble but never push it anywhere - and all of them fall silent within half a second of the game pausing or closing. Volumes are shares of a fixed vibration budget scaled by the overall gain, so the gate always keeps its authority above them. Everything here is off by default." />
+                            <styles:SHButtonSecondary Click="OnResetEffects" Content="Reset effects to defaults"
+                                                      Padding="12,4" HorizontalAlignment="Left" Margin="0,10,0,0" />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="GEAR GRIND ON A DROPPED CLUTCH" ShowSeparator="True"
+                                      Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Margin="0,4,0,8">
+                            <styles:SHToggleCheckbox IsChecked="{Binding GrindEnabled, Mode=TwoWay}"
+                                                     Content="Grind when shifting without the clutch" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,8"
+                                       Text="Push into a gear with the clutch up while the engine is turning and the box grinds: a harsh, uneven rattle up the lever. With rejection on, the gear also refuses to go in - the slot loses its snick and its hold and only pushes back, like a blocking synchro ring - and pressing the clutch mid-push lets it thunk straight home. Needs a game that reports the clutch pedal; an engaged gear never grinds, and sequential is exempt because dog boxes shift clutchless by design." />
+                            <styles:SHToggleCheckbox IsChecked="{Binding GrindRejectsGear, Mode=TwoWay}"
+                                                     Content="Reject the gear while grinding (registers only once the clutch is down)"
+                                                     Margin="0,0,0,6" />
+                            <ui:TitledSlider Title="Grind volume (%)" Minimum="0" Maximum="100" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="60"
+                                             Value="{Binding GrindGainPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Grind frequency (Hz)" Minimum="15" Maximum="90" TickFrequency="1"
+                                             ShowResetButton="True" ResetValue="33"
+                                             Value="{Binding GrindFreqHz, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Clutch counts as pressed above (%)" Minimum="5" Maximum="90"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="25"
+                                             Value="{Binding GrindClutchThresholdPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Only grind above (km/h)" Minimum="0" Maximum="40" TickFrequency="1"
+                                             ShowResetButton="True" ResetValue="0"
+                                             Value="{Binding GrindMinSpeedKmh, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="Raise the speed floor if garage or pit-lane shuffling grinds when you would rather it stayed quiet. SimHub reports pedals as 0-100; if your game's clutch never crosses the threshold, watch the Clutch property in SimHub and set the threshold below what a pressed pedal reads." />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="ENGINE VIBRATION" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <styles:SHToggleCheckbox IsChecked="{Binding FxEngineEnabled, Mode=TwoWay}"
+                                                     Content="Engine vibration - pitch follows the revs" Margin="0,0,0,6" />
+                            <ui:TitledSlider Title="Volume (%)" Minimum="0" Maximum="100" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="25"
+                                             Value="{Binding FxEngineGainPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Order (vibrations per engine rev)" Minimum="0.5" Maximum="4"
+                                             TickFrequency="0.5" ShowResetButton="True" ResetValue="1"
+                                             Value="{Binding FxEngineOrder, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="A constant tremble that rises and falls with the engine, like idle shake coming up a real linkage. Order 1 is one pulse per revolution; a four-cylinder four-stroke fires at order 2. Keep the volume low - it plays whenever the engine turns." />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="REV LIMITER" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <styles:SHToggleCheckbox IsChecked="{Binding FxLimiterEnabled, Mode=TwoWay}"
+                                                     Content="Buzz on the rev limiter" Margin="0,0,0,6" />
+                            <ui:TitledSlider Title="Volume (%)" Minimum="0" Maximum="100" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="45"
+                                             Value="{Binding FxLimiterGainPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Frequency (Hz)" Minimum="15" Maximum="120" TickFrequency="1"
+                                             ShowResetButton="True" ResetValue="55"
+                                             Value="{Binding FxLimiterFreqHz, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Starts at (% of redline)" Minimum="80" Maximum="100" TickFrequency="1"
+                                             ShowResetButton="True" ResetValue="96"
+                                             Value="{Binding FxLimiterFromPct, Mode=TwoWay}" />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="ABS AND TRACTION CONTROL" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <styles:SHToggleCheckbox IsChecked="{Binding FxAbsEnabled, Mode=TwoWay}"
+                                                     Content="Buzz while ABS is pulsing" Margin="0,0,0,6" />
+                            <ui:TitledSlider Title="ABS volume (%)" Minimum="0" Maximum="100" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="40"
+                                             Value="{Binding FxAbsGainPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="ABS frequency (Hz)" Minimum="15" Maximum="120" TickFrequency="1"
+                                             ShowResetButton="True" ResetValue="44"
+                                             Value="{Binding FxAbsFreqHz, Mode=TwoWay}" />
+                            <styles:SHToggleCheckbox IsChecked="{Binding FxTcEnabled, Mode=TwoWay}"
+                                                     Content="Buzz while traction control cuts in" Margin="0,8,0,6" />
+                            <ui:TitledSlider Title="TC volume (%)" Minimum="0" Maximum="100" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="35"
+                                             Value="{Binding FxTcGainPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="TC frequency (Hz)" Minimum="15" Maximum="120" TickFrequency="1"
+                                             ShowResetButton="True" ResetValue="60"
+                                             Value="{Binding FxTcFreqHz, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="Driven by the game's own ABS-active and TC-active flags. Different frequencies keep the two distinguishable when both fire in the same corner." />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="GEAR SHIFT PULSE" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <styles:SHToggleCheckbox IsChecked="{Binding FxShiftEnabled, Mode=TwoWay}"
+                                                     Content="Pulse when the game's gear changes" Margin="0,0,0,6" />
+                            <ui:TitledSlider Title="Volume (%)" Minimum="0" Maximum="100" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="45"
+                                             Value="{Binding FxShiftGainPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Frequency (Hz)" Minimum="15" Maximum="120" TickFrequency="1"
+                                             ShowResetButton="True" ResetValue="44"
+                                             Value="{Binding FxShiftFreqHz, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Pulse length (ms)" Minimum="20" Maximum="300" TickFrequency="10"
+                                             ShowResetButton="True" ResetValue="80"
+                                             Value="{Binding FxShiftDurationMs, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="Fires on the game's own gear telemetry, not on this plugin's gate - so it confirms what the game actually accepted, which is useful in sequential mode and with a paddle car." />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="CUSTOM PROPERTY" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <styles:SHToggleCheckbox IsChecked="{Binding FxCustomEnabled, Mode=TwoWay}"
+                                                     Content="Volume follows a SimHub property" Margin="0,0,0,6" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="Property" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <TextBox Text="{Binding FxCustomProperty, Mode=TwoWay}" Width="380" />
+                            </StackPanel>
+                            <ui:TitledSlider Title="Volume at 100 (%)" Minimum="0" Maximum="100" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="30"
+                                             Value="{Binding FxCustomGainPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Frequency (Hz)" Minimum="15" Maximum="120" TickFrequency="1"
+                                             ShowResetButton="True" ResetValue="44"
+                                             Value="{Binding FxCustomFreqHz, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="Any SimHub property scaled 0-100 drives this effect's volume - try DataCorePlugin.GameData.Throttle to hear it work. The real use is ShakeIt: enable 'Export property' on a Bass Shakers effect group and type its exported property name here, which puts SimHub's whole effects engine - road rumble, wheel slip, impacts - at the lever's disposal, with all of ShakeIt's own tuning." />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                </StackPanel>
+            </ScrollViewer>
+        </styles:SHTabItem>
+
         <!-- =========================== GEOMETRY =========================== -->
 
         <styles:SHTabItem Header="Geometry">

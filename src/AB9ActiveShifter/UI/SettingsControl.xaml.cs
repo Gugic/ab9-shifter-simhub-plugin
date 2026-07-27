@@ -326,6 +326,11 @@ namespace AB9ActiveShifter.UI
             Reset(ShifterSettings.ResetScope.Geometry, "gate geometry");
         }
 
+        private void OnResetEffects(object sender, RoutedEventArgs e)
+        {
+            Reset(ShifterSettings.ResetScope.Effects, "the telemetry effects (all back to off)");
+        }
+
         private void OnResetEverything(object sender, RoutedEventArgs e)
         {
             Reset(ShifterSettings.ResetScope.Everything,

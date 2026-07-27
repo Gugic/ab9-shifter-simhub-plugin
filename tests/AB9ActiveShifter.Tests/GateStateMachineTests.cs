@@ -345,5 +345,23 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(2, sm.CurrentGear);
             Assert.Contains(0, gears);          // released before re-engaging
         }
+
+        [Fact]
+        public void ABlockedEngagementNeverLatchesUntilAllowed()
+        {
+            // The grind's gear rejection: with allowEngage false the lever travels, presses,
+            // sits at full depth - and no gear ever registers. The moment the block lifts
+            // (the clutch goes down), engagement still takes the full debounce.
+            GateStateMachine sm = NewMachine();
+            Sweep(sm, Center, Center, C2, Center);
+
+            for (int i = 0; i < 60; i++) sm.Update(C2, 1000, false);
+            Assert.Equal(GateState.Traveling, sm.State);
+            Assert.Equal(0, sm.CurrentGear);
+
+            for (int i = 0; i < Config.MinEngageTicks; i++) sm.Update(C2, 1000, true);
+            Assert.Equal(GateState.Engaged, sm.State);
+            Assert.Equal(3, sm.CurrentGear);
+        }
     }
 }

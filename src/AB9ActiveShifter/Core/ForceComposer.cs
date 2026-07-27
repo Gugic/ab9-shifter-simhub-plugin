@@ -203,7 +203,7 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public ForceFrame Compose(
             GateState state, Column column, ShiftDir direction, int x, int y,
-            int vx = 0, int vy = 0, double dtMs = 0)
+            int vx = 0, int vy = 0, double dtMs = 0, int vibY = 0, bool muteDetent = false)
         {
             if (_freeStick)
             {
@@ -237,7 +237,7 @@ namespace AB9ActiveShifter.Core
 
             ForceFrame frame = state == GateState.Neutral
                 ? ComposeNeutral(x, y)
-                : ComposeInColumn(column, direction, x, y);
+                : ComposeInColumn(column, direction, x, y, muteDetent);
 
             // The slot detent is the one force not shaped in time: the snick is a deliberate
             // transient, over in a few milliseconds by design, and it has to arrive whole to
@@ -245,7 +245,8 @@ namespace AB9ActiveShifter.Core
             // rebound floor, because it is supposed to do positive work.
             return Bound(frame, vx, vy, dtMs,
                          state == GateState.Neutral ? _yieldFloor : _snickFloor,
-                         shapeY: state == GateState.Neutral);
+                         shapeY: state == GateState.Neutral,
+                         vibY: vibY);
         }
 
         /// <summary>
@@ -254,7 +255,7 @@ namespace AB9ActiveShifter.Core
         /// columns, no lockout - but the same stabiliser pipeline, and the measured polarity
         /// signs applied once at the same single place.
         /// </summary>
-        public ForceFrame ComposeSequential(int x, int y, int vx = 0, int vy = 0, double dtMs = 0)
+        public ForceFrame ComposeSequential(int x, int y, int vx = 0, int vy = 0, double dtMs = 0, int vibY = 0)
         {
             if (_freeStick)
             {
@@ -287,7 +288,7 @@ namespace AB9ActiveShifter.Core
             int stopStart = SequentialThreshold() + Math.Max(0, _cfg.SeqOvertravel);
             double floorY = Math.Abs(y - GateGeometry.AxisCenter) >= stopStart ? _yieldFloor : _snickFloor;
 
-            return Bound(frame, vx, vy, dtMs, floorY, shapeY: true);
+            return Bound(frame, vx, vy, dtMs, floorY, shapeY: true, vibY: vibY);
         }
 
         /// <summary>Distance from centre to the sequential firing line, in axis counts.</summary>
@@ -350,7 +351,8 @@ namespace AB9ActiveShifter.Core
         /// the gate still arriving raw - so the lockout rejected the lever hard where every
         /// wall had learned not to, and rang.
         /// </summary>
-        private ForceFrame Bound(ForceFrame frame, int vx, int vy, double dtMs, double floorY, bool shapeY)
+        private ForceFrame Bound(ForceFrame frame, int vx, int vy, double dtMs, double floorY, bool shapeY,
+                                 int vibY = 0)
         {
             int boundedX = Yield(frame.ConstantX, vx, _yieldFloor, ref _yieldScaleX, dtMs);
             int boundedY = Yield(frame.ConstantY, vy, floorY, ref _yieldScaleY, dtMs);
@@ -363,8 +365,15 @@ namespace AB9ActiveShifter.Core
             // Damping joins after the yield and the time shaping - it opposes motion by
             // construction, so it can never be the assisting force the yield softens, and it
             // must keep its full bandwidth rather than being slewed.
+            //
+            // The telemetry vibration joins at the same point, for the mirror-image reason: a
+            // carrier is keyed on time, not position, so it cannot form the loop those two
+            // stages stabilise - and passing it through them would just filter the texture
+            // away (a 15 ms attack is most of a cycle at 44 Hz, and half of every cycle
+            // "assists"). It is still inside the final clamp and the polarity signs; being
+            // zero-mean, a sign flip is only a phase shift.
             frame.ConstantX = Combine(boundedX, Damping(vx)) * _constantSignX;
-            frame.ConstantY = Combine(boundedY, Damping(vy)) * _constantSignY;
+            frame.ConstantY = Combine(Combine(boundedY, Damping(vy)), vibY) * _constantSignY;
 
             frame.DamperCoefficient = _damperCoeff;
             return frame;
@@ -715,7 +724,7 @@ namespace AB9ActiveShifter.Core
             return f;
         }
 
-        private ForceFrame ComposeInColumn(Column column, ShiftDir direction, int x, int y)
+        private ForceFrame ComposeInColumn(Column column, ShiftDir direction, int x, int y, bool muteDetent)
         {
             ForceFrame f = new ForceFrame
             {
@@ -732,7 +741,7 @@ namespace AB9ActiveShifter.Core
             // the slot detent replaces the tunnel's gate wall, which is what makes a gear a place
             // the lever can go rather than a wall it bounces off.
             f.ConstantX = Combine(LateralGuide(x, y), BarrierForceIn(x, y));
-            f.ConstantY = DetentMagnitude(direction, y);
+            f.ConstantY = DetentMagnitude(direction, y, muteDetent);
 
             return f;
         }
@@ -848,13 +857,22 @@ namespace AB9ActiveShifter.Core
         /// <summary>
         /// Slot detent along Y. Resists on the way in, flips over centre to pull the stick
         /// into the slot, then settles to a lighter seated hold.
+        ///
+        /// Muted - a grinding shift being balked - there is no crossover at all: the entry
+        /// resistance rises and then simply stays, pushing the lever back out however deep it
+        /// is held, the way a blocking synchro ring does. The moment the clutch goes down the
+        /// normal profile returns and the pull arrives whole, like the snick it is.
         /// </summary>
-        private int DetentMagnitude(ShiftDir direction, int y)
+        private int DetentMagnitude(ShiftDir direction, int y, bool muted)
         {
             double d = _geo.EngageFraction(direction, y);
 
             double restoring;
-            if (d < 0.55)
+            if (muted)
+            {
+                restoring = _detentResistMax * Math.Min(1.0, d / 0.55);
+            }
+            else if (d < 0.55)
             {
                 restoring = _detentResistMax * (d / 0.55);
             }

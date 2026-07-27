@@ -49,6 +49,31 @@ point so the whole stroke shortens as one thing.
 Keep one **profile** per pattern you actually use — every dial, the pattern included, is stored
 per profile, so switching is one dropdown.
 
+## Telemetry effects (the Effects tab)
+
+Vibration driven by the game, on top of the gate: all off by default, all silenced within half a
+second of the game pausing or closing, all scaled by the overall gain (the 10% polarity cap
+included). Each row is enable + volume + frequency:
+
+| Effect | Fires when | Notes |
+| --- | --- | --- |
+| Gear grind | Pushing into a gear with the clutch up while the engine turns | The headline. With **rejection** on, the gear also refuses to register — the slot loses its snick and hold and pushes back until the clutch goes down, then the gear thunks straight in. H patterns only; an engaged gear never grinds; sequential is exempt (dog boxes shift clutchless by design). |
+| Engine vibration | Whenever the engine turns | Pitch follows the revs × the order dial (order 2 ≈ four-cylinder four-stroke). Keep the volume low — it never stops. |
+| Rev limiter | Revs ≥ the redline percentage | Silent when the game reports no redline. |
+| ABS / TC | The game's own ABS-active / TC-active flags | Different default pitches (44 / 60 Hz) so both firing in one corner stay distinguishable. |
+| Gear shift pulse | The game's reported gear changes | Confirms what the game *accepted* — useful in sequential and with paddle cars. |
+| Custom property | Any SimHub property, 0–100 → volume | Try `DataCorePlugin.GameData.Throttle` to hear it work. The real use: a ShakeIt Bass Shakers effect group with *Export property* enabled puts road rumble, wheel slip and impacts on the lever with all of ShakeIt's own tuning. |
+
+Symptoms:
+
+| Symptom | Dial |
+| --- | --- |
+| Grind never fires | The game must report the clutch pedal. Watch the `Clutch` property in SimHub: if a pressed pedal reads low, lower the **clutch pressed above** threshold. Check the engine is running and any speed floor. |
+| Grind fires in the garage / pit lane | Raise **only grind above (km/h)**. |
+| A gear registers despite grinding | **Reject the gear while grinding** is off, or the game itself needs no clutch — the rejection is ours, not the game's. |
+| Effects feel weak | They share the overall gain; check polarity is confirmed (the 10% cap mutes effects too) before raising per-effect volumes. |
+| A buzz outlives the game | It cannot, by design (500 ms staleness cut). If you feel one, it is the gate — record a trace. |
+
 ## The rail gate recipe
 
 The native shifter mode's topology — one axis guided everywhere, no free 2D space, nothing to
