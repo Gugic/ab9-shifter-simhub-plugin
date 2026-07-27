@@ -179,6 +179,13 @@ gear that the new geometry disowns is released, and a sequential pulse in flight
 Profile duplication copies by reflection over public read/write properties, so new dials are
 included automatically and no event subscriptions ride along.
 
+A UI-lifetime fact that cost a real bug: **SimHub keeps the settings control alive across page
+navigation** — leaving the plugin page fires `Unloaded`, returning fires `Loaded`, and the
+constructor runs once ever. Anything the constructor subscribes and `Unloaded` unsubscribes must
+be re-subscribed in `Loaded`, or the first navigation away disconnects it permanently. The
+profile-changed handler was exactly that: Duplicate kept creating and activating profiles the
+combo never showed, while the dials stayed bound to the previously active profile's object.
+
 Every dial change **autosaves the store**, debounced two seconds after the last edit. SimHub only
 calls `End` (the old save point) on a clean exit, and the deploy script force-kills the process —
 without the autosave, everything tuned since the last profile switch died with it, which was
