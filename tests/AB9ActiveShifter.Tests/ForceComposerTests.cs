@@ -1385,6 +1385,86 @@ namespace AB9ActiveShifter.Tests
             Assert.True(Math.Abs(assisted) < Math.Abs(full), "some absorption should still apply");
         }
 
+        // ---------------------------------------------------------------- the rail gate
+
+        /// <summary>Corridors closed: the native shifter-mode topology as a config, not a mode.</summary>
+        private static EngineConfig RailConfig()
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.SlotHalfWidth = 0;
+            cfg.ChannelFreeDepth = 0;
+            cfg.ColumnPinForcePct = 55;
+            cfg.DampingPct = 0;
+            return cfg;
+        }
+
+        [Fact]
+        public void ClosedCorridorsLeaveNoFreeSpaceAnywhere()
+        {
+            // The rail gate's defining property: at every point off a guide line, at least one
+            // axis is being pushed back toward it. No 2D float, no face to accelerate across.
+            ForceComposer c = Composer(RailConfig());
+
+            // In the tunnel between columns, even one count of fore/aft wander meets centring.
+            Assert.NotEqual(0, Neutral(c, (C2 + C3) / 2, Center - 400).ConstantY);
+            Assert.NotEqual(0, Neutral(c, (C2 + C3) / 2, Center + 400).ConstantY);
+
+            // In a slot at gear depth, even a small lateral displacement meets the rail.
+            ForceComposer c2 = Composer(RailConfig());
+            int railed = c2.Compose(GateState.Traveling, Column.C2, ShiftDir.Fwd,
+                                    C2 + 400, Center - 9000, 0, 0).ConstantX;
+            Assert.True(railed < 0, "the rail must push back toward the column line: " + railed);
+        }
+
+        [Fact]
+        public void TheRailItselfIsQuietGround()
+        {
+            // On the guide line the rail exerts nothing - the lever rests at equilibrium with
+            // zero force, which is what makes a rail calmer than a wall being leant on.
+            ForceComposer c = Composer(RailConfig());
+
+            Assert.Equal(0, Neutral(c, C2, Center).ConstantY);
+            Assert.Equal(0, Neutral(c, C2, Center).ConstantX);
+        }
+
+        [Fact]
+        public void ARailedTunnelStillOpensOverAColumn()
+        {
+            // Closing the free depth must not close the slot mouths: the centring stays light
+            // over a column so a gear can be taken, and only hardens between them.
+            ForceComposer c = Composer(RailConfig());
+
+            int onColumn = Math.Abs(Neutral(c, C2, Center - 2000).ConstantY);
+            int between = Math.Abs(Neutral(c, (C2 + C3) / 2, Center - 2000).ConstantY);
+
+            Assert.True(onColumn < between / 4,
+                "the mouth closed with the corridor: " + onColumn + " vs " + between);
+        }
+
+        [Fact]
+        public void TheDefaultFreeDepthKeepsTheClassicTunnel()
+        {
+            // The dial ships equal to the channel enter band, so an existing gate is unchanged:
+            // inside the tunnel there is still no fore/aft force at all.
+            EngineConfig cfg = FullGainConfig();
+            ForceComposer c = Composer(cfg);
+
+            Assert.Equal(0, Neutral(c, (C2 + C3) / 2, Center - 2000).ConstantY);
+        }
+
+        [Fact]
+        public void FreeDepthCannotExceedTheStateBand()
+        {
+            // A force deadband wider than the enter band would mean walls the state machine
+            // believes exist and the hand never meets; the composer clamps it.
+            EngineConfig cfg = FullGainConfig();
+            cfg.ChannelFreeDepth = 99999;
+            ForceComposer c = Composer(cfg);
+
+            int past = cfg.ChannelHalfEnter + cfg.WallRamp + 200;
+            Assert.NotEqual(0, Neutral(c, (C2 + C3) / 2, Center - past).ConstantY);
+        }
+
         [Fact]
         public void AnAliasedSpeedEstimateCannotGrindTheWall()
         {

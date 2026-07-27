@@ -18,8 +18,29 @@ light — that is the safety cap doing its job, not a tuning problem.
 | Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
 | Slot mouth | Square | Shape of the divider ends where they meet the tunnel. Square is the plain notch and changes nothing. |
 | Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
-| Neutral tunnel depth | 2600 counts | How deep the tunnel is completely free. Must exceed your fore/aft slop while sliding sideways, or you spend your time in the transition band instead. Measured on real hands: p50 1848, p90 3215. |
+| Neutral tunnel depth | 2600 counts | The state band: where "in the tunnel" ends and the lateral field's rise lives. Must exceed your fore/aft slop while sliding sideways, or you spend your time in the transition band instead. Measured on real hands: p50 1848, p90 3215. |
+| Tunnel depth, free corridor | 2600 counts | Where the tunnel's fore/aft centring force begins. Ships equal to the state band, so the tunnel is simply free; dial to zero for the rail gate. Capped at the state band. |
 | Seated hold | 55% | What keeps a gear engaged against the base's own centring. |
+
+## The rail gate recipe
+
+The native shifter mode's topology — one axis guided everywhere, no free 2D space, nothing to
+float across or lean on — reached by closing both free corridors
+(see [force-model.md](force-model.md), "The rail gate"):
+
+| Dial | Rail value | Why |
+| --- | --- | --- |
+| Slot width, free corridor | **0** | The column becomes a rail: any lateral displacement is pulled straight back to the column line. |
+| Tunnel depth, free corridor | **0** | The tunnel becomes a rail: any fore/aft wander meets immediate centring, hardening between columns so a push there resolves sideways into a column instead of finding a wall to lean on. |
+| Slot wall, once in a gear | **50–60% to start** | The rail's stiffness. The interior equilibrium is back, so this has a hunt ceiling — raise until a *middle* column trembles, then back off. The outer columns cannot hunt and tolerate more. |
+| Gate wall, between columns | **70–80% to start** | The tunnel rail's stiffness between columns. Too high reads as the tunnel grabbing your fore/aft wander. |
+| Wall attack | **10–20 ms, on** | Load-bearing for rails: static hold is what lets a railed lever sit quietly under a leaning hand. |
+| Wall absorption | keep high (~55–65%) | The other half of the hunt ceiling. |
+
+What to feel for, in order: a railed **middle gear trembling** → lower the slot wall (never
+damping); the **tunnel fighting fore/aft wobble** while sliding → lower the gate wall or lengthen
+the bite; **notches too faint** between columns → raise barrier force — the notch feel is the
+barrier humps, unchanged by the rails.
 
 ## Symptom → dial
 
@@ -81,7 +102,8 @@ attack** — it is the only control that covers force change regardless of which
 **A middle gear shakes while seated; the outer gears are fine.**
 Widen **slot width (free corridor)**. A narrow corridor leaves the stick balanced on a point it can
 hunt around. Outer columns never do this because their wall only pushes one way, against the end of
-travel.
+travel. In the rail gate (slot width zero) the equilibrium is the design — there the fix is
+lowering **slot wall** strength instead.
 
 **It oscillates around the wall ends, where one slot meets the tunnel, though deep walls are calm.**
 Fixed, and it was two measured faults rather than a tuning problem. The lateral force was computed by

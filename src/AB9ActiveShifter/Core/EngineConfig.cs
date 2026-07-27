@@ -256,8 +256,27 @@ namespace AB9ActiveShifter.Core
         /// rings. The outer columns never showed it because their force is one-sided against the
         /// end of travel, which cannot hunt. Inside this corridor there is no lateral force at
         /// all, so there is nothing to oscillate about.
+        ///
+        /// Zero is a legitimate setting, not a degenerate one: it turns the slot into a rail -
+        /// the lever pulled straight onto the column line, the native shifter-mode topology.
+        /// The interior equilibrium comes back with it, so a rail is only stable at moderate
+        /// pin force; a railed gear that trembles wants the slot wall lowered, not damping.
+        /// See docs/force-model.md, "The rail gate".
         /// </summary>
         public int SlotHalfWidth = 1100;
+
+        /// <summary>
+        /// How deep the neutral tunnel is free of fore/aft force - the fore/aft twin of
+        /// <see cref="SlotHalfWidth"/>, and deliberately a separate dial from
+        /// <see cref="ChannelHalfEnter"/>: that band is where the state machine's hysteresis and
+        /// the lateral field's one depth transition live, and it must stay wide enough to cover a
+        /// hand's fore/aft wander (measured p90 3215 counts). This dial only sets where the
+        /// tunnel's centring force begins, and is clamped to the enter band from above. At the
+        /// default the two coincide and the tunnel is the corridor it has always been. At zero
+        /// the tunnel becomes a rail - no free fore/aft space anywhere - and together with a zero
+        /// slot width the lever is guided on exactly one axis at every point of the gate.
+        /// </summary>
+        public int ChannelFreeDepth = 2600;
 
         /// <summary>
         /// Velocity damping, as a percentage of full force at <see cref="DampingReferenceSpeed"/>.
