@@ -381,6 +381,34 @@ caught launch keeps its cut through estimate dips, climbing back only at the rec
 Pinned by `AHandsTremorNeverTripsTheAbsorber`, `TheLockoutHoldsWholeAgainstALeaningHand`, and
 `AnEstimateDipBelowTheDeadbandKeepsTheHeldCut`.
 
+Killing the relay exposed what had been underneath it. The trace taken immediately after: the big
+12 Hz rebound was gone, and in its place a 17.7 Hz, 8000-count cycle riding the lockout's **entry
+face** — with the relay dead, a lean weaker than the toll no longer chatters on the flat core; it
+is walked down to the face, where its equilibrium sits on a 2.7 DI/count gradient. And that band
+now had *no dissipation at all*: below the deadband nothing may cut (leaning must be solid), the
+static hold only guards a hand already settled, and damping was at zero. A face gradient, the
+loop's delay, and a hand's own 10–20 Hz neuromuscular loop hunted exactly as the first paragraph
+of this file says gradients do. That residue is wall friction's job, below.
+
+**Wall friction (`WallFrictionPct`).** Kinetic friction at the gate surfaces: a force opposing
+motion, capped at a share — the mu — of the wall force **currently applied on that axis**, viscous
+below a saturation knee (8000 counts/s) and Coulomb-flat above it. Because it scales with the
+engaged force it is *exactly zero* in free travel, the corridors and the channel, which is what
+distinguishes it from damping and why it does not violate the lightest-possible-lever rule: it
+costs nothing anywhere the lever is free, and on a face it supplies the dissipation the delay
+steals. At the default 15% it is roughly seventeen times the delay's negative damping
+(k·τ ≈ 0.011 DI per count/s at the shipped stiffness), which is what lets a lean settle onto a
+face instead of orbiting it. The knee is what keeps it off the relay list: a Coulomb sign-flip at
+tremor speed would be the yield's disease reintroduced, so through zero velocity friction passes
+through zero force, continuously. It takes the **shaped** force as its normal load on purpose —
+the attack ramps a wall in, so friction winds up with it rather than arriving as its own step; a
+yielded wall grips proportionally less; and a carrier is not a load, so vibration never generates
+drag. This is also the honest render: the yield is a real gate's restitution asymmetry, the
+static hold its stiction, and this is its kinetic friction — the third of the three things
+"mechanical gates are friction-damped" actually means. Pinned by
+`FrictionIsZeroEverywhereTheLeverIsFree`, `FrictionOpposesMotionAsAShareOfTheEngagedForce`, and
+`FrictionIsContinuousThroughZeroVelocity`.
+
 The absorber's scale is **one-way in time**: it cuts to the speed's target instantly but climbs
 back at a fixed rate (`YieldRecoveryMs`). This exists because the speed it keys on is an estimate,
 and the estimate carries the device's report quantisation — under write contention distinct

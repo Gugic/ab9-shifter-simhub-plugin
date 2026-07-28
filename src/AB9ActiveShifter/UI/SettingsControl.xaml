@@ -206,11 +206,14 @@
                             <ui:TitledSlider Title="Rebound absorption (%)" Minimum="0" Maximum="80" TickFrequency="5"
                                              ShowResetButton="True" ResetValue="45"
                                              Value="{Binding WallYieldPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Wall friction (%)" Minimum="0" Maximum="40" TickFrequency="1"
+                                             ShowResetButton="True" ResetValue="15"
+                                             Value="{Binding WallFrictionPct, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Damping (%)" Minimum="0" Maximum="80" TickFrequency="5"
                                              ShowResetButton="True" ResetValue="25"
                                              Value="{Binding DampingPct, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
-                                       Text="A wall is flat past its bite, so the bite is where all trouble lives. Too short and it is a step - contact kicks, and a light press vibrates against it; too long and the wall goes spongy and can buzz. Raise the bite until the vibration stops, and no further. Wall attack is a second dial in time instead of space: force builds over these milliseconds on contact, releases instantly, and freezes while you press and hold still. Try 10-25 if short bites kick or corners hammer. Rebound absorption drains what a bounce returns; damping thickens the lever but cannot fix a buzz alone. The attack shapes walls only - the lockout, humps and detents stay sharp so speed cannot slip past them." />
+                                       Text="A wall is flat past its bite, so the bite is where all trouble lives. Too short and it is a step - contact kicks, and a light press vibrates against it; too long and the wall goes spongy and can buzz. Raise the bite until the vibration stops, and no further. Wall attack is a second dial in time instead of space: force builds over these milliseconds on contact, releases instantly, and freezes while you press and hold still. Try 10-25 if short bites kick or corners hammer. Rebound absorption drains what a bounce returns. Wall friction is the gate surfaces' own grip - a share of whatever force you are pressed against, zero in free travel, so it settles a lean on a wall's face without costing any lightness; raise it if holding against a wall or the lockout flutters. Damping thickens the lever everywhere and is the last resort. The attack shapes walls only - the lockout, humps and detents stay sharp so speed cannot slip past them." />
                         </StackPanel>
                     </styles:SHSection>
 

@@ -1316,7 +1316,8 @@ namespace AB9ActiveShifter.Tests
         public void PushingIntoTheWallIsNeverReduced()
         {
             EngineConfig cfg = FullGainConfig();
-            cfg.DampingPct = 0;   // isolate the yield from the damping term
+            cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;   // isolate the yield from the velocity-keyed stabilisers
             ForceComposer c = Composer(cfg);
             int between = (C2 + C3) / 2;
 
@@ -1338,6 +1339,7 @@ namespace AB9ActiveShifter.Tests
             EngineConfig cfg = FullGainConfig();
             cfg.WallYieldPct = 45;
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
             int between = (C2 + C3) / 2;
 
@@ -1356,6 +1358,7 @@ namespace AB9ActiveShifter.Tests
             // Sensor jitter reads as a small velocity; it must not soften a wall being leant on.
             EngineConfig cfg = FullGainConfig();
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
             int between = (C2 + C3) / 2;
 
@@ -1379,6 +1382,7 @@ namespace AB9ActiveShifter.Tests
             // intent, so it must never select between two different forces.
             EngineConfig cfg = FullGainConfig();
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
             int between = (C2 + C3) / 2;
 
@@ -1405,6 +1409,7 @@ namespace AB9ActiveShifter.Tests
             // one number.
             EngineConfig cfg = FullGainConfig();
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
             int inGate = GateCentre(cfg);
 
@@ -1433,6 +1438,7 @@ namespace AB9ActiveShifter.Tests
             // does recover completely - slowly.
             EngineConfig cfg = FullGainConfig();
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
             int between = (C2 + C3) / 2;
 
@@ -1463,6 +1469,86 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(full, previous);
         }
 
+        // ---------------------------------------------------------------- wall friction
+
+        [Fact]
+        public void FrictionIsZeroEverywhereTheLeverIsFree()
+        {
+            // The lightness contract, and what separates friction from damping: it is a share
+            // of the force being applied, so wherever nothing is applied - the corridors, the
+            // channel, free travel - it is exactly zero at any speed.
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+
+            // Sliding fast along the open tunnel, and darting fore/aft inside a column's free
+            // corridor: no force engaged, so nothing may drag.
+            ForceFrame tunnel = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                          C2, Center, 150000, 150000, 1.0);
+            Assert.Equal(0, tunnel.ConstantX);
+            Assert.Equal(0, tunnel.ConstantY);
+        }
+
+        [Fact]
+        public void FrictionOpposesMotionAsAShareOfTheEngagedForce()
+        {
+            // The gate surfaces' mu: pressed against a wall, motion meets an extra force of
+            // mu times the engaged wall force - against the slide on the way in, against the
+            // retreat on the way out - saturated past the knee, proportional below it.
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+            cfg.WallYieldPct = 0;   // isolate friction from the absorber
+            cfg.WallFrictionPct = 20;
+            cfg.ChannelWallForcePct = 60;   // headroom, so nothing reaches the final clamp
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+            int y = Center + 3500;
+
+            int baseForce = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                      between, y, 0, 0).ConstantY;
+            Assert.True(baseForce < 0, "the wall should push back toward centre: " + baseForce);
+            int cap = (int)Math.Round(Math.Abs(baseForce) * 0.20);
+
+            // Pushing deeper at speed: friction sides with the wall, saturated at mu times it.
+            int pushing = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                    between, y, 0, 20000).ConstantY;
+            Assert.Equal(baseForce - cap, pushing);
+
+            // Retreating at speed: friction opposes the retreat, so the net push-out lightens
+            // by the same share - the grip that lets a lean settle instead of being sprung out.
+            int retreating = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                       between, y, 0, -20000).ConstantY;
+            Assert.Equal(baseForce + cap, retreating);
+
+            // Below the knee it is viscous - half the saturation speed, half the friction.
+            int creeping = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                     between, y, 0, -4000).ConstantY;
+            Assert.Equal(baseForce + (int)Math.Round(cap / 2.0), creeping);
+        }
+
+        [Fact]
+        public void FrictionIsContinuousThroughZeroVelocity()
+        {
+            // Friction must never be a relay: a Coulomb sign-flip at zero velocity would put
+            // back the exact step the yield deadband removed, at tremor rate. Below the knee
+            // it is viscous, so crossing zero velocity crosses zero friction.
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+            cfg.WallYieldPct = 0;
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            int forward = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                    between, Center + 3500, 0, 500).ConstantY;
+            int backward = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                     between, Center + 3500, 0, -500).ConstantY;
+
+            int wall = Math.Abs(c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                          between, Center + 3500, 0, 0).ConstantY);
+            Assert.True(Math.Abs(forward - backward) < wall / 20,
+                "friction steps across zero velocity: " + forward + " vs " + backward);
+        }
+
         [Fact]
         public void SnickKeepsMostOfItsPullWhileAssisting()
         {
@@ -1470,6 +1556,7 @@ namespace AB9ActiveShifter.Tests
             // absorption than the walls so the shift still feels like it seats itself.
             EngineConfig cfg = FullGainConfig();
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
 
             int full = c.Compose(GateState.Traveling, Column.C2, ShiftDir.Fwd, C2, 5000, 0, 0).ConstantY;
@@ -1491,6 +1578,7 @@ namespace AB9ActiveShifter.Tests
             cfg.ChannelFreeDepth = 0;
             cfg.ColumnPinForcePct = 55;
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             return cfg;
         }
 
@@ -1572,6 +1660,7 @@ namespace AB9ActiveShifter.Tests
             // the recovery rate instead of the blend span.
             EngineConfig cfg = FullGainConfig();
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
             int between = (C2 + C3) / 2;
 
@@ -1612,6 +1701,7 @@ namespace AB9ActiveShifter.Tests
         {
             EngineConfig cfg = FullGainConfig();
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
             int between = (C2 + C3) / 2;
 
@@ -1659,6 +1749,7 @@ namespace AB9ActiveShifter.Tests
             // shaping. Every stateless property test in this file leans on that.
             EngineConfig cfg = FullGainConfig();
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
             int between = (C2 + C3) / 2;
 
@@ -1730,6 +1821,7 @@ namespace AB9ActiveShifter.Tests
             EngineConfig cfg = FullGainConfig();
             cfg.WallAttackMs = 20;
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
             int between = (C2 + C3) / 2;
             int deep = Center + 4000;
@@ -1756,6 +1848,7 @@ namespace AB9ActiveShifter.Tests
             EngineConfig cfg = FullGainConfig();
             cfg.WallAttackMs = 20;
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
 
             int first = c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd,
@@ -1771,6 +1864,7 @@ namespace AB9ActiveShifter.Tests
             EngineConfig cfg = FullGainConfig();
             cfg.WallAttackMs = 20;
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
             int between = (C2 + C3) / 2;
 
@@ -1794,6 +1888,7 @@ namespace AB9ActiveShifter.Tests
             EngineConfig cfg = FullGainConfig();
             cfg.WallAttackMs = 20;
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
             int between = (C2 + C3) / 2;
 
@@ -1823,6 +1918,7 @@ namespace AB9ActiveShifter.Tests
             // must behave exactly like the shaping never existed.
             EngineConfig off = FullGainConfig();
             off.DampingPct = 0;
+            off.WallFrictionPct = 0;
             int between = (C2 + C3) / 2;
 
             int instant = Composer(off).Compose(GateState.Neutral, Column.None, ShiftDir.None,
@@ -1832,6 +1928,7 @@ namespace AB9ActiveShifter.Tests
             EngineConfig on = FullGainConfig();
             on.WallAttackMs = 20;
             on.DampingPct = 0;
+            on.WallFrictionPct = 0;
             int bypassed = Composer(on).Compose(GateState.Neutral, Column.None, ShiftDir.None,
                                                 between, Center + 4000, 0, 20000).ConstantY;
             Assert.Equal(-9000, bypassed);
@@ -2242,6 +2339,7 @@ namespace AB9ActiveShifter.Tests
             EngineConfig cfg = FullGainConfig();
             cfg.WallAttackMs = 20;
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
 
             ForceComposer plain = Composer(cfg);
             ForceComposer buzzing = Composer(cfg);
@@ -2285,6 +2383,7 @@ namespace AB9ActiveShifter.Tests
             EngineConfig cfg = FullGainConfig();
             cfg.ChannelWallForcePct = 100;
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
 
             int between = (C2 + C3) / 2;
             ForceFrame f = Composer(cfg).Compose(GateState.Neutral, Column.None, ShiftDir.None,
@@ -2302,6 +2401,7 @@ namespace AB9ActiveShifter.Tests
             // that means the fore/aft force never goes negative.
             EngineConfig cfg = FullGainConfig();
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             ForceComposer c = Composer(cfg);
 
             for (int y = Center - cfg.ChannelHalfExit; y >= 0; y -= 400)
@@ -2325,6 +2425,7 @@ namespace AB9ActiveShifter.Tests
             // resistance and stays. At zero the old resistance-only feel remains.
             EngineConfig cfg = FullGainConfig();
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
 
             ForceFrame balked = Composer(cfg).Compose(GateState.Traveling, Column.C2, ShiftDir.Fwd,
                                                       C2, 500, 0, 0, 0, 0, true);
@@ -2344,6 +2445,7 @@ namespace AB9ActiveShifter.Tests
             // unmutes it, the exemption returns and the pull lands in one piece.
             EngineConfig cfg = FullGainConfig();
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             cfg.WallAttackMs = 20;
             ForceComposer c = Composer(cfg);
 
@@ -2370,6 +2472,7 @@ namespace AB9ActiveShifter.Tests
             cfg.BarrierForcePct = 0;
             cfg.LockoutForcePct = 0;
             cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
             return cfg;
         }
 
