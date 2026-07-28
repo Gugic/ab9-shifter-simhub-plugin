@@ -846,7 +846,6 @@ namespace AB9ActiveShifter.Core
                 && a.ChannelHalfEnter == b.ChannelHalfEnter
                 && a.ChannelHalfExit == b.ChannelHalfExit
                 && a.ColumnEdgeEnter == b.ColumnEdgeEnter
-                && a.ColumnEdgeExit == b.ColumnEdgeExit
                 && a.ColumnInnerHalfEnter == b.ColumnInnerHalfEnter
                 && a.ColumnInnerHalfExit == b.ColumnInnerHalfExit
                 && a.EngageDepth == b.EngageDepth

@@ -46,7 +46,6 @@ namespace AB9ActiveShifter.Core
         public int ChannelHalfEnter { get; private set; }
         public int ChannelHalfExit { get; private set; }
         public int ColumnEdgeEnter { get; private set; }
-        public int ColumnEdgeExit { get; private set; }
         public int ColumnInnerHalfEnter { get; private set; }
         public int ColumnInnerHalfExit { get; private set; }
         public int EngageDepth { get; private set; }
@@ -91,7 +90,6 @@ namespace AB9ActiveShifter.Core
             int channelHalfEnter,
             int channelHalfExit,
             int columnEdgeEnter,
-            int columnEdgeExit,
             int columnInnerHalfEnter,
             int columnInnerHalfExit,
             int engageDepth,
@@ -119,7 +117,6 @@ namespace AB9ActiveShifter.Core
             ChannelHalfEnter = channelHalfEnter;
             ChannelHalfExit = Math.Max(channelHalfExit, channelHalfEnter + 1);
             ColumnEdgeEnter = columnEdgeEnter;
-            ColumnEdgeExit = Math.Max(columnEdgeExit, columnEdgeEnter + 1);
             ColumnInnerHalfEnter = columnInnerHalfEnter;
             ColumnInnerHalfExit = Math.Max(columnInnerHalfExit, columnInnerHalfEnter + 1);
             EngageDepth = engageDepth;
@@ -324,12 +321,17 @@ namespace AB9ActiveShifter.Core
         /// <summary>
         /// The loose band around a column - how far off centre still counts as its territory.
         /// No longer releases anything: a latched column is held until the stick comes back
-        /// through the channel, so this is a clearance figure, and what the lockout gate is
-        /// positioned against.
+        /// through the channel, so this is purely a clearance figure, and its one job is to say
+        /// how much room the lockout gate has to leave beside the last main column.
+        ///
+        /// The column argument is kept because that is what this measures, but every value is
+        /// the same one now. There used to be a wider band for the two outer columns; it could
+        /// never be reached, because the only caller asks about the last main column, which is
+        /// an interior one in every pattern.
         /// </summary>
         public int ColumnExitHalfWidth(Column c)
         {
-            return IsEdgeColumn(c) ? ColumnEdgeExit : ColumnInnerHalfExit;
+            return ColumnInnerHalfExit;
         }
 
         /// <summary>

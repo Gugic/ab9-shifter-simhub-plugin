@@ -22,8 +22,6 @@ namespace AB9ActiveShifter
         private bool _polarityConfirmed;
         private bool _invertConstantX;
         private bool _invertConstantY;
-        private bool _invertSpringX;
-        private bool _invertSpringY;
         private bool _mirrorColumns;
         private bool _mirrorSlots;
         private bool _freeStick;
@@ -98,7 +96,6 @@ namespace AB9ActiveShifter
         private int _channelHalfEnter = 2600;
         private int _channelHalfExit = 5200;
         private int _columnEdgeEnter = 2600;
-        private int _columnEdgeExit = 5000;
         private int _columnInnerHalfEnter = 1200;
         private int _columnInnerHalfExit = 2400;
         private int _engageDepth = 4000;
@@ -126,8 +123,6 @@ namespace AB9ActiveShifter
         // on Y, and the spring on Y but not on X.
         public bool InvertConstantX { get { return _invertConstantX; } set { Set(ref _invertConstantX, value); } }
         public bool InvertConstantY { get { return _invertConstantY; } set { Set(ref _invertConstantY, value); } }
-        public bool InvertSpringX { get { return _invertSpringX; } set { Set(ref _invertSpringX, value); } }
-        public bool InvertSpringY { get { return _invertSpringY; } set { Set(ref _invertSpringY, value); } }
 
         /// <summary>Put first gear at the right-hand end of the gate instead of the left.</summary>
         public bool MirrorColumns { get { return _mirrorColumns; } set { Set(ref _mirrorColumns, value); } }
@@ -141,6 +136,54 @@ namespace AB9ActiveShifter
         public uint VJoyDeviceId { get { return _vJoyDeviceId; } set { Set(ref _vJoyDeviceId, value); } }
         public int VendorId { get { return _vendorId; } set { Set(ref _vendorId, value); } }
         public int ProductId { get { return _productId; } set { Set(ref _productId, value); } }
+
+        /// <summary>
+        /// The USB ids as hex, which is how the label, the docs, Device Manager and MOZA all
+        /// quote them. The stored value is an int; binding a text box straight to it renders
+        /// 13422 for the AB9 and then rejects "346E" when a user types back what the label
+        /// told them to. Unparseable text is ignored rather than throwing, because every
+        /// half-finished keystroke arrives here.
+        /// </summary>
+        public string VendorIdHex
+        {
+            get { return _vendorId.ToString("X4"); }
+            set
+            {
+                int parsed;
+                if (!TryParseHex(value, out parsed) || parsed == _vendorId) return;
+                _vendorId = parsed;
+                OnChanged("VendorIdHex");
+                OnChanged("VendorId");
+            }
+        }
+
+        public string ProductIdHex
+        {
+            get { return _productId.ToString("X4"); }
+            set
+            {
+                int parsed;
+                if (!TryParseHex(value, out parsed) || parsed == _productId) return;
+                _productId = parsed;
+                OnChanged("ProductIdHex");
+                OnChanged("ProductId");
+            }
+        }
+
+        private static bool TryParseHex(string text, out int value)
+        {
+            value = 0;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+
+            string trimmed = text.Trim();
+            if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) trimmed = trimmed.Substring(2);
+
+            return int.TryParse(
+                trimmed,
+                System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out value);
+        }
         public int TickHz { get { return _tickHz; } set { Set(ref _tickHz, value); } }
 
         // Walls are constant forces expressed as a percentage of full scale. Spring
@@ -338,7 +381,6 @@ namespace AB9ActiveShifter
         public int ChannelHalfEnter { get { return _channelHalfEnter; } set { Set(ref _channelHalfEnter, value); } }
         public int ChannelHalfExit { get { return _channelHalfExit; } set { Set(ref _channelHalfExit, value); } }
         public int ColumnEdgeEnter { get { return _columnEdgeEnter; } set { Set(ref _columnEdgeEnter, value); } }
-        public int ColumnEdgeExit { get { return _columnEdgeExit; } set { Set(ref _columnEdgeExit, value); } }
         public int ColumnInnerHalfEnter { get { return _columnInnerHalfEnter; } set { Set(ref _columnInnerHalfEnter, value); } }
         public int ColumnInnerHalfExit { get { return _columnInnerHalfExit; } set { Set(ref _columnInnerHalfExit, value); } }
         public int EngageDepth
@@ -362,8 +404,6 @@ namespace AB9ActiveShifter
 
                 InvertConstantX = InvertConstantX,
                 InvertConstantY = InvertConstantY,
-                InvertSpringX = InvertSpringX,
-                InvertSpringY = InvertSpringY,
                 MirrorColumns = MirrorColumns,
                 MirrorSlots = MirrorSlots,
                 FreeStick = FreeStick,
@@ -374,7 +414,6 @@ namespace AB9ActiveShifter
                 ChannelHalfEnter = ChannelHalfEnter,
                 ChannelHalfExit = ChannelHalfExit,
                 ColumnEdgeEnter = ColumnEdgeEnter,
-                ColumnEdgeExit = ColumnEdgeExit,
                 ColumnInnerHalfEnter = ColumnInnerHalfEnter,
                 ColumnInnerHalfExit = ColumnInnerHalfExit,
                 EngageDepth = EngageDepth,
@@ -506,7 +545,6 @@ namespace AB9ActiveShifter
                 ChannelHalfEnter = d.ChannelHalfEnter;
                 ChannelHalfExit = d.ChannelHalfExit;
                 ColumnEdgeEnter = d.ColumnEdgeEnter;
-                ColumnEdgeExit = d.ColumnEdgeExit;
                 ColumnInnerHalfEnter = d.ColumnInnerHalfEnter;
                 ColumnInnerHalfExit = d.ColumnInnerHalfExit;
                 EngageDepth = d.EngageDepth;
@@ -556,8 +594,6 @@ namespace AB9ActiveShifter
             {
                 InvertConstantX = d.InvertConstantX;
                 InvertConstantY = d.InvertConstantY;
-                InvertSpringX = d.InvertSpringX;
-                InvertSpringY = d.InvertSpringY;
                 PolarityConfirmed = d.PolarityConfirmed;
                 CalibrationForcePct = d.CalibrationForcePct;
             }

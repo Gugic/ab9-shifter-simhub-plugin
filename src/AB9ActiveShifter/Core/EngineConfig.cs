@@ -159,13 +159,17 @@ namespace AB9ActiveShifter.Core
         /// <summary>Whether a grinding shift is also balked: no registration, resist-only detent.</summary>
         public bool GrindRejectsGear = true;
 
-        // Firmware effect polarity, measured per axis and per effect family. The AB9 does not
-        // treat them alike - constant force and spring can disagree on the same axis - so these
-        // are four independent facts, not one.
+        // Firmware effect polarity, measured per axis. The AB9 does not treat the axes alike -
+        // this unit inverts constant force on X and not on Y - so these are two independent
+        // facts, not one flag.
+        //
+        // Spring polarity is measured too, but has nowhere to apply: every wall in this gate is
+        // a constant force (a DirectInput spring cannot make a wall on this base at any
+        // coefficient - see docs/force-model.md), so every frame ships SpringX/SpringY as Off.
+        // The spring probes survive as a device sanity check that gates the force cap, not as
+        // settings. Reinstate the flags here if a spring ever drives the gate again.
         public bool InvertConstantX;
         public bool InvertConstantY;
-        public bool InvertSpringX;
-        public bool InvertSpringY;
 
         /// <summary>
         /// Gear layout preference: which end of the gate is first gear. These relabel the gear map
@@ -216,7 +220,6 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int ChannelHalfExit = 5200;
         public int ColumnEdgeEnter = 2600;
-        public int ColumnEdgeExit = 5000;
         public int ColumnInnerHalfEnter = 1200;
         public int ColumnInnerHalfExit = 2400;
         public int EngageDepth = 4000;
@@ -515,7 +518,6 @@ namespace AB9ActiveShifter.Core
                 ChannelHalfEnter,
                 ChannelHalfExit,
                 ColumnEdgeEnter,
-                ColumnEdgeExit,
                 ColumnInnerHalfEnter,
                 ColumnInnerHalfExit,
                 EngageDepth,
