@@ -5,7 +5,8 @@
 .DESCRIPTION
     SimHub keeps the plugin DLL locked while it is running and its install folder needs
     administrator rights, so this script stops SimHub, copies the build output with
-    elevation, and optionally starts SimHub again.
+    elevation, and optionally starts SimHub again. On a machine with no saved settings it
+    also installs the shipped presets from presets\.
 
 .EXAMPLE
     .\install.ps1
@@ -71,6 +72,31 @@ catch [System.UnauthorizedAccessException] {
         -ArgumentList '-NoProfile', '-NonInteractive', '-Command', $command
     if ($process.ExitCode -ne 0) { throw "Elevated copy failed with exit code $($process.ExitCode)." }
     Write-Host 'Copied with elevation.' -ForegroundColor Green
+}
+
+# First install only: seed the shipped profiles so the plugin starts from the tuned setup
+# rather than bare defaults. Never touches existing saved settings.
+$presetSrc = Join-Path $root 'presets\AB9ShifterPlugin.GeneralSettings.json'
+$settingsDir = Join-Path $SimHubDir 'PluginsData\Common'
+$settingsPath = Join-Path $settingsDir 'AB9ShifterPlugin.GeneralSettings.json'
+if ((Test-Path $presetSrc) -and -not (Test-Path $settingsPath)) {
+    Write-Host 'No saved settings found; installing the shipped presets...' -ForegroundColor Cyan
+    try {
+        if (-not (Test-Path $settingsDir)) {
+            New-Item -ItemType Directory -Path $settingsDir -Force -ErrorAction Stop | Out-Null
+        }
+        Copy-Item -Path $presetSrc -Destination $settingsPath -Force -ErrorAction Stop
+        Write-Host 'Presets installed. FFB starts disabled, and force is capped until Measure polarity is run.' -ForegroundColor Green
+    }
+    catch [System.UnauthorizedAccessException] {
+        Write-Host 'Needs administrator rights; requesting elevation...' -ForegroundColor Yellow
+        $command = "New-Item -ItemType Directory -Path '$settingsDir' -Force | Out-Null; " +
+            "Copy-Item -Path '$presetSrc' -Destination '$settingsPath' -Force"
+        $process = Start-Process powershell -Verb RunAs -Wait -PassThru `
+            -ArgumentList '-NoProfile', '-NonInteractive', '-Command', $command
+        if ($process.ExitCode -ne 0) { throw "Elevated preset copy failed with exit code $($process.ExitCode)." }
+        Write-Host 'Presets installed with elevation.' -ForegroundColor Green
+    }
 }
 
 if ($wasRunning -and -not $NoRestart) {
