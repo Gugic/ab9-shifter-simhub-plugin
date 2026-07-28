@@ -35,7 +35,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-191 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
+194 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
 on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
 Deploy needs SimHub stopped, because it locks the DLL:
@@ -117,6 +117,13 @@ runners cannot load, so anything worth testing must not touch it.
 - Damping joins **after** the yield and the time shaping, and is never slewed. It opposes motion
   by construction, so it is never the assisting force the yield exists to soften, and rate
   limiting the stabiliser would defeat it.
+- **Wall friction joins beside damping, and its normal load is the shaped gate force — never the
+  carrier.** It is a share of the force currently applied on that axis, so it is exactly zero in
+  free travel (the lightness rule survives it), it winds up with the attack instead of stepping,
+  and it is viscous below its knee so it cannot be a relay at tremor speed. It exists because the
+  sub-deadband band otherwise has no dissipation at all — no cut is allowed there, and that band
+  hunted on the face gradient (17.7 Hz, traced) the moment the yield relay was fixed. Pinned by
+  `FrictionIsZeroEverywhereTheLeverIsFree` and `FrictionIsContinuousThroughZeroVelocity`.
 - **Telemetry vibration joins at the same point, and never passes through the stabilisers.** A
   carrier is keyed on time, not position, so it cannot form the loop the yield and attack
   stabilise — and the yield would chop a zero-mean carrier every half cycle (the grinding-bug

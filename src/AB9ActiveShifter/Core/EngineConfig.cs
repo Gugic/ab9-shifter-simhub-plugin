@@ -430,6 +430,25 @@ namespace AB9ActiveShifter.Core
         public int ChannelFreeDepth = 2600;
 
         /// <summary>
+        /// Kinetic friction at the walls, as a percentage of the wall force currently being
+        /// applied on that axis - the gate surfaces' own mu. Viscous below its saturation
+        /// speed so it is continuous through zero velocity (a Coulomb sign-flip at tremor
+        /// would be a relay, the exact disease the yield deadband cures), Coulomb-flat above.
+        ///
+        /// This is the dissipation for the band the other stabilisers cannot reach. Below the
+        /// yield deadband nothing may cut (leaning must be solid); global damping costs throw
+        /// lightness everywhere; the static hold only guards a hand already settled. What was
+        /// left was a face gradient, the loop's delay, and a hand - and that hunts: with the
+        /// yield relay fixed, the lockout trace still showed a 17.7 Hz, 8000-count cycle
+        /// riding the entry face, the residual of the same instability. Friction scaled by
+        /// the engaged force is zero in free travel, the corridors and the channel - it costs
+        /// nothing in lightness - and on a face it is ~17x the delay's negative damping at
+        /// this default, which is what lets a lean settle instead of hunt. The honest render,
+        /// too: real gates are friction-damped exactly like this.
+        /// </summary>
+        public int WallFrictionPct = 15;
+
+        /// <summary>
         /// Velocity damping, as a percentage of full force at <see cref="DampingReferenceSpeed"/>.
         /// This is what stops a stiff wall oscillating. It is computed here from the axis
         /// readings rather than asked of the device, because a damper is a condition effect and

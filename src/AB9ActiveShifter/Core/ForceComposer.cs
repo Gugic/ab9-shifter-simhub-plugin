@@ -64,6 +64,19 @@ namespace AB9ActiveShifter.Core
         private readonly int _dampingForce;
         private readonly double _dampingPerCount;
 
+        /// <summary>The gate surfaces' mu: friction cap as a fraction of the engaged force.</summary>
+        private readonly double _wallFriction;
+
+        /// <summary>
+        /// Speed at which wall friction reaches its full Coulomb value, in counts per second.
+        /// Below it friction is viscous - continuous through zero velocity, because a sign-flip
+        /// at tremor speed would be a relay, the exact disease the yield deadband cures. Above
+        /// it friction is flat, so it has no velocity gradient left to excite anything. Sits
+        /// above the measured tremor envelope (~3700) and below the yield deadband, so the
+        /// band the yield deliberately leaves untouched is exactly the band friction damps.
+        /// </summary>
+        private const int FrictionSaturationSpeed = 8000;
+
         /// <summary>Force multiplier on a rebound: 1 - WallYieldPct.</summary>
         private readonly double _yieldFloor;
 
@@ -165,6 +178,10 @@ namespace AB9ActiveShifter.Core
 
             _dampingForce = Force(config.DampingPct, gain);
             _dampingPerCount = _dampingForce / (double)Math.Max(1, config.DampingReferenceSpeed);
+
+            // No gain factor: friction is a fraction of the applied force, which already
+            // carries the gain, the polarity cap and every percentage above it.
+            _wallFriction = GateGeometry.Clamp(config.WallFrictionPct, 0, 100) / 100.0;
 
             double yield = GateGeometry.Clamp(config.WallYieldPct, 0, 90) / 100.0;
             _yieldFloor = 1.0 - yield;
@@ -382,18 +399,23 @@ namespace AB9ActiveShifter.Core
                 ? ShapeInTime(ref _shapedY, boundedY, vy, dtMs)
                 : Track(ref _shapedY, boundedY);
 
-            // Damping joins after the yield and the time shaping - it opposes motion by
-            // construction, so it can never be the assisting force the yield softens, and it
-            // must keep its full bandwidth rather than being slewed.
+            // Friction and damping join after the yield and the time shaping - they oppose
+            // motion by construction, so they can never be the assisting force the yield
+            // softens, and they must keep their full bandwidth rather than being slewed.
+            // Friction takes the SHAPED force as its normal load on purpose: the attack ramps
+            // the wall in, so friction winds up with it instead of arriving as its own step,
+            // and a yielded wall grips proportionally less.
             //
             // The telemetry vibration joins at the same point, for the mirror-image reason: a
             // carrier is keyed on time, not position, so it cannot form the loop those two
             // stages stabilise - and passing it through them would just filter the texture
             // away (a 15 ms attack is most of a cycle at 44 Hz, and half of every cycle
             // "assists"). It is still inside the final clamp and the polarity signs; being
-            // zero-mean, a sign flip is only a phase shift.
-            frame.ConstantX = Combine(boundedX, Damping(vx)) * _constantSignX;
-            frame.ConstantY = Combine(Combine(boundedY, Damping(vy)), vibY) * _constantSignY;
+            // zero-mean, a sign flip is only a phase shift. Friction never keys on it: a
+            // carrier is not a load the lever is pressed against.
+            frame.ConstantX = Combine(Combine(boundedX, Friction(boundedX, vx)), Damping(vx)) * _constantSignX;
+            frame.ConstantY = Combine(Combine(Combine(boundedY, Friction(boundedY, vy)), Damping(vy)), vibY)
+                              * _constantSignY;
 
             frame.DamperCoefficient = _damperCoeff;
             return frame;
@@ -507,6 +529,31 @@ namespace AB9ActiveShifter.Core
             // so it is clamped up to this call's floor rather than carrying a deeper cut across.
             scale = Math.Max(Math.Min(scale, target), floor);
             return (int)Math.Round(force * scale);
+        }
+
+        /// <summary>
+        /// Kinetic friction at the walls: force opposing motion, capped at the surface's mu
+        /// times the wall force currently applied on this axis - so it is exactly zero in free
+        /// travel, the corridors and the channel, and costs nothing in lightness. Viscous up to
+        /// <see cref="FrictionSaturationSpeed"/>, Coulomb-flat beyond.
+        ///
+        /// This is the dissipation for the band the other stabilisers deliberately leave
+        /// alone. Below the yield deadband nothing may cut, because leaning must be solid;
+        /// the static hold only guards a hand already settled; global damping is banned from
+        /// free travel. What remained there was a face gradient rendered through the loop's
+        /// delay - negative damping, ~0.011 DI per count/s at the shipped stiffness - and a
+        /// hand, and that hunted: with the yield relay fixed, the lockout trace still showed
+        /// a 17.7 Hz, 8000-count cycle riding the entry face. At the default mu this term is
+        /// roughly seventeen times the delay's negative damping, which is what lets a lean
+        /// settle onto a face instead of orbiting it.
+        /// </summary>
+        private int Friction(int applied, int velocity)
+        {
+            if (_wallFriction <= 0 || applied == 0 || velocity == 0) return 0;
+
+            double cap = Math.Abs(applied) * _wallFriction;
+            double force = -velocity * (cap / FrictionSaturationSpeed);
+            return (int)Math.Round(GateGeometry.Clamp(force, -cap, cap));
         }
 
         /// <summary>

@@ -86,6 +86,7 @@ namespace AB9ActiveShifter
         private int _grindMinSpeedKmh;
         private bool _grindRejectsGear = true;
         private int _dampingPct = 25;
+        private int _wallFrictionPct = 15;
         private int _wallYieldPct = 45;
         private int _damperCoeff = 800;
         private int _detentResistPct = 22;
@@ -288,6 +289,12 @@ namespace AB9ActiveShifter
         /// <summary>Velocity damping. This, not the device damper, is what settles a stiff wall.</summary>
         public int DampingPct { get { return _dampingPct; } set { Set(ref _dampingPct, value); } }
 
+        /// <summary>
+        /// Friction at the walls, as a share of the force being applied. Zero in free travel by
+        /// construction, so it settles a lean on a face without costing any throw lightness.
+        /// </summary>
+        public int WallFrictionPct { get { return _wallFrictionPct; } set { Set(ref _wallFrictionPct, value); } }
+
         /// <summary>How much of a wall's force is given up on the rebound. The anti-buzz control.</summary>
         public int WallYieldPct { get { return _wallYieldPct; } set { Set(ref _wallYieldPct, value); } }
 
@@ -394,6 +401,7 @@ namespace AB9ActiveShifter
                 DetentPullPct = DetentPullPct,
                 DetentHoldPct = DetentHoldPct,
                 DampingPct = DampingPct,
+                WallFrictionPct = WallFrictionPct,
                 WallYieldPct = WallYieldPct,
                 LockoutForcePct = LockoutForcePct,
                 LockoutHalfWidth = LockoutHalfWidth
@@ -450,6 +458,7 @@ namespace AB9ActiveShifter
                 DetentPullPct = d.DetentPullPct;
                 DetentHoldPct = d.DetentHoldPct;
                 DampingPct = d.DampingPct;
+                WallFrictionPct = d.WallFrictionPct;
                 WallYieldPct = d.WallYieldPct;
             }
 

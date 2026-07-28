@@ -17,6 +17,7 @@ light — that is the safety cap doing its job, not a tuning problem.
 | Lockout gate, guarding 7/R | 70% | The push-through toll before 7 and R. Sits against the 5/6 column; width sets the toll with it. |
 | Neutral spring toward 3/4 | 0% (off) | The home spring: pulls the lever along the channel toward the 3/4 column, where a real H lever rests. Around 25–30% a released lever walks home past the humps; fades out with depth so a held gear feels nothing. Follows the mirror flags. |
 | Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
+| Wall friction | 15% | The gate surfaces' own grip: drag equal to this share of whatever force you are pressed against. Zero in free travel by construction, so it costs no lightness — it is what lets a lean settle on a wall or the lockout instead of fluttering. |
 | Slot mouth | Square | Shape of the divider ends where they meet the tunnel. Square is the plain notch and changes nothing. |
 | Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
 | Neutral tunnel depth | 2600 counts | The state band: where "in the tunnel" ends and the lateral field's rise lives. Must exceed your fore/aft slop while sliding sideways, or you spend your time in the transition band instead. Measured on real hands: p50 1848, p90 3215. |
@@ -124,16 +125,21 @@ detent is deliberately exempt so the snick still arrives whole.
 
 **The lever chatters rhythmically while I hold it against force — held in a gear, or leaning on
 the lockout, which pumps the lever back out in kicks.**
-Fixed structurally, and worth telling apart from the bite oscillation above: it is slower (12–26 Hz
-on the traces that caught it), it needs a hand leaning on the lever to sustain it, and it happens
-even on *flat* force — the lockout's core has no gradient at all, and it chattered anyway. The
-rebound absorber's velocity deadband sat at sensor-noise level, below hand tremor, so every
-micro-reversal of a lean fired a fresh cut: the force stepped between full and the yield floor
-across zero velocity like a relay, and each step kicked the lever into a bigger reversal — up to
-20000-count swings off the lockout. The deadband now sits above the measured envelope of a leaning
-hand and below deliberate strokes, so a lean feels one continuous force whichever way tremor
-points. If a residual flutter ever appears while leaning, the step that drives it scales with
-**wall absorption** — lower that, never damping.
+Fixed structurally, in two layers, and worth telling apart from the bite oscillation above: it is
+slower (12–26 Hz on the traces that caught it), it needs a hand leaning on the lever to sustain
+it, and it happens even on *flat* force — the lockout's core has no gradient at all, and it
+chattered anyway. The first layer was the rebound absorber's velocity deadband sitting at
+sensor-noise level, below hand tremor, so every micro-reversal of a lean fired a fresh cut: the
+force stepped between full and the yield floor across zero velocity like a relay, and each step
+kicked the lever into a bigger reversal — up to 20000-count swings off the lockout. The deadband
+now sits above the measured envelope of a leaning hand and below deliberate strokes, so a lean
+feels one continuous force whichever way tremor points. The second layer surfaced the moment the
+first was fixed: a smaller, faster hunt (17.7 Hz on the follow-up trace) riding the *face*,
+because the sub-deadband band then had no dissipation at all — no cut is allowed there, damping
+was zero, and the static hold only guards a hand already settled. That is what **wall friction**
+exists for: drag proportional to the engaged force, zero in free travel. If a flutter while
+leaning ever returns, raise **wall friction** first; **wall absorption** scales the step a
+genuine bounce gets; damping stays the last resort.
 
 **With a long bite I can push to gear depth *between* columns, and no gear registers.**
 The bite's hidden upper bound. The bite is spent three times over between two columns: the slot
