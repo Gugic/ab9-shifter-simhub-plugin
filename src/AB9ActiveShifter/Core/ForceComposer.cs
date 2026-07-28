@@ -59,7 +59,17 @@ namespace AB9ActiveShifter.Core
         private readonly int _detentHold;
         private readonly int _grindWallForce;
         private readonly int _seqStopForce;
+        private readonly int _seqClickForce;
         private readonly int _damperCoeff;
+
+        /// <summary>How long the sequential click's kick lasts, in milliseconds.</summary>
+        private const double SeqClickMs = 25.0;
+
+        /// <summary>Milliseconds left of the kick fired by the last sequential shift.</summary>
+        private double _seqClickLeftMs;
+
+        /// <summary>Which way the firing stroke was travelling: -1 toward low y, +1 toward high.</summary>
+        private int _seqClickSign;
 
         private readonly int _dampingForce;
         private readonly double _dampingPerCount;
@@ -174,6 +184,7 @@ namespace AB9ActiveShifter.Core
             _detentHold = Force(config.DetentHoldPct, gain);
             _grindWallForce = Force(config.GrindWallPct, gain);
             _seqStopForce = Force(config.SeqStopForcePct, gain);
+            _seqClickForce = Force(config.SeqClickPct, gain);
             _damperCoeff = Scale(config.DamperCoeff, gain);
 
             _dampingForce = Force(config.DampingPct, gain);
@@ -291,8 +302,19 @@ namespace AB9ActiveShifter.Core
         /// back to the fore/aft centre, with a click at each shift threshold. No gate, no
         /// columns, no lockout - but the same stabiliser pipeline, and the measured polarity
         /// signs applied once at the same single place.
+        ///
+        /// <paramref name="clickNow"/> is the state machine's shift firing this tick. It
+        /// starts the click's kick: a short burst in the stroke's own direction - the
+        /// mechanism's stored energy letting go as the dogs drop in - which then throws the
+        /// lever onto the end-stop wall, and the two together are the thunk. The kick is
+        /// time-keyed rather than a spatial over-centre because a sequential lever must
+        /// always come home to re-arm: a pocket in the spring profile could hold a released
+        /// lever, a 25 ms burst cannot. It joins beside the telemetry carrier, after the
+        /// yield and the attack - it assists motion by definition, so the absorber would eat
+        /// it, and the attack would blunt most of it.
         /// </summary>
-        public ForceFrame ComposeSequential(int x, int y, int vx = 0, int vy = 0, double dtMs = 0, int vibY = 0)
+        public ForceFrame ComposeSequential(int x, int y, int vx = 0, int vy = 0, double dtMs = 0, int vibY = 0,
+                                            bool clickNow = false)
         {
             if (_freeStick)
             {
@@ -300,8 +322,24 @@ namespace AB9ActiveShifter.Core
                 _shapedY = 0;
                 _yieldScaleX = 1.0;
                 _yieldScaleY = 1.0;
+                _seqClickLeftMs = 0;
                 _guideColumn = Column.None;
                 return FreeFrame();
+            }
+
+            if (clickNow && _seqClickForce > 0)
+            {
+                _seqClickLeftMs = SeqClickMs;
+
+                // Fwd is low y; assisting a forward stroke pushes toward -y.
+                _seqClickSign = _geo.DirectionOf(y) == ShiftDir.Fwd ? -1 : 1;
+            }
+
+            int click = 0;
+            if (_seqClickLeftMs > 0)
+            {
+                click = _seqClickSign * (int)Math.Round(_seqClickForce * (_seqClickLeftMs / SeqClickMs));
+                if (dtMs > 0) _seqClickLeftMs = Math.Max(0, _seqClickLeftMs - dtMs);
             }
 
             ForceFrame frame = new ForceFrame
@@ -325,7 +363,7 @@ namespace AB9ActiveShifter.Core
             int stopStart = SequentialThreshold() + Math.Max(0, _cfg.SeqOvertravel);
             double floorY = Math.Abs(y - GateGeometry.AxisCenter) >= stopStart ? _yieldFloor : _snickFloor;
 
-            return Bound(frame, vx, vy, dtMs, floorY, shapeY: true, vibY: vibY);
+            return Bound(frame, vx, vy, dtMs, floorY, shapeY: true, vibY: Combine(vibY, click));
         }
 
         /// <summary>Distance from centre to the sequential firing line, in axis counts.</summary>

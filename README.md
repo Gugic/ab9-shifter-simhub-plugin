@@ -116,10 +116,16 @@ In MOZA Cockpit, with firmware **1.1.3.4 or newer**:
 | --- | --- |
 | FFB Mode | **DirectInput** |
 | Spring | **0** |
+| Natural Damping | **~15%** (recommended) |
 | Base Force Model | **Flight Base** |
 | Max Torque | 100% |
 | Overall Intensity | 100% |
 | Game FFB Gain | 100% |
+
+Natural Damping is real damping applied in the base's own servo loop, with none of the USB
+delay the plugin's forces carry — around 15% it settles the last bit of flutter a hand can
+provoke by leaning hard on a wall or the lockout, and it is the one kind of damping that does
+not make the lever feel thick.
 
 Then **exit Cockpit completely**. To check the stick is genuinely free afterwards, tick
 **Release all forces (free stick)** on the Setup tab — anything you still feel with that on

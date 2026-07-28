@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using AB9ActiveShifter.Core;
@@ -51,6 +52,7 @@ namespace AB9ActiveShifter
         private int _seqPulseMs = 120;
         private int _seqOvertravel = 2500;
         private int _seqStopForcePct = 90;
+        private int _seqClickPct = 60;
 
         // Telemetry effects, all off by default: they are additions to the gate, not part of it.
         private bool _fxEngineEnabled;
@@ -230,6 +232,36 @@ namespace AB9ActiveShifter
         /// <summary>The end-stop wall at the bottom of a sequential stroke.</summary>
         public int SeqStopForcePct { get { return _seqStopForcePct; } set { Set(ref _seqStopForcePct, value); } }
 
+        /// <summary>The click's kick: a 25 ms burst in the stroke's direction when a shift fires.</summary>
+        public int SeqClickPct { get { return _seqClickPct; } set { Set(ref _seqClickPct, value); } }
+
+        /// <summary>
+        /// The sequential lever's actuation throw: axis counts from centre to the firing line.
+        /// The same stored fact as <see cref="EngageDepth"/>, which measures from the end of
+        /// travel - re-expressed the way a sequential hand thinks, so a longer number is a
+        /// longer pull. Writing it moves the re-arm line (<see cref="ReleaseDepth"/>) by the
+        /// same amount, keeping the hysteresis gap: moving only the firing line would shrink
+        /// the gap and, shortened far enough, let a lever resting on the threshold
+        /// machine-gun shifts.
+        /// </summary>
+        public int SeqThrow
+        {
+            get { return GateGeometry.AxisCenter - _engageDepth; }
+            set
+            {
+                int depth = GateGeometry.AxisCenter - value;
+                int delta = depth - _engageDepth;
+                if (delta == 0) return;
+
+                _engageDepth = depth;
+                _releaseDepth = Math.Max(_releaseDepth + delta, depth + 500);
+
+                OnChanged("SeqThrow");
+                OnChanged("EngageDepth");
+                OnChanged("ReleaseDepth");
+            }
+        }
+
         // Telemetry effects: per-effect enable, volume and pitch, mirrored into EngineConfig.
 
         public bool FxEngineEnabled { get { return _fxEngineEnabled; } set { Set(ref _fxEngineEnabled, value); } }
@@ -309,7 +341,12 @@ namespace AB9ActiveShifter
         public int ColumnEdgeExit { get { return _columnEdgeExit; } set { Set(ref _columnEdgeExit, value); } }
         public int ColumnInnerHalfEnter { get { return _columnInnerHalfEnter; } set { Set(ref _columnInnerHalfEnter, value); } }
         public int ColumnInnerHalfExit { get { return _columnInnerHalfExit; } set { Set(ref _columnInnerHalfExit, value); } }
-        public int EngageDepth { get { return _engageDepth; } set { Set(ref _engageDepth, value); } }
+        public int EngageDepth
+        {
+            get { return _engageDepth; }
+            set { Set(ref _engageDepth, value); OnChanged("SeqThrow"); }
+        }
+
         public int ReleaseDepth { get { return _releaseDepth; } set { Set(ref _releaseDepth, value); } }
         public int DetentHysteresis { get { return _detentHysteresis; } set { Set(ref _detentHysteresis, value); } }
         public int MinEngageTicks { get { return _minEngageTicks; } set { Set(ref _minEngageTicks, value); } }
@@ -364,6 +401,7 @@ namespace AB9ActiveShifter
                 SeqPulseMs = SeqPulseMs,
                 SeqOvertravel = SeqOvertravel,
                 SeqStopForcePct = SeqStopForcePct,
+                SeqClickPct = SeqClickPct,
 
                 FxEngineEnabled = FxEngineEnabled,
                 FxEngineGainPct = FxEngineGainPct,
@@ -453,6 +491,7 @@ namespace AB9ActiveShifter
                 SeqPulseMs = d.SeqPulseMs;
                 SeqOvertravel = d.SeqOvertravel;
                 SeqStopForcePct = d.SeqStopForcePct;
+                SeqClickPct = d.SeqClickPct;
                 DamperCoeff = d.DamperCoeff;
                 DetentResistPct = d.DetentResistPct;
                 DetentPullPct = d.DetentPullPct;

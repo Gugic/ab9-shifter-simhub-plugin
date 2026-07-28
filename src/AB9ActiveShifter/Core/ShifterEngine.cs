@@ -462,7 +462,8 @@ namespace AB9ActiveShifter.Core
                     // least as early as the hand feels the click.
                     StepPulse(cfg, nowMs, st.Shift);
 
-                    frame = _composer.ComposeSequential(x, y, _velocity.X, _velocity.Y, dtMs, fx.VibY);
+                    frame = _composer.ComposeSequential(x, y, _velocity.X, _velocity.Y, dtMs, fx.VibY,
+                                                        st.Shift != 0);
 
                     traceState = GateState.Neutral;
                     traceColumn = Column.None;
