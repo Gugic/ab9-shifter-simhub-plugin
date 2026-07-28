@@ -44,6 +44,10 @@ expression:
   that it plays a short one-shot ramp-force effect as a detent click. These are
   descriptions of approach, discussed there alongside why this project chose
   differently; no expression of them was copied.
+- The behavioural idea that a clutchless shift should grind and balk — observed
+  as a user of its truck-shifter module, not taken from its source. This
+  project's grind (telemetry conditions, balk-wall render, engagement refusal)
+  was designed and implemented independently; see `docs/force-model.md`.
 
 Its source was read for architectural comparison. The force model, state
 machine, effect set, threading design, and all code in this repository were
