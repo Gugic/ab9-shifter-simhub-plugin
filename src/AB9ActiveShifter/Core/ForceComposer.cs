@@ -106,6 +106,16 @@ namespace AB9ActiveShifter.Core
         /// <summary>Smallest static hold band, so tiny forces still settle.</summary>
         private const int StaticHoldFloor = 200;
 
+        /// <summary>
+        /// "Still" for the static hold, in counts per second: the measured envelope of a hand
+        /// holding against force is under 3700, so 4000 covers tremor and nothing else. This is
+        /// deliberately NOT the yield's deadband. The two answer different questions - "is the
+        /// hand at rest" versus "is this a launch" - and when they shared one constant, raising
+        /// the yield's threshold to hand-adjustment speed would have let the freeze span real
+        /// slow retreats, quantising the face into 20%-band force steps on the way out.
+        /// </summary>
+        private const int StaticHoldStillSpeed = 4000;
+
         private readonly int _constantSignX;
         private readonly int _constantSignY;
         private readonly bool _freeStick;
@@ -419,7 +429,7 @@ namespace AB9ActiveShifter.Core
             int holdBand = Math.Max(StaticHoldFloor, Math.Abs(shaped) / StaticHoldDivisor);
 
             if (sameWall
-                && Math.Abs(velocity) <= _yieldDeadband
+                && Math.Abs(velocity) <= StaticHoldStillSpeed
                 && Math.Abs(target - shaped) <= holdBand)
             {
                 return shaped;
@@ -441,20 +451,30 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// The rebound absorber. A force resisting the stick's motion, or acting on a stick
-        /// that is effectively still, passes through untouched - leaning on a wall stays solid.
-        /// A force accelerating the stick along its existing motion is scaled toward the floor
-        /// as speed grows, so a bounce off a wall returns less energy than the push stored.
+        /// The rebound absorber. A force resisting the stick's motion passes through whole - a
+        /// wall being pushed on is never soft. A force accelerating the stick along its existing
+        /// motion, faster than the deadband, is scaled toward the floor as speed grows, so a
+        /// bounce off a wall returns less energy than the push stored.
+        ///
+        /// The deadband is the lean-or-launch line, and everything inside it - still, tremor,
+        /// a hand adjusting its grip, either direction - gets the HELD scale, never a fresh cut
+        /// and never an instant restore. Both halves of that were learned from real traces. A
+        /// fresh cut at leaning speed turns the absorber into a relay: every micro-reversal
+        /// fires it, every firing steps the force by the yield fraction, and the step kicks the
+        /// lever into a bigger reversal - measured as 26 Hz chatter in a slot and a 12 Hz
+        /// rebound off the lockout when the deadband sat at tremor level. An instant restore
+        /// inside the deadband reopens the opposite hole: the speed estimate ripples under the
+        /// device's ~500 Hz report quantisation, and a dip below the deadband would strobe a
+        /// held cut back to full at that rate - the gear-grinding texture the slewed recovery
+        /// exists to prevent.
         ///
         /// The scale is one-way in time: it drops to the speed's target instantly but climbs
-        /// back at <see cref="_yieldRecoverPerMs"/>. Without that, the ripple in the speed
-        /// estimate swept the scale across its whole blend range at 250-500 Hz and the wall
-        /// force ground like gear teeth under every pressed slide. Holding the cut through the
-        /// estimate's dips costs nothing: while it holds, the wall is by definition assisting,
-        /// so a deeper cut is just more of the absorption the yield exists to provide.
+        /// back at <see cref="_yieldRecoverPerMs"/>. Holding the cut through the estimate's
+        /// dips costs nothing a hand can feel: a lean without a recent bounce has a scale of
+        /// one, and after a caught bounce the wall firms back up over the recovery time.
         ///
-        /// A dt of zero bypasses the memory and applies the speed's target directly, the same
-        /// convention as the time shaping.
+        /// A dt of zero bypasses the memory - the speed's target directly while assisting,
+        /// whole force otherwise - the same convention as the time shaping.
         /// </summary>
         private int Yield(int force, int velocity, double floor, ref double scale, double dtMs)
         {
@@ -464,10 +484,19 @@ namespace AB9ActiveShifter.Core
                 scale = Math.Min(1.0, scale + _yieldRecoverPerMs * dtMs);
 
             if (force == 0 || floor >= 1.0) return force;
-            if (Math.Sign(force) != Math.Sign(velocity)) return force;
 
             int speed = Math.Abs(velocity);
-            if (speed <= _yieldDeadband) return force;
+            bool assisting = Math.Sign(force) == Math.Sign(velocity);
+
+            if (speed <= _yieldDeadband)
+            {
+                // Inside the deadband the sign of the velocity is tremor, not intent, so it
+                // must not select between two different forces - that selection was the relay.
+                if (dtMs <= 0) return force;
+                return (int)Math.Round(force * scale);
+            }
+
+            if (!assisting) return force;
 
             double t = GateGeometry.Clamp((speed - _yieldDeadband) / (double)_yieldBlend, 0.0, 1.0);
             double target = 1.0 - (1.0 - floor) * t;

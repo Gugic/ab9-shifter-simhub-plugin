@@ -368,8 +368,20 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int WallAttackMs = 0;
 
-        /// <summary>Speeds below this are treated as leaning, in axis counts per second.</summary>
-        public int YieldVelocityDeadband = 1500;
+        /// <summary>
+        /// Speeds below this are treated as leaning, in axis counts per second. This is the
+        /// absorber's lean-or-launch classifier, and it must sit above the speed of a hand
+        /// adjusting its lean, not merely above sensor noise. It shipped at 1500 - tremor
+        /// level - and a leaning hand crosses tremor level with every micro-reversal, so each
+        /// one fired a fresh cut, each cut kicked the lever, and each kick grew the next
+        /// reversal: the absorber became a relay oscillator. Measured on real traces as a
+        /// 26 Hz, 8155 DI peak-to-peak chatter leaning in a slot and a 12 Hz, 20000-count
+        /// rebound being spat back off the lockout. The measured envelope of a hand genuinely
+        /// holding against force tops out near 3700 counts/s; deliberate strokes run 15000 and
+        /// up; wall launches 100000 and up. 10000 clears the first with margin and still
+        /// catches the last within a millisecond of flight.
+        /// </summary>
+        public int YieldVelocityDeadband = 10000;
 
         /// <summary>How quickly the yield reaches full effect above the deadband, in counts per second.</summary>
         public int YieldVelocityBlend = 12000;
