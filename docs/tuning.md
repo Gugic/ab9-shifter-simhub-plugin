@@ -17,7 +17,7 @@ light — that is the safety cap doing its job, not a tuning problem.
 | Lockout gate, guarding 7/R | 70% | The push-through toll before 7 and R. Sits against the 5/6 column; width sets the toll with it. |
 | Neutral spring toward 3/4 | 0% (off) | The home spring: pulls the lever along the channel toward the 3/4 column, where a real H lever rests. Around 25–30% a released lever walks home past the humps; fades out with depth so a held gear feels nothing. Follows the mirror flags. |
 | Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
-| Wall friction | 15% | The gate surfaces' own grip: drag equal to this share of whatever force you are pressed against. Zero in free travel by construction, so it costs no lightness — it is what lets a lean settle on a wall or the lockout instead of fluttering. |
+| Wall friction | 15% | The gate surfaces' own grip: drag equal to this share of whatever force you are pressed against. Zero in free travel by construction, so it costs no lightness. Note: for lean-flutter the effective fix is MOZA Cockpit's Natural Damping at ~15% (zero-latency, at the servo); this dial is the software-side supplement. |
 | Slot mouth | Square | Shape of the divider ends where they meet the tunnel. Square is the plain notch and changes nothing. |
 | Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
 | Neutral tunnel depth | 2600 counts | The state band: where "in the tunnel" ends and the lateral field's rise lives. Must exceed your fore/aft slop while sliding sideways, or you spend your time in the transition band instead. Measured on real hands: p50 1848, p90 3215. |
@@ -39,14 +39,17 @@ H-pattern bindings cannot read a shift pulse as a gear — re-armed when the lev
 by dials that pull double duty: **detent resist** is the push-out resistance (rises to full at the
 threshold), **detent hold** is what remains past the click, **slot wall** sets the lateral rail,
 and the pulse length sits next to the pattern selector. Swap up/down with **MirrorSlots** (gear
-layout section). The engage/release depths on the Geometry tab set where it fires and re-arms —
-they measure from the **ends of travel**, so raising them shortens the throw (engage 26000 fires
-about 6800 counts from centre). The spring reaches full resistance exactly at the threshold and
-the click moves with it, so a short throw stays progressive rather than becoming a wall. Keep the
-release depth a couple of thousand counts above the engage depth for a clean re-arm. The stroke
-also has its own bottom: a **sequential stroke** section (Feel tab, sequential only) sets how much
-landing remains past the click and the end-stop wall behind it, both measured from the firing
-point so the whole stroke shortens as one thing.
+layout section). The **sequential stroke** section (Feel tab, sequential only) owns the stroke
+itself: **actuation throw** is the distance from centre to the firing line, in the sequential
+hand's own units — shorten it for a quicker shift, and it moves the re-arm line with it so a
+short throw cannot machine-gun (it is the same stored fact as the Geometry tab's engage depth,
+which measures from the end of travel instead). **Shift click kick** is what makes the click
+*hit*: a 25 ms burst in the stroke's direction the instant the shift registers, which then
+throws the lever onto the end-stop — raise the kick for a sharper mechanism, the **end-stop
+wall** for a harder landing, and use detent resist/hold for the lean of the stroke around them.
+The spring reaches full resistance exactly at the threshold and the click moves with it, so a
+short throw stays progressive rather than becoming a wall. The landing past the click and the
+end-stop are both measured from the firing point, so the whole stroke shortens as one thing.
 
 Keep one **profile** per pattern you actually use — every dial, the pattern included, is stored
 per profile, so switching is one dropdown.
@@ -137,9 +140,12 @@ feels one continuous force whichever way tremor points. The second layer surface
 first was fixed: a smaller, faster hunt (17.7 Hz on the follow-up trace) riding the *face*,
 because the sub-deadband band then had no dissipation at all — no cut is allowed there, damping
 was zero, and the static hold only guards a hand already settled. That is what **wall friction**
-exists for: drag proportional to the engaged force, zero in free travel. If a flutter while
-leaning ever returns, raise **wall friction** first; **wall absorption** scales the step a
-genuine bounce gets; damping stays the last resort.
+was built for: drag proportional to the engaged force, zero in free travel — and the hardware
+verdict is that it was *not enough*, because everything the plugin renders arrives 3–4 ms late,
+a large slice of a 17 Hz cycle. What settles the lean-hunt on this base is **MOZA Cockpit's
+Natural Damping at ~15%** — real damping at the servo loop, ahead of the delay, and free of the
+throw-weight cost software damping has (see hardware.md). If a flutter while leaning returns:
+Cockpit damper first, wall friction second, software damping last.
 
 **With a long bite I can push to gear depth *between* columns, and no gear registers.**
 The bite's hidden upper bound. The bite is spent three times over between two columns: the slot

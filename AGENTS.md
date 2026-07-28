@@ -35,8 +35,9 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-194 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
-on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
+197 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
+sign error here drives a 12 Nm base the wrong way.
 
 Deploy needs SimHub stopped, because it locks the DLL:
 
@@ -94,7 +95,8 @@ tests/AB9ActiveShifter.Tests/
   GateStateMachineTests.cs Transitions, hysteresis, lockout traces
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
   VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
-  SequentialTests.cs       One-shift-per-stroke, re-arm, mirror, spring shape and click
+  SequentialTests.cs       One-shift-per-stroke, re-arm, mirror, spring shape, click kick
+  SettingsMappingTests.cs  ShifterSettings' derived dials (SeqThrow moves both threshold lines)
 ```
 
 `Core/` stays free of I/O deliberately: the vJoy wrapper is a 32-bit native DLL that test

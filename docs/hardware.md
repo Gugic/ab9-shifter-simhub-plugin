@@ -115,6 +115,7 @@ mode. Required, once:
 | --- | --- |
 | FFB Mode | **DirectInput** |
 | Spring | **0** |
+| Natural Damping | **~15%** (recommended — see below) |
 | Max Torque | 100% |
 | Overall Intensity | 100% |
 | Game FFB Gain | 100% |
@@ -125,9 +126,20 @@ Then **fully exit Cockpit** — it holds the device exclusively while open, and 
 acquire it. This was the fix for what looked for a long time like a plugin bug: the base fighting
 the gate everywhere with its own centring spring.
 
-**Natural Damping** in Cockpit (15–30%) is available as zero-latency physical damping. Tried and
-reported: it stiffens the lever but does not stop wall oscillation — consistent with the
-gradient-through-delay analysis, since damping cannot rescue a gradient that steep.
+**Natural Damping** in Cockpit is zero-latency physical damping, applied at the servo loop —
+ahead of the USB round trip, which is what makes it categorically different from anything this
+plugin can render. Two verdicts from hardware, and both stand:
+
+- It does **not** fix the wall-face buzz (the steep-gradient oscillation): tried early, the
+  lever stiffened and the buzz stayed — damping cannot rescue a gradient that steep through any
+  path.
+- It **does** settle the lean-hunt (the residual 10–20 Hz hand-coupled hunt on faces, left over
+  once the yield relay was fixed): **~15% is the user-verified setting** (2026-07-28). Software
+  dissipation for that mode was tried the same night — wall friction at 15% of engaged force,
+  ~17× the delay's negative damping on paper — and did not help, because everything the plugin
+  renders arrives 3–4 ms late, a large fraction of a 17 Hz cycle. The firmware damper acts with
+  no delay at all. Recommend ~15% Natural Damping as part of setup for anyone chasing the last
+  bit of lean calm.
 
 ## Exclusive access
 

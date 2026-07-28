@@ -333,6 +333,25 @@ per stroke, re-armed only by coming back through the release threshold, and the 
 pulses rather than held gears — with a 20 ms guaranteed gap on a re-fire, because an off-and-on
 inside one tick reads to a game's input poll as one continuous press.
 
+The spatial drop alone read as shallow — its size is `DetentResistPct − DetentHoldPct`, and both
+ends of that difference are load-bearing for other jobs (stroke weight; the return spring), so it
+cannot be made to *hit* without wrecking them. The hit is therefore a separate, **time-keyed**
+element: `SeqClickPct`, a 25 ms burst in the stroke's own direction fired the tick the shift
+registers — the mechanism's stored energy letting go as the dogs drop in — which then throws the
+lever onto the end-stop wall, and the burst plus the landing are the thunk. Time-keyed rather
+than a spatial over-centre for the same reason the lockout is one-way: an over-centre pocket
+refunds energy, and here it has a worse failure — a lever released inside a pocket is pulled
+*deeper*, and a sequential lever must always come home to re-arm. A burst cannot hold the lever
+anywhere: 25 ms later it is gone whatever the hand did, and the spring profile beneath it stays
+everywhere-restoring. It joins the composition beside the telemetry carrier, after the yield and
+the attack — it assists motion by definition, so the absorber would eat it, and a 15 ms attack
+would blunt most of a 25 ms hit — and inside the final clamp, the polarity signs, and the
+effective gain with its 10% polarity cap. The actuation point itself is a dial in the sequential
+frame (`SeqThrow` on the Feel tab: counts from centre to the firing line, the same stored fact as
+`EngageDepth` re-expressed); moving it moves the re-arm line with it, keeping the hysteresis gap,
+because shortening only the firing line would eventually let a lever resting on the threshold
+machine-gun shifts.
+
 ## The four stabilising mechanisms
 
 A stiff wall rendered through a 3–4 ms delay is unstable — the delayed force acts as *negative*
@@ -408,6 +427,17 @@ static hold its stiction, and this is its kinetic friction — the third of the 
 "mechanical gates are friction-damped" actually means. Pinned by
 `FrictionIsZeroEverywhereTheLeverIsFree`, `FrictionOpposesMotionAsAShareOfTheEngagedForce`, and
 `FrictionIsContinuousThroughZeroVelocity`.
+
+The hardware verdict on the lean-hunt, recorded so nobody chases it through this dial again:
+friction at the default 15% did **not** settle it. What did is **MOZA Cockpit's Natural Damping
+at ~15%** — physical damping applied at the servo loop, ahead of the USB round trip. The
+arithmetic that predicted friction would work assumed the dissipation arrives in phase; at
+17.7 Hz a 3–4 ms rendering delay is 20–25° of the cycle, and a hand-coupled hunt feeds on
+exactly that lag. The general lesson is the one this file already teaches: anything the
+software renders is late, and lateness converts even a dissipative term into less than it
+looks. The friction mechanism stays — it is honest, free in lightness, and the right shape for
+whatever residual it does absorb — but the *cure* for lean-hunt on this base is the firmware
+damper (see [hardware.md](hardware.md)).
 
 The absorber's scale is **one-way in time**: it cuts to the speed's target instantly but climbs
 back at a fixed rate (`YieldRecoveryMs`). This exists because the speed it keys on is an estimate,
@@ -569,7 +599,7 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **A handover window keyed on `InChannel(y)`** | Moves the same reversal onto the depth axis. The crest and midpoint rules are thousands of counts apart at the lockout gap, so the other rule's flip window stays live: **2403 DI from one single axis count of fore/aft movement**, where the fore/aft wall's deadband leaves the lever freest. The window must span the hull of both rules. |
 | **A wide detent hysteresis as the cure for boundary chatter** | It only ever hid the cliff; 1500 counts of it bought a 3000-count dead strip once the field was zeroed at the boundary. Zero the field instead and the hysteresis can be small. |
 | **Device damper / friction / inertia to settle walls** | Condition effects are near-decorative on this base. Replaced by software velocity damping. |
-| **MOZA Cockpit Natural Damping** | Stiffens the lever, oscillation unchanged. Damping cannot rescue a gradient this steep behind this much delay. |
+| **MOZA Cockpit Natural Damping** *(as a wall-buzz fix)* | Stiffens the lever, buzz unchanged. Damping cannot rescue a gradient this steep behind this much delay. **Scope matters**: for the *lean-hunt* — the slower hand-coupled mode left after the yield relay was fixed — ~15% Natural Damping is precisely what works, because it acts at the servo loop with zero delay. Rejected as a buzz cure, adopted as the lean-hunt cure; see hardware.md. |
 | **Raising the loop rate (400 Hz → 1 kHz)** | Buzz changed *pitch* and nothing else. Proved the limit cycle is set by geometry, not by delay distance. Kept anyway — it doubled the stable gradient range. |
 | **Rebound absorption alone** | Turning it toward 0 made oscillation slower *and stronger* — it drains the pump but does not stop it. Kept as one of four mechanisms. |
 | **A near-step wall face (~250 counts)** | Deep leaning went calm, but the face became a step: contact landed as a hammer blow, threw the stick out, hand pushed back in, repeat — felt exactly like ABS kicking, worst at corners. |

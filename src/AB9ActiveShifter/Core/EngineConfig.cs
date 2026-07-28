@@ -53,6 +53,23 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int SeqStopForcePct = 90;
 
+        /// <summary>
+        /// The click's kick: a 25 ms burst of force fired the instant a sequential shift
+        /// registers, in the direction of the stroke, as a percentage of full scale. This is
+        /// the mechanism's stored energy letting go - the dogs dropping in - and it is
+        /// rendered in TIME, not in space, deliberately. A spatial over-centre (force
+        /// reversing past the threshold) was already rejected for the lockout because it
+        /// refunds a flick, and here it has a worse failure: a lever released inside an
+        /// over-centre pocket is pulled deeper, and a sequential lever must always come home
+        /// to re-arm. A time-keyed burst cannot hold the lever anywhere - 25 ms later it is
+        /// gone whatever the hand did - so the spring profile stays everywhere-restoring.
+        /// It joins the composition beside the telemetry carrier, after the yield and the
+        /// attack: the kick assists the stroke by definition, so the absorber would eat it,
+        /// and a 15 ms attack would blunt most of a 25 ms hit. Scaled by the effective gain,
+        /// the 10% polarity cap included, and clamped with everything else.
+        /// </summary>
+        public int SeqClickPct = 60;
+
         // Telemetry-driven effects: vibration carriers summed onto the composed forces, and
         // the clutch grind. All off by default - they are additions to the gate, not part of
         // it - and every one dies when telemetry goes stale. Volumes are shares of the fixed

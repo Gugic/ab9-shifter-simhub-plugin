@@ -186,6 +186,63 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void TheClickKickFiresWithTheShiftAndDecaysAway()
+        {
+            // The click that hits: a 25 ms burst in the stroke's own direction the moment the
+            // shift registers, on top of the spatial drop. Two identical composers, one told
+            // the shift fired: the outputs must differ by exactly the kick's envelope - full
+            // on the firing tick, gone 25 ms later - even while the absorber is actively
+            // cutting, because the kick joins beside the carrier, after the stabilisers.
+            EngineConfig cfg = SeqConfig();
+            ForceComposer plain = new ForceComposer(cfg.BuildGeometry(), cfg);
+            ForceComposer clicked = new ForceComposer(cfg.BuildGeometry(), cfg);
+
+            // Deep in a forward stroke, moving home fast enough that the return spring is
+            // being yielded - the kick must ride through untouched.
+            int y = 2000;
+            int vy = 25000;
+
+            int baseline = plain.ComposeSequential(Center, y, 0, vy, 1.0).ConstantY;
+            int fired = clicked.ComposeSequential(Center, y, 0, vy, 1.0, 0, clickNow: true).ConstantY;
+
+            // Forward stroke: the kick pushes toward -y, the full 60% of scale at gain 100.
+            Assert.Equal(baseline - 6000, fired);
+
+            int last = fired;
+            for (int i = 0; i < 30; i++)
+            {
+                int p = plain.ComposeSequential(Center, y, 0, vy, 1.0).ConstantY;
+                int c = clicked.ComposeSequential(Center, y, 0, vy, 1.0).ConstantY;
+                int kick = c - p;
+
+                Assert.True(kick <= 0, "the kick must never reverse: " + kick);
+                Assert.True(Math.Abs(kick) <= Math.Abs(last - baseline) + 1,
+                    "the kick must only ever decay: " + kick);
+                last = c;
+            }
+
+            Assert.Equal(
+                plain.ComposeSequential(Center, y, 0, vy, 1.0).ConstantY,
+                clicked.ComposeSequential(Center, y, 0, vy, 1.0).ConstantY);
+        }
+
+        [Fact]
+        public void TheClickKickIsGainCappedUntilPolarityIsConfirmed()
+        {
+            // The 10% cap is the safety story for an unmeasured base, and the kick is a
+            // force like any other: it must shrink with the effective gain, cap included.
+            EngineConfig cfg = SeqConfig();
+            cfg.PolarityConfirmed = false;
+            ForceComposer plain = new ForceComposer(cfg.BuildGeometry(), cfg);
+            ForceComposer clicked = new ForceComposer(cfg.BuildGeometry(), cfg);
+
+            int baseline = plain.ComposeSequential(Center, 2000, 0, 0, 1.0).ConstantY;
+            int fired = clicked.ComposeSequential(Center, 2000, 0, 0, 1.0, 0, clickNow: true).ConstantY;
+
+            Assert.Equal(baseline - 600, fired);
+        }
+
+        [Fact]
         public void SequentialForcesCarryTheMeasuredPolarity()
         {
             EngineConfig cfg = SeqConfig();
