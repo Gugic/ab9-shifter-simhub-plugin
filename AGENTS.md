@@ -97,6 +97,8 @@ tests/AB9ActiveShifter.Tests/
   VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
   SequentialTests.cs       One-shift-per-stroke, re-arm, mirror, spring shape, click kick
   SettingsMappingTests.cs  ShifterSettings' derived dials (SeqThrow moves both threshold lines)
+presets/
+  AB9ShifterPlugin.GeneralSettings.json  Shipped default profiles (see "Saved settings" below)
 ```
 
 `Core/` stays free of I/O deliberately: the vJoy wrapper is a 32-bit native DLL that test
@@ -258,7 +260,11 @@ parsed as pathspecs. Write the message to a scratchpad file and use `git commit 
 `C:\Program Files (x86)\SimHub\PluginsData\Common\AB9ShifterPlugin.GeneralSettings.json`. Edit it
 **only while SimHub is stopped** — it is rewritten on exit. Changing a default in
 `EngineConfig.cs` does not change a user who already has that key saved; patch the JSON too, and
-say so.
+say so. The shipped copy under `presets/` is that file with every profile's `Enabled` and
+`PolarityConfirmed` set to false — forces must start off, and polarity is a per-unit measured
+fact the 10% cap exists to guard, so do not ship it confirmed. `install.ps1` installs the preset
+only when no saved settings exist. To refresh it after a retune: copy the live JSON (SimHub
+stopped) and clear those two flags in every profile again.
 
 **Hardware claims.** Measure, do not assume, and write the number down in
 [docs/hardware.md](docs/hardware.md) with how it was measured. Several plausible assumptions in

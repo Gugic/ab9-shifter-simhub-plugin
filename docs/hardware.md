@@ -113,6 +113,7 @@ mode. Required, once:
 
 | Setting | Value |
 | --- | --- |
+| Input mode | **Flight stick** |
 | FFB Mode | **DirectInput** |
 | Spring | **0** |
 | Natural Damping | **~15%** (recommended — see below) |

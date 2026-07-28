@@ -60,6 +60,8 @@ groups on the lever). Everything is off by default, falls silent within
 half a second of the game pausing or closing, and rides on top of the gate without touching its
 geometry. The grind needs a game that reports the clutch pedal.
 
+![The Effects tab: the clutch grind and its balk wall, engine vibration, rev limiter, ABS and traction control, curbs](docs/img/effects-tab.png)
+
 ## Requirements
 
 - SimHub (developed against 9.11.21)
@@ -92,10 +94,34 @@ dotnet test  tests\AB9ActiveShifter.Tests\AB9ActiveShifter.Tests.csproj
 If SimHub is installed somewhere other than `C:\Program Files (x86)\SimHub\`, copy
 `Directory.Build.props.user.example` to `Directory.Build.props.user` and set the path.
 
+## The shipped setup
+
+[presets/AB9ShifterPlugin.GeneralSettings.json](presets/AB9ShifterPlugin.GeneralSettings.json)
+is the setup this plugin was developed and tuned with — three profiles:
+
+| Profile | |
+| --- | --- |
+| **7+R lockout** (active) | The full gate: full-strength walls with every softener at zero — the lightest, sharpest tuning — an 80% lockout, and the game effects on: clutch grind with gear rejection, engine vibration, rev limiter, curbs, shift pulse |
+| **5+R** | The same feel across three wider columns, no lockout |
+| **Sequential** | A short-throw sprung lever with a hard click on every shift |
+
+On a first install — no saved settings yet — `install.ps1` puts it in place, so the plugin
+starts from a tuned gate rather than bare defaults; it never overwrites saved settings. To
+install it by hand, copy the file into `C:\Program Files (x86)\SimHub\PluginsData\Common\`
+while SimHub is not running.
+
+Two things in the shipped copy are deliberately reset. Force feedback starts **disabled** —
+enabling it is the moment the plugin takes the base and begins to push, and that stays a
+decision made with a hand on the stick. And the polarity measurement is **cleared**, because
+polarity is a fact about the individual unit: the invert flags in the file are what the
+development base measured, and the 10% force cap stays on until *Measure polarity* has
+replaced them with your own (ten seconds, hands off — see below).
+
 ## Before your first run
 
-1. **Configure the base in MOZA Cockpit**, once (see the next section). This is not
-   optional — without it the base fights the gate with its own centring spring.
+1. **Configure the base in MOZA Cockpit**, once (see the next section) — input mode
+   **Flight stick**, FFB mode **DirectInput**, **Spring 0**. This is not optional — without
+   it the base fights the gate with its own centring spring.
 2. **Fully exit MOZA Cockpit** and close any Pit House live-tuning page. They hold the
    stick exclusively; the plugin cannot open it while they do.
 3. **Disable Steam Input** for the AB9, or close Steam.
@@ -114,6 +140,7 @@ In MOZA Cockpit, with firmware **1.1.3.4 or newer**:
 
 | Setting | Value |
 | --- | --- |
+| Input mode | **Flight stick** |
 | FFB Mode | **DirectInput** |
 | Spring | **0** |
 | Natural Damping | **~15%** (recommended) |
@@ -171,6 +198,8 @@ Raise the overall gain slowly afterwards — this is a 12 Nm base.
 - **Geometry** — force shaping, the enter/exit hysteresis bands for the channel and columns,
   engage and release depth, vJoy device, loop rate, and scoped resets.
 - **Monitor** — live gate drawing with the stick position and the shaded lockout band.
+
+![The Feel tab: master gain, the walls and their bite, the slot mouths, and the forces met sliding along the neutral channel](docs/img/feel-tab.png)
 
 Changes apply on the next FFB tick; nothing needs restarting.
 
