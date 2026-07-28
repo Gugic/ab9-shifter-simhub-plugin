@@ -18,6 +18,7 @@ update this file with what you find.
 | Fresh input reports | **~940 Hz** | The stick already reports about every millisecond — *when the write pipe is idle*. See the next row. |
 | Distinct positions under write contention | **~500 Hz** | Measured from trace-20260726-034848: with force writes in flight every tick, alternate 1 kHz polls return an unchanged snapshot on **both** axes — a smooth ~17 000 count/s sweep polls as deltas of −34, −1, −36, −2, … |
 | Position → torque round trip | **3–4 ms floor** | ~1 ms report age + 1.0 ms write + ~1 ms firmware application. |
+| Hand speeds at the lever | lean ≤ **~3 700** counts/s; deliberate strokes **15 000–430 000** | From the 2026-07-27 traces, via `VelocityEstimator`: a hand holding steadily against force micro-reverses at up to ~3 700 counts/s (p99 2 889); ordinary slides run 15–45 k, full shift strokes 100 k+. This gap is what the yield's deadband (10 000) sits inside — see force-model.md. |
 
 Consequences, all of which are baked into the current design:
 

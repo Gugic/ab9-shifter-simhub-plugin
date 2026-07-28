@@ -353,9 +353,33 @@ an outer column's force is one-sided against the end of travel, and one-sided fo
 or acts on a stick that is holding still, passes at **full** strength, but a force accelerating the
 stick along its existing motion is scaled toward a floor as speed grows. A bounce therefore
 returns less energy than the push stored, which starves the ring at its source. This is also how
-real gates behave — they are friction-damped and do not fling the lever back. Deadband and blend
-in velocity keep sensor jitter from softening a wall being leant on. The slot detent gets a much
-milder floor, because the snick is *supposed* to do positive work.
+real gates behave — they are friction-damped and do not fling the lever back. The slot detent gets
+a much milder floor, because the snick is *supposed* to do positive work.
+
+The velocity deadband (`YieldVelocityDeadband`) is the absorber's **lean-or-launch classifier**,
+and where it sits is load-bearing. It shipped at 1500 counts/s — sensor-noise thinking — and that
+is *tremor* level: a hand genuinely holding against force measures up to ~3700 counts/s of
+micro-reversal (traced 2026-07-27), so every reversal of a lean crossed the deadband, and each
+crossing fired a fresh cut. The cut steps the force by the yield fraction, the step kicks the
+lever, the kick grows the next reversal, and the absorber becomes a **relay oscillator**: a hand
+leaning with anything between the floor and the full wall has no equilibrium, because the force
+flips between two values across zero velocity. Measured on real traces as 26 Hz chatter at
+8155 DI peak-to-peak leaning in a slot, and a 12 Hz rebound off the lockout with the force
+flip-flopping 8000↔3200 and the lever spat back out of the band in 20000-count swings — of the
+52 cuts in that recording, 22 fired below 10000 counts/s, including the entire early growth
+phase. The deadband now sits at 10000: above the measured lean envelope with margin, below
+deliberate strokes (15000 and up) and far below wall launches (100000 and up), which cross it
+within a millisecond of flight and are still caught.
+
+Inside the deadband the force is **one continuous value in velocity — the held scale — regardless
+of sign**. Not full force: the speed estimate ripples under the report quantisation, so a launch's
+estimate can dip below any deadband for a tick, and restoring the wall whole on that tick would
+flip the force across the entire yield span at the report rate — the grinding texture, reopened.
+Not a fresh cut either: that is the relay. The held scale does both jobs — a lean without a
+recent bounce has a scale of one and feels a solid wall through every tremor reversal, and a
+caught launch keeps its cut through estimate dips, climbing back only at the recovery slew.
+Pinned by `AHandsTremorNeverTripsTheAbsorber`, `TheLockoutHoldsWholeAgainstALeaningHand`, and
+`AnEstimateDipBelowTheDeadbandKeepsTheHeldCut`.
 
 The absorber's scale is **one-way in time**: it cuts to the speed's target instantly but climbs
 back at a fixed rate (`YieldRecoveryMs`). This exists because the speed it keys on is an estimate,
@@ -381,7 +405,12 @@ mechanism seating.
   than landing as a delay-late blow.
 - *Static hold* — pressed against the same wall and effectively still, small force deviations are
   **frozen** rather than tracked. This is static friction, and it is the only quiet answer for a
-  hand resting on a wall's face, where the gradient is too steep for any damping.
+  hand resting on a wall's face, where the gradient is too steep for any damping. Its stillness
+  test is a tremor-scale constant of its own (4000 counts/s), deliberately **not** the yield's
+  deadband: the two answer different questions — "is the hand at rest" versus "is this a launch" —
+  and while they shared one field, raising the yield's threshold to hand-adjustment speed would
+  have let the freeze span real slow retreats, quantising the face into 20%-band force steps on
+  the way out.
 - *Release* — any drop, sign flip, or let-go passes **instantly**, so a retreating stick is never
   chased by stale force.
 
@@ -540,6 +569,8 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **Adjacent-tick velocity differencing** | Under write contention distinct positions arrive at ~500 Hz, so half the 1 kHz polls repeat and the per-tick difference alternates ~2:1 — a smooth 17000 count/s pull read as 10000↔25000. Invisible until something keyed force on speed. Positions are differenced across a 4 ms window now. |
 | **Closing the slot wall dynamically while the grind balks a gear** | The honest render of a balk would be the wall refusing to open, but a wall that appears under a moving lever is a step of full wall force at whatever depth the lever happens to be, keyed on a 60 Hz telemetry bit — and "a missing slot is a fact of the gear map" exists precisely because holes encoded anywhere else go wrong. The balk is rendered as resist-only detent plus a refused latch instead; geometry never moves at runtime. |
 | **An absorber that follows the speed estimate both ways** | The estimate's ripple swept the yield scale across its blend range at 250–500 Hz: a 25–50% force ripple felt as *grinding against a running gear* the moment the lever moved under pressure — instantly, needing no oscillation to start. Cuts stay instant; recovery is slewed over `YieldRecoveryMs`. More EMA smoothing instead was considered and rejected: smoothing is phase lag at every frequency, and lag is force given back after the launch the yield exists to catch, while the window nulls the one artifact frequency outright. |
+| **A yield deadband at sensor-noise level** (1500 counts/s) | Tremor is bigger than sensor noise: a hand holding against force reverses at up to ~3700 counts/s, so every reversal of a lean fired a fresh cut and the absorber became a relay — no equilibrium for any lean between the floor and the wall, because the force flipped between two values across zero velocity. Traced as 26 Hz / 8155 DI chatter held in a slot and a 12 Hz rebound spat off the lockout in 20000-count swings. The deadband is a lean-or-launch classifier and sits above hand-adjustment speed (10000), not above noise. |
+| **Restoring the wall whole inside the deadband** | The naive form of raising the deadband. The speed estimate dips below any threshold for a tick at the report rate, and returning full force on the dip strobes a held cut across the whole yield span at 250–500 Hz — the gear-teeth texture, reopened from the other side. Inside the deadband the force is the *held scale*, one continuous value in velocity, whichever way tremor points. |
 
 The shape of the whole search, in one sentence: **soft gradient = stable but mush; stiff gradient =
 buzz; pure step = hammer.** Every fix that worked moved the problem out of the position gradient

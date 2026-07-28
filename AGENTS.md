@@ -35,7 +35,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-188 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
+191 tests, all green, all `Core/`-only. Keep them that way — they are the only automated check
 on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
 Deploy needs SimHub stopped, because it locks the DLL:
@@ -136,6 +136,16 @@ runners cannot load, so anything worth testing must not touch it.
   same-direction test already restores full force the instant the wall resists. Pinned by
   `AStaleThenJumpStreamReadsAsItsTrueMeanSpeed`, `AnAliasedSpeedEstimateCannotGrindTheWall`,
   and `TheAbsorberCutsInstantlyAndRecoversSlowly`.
+- **The yield's deadband classifies lean against launch, and inside it the force is one
+  continuous value.** The deadband sits above the measured speed of a hand adjusting a lean
+  (~3700 counts/s) and below deliberate strokes — at tremor level it fired a fresh cut on every
+  micro-reversal and the absorber became a relay oscillator (26 Hz chatter in a slot, a 12 Hz
+  rebound off the lockout, both traced). Sub-deadband ticks get the HELD scale — never a fresh
+  cut, never an instant restore, whichever way tremor points — because restoring whole on an
+  estimate dip strobes a held cut at the report rate. The static hold's stillness test is a
+  separate tremor-scale constant, not this deadband: sharing it would freeze real slow retreats
+  into force steps. Pinned by `AHandsTremorNeverTripsTheAbsorber`,
+  `TheLockoutHoldsWholeAgainstALeaningHand`, and `AnEstimateDipBelowTheDeadbandKeepsTheHeldCut`.
 - Time shaping (wall attack) applies to **everything a hand can lean on, the lockout included.**
   The slot detent is the one exception — the snick must arrive whole. Do not exempt the lockout
   again: it was tried, on the theory that slewing a crossing discounts a flick, and the arithmetic

@@ -1368,6 +1368,102 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void AHandsTremorNeverTripsTheAbsorber()
+        {
+            // The relay failure, pinned. A hand leaning on a wall reverses direction at tremor
+            // scale several times a second - measured under 3700 counts/s on a real lean - and
+            // with the deadband at sensor-noise level every reversal fired a fresh cut, each
+            // cut stepped the force by the yield fraction, and each step kicked the lever into
+            // a bigger reversal: 26 Hz chatter held in a slot, a 12 Hz rebound off the lockout,
+            // both on real traces. Inside the deadband the sign of the velocity is tremor, not
+            // intent, so it must never select between two different forces.
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            int atRest = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                   between, Center + 3500, 0, 0, 1.0).ConstantY;
+            Assert.NotEqual(0, atRest);
+
+            for (int i = 0; i < 200; i++)
+            {
+                int vy = (i % 2 == 0) ? 3700 : -3700;
+                int force = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                      between, Center + 3500, 0, vy, 1.0).ConstantY;
+                Assert.Equal(atRest, force);
+            }
+        }
+
+        [Fact]
+        public void TheLockoutHoldsWholeAgainstALeaningHand()
+        {
+            // Where the rebound was felt on hardware: leaning into the toll, every tremor
+            // reversal used to flip the force between whole and floor - 8000 down to 3200 and
+            // back, at 12 Hz on the trace - and the flip itself pumped the lever back out of
+            // the band in 20000-count swings. Held against a leaning hand, the toll must be
+            // one number.
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+            int inGate = GateCentre(cfg);
+
+            int atRest = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                   inGate, Center, 0, 0, 1.0).ConstantX;
+            Assert.NotEqual(0, atRest);
+
+            for (int i = 0; i < 200; i++)
+            {
+                int vx = (i % 2 == 0) ? 3700 : -3700;
+                int force = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                      inGate, Center, vx, 0, 1.0).ConstantX;
+                Assert.Equal(atRest, force);
+            }
+        }
+
+        [Fact]
+        public void AnEstimateDipBelowTheDeadbandKeepsTheHeldCut()
+        {
+            // The other half of the deadband's contract, and what keeps the raised deadband
+            // from reopening the strobe: the speed estimate ripples under the device's ~500 Hz
+            // report quantisation, so a launch's estimate can dip below the deadband for a
+            // tick. Restoring the wall whole on that tick would flip the force across the yield
+            // span at report rate - the gear-teeth texture. Inside the deadband the HELD scale
+            // applies, climbing only at the recovery slew; sustained stillness is a lean, so it
+            // does recover completely - slowly.
+            EngineConfig cfg = FullGainConfig();
+            cfg.DampingPct = 0;
+            ForceComposer c = Composer(cfg);
+            int between = (C2 + C3) / 2;
+
+            int full = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                 between, Center + 3500, 0, 0, 1.0).ConstantY;
+
+            // Launch: cut to the floor.
+            c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                      between, Center + 3500, 0, -25000, 1.0);
+
+            // One sub-deadband tick: the cut holds, give or take one recovery step.
+            int dipped = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                   between, Center + 3500, 0, -6000, 1.0).ConstantY;
+            Assert.True(Math.Abs(dipped) <= Math.Abs(full) * 0.62,
+                "a sub-deadband tick restored the wall: " + dipped + " of " + full);
+
+            // Sustained stillness firms the wall back up at the slew rate, no faster.
+            int previous = dipped;
+            int step = (int)(Math.Abs(full) / (double)cfg.YieldRecoveryMs) + 50;
+            for (int i = 0; i < cfg.YieldRecoveryMs + 5; i++)
+            {
+                int force = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                      between, Center + 3500, 0, 0, 1.0).ConstantY;
+                Assert.True(Math.Abs(force - previous) <= step,
+                    "recovery outran the slew: " + previous + " -> " + force);
+                previous = force;
+            }
+            Assert.Equal(full, previous);
+        }
+
+        [Fact]
         public void SnickKeepsMostOfItsPullWhileAssisting()
         {
             // The pull into the slot is supposed to do positive work; it gets a much milder
@@ -1479,13 +1575,18 @@ namespace AB9ActiveShifter.Tests
             ForceComposer c = Composer(cfg);
             int between = (C2 + C3) / 2;
 
-            // Assisting speeds alternating across the blend range, one tick apart. Following
-            // them point-wise would swing the force by 0.36 of the wall every tick.
+            int full = Math.Abs(c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
+                                          between, Center + 3500, 0, 0, 1.0).ConstantY);
+
+            // Assisting speeds alternating 3:1, one tick apart, straddling the deadband the
+            // way a real launch's rippling estimate does. The dip lands INSIDE the deadband -
+            // the hardest case, because a deadband that restored the wall whole there would
+            // flip the force across the entire yield span at the report rate.
             int previous = 0;
             int worstStep = 0;
             for (int i = 0; i < 40; i++)
             {
-                int vy = (i % 2 == 0) ? -17000 : -4000;
+                int vy = (i % 2 == 0) ? -24000 : -8000;
                 int force = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
                                       between, Center + 3500, 0, vy, 1.0).ConstantY;
 
@@ -1495,13 +1596,13 @@ namespace AB9ActiveShifter.Tests
 
                 // The cut also has to hold: the wall is assisting throughout, so the force
                 // must stay near the floor rather than climbing back between dips.
-                if (i > 0) Assert.True(Math.Abs(force) <= 5600,
+                if (i > 0) Assert.True(Math.Abs(force) <= (int)(full * 0.62),
                     "absorption let go between estimate dips: " + force);
             }
 
             // Recovery rate bound: full-scale/YieldRecoveryMs per tick, plus rounding. The
             // unslewed absorber stepped 3206 here.
-            int bound = (int)(9000.0 / cfg.YieldRecoveryMs) + 50;
+            int bound = full / cfg.YieldRecoveryMs + 50;
             Assert.True(worstStep <= bound,
                 "force ripple " + worstStep + " exceeds the recovery slew " + bound);
         }
@@ -1519,13 +1620,13 @@ namespace AB9ActiveShifter.Tests
 
             // The launch is caught whole on its first tick - absorption is never slewed in.
             int cut = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
-                                between, Center + 3500, 0, -20000, 1.0).ConstantY;
+                                between, Center + 3500, 0, -25000, 1.0).ConstantY;
             Assert.Equal((int)Math.Round(full * 0.55), cut);
 
-            // The estimate dips to a mild assisting speed. Point-wise that reads as "mostly
-            // recovered"; the slew keeps the cut and climbs back over YieldRecoveryMs instead.
+            // The estimate dips below the deadband. Point-wise that reads as "leaning";
+            // the slew keeps the cut and climbs back over YieldRecoveryMs instead.
             int afterDip = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
-                                     between, Center + 3500, 0, -4000, 1.0).ConstantY;
+                                     between, Center + 3500, 0, -6000, 1.0).ConstantY;
             Assert.True(Math.Abs(afterDip) < Math.Abs(full) * 0.70,
                 "one mild tick restored the wall: " + afterDip + " of " + full);
 
@@ -1533,21 +1634,21 @@ namespace AB9ActiveShifter.Tests
             for (int i = 0; i < 15; i++)
             {
                 settled = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
-                                    between, Center + 3500, 0, -4000, 1.0).ConstantY;
+                                    between, Center + 3500, 0, -15000, 1.0).ConstantY;
             }
 
             // Sustained mild assist converges on that speed's own scale - recovery is slewed,
             // not denied.
-            double t = (4000.0 - cfg.YieldVelocityDeadband) / cfg.YieldVelocityBlend;
+            double t = (15000.0 - cfg.YieldVelocityDeadband) / cfg.YieldVelocityBlend;
             int expected = (int)Math.Round(full * (1.0 - 0.45 * t));
             Assert.Equal(expected, settled);
 
             // And the moment the wall is resisting again it is whole, no matter how deep the
             // cut was a tick ago.
             c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
-                      between, Center + 3500, 0, -20000, 1.0);
+                      between, Center + 3500, 0, -25000, 1.0);
             int resisting = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
-                                      between, Center + 3500, 0, 20000, 1.0).ConstantY;
+                                      between, Center + 3500, 0, 25000, 1.0).ConstantY;
             Assert.Equal(full, resisting);
         }
 
@@ -1564,11 +1665,11 @@ namespace AB9ActiveShifter.Tests
             int full = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
                                  between, Center + 3500, 0, 0).ConstantY;
             int deep = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
-                                 between, Center + 3500, 0, -20000).ConstantY;
+                                 between, Center + 3500, 0, -25000).ConstantY;
             int mild = c.Compose(GateState.Neutral, Column.None, ShiftDir.None,
-                                 between, Center + 3500, 0, -4000).ConstantY;
+                                 between, Center + 3500, 0, -15000).ConstantY;
 
-            double t = (4000.0 - cfg.YieldVelocityDeadband) / cfg.YieldVelocityBlend;
+            double t = (15000.0 - cfg.YieldVelocityDeadband) / cfg.YieldVelocityBlend;
             Assert.Equal((int)Math.Round(full * 0.55), deep);
             Assert.Equal((int)Math.Round(full * (1.0 - 0.45 * t)), mild);
         }

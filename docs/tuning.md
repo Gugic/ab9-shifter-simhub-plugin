@@ -122,6 +122,19 @@ reluctant to turn it on: static hold is **not damping**. It freezes force update
 nearly still and never opposes motion, so it costs nothing in throw speed or lightness, and the slot
 detent is deliberately exempt so the snick still arrives whole.
 
+**The lever chatters rhythmically while I hold it against force — held in a gear, or leaning on
+the lockout, which pumps the lever back out in kicks.**
+Fixed structurally, and worth telling apart from the bite oscillation above: it is slower (12–26 Hz
+on the traces that caught it), it needs a hand leaning on the lever to sustain it, and it happens
+even on *flat* force — the lockout's core has no gradient at all, and it chattered anyway. The
+rebound absorber's velocity deadband sat at sensor-noise level, below hand tremor, so every
+micro-reversal of a lean fired a fresh cut: the force stepped between full and the yield floor
+across zero velocity like a relay, and each step kicked the lever into a bigger reversal — up to
+20000-count swings off the lockout. The deadband now sits above the measured envelope of a leaning
+hand and below deliberate strokes, so a lean feels one continuous force whichever way tremor
+points. If a residual flutter ever appears while leaning, the step that drives it scales with
+**wall absorption** — lower that, never damping.
+
 **With a long bite I can push to gear depth *between* columns, and no gear registers.**
 The bite's hidden upper bound. The bite is spent three times over between two columns: the slot
 wall's face rises over one bite, the handover window's relief flank falls over another, and the
