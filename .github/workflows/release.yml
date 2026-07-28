@@ -1,4 +1,4 @@
-name: Release
+﻿name: Release
 
 # Manual, versioned release. Takes a version number, stamps it into the assembly, tags the
 # commit and publishes a GitHub Release with the plugin attached.
@@ -37,12 +37,12 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Tags are needed to tell whether this version already exists.
           fetch-depth: 0
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
 

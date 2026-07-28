@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 # Every push and pull request gets the same three checks a local build would give:
 # formatting, a full compile including the XAML, and the unit tests that guard the force
@@ -30,9 +30,9 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
 
@@ -60,7 +60,7 @@ jobs:
       - name: Upload test results
         # Wanted precisely when the tests failed, so this must not be skipped on failure.
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-${{ github.run_number }}
           path: artifacts/test-results
@@ -76,7 +76,7 @@ jobs:
           "Built against    : reference stubs (build/refs), not a SimHub install" | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
 
       - name: Upload plugin
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: AB9ActiveShifter-ci.${{ github.run_number }}
           path: |
