@@ -1,0 +1,92 @@
+# Editor and formatter settings for AB9 Active Shifter.
+#
+# These describe the style the codebase already uses, so `dotnet format` is a check rather
+# than a rewrite. CI runs `dotnet format whitespace --verify-no-changes`; the naming and
+# style rules below are IDE guidance and are not enforced there.
+
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{yml,yaml,json,md}]
+indent_size = 2
+
+[*.md]
+# Two trailing spaces are a hard line break in Markdown.
+trim_trailing_whitespace = false
+
+[*.{csproj,props,targets,xaml}]
+indent_size = 2
+
+[*.cs]
+indent_size = 4
+
+# Blocks and namespaces sit on their own line - the whole codebase is Allman.
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_between_query_expression_clauses = true
+
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_indent_labels = one_less_than_current
+
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_around_binary_operators = before_and_after
+
+csharp_preserve_single_line_blocks = true
+csharp_preserve_single_line_statements = true
+
+# System first, then the rest - matches every file in src/.
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+# This code names its types explicitly rather than leaning on var. That is deliberate: the
+# force arithmetic is easier to review when every int and double is visible at the point of
+# declaration, because a silent widening or truncation is a real bug class here.
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = false:suggestion
+csharp_style_var_elsewhere = false:suggestion
+
+# Targets net48 with C# language features kept conservative for readability.
+csharp_style_expression_bodied_methods = false:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+csharp_prefer_braces = when_multiline:suggestion
+
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
+dotnet_style_readonly_field = true:suggestion
+
+# Naming: PascalCase for anything public, _camelCase for private fields.
+dotnet_naming_rule.public_members_pascal.symbols = public_symbols
+dotnet_naming_rule.public_members_pascal.style = pascal_case
+dotnet_naming_rule.public_members_pascal.severity = suggestion
+dotnet_naming_symbols.public_symbols.applicable_kinds = property,method,event,namespace,class,struct,interface,enum
+dotnet_naming_symbols.public_symbols.applicable_accessibilities = public,internal,protected
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+
+dotnet_naming_rule.private_fields_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore.style = underscore_camel
+dotnet_naming_rule.private_fields_underscore.severity = suggestion
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_camel.capitalization = camel_case
+dotnet_naming_style.underscore_camel.required_prefix = _
+
+# Generated during build; never hand-edited, so keep the formatter off it.
+[**/obj/**]
+generated_code = true
+
+[**/bin/**]
+generated_code = true

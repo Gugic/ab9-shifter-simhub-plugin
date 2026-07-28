@@ -39,6 +39,11 @@ dotnet test tests/AB9ActiveShifter.Tests
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
+CI runs exactly this plus `dotnet format whitespace --verify-no-changes`, on every push and
+pull request. It builds against the stubs in `build/refs` because a hosted runner has no
+SimHub; if you change how the plugin uses SimHub's API, add the member to the matching stub in
+the same commit or CI goes red while your local build stays green.
+
 Deploy needs SimHub stopped, because it locks the DLL:
 
 ```bash
@@ -99,6 +104,13 @@ tests/AB9ActiveShifter.Tests/
   SettingsMappingTests.cs  ShifterSettings' derived dials (SeqThrow moves both threshold lines)
 presets/
   AB9ShifterPlugin.GeneralSettings.json  Shipped default profiles (see "Saved settings" below)
+build/refs/                Reference-only stubs of SimHub's assemblies, so the plugin builds
+                           on a machine with no SimHub. Read build/refs/README.md before
+                           touching one - a wrong signature builds green and throws on the rig
+tools/Verify-StubBuild.ps1 Proves a stub-built DLL binds against the real SimHub. Needs a
+                           local SimHub install; run it before tagging a release
+.github/workflows/         ci.yml (format, build, test, artifact on every push and PR) and
+                           release.yml (manual, versioned, tags and publishes)
 ```
 
 `Core/` stays free of I/O deliberately: the vJoy wrapper is a 32-bit native DLL that test

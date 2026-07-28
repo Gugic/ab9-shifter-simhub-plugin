@@ -1,5 +1,7 @@
 # AB9 Active Shifter
 
+[![CI](https://github.com/Gugic/moza-ab9-simhub-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/Gugic/moza-ab9-simhub-plugin/actions/workflows/ci.yml)
+
 A SimHub plugin that turns a **MOZA AB9 force feedback base in flight mode** into a proper
 **H-pattern shifter** — including the **push-through lockout** that the base's own
 shifter mode does not have — and publishes the selected gear as **vJoy buttons** so any
@@ -84,6 +86,10 @@ The shifter itself **starts switched off**. Enabling it takes the base exclusive
 begins applying force, so work through the checklist below first, then tick *Shifter force
 feedback enabled* on the plugin's Setup tab with a hand on the stick.
 
+Or take a prebuilt DLL from the [Releases
+page](https://github.com/Gugic/moza-ab9-simhub-plugin/releases) and drop it into the SimHub
+folder yourself, with SimHub closed.
+
 To build without installing:
 
 ```powershell
@@ -93,6 +99,11 @@ dotnet test  tests\AB9ActiveShifter.Tests\AB9ActiveShifter.Tests.csproj
 
 If SimHub is installed somewhere other than `C:\Program Files (x86)\SimHub\`, copy
 `Directory.Build.props.user.example` to `Directory.Build.props.user` and set the path.
+
+The plugin compiles against nine assemblies that live inside SimHub's install folder, so a
+machine without SimHub — a CI runner, a fresh clone — falls back automatically to the
+reference stubs in [build/refs](build/refs), which declare just the API surface this plugin
+uses. Nothing about a local build changes if you have SimHub installed.
 
 ## The shipped setup
 

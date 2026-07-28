@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>SimHub.Logging</AssemblyName>
+    <!-- The real type is SimHub.Logging - namespace SimHub, class Logging - so the root
+         namespace must not also be SimHub.Logging or the type would become
+         SimHub.Logging.Logging. -->
+    <RootNamespace>SimHub</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <IsSimHubReferenceStub>true</IsSimHubReferenceStub>
+    <!-- Pinned to SimHub's version on purpose; see the PackageReference below. -->
+    <NoWarn>$(NoWarn);NU1902</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <!-- Pinned to the version SimHub ships: Logging.Current is a log4net.ILog, so our IL names
+         log4net's strong identity and it has to be the one SimHub loads. -->
+    <PackageReference Include="log4net" Version="2.0.15" />
+  </ItemGroup>
+
+</Project>
