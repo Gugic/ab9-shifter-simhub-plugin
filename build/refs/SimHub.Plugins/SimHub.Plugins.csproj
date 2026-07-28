@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <!-- The assembly name is the point of this project: the CLR binds SimHub's real
+         assembly by this simple name, so it must match exactly. -->
+    <AssemblyName>SimHub.Plugins</AssemblyName>
+    <RootNamespace>SimHub.Plugins</RootNamespace>
+    <!-- The SHxxx controls derive from WPF types, so this needs the WPF reference set. -->
+    <UseWPF>true</UseWPF>
+    <IsPackable>false</IsPackable>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- Stub bodies never run; silence "not all code paths return" style noise. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <IsSimHubReferenceStub>true</IsSimHubReferenceStub>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GameReaderCommon\GameReaderCommon.csproj" />
+  </ItemGroup>
+
+</Project>

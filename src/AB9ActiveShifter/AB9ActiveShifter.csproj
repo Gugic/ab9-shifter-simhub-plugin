@@ -9,17 +9,33 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.1.0</Version>
+    <!-- VersionPrefix rather than Version, so CI can append a suffix (-p:VersionSuffix=ci.42)
+         and a release can override the lot (-p:Version=0.9.0). Setting Version here would
+         make both of those silently ignored. -->
+    <VersionPrefix>0.1.0</VersionPrefix>
     <IsSimHubPlugin>true</IsSimHubPlugin>
     <!-- SimHub resolves these from its own folder at runtime; never copy them to output. -->
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <!-- No SimHub on this machine - a CI runner, or a fresh clone - means the install's
+         assemblies cannot be referenced, so fall back to the reference stubs under
+         build/refs. Force either set with -p:UseSimHubStubs=true|false. See build/refs/README.md. -->
+    <UseSimHubStubs Condition="'$(UseSimHubStubs)' == '' And !Exists('$(SimHubDir)SimHub.Plugins.dll')">true</UseSimHubStubs>
+    <UseSimHubStubs Condition="'$(UseSimHubStubs)' == ''">false</UseSimHubStubs>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(UseSimHubStubs)' == 'true'">
+    <!-- log4net 2.0.15 is pinned deliberately: it is the version SimHub ships, and our IL has
+         to name that identity. NuGet's audit flags it, but we compile against it and never
+         ship or load our own copy - SimHub's is the one on disk at runtime. -->
+    <NoWarn>$(NoWarn);NU1902</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 
-  <ItemGroup>
+  <!-- Real SimHub install: reference the shipped assemblies in place. -->
+  <ItemGroup Condition="'$(UseSimHubStubs)' != 'true'">
     <Reference Include="SimHub.Plugins">
       <HintPath>$(SimHubDir)SimHub.Plugins.dll</HintPath>
       <Private>false</Private>
@@ -56,6 +72,20 @@
       <HintPath>$(SimHubDir)MahApps.Metro.dll</HintPath>
       <Private>false</Private>
     </Reference>
+  </ItemGroup>
+
+  <!-- No SimHub install: compile against the reference stubs, and take the genuinely public
+       dependencies from NuGet at the exact versions SimHub ships, so the assembly identities
+       baked into our IL are the ones SimHub loads. Nothing here reaches the output folder -
+       the plugin DLL ships alone. -->
+  <ItemGroup Condition="'$(UseSimHubStubs)' == 'true'">
+    <ProjectReference Include="..\..\build\refs\SimHub.Plugins\SimHub.Plugins.csproj" Private="false" />
+    <ProjectReference Include="..\..\build\refs\GameReaderCommon\GameReaderCommon.csproj" Private="false" />
+    <ProjectReference Include="..\..\build\refs\SimHub.Logging\SimHub.Logging.csproj" Private="false" />
+    <ProjectReference Include="..\..\build\refs\vJoyInterfaceWrap\vJoyInterfaceWrap.csproj" Private="false" />
+    <PackageReference Include="SharpDX" Version="4.2.0" ExcludeAssets="runtime" />
+    <PackageReference Include="SharpDX.DirectInput" Version="4.2.0" ExcludeAssets="runtime" />
+    <PackageReference Include="log4net" Version="2.0.15" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <ItemGroup>

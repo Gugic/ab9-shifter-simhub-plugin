@@ -1,0 +1,86 @@
+name: CI
+
+# Every push and pull request gets the same three checks a local build would give:
+# formatting, a full compile including the XAML, and the unit tests that guard the force
+# arithmetic. The plugin DLL is uploaded so any commit on main can be pulled down and tried
+# on a rig without building it.
+#
+# There is no SimHub on a hosted runner, so the build resolves the SimHub API from the
+# reference stubs in build/refs - see that folder's README for why that is safe, and for the
+# local check that proves a stub-built DLL still binds against the real assemblies.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    name: Build, test, package
+    # WPF and net48 need Windows; this is not portable to a Linux runner.
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore AB9ActiveShifter.sln
+
+      - name: Check formatting
+        run: dotnet format whitespace AB9ActiveShifter.sln --verify-no-changes --no-restore
+
+      - name: Build
+        run: >
+          dotnet build AB9ActiveShifter.sln
+          -c Release --no-restore
+          -p:ContinuousIntegrationBuild=true
+          -p:VersionSuffix=ci.${{ github.run_number }}
+          -p:SourceRevisionId=${{ github.sha }}
+
+      - name: Test
+        run: >
+          dotnet test tests/AB9ActiveShifter.Tests/AB9ActiveShifter.Tests.csproj
+          -c Release --no-build
+          --logger "trx;LogFileName=tests.trx"
+          --results-directory artifacts/test-results
+
+      - name: Upload test results
+        # Wanted precisely when the tests failed, so this must not be skipped on failure.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_number }}
+          path: artifacts/test-results
+          retention-days: 14
+
+      - name: Report the built version
+        shell: pwsh
+        run: |
+          $dll = 'src/AB9ActiveShifter/bin/Release/AB9ActiveShifter.dll'
+          $info = (Get-Item $dll).VersionInfo
+          "Assembly version : $($info.FileVersion)"  | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+          "Product version  : $($info.ProductVersion)" | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+          "Built against    : reference stubs (build/refs), not a SimHub install" | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: AB9ActiveShifter-ci.${{ github.run_number }}
+          path: |
+            src/AB9ActiveShifter/bin/Release/AB9ActiveShifter.dll
+            src/AB9ActiveShifter/bin/Release/AB9ActiveShifter.pdb
+          if-no-files-found: error
+          retention-days: 30

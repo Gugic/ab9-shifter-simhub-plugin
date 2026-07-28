@@ -1,0 +1,133 @@
+name: Release
+
+# Manual, versioned release. Takes a version number, stamps it into the assembly, tags the
+# commit and publishes a GitHub Release with the plugin attached.
+#
+# The DLL is compiled against the reference stubs in build/refs, like every CI build. Before
+# tagging anything a human should have run, on a machine with SimHub installed:
+#
+#     pwsh -File tools\Verify-StubBuild.ps1
+#
+# which proves the stub-built DLL still binds against the real SimHub assemblies. CI cannot
+# run that check - it has no SimHub - so it is the one release gate that stays manual.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, e.g. 0.9.0 or 1.0.0-rc1 (no leading v)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark the release as a pre-release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Tags are needed to tell whether this version already exists.
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Validate the version
+        shell: pwsh
+        # Through the environment rather than inlined into the script: a workflow input is
+        # arbitrary text, and ${{ }} pastes it in before PowerShell ever parses the line.
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          $v = $env:VERSION.Trim()
+          if ($v -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$') {
+            throw "Version '$v' is not major.minor.patch with an optional pre-release suffix, e.g. 0.9.0 or 1.0.0-rc1."
+          }
+          if (git tag --list "v$v") {
+            throw "Tag v$v already exists. Releases are immutable; pick a new version."
+          }
+          "VERSION=$v"  | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "TAG=v$v"     | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "Releasing $v" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+
+      - name: Restore
+        run: dotnet restore AB9ActiveShifter.sln
+
+      - name: Check formatting
+        run: dotnet format whitespace AB9ActiveShifter.sln --verify-no-changes --no-restore
+
+      - name: Build
+        run: >
+          dotnet build AB9ActiveShifter.sln
+          -c Release --no-restore
+          -p:ContinuousIntegrationBuild=true
+          -p:Version=${{ env.VERSION }}
+          -p:SourceRevisionId=${{ github.sha }}
+
+      - name: Test
+        run: >
+          dotnet test tests/AB9ActiveShifter.Tests/AB9ActiveShifter.Tests.csproj
+          -c Release --no-build
+
+      - name: Confirm the assembly carries the version
+        shell: pwsh
+        run: |
+          $dll = 'src/AB9ActiveShifter/bin/Release/AB9ActiveShifter.dll'
+          $info = (Get-Item $dll).VersionInfo
+          $expected = ($env:VERSION -split '-')[0]
+          if ($info.FileVersion -notlike "$expected*") {
+            throw "Built $($info.FileVersion) but asked for $env:VERSION. The version did not reach the assembly."
+          }
+          "Assembly version : $($info.FileVersion)"    | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+          "Product version  : $($info.ProductVersion)" | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+
+      - name: Stage the package
+        shell: pwsh
+        run: |
+          $stage = 'artifacts/package'
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item src/AB9ActiveShifter/bin/Release/AB9ActiveShifter.dll $stage
+          Copy-Item src/AB9ActiveShifter/bin/Release/AB9ActiveShifter.pdb $stage -ErrorAction SilentlyContinue
+          Copy-Item presets/AB9ShifterPlugin.GeneralSettings.json $stage
+          Copy-Item README.md, LICENSE, NOTICE.md $stage
+          Compress-Archive -Path "$stage/*" -DestinationPath "artifacts/AB9ActiveShifter-$env:VERSION.zip" -Force
+          Get-ChildItem artifacts -File | ForEach-Object { "  {0}  {1:N0} bytes" -f $_.Name, $_.Length }
+
+      - name: Tag the commit
+        shell: pwsh
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a $env:TAG -m "AB9 Active Shifter $env:VERSION"
+          git push origin $env:TAG
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          $ghArgs = @(
+            'release', 'create', $env:TAG,
+            "artifacts/AB9ActiveShifter-$env:VERSION.zip",
+            'src/AB9ActiveShifter/bin/Release/AB9ActiveShifter.dll',
+            '--title', "AB9 Active Shifter $env:VERSION",
+            '--generate-notes'
+          )
+          if ($env:PRERELEASE -eq 'true') { $ghArgs += '--prerelease' }
+          gh @ghArgs
+          "Published $env:TAG" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
