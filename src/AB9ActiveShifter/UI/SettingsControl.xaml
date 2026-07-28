@@ -41,6 +41,7 @@
                             </StackPanel>
                             <ui:TitledSlider Title="Sequential pulse length (ms)" Minimum="20" Maximum="400"
                                              TickFrequency="10" ShowResetButton="True" ResetValue="120"
+                                             Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding SeqPulseMs, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0"
                                        Text="A profile holds every dial on every tab, the pattern included, so each pattern can carry its own tuning. Duplicate makes a copy of the current profile to experiment in; to rename, type the new name in the box and click Rename. Gears map to vJoy buttons 1..N with reverse as the highest; sequential pulses button 9 for upshift and button 10 for downshift - above every gear button, so no game binding can mean two things - and its push resistance and click are the detent dials on the Feel tab." />
@@ -116,18 +117,18 @@
                             <styles:SHExpander Header="Manual overrides">
                                 <StackPanel Margin="0,8,0,0">
                                     <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
-                                               Text="Calibration sets these four from measurement. They are separate because this base does not treat the axes alike - it can invert the push on one axis and the spring on the other." />
+                                               Text="Which way the base pushes when told to push. Calibration sets both from measurement; they are separate because this base does not treat the axes alike. Getting one wrong turns every wall on that axis into a shove toward the stops, so change them by hand only to undo an obviously wrong measurement." />
                                     <styles:SHToggleCheckbox IsChecked="{Binding InvertConstantX, Mode=TwoWay}"
                                                              Content="Invert push, left/right" Margin="0,2" />
                                     <styles:SHToggleCheckbox IsChecked="{Binding InvertConstantY, Mode=TwoWay}"
                                                              Content="Invert push, forward/back" Margin="0,2" />
-                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertSpringX, Mode=TwoWay}"
-                                                             Content="Invert spring, left/right" Margin="0,2" />
-                                    <styles:SHToggleCheckbox IsChecked="{Binding InvertSpringY, Mode=TwoWay}"
-                                                             Content="Invert spring, forward/back" Margin="0,2" />
+                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
+                                               Text="Calibration also probes the base with a spring on each axis, but there is no flag for it: every wall in this gate is a push, never a spring. Those two probes stay because a base that answers predictably on both kinds of effect is the evidence the force cap is waiting for." />
                                     <styles:SHToggleCheckbox IsChecked="{Binding PolarityConfirmed, Mode=TwoWay}"
                                                              Content="Polarity confirmed - remove the 10% force cap"
                                                              Margin="0,8,0,0" />
+                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0"
+                                               Text="Ticked by a calibration run in which all four probes gave a definite answer. Ticking it by hand puts the base to full force on an unmeasured polarity - the one case the cap exists for." />
                                 </StackPanel>
                             </styles:SHExpander>
 
@@ -161,9 +162,13 @@
                             <ui:TitledSlider Title="Overall gain (%)" Minimum="0" Maximum="100" TickFrequency="5"
                                              ShowResetButton="True" ResetValue="25"
                                              Value="{Binding OverallGainPct, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="Scales everything the gate produces - walls, detents, the lockout and the telemetry buzzes alike - so it is the one dial to reach for if the whole shifter is too strong or too weak. This is a 12 Nm base: raise it in small steps with a hand on the stick. Until polarity has been measured it is capped at 10% whatever this says." />
                             <TextBlock x:Name="LockoutSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0" />
                             <styles:SHButtonSecondary Click="OnResetForces" Content="Reset forces to defaults"
                                                       Padding="12,4" HorizontalAlignment="Left" Margin="0,10,0,0" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0"
+                                       Text="Puts every dial on this tab back to its shipped value. Geometry, effects and the measured polarity are left alone." />
                         </StackPanel>
                     </styles:SHSection>
 
@@ -388,6 +393,8 @@
                             <ui:TitledSlider Title="Starts at (% of redline)" Minimum="80" Maximum="100" TickFrequency="1"
                                              ShowResetButton="True" ResetValue="96"
                                              Value="{Binding FxLimiterFromPct, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="A hard buzz once the revs pass the threshold, meant to be felt through a hand already on the lever rather than heard. Keep it well above the engine vibration's frequency so the two are distinguishable when they overlap. It needs the game to report a redline: where none is reported the effect stays silent, however this is set." />
                         </StackPanel>
                     </styles:SHSection>
 
@@ -498,26 +505,27 @@
                     <styles:SHExpander Header="Advanced gate geometry">
                         <StackPanel Margin="0,8,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
-                                       Text="Axis positions run 0 to 65535 with 32767 at centre. Every pair is enter/exit hysteresis: the exit value must be the looser one." />
+                                       Text="All in axis counts: positions run 0 to 65535 with 32767 at centre, so 1000 counts is about a finger's width of stick travel. These decide where the gate thinks the lever is, not what it feels like - change them only if gear detection is wrong, and use the Feel tab for anything about strength." />
 
-                            <ui:TitledSlider Title="Neutral channel half-width (enter)" Minimum="200" Maximum="8000"
+                            <ui:TitledSlider Title="Neutral tunnel half-depth (enter)" Minimum="200" Maximum="8000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2600"
                                              Value="{Binding ChannelHalfEnter, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Neutral channel half-width (exit)" Minimum="200" Maximum="10000"
+                            <ui:TitledSlider Title="Neutral tunnel half-depth (leave)" Minimum="200" Maximum="10000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="5200"
                                              Value="{Binding ChannelHalfExit, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Outer column band (enter)" Minimum="500" Maximum="10000"
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
+                                       Text="How far fore or aft of centre still counts as the neutral tunnel. This is a genuine hysteresis pair - the lever has to travel past the larger figure to be considered out of neutral, and come back inside the smaller one to be back in it, so resting on the boundary cannot flutter the gear. The gap between them is also the distance over which the slot walls fade in as you leave the tunnel, so widening it makes the handover gentler." />
+                            <ui:TitledSlider Title="Outer column half-width" Minimum="500" Maximum="10000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2600"
                                              Value="{Binding ColumnEdgeEnter, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Outer column band (exit)" Minimum="500" Maximum="12000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="5000"
-                                             Value="{Binding ColumnEdgeExit, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Inner column half-width (enter)" Minimum="300" Maximum="8000"
+                            <ui:TitledSlider Title="Inner column half-width" Minimum="300" Maximum="8000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="1200"
                                              Value="{Binding ColumnInnerHalfEnter, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Inner column half-width (exit)" Minimum="300" Maximum="10000"
+                            <ui:TitledSlider Title="Lockout clearance from the last column" Minimum="300" Maximum="10000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2400"
                                              Value="{Binding ColumnInnerHalfExit, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
+                                       Text="How wide each column's territory is, measured either side of its centre line - the outer two get more because they run to the end of travel. There is no matching release width: once the lever is in a gear the only way out is back through the tunnel, at any sideways distance whatever. The last figure is the room the lockout gate leaves beside the 5/6 column before its band begins." />
                             <ui:TitledSlider Title="Engage depth (from the end of travel)" Minimum="500" Maximum="28000"
                                              TickFrequency="500" ShowResetButton="True" ResetValue="4000"
                                              Value="{Binding EngageDepth, Mode=TwoWay}" />
@@ -526,12 +534,16 @@
                                              Value="{Binding ReleaseDepth, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
                                        Text="Both measure from the ends of travel, so raising them shortens the throw - centre is 32767, and the shift fires once the lever is within the engage depth of a stop. This is also the sequential lever's activation distance: its spring reaches full resistance exactly at the threshold and the click moves with it, so a short throw stays progressive. Keep the release depth 2000-4000 above the engage depth or the re-arm point sits on top of the firing point." />
-                            <ui:TitledSlider Title="Neutral detent hysteresis" Minimum="0" Maximum="6000"
+                            <ui:TitledSlider Title="Column handover width" Minimum="0" Maximum="6000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="400"
                                              Value="{Binding DetentHysteresis, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
+                                       Text="Nothing to do with the slot detents. Sliding along the tunnel, the sideways pull has to change which column it belongs to at some point, and that swap is a reversal of a force: this is how far either side of the boundary the pull is faded out so the change cannot arrive as a step. It is deliberately small - the whole width is dead space with no sideways guidance, so a wide setting leaves the lever unguided across half the gate." />
                             <ui:TitledSlider Title="Ticks required to engage" Minimum="1" Maximum="20" TickFrequency="1"
                                              ShowResetButton="True" ResetValue="2"
                                              Value="{Binding MinEngageTicks, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="How many consecutive loop ticks the lever must sit past the engage depth before the gear registers, so a single stray reading cannot fire a shift. Ticks are loop rate below, so at the default 1000 Hz two ticks is two milliseconds - raise it only if gears register spuriously, because every tick added is delay a hand can feel." />
                         </StackPanel>
                     </styles:SHExpander>
 
@@ -543,13 +555,15 @@
                             <ui:TitledSlider Title="FFB loop rate (Hz)" Minimum="100" Maximum="1000" TickFrequency="50"
                                              ShowResetButton="True" ResetValue="1000"
                                              Value="{Binding TickHz, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="Which vJoy device carries the gears, and how often the gate is recomputed. Leave the rate at 1000: the base is the slow part of the loop, not this, so lowering it buys nothing and makes every wall arrive later. It is here to diagnose a struggling PC, not to tune feel." />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
-                                       Text="The device is matched by USB vendor and product id. The AB9 is 346E / 1000; only change these if your base enumerates differently." />
+                                       Text="The device is matched by USB vendor and product id, written in hex as Device Manager shows them. The AB9 is 346E / 1000; only change these if your base enumerates differently." />
                             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                 <TextBlock Text="Vendor id" VerticalAlignment="Center" Width="80" />
-                                <TextBox Text="{Binding VendorId, Mode=TwoWay}" Width="90" Margin="0,0,16,0" />
+                                <TextBox Text="{Binding VendorIdHex, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="90" Margin="0,0,16,0" />
                                 <TextBlock Text="Product id" VerticalAlignment="Center" Width="80" />
-                                <TextBox Text="{Binding ProductId, Mode=TwoWay}" Width="90" />
+                                <TextBox Text="{Binding ProductIdHex, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="90" />
                             </StackPanel>
                         </StackPanel>
                     </styles:SHExpander>

@@ -395,8 +395,13 @@ namespace AB9ActiveShifter
                     {
                         case CalibrationTarget.ConstantX: Settings.InvertConstantX = inverted; break;
                         case CalibrationTarget.ConstantY: Settings.InvertConstantY = inverted; break;
-                        case CalibrationTarget.SpringX: Settings.InvertSpringX = inverted; break;
-                        case CalibrationTarget.SpringY: Settings.InvertSpringY = inverted; break;
+                        // Spring polarity is measured but has nowhere to go: the gate is built
+                        // from constant forces only. The probe still runs, because a base that
+                        // answers predictably on both effect families is the evidence the force
+                        // cap waits for.
+                        case CalibrationTarget.SpringX:
+                        case CalibrationTarget.SpringY:
+                            break;
                     }
                 }
 

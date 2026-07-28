@@ -126,8 +126,13 @@ runners cannot load, so anything worth testing must not touch it.
 - Compose in the gate's own frame and apply the four measured polarity signs **once, at the end
   of `Compose`.** The yield and shaping stages compare force sign against velocity sign; doing
   the flip earlier makes them compare unlike things.
-- Polarity is **four independent facts** (constant/spring × X/Y). This unit inverts constant
-  force on X only and spring on Y only. One global flag cannot describe that.
+- Polarity is **per axis, not one global flag** — this unit inverts constant force on X and not
+  on Y. Only the two constant-force flags exist, because every wall is a constant force and every
+  frame ships both springs as `Off`. The calibration still probes all four (constant/spring × X/Y)
+  and all four must read conclusively before the cap lifts: the spring probes are a device sanity
+  check, not settings. The measured pattern on this unit is genuinely mixed — spring inverted on Y
+  where constant force is not — so if a spring ever drives the gate again it needs its own flags
+  back, not a reuse of the constant ones.
 - **Overall gain is capped at 10% until polarity is confirmed.** That cap is the safety story
   for an unmeasured base; do not add a path around it.
 - Damping joins **after** the yield and the time shaping, and is never slewed. It opposes motion

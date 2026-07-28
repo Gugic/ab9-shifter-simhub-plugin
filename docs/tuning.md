@@ -1,7 +1,8 @@
 # Tuning guide
 
-Every dial is on the plugin's **Feel** or **Geometry** tab and applies on the next FFB tick —
-nothing needs restarting. Forces are percentages of what the base can produce *before* the master
+The dials are spread over the plugin's **Setup**, **Feel**, **Effects** and **Geometry** tabs —
+feel lives on Feel, the telemetry buzzes on Effects, and the positions the gate is built from on
+Geometry. All of them apply on the next FFB tick, so nothing needs restarting. Forces are percentages of what the base can produce *before* the master
 gain, so raising overall gain lifts the whole gate together and keeps tuned ratios intact.
 
 Run **Measure polarity** first. Until it succeeds, gain is capped at 10% and everything feels
@@ -212,8 +213,10 @@ happens where there is no force to reverse; the same sweep now measures 553 DI w
 Two things make it worse if they are set wrong, and both are now defaults. **Neutral tunnel depth**
 below your actual fore/aft slop puts you inside the transition band while you slide, where the plateau
 is ramping up — measured, 65% of one recording's sliding time was in that band at the old 1400. And a
-large **detent hysteresis** widens the dead strip at each divider, because the window must cover it; it
-used to be 1500 and only ever existed to hide the cliff that is now gone.
+large **column handover width** widens the dead strip at each divider, because the window must cover it; it
+used to be 1500 and only ever existed to hide the cliff that is now gone. (It is called
+`DetentHysteresis` in the settings file and in the code — a name left over from a job it no longer
+does. It has nothing to do with the slot detents.)
 
 **The guides leading down to each gear oscillate, though the deep walls are calm.**
 Fixed. The guide's rise from the tunnel's light pull to the full slot wall used to continue past the
@@ -274,8 +277,10 @@ or where the crossing would be the lockout (6 to 7), because a range gate does n
 itself.
 
 **Entering a gear feels like it fights me sideways.**
-That is the funnel. Lower **funnel into the slot** if it is too pushy; raise it if entries near a
-column edge still dead-end against the wall.
+That is the pull onto the column growing as you leave the tunnel. There is no separate funnel dial —
+one stiffness serves every lateral force — so lower **pull into a column** if it is too pushy. If
+entries near a column edge dead-end against the wall instead, open the **slot mouths**: set the mouth
+shape to angled and raise its reach and opening.
 
 **The shift does not feel like it seats itself.**
 Raise **pull into the slot (the snick)**, and check **resistance entering the slot** is not so high
@@ -294,9 +299,9 @@ Polarity is wrong — forces are pushing the opposite way. Run **Measure polarit
 
 **Sliding across the gate.** *Humps between the other columns* (15%) is the light click between 1/2,
 3/4, 5/6; *hump width* (2500) how far either side of a crest it peaks. *Pull into a column* (12%) is
-the gentle centring onto the nearest column while in neutral, and *funnel into the slot* (40%) is
-what that pull grows to as you push out of the channel toward a gear — the tapered mouth of the
-gate. Neither acts across a column's own width, so there is no centre line to hunt around.
+the gentle centring onto the nearest column while in neutral, which grows into the full slot wall as
+you push out of the tunnel toward a gear. It does not act across a column's own width, so there is no
+centre line to hunt around.
 *Fore/aft drag while on a column* (5%) is residual resistance when lined up — keep it low or gears
 get hard to take.
 
