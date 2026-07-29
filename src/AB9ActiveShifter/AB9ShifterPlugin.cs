@@ -474,6 +474,7 @@ namespace AB9ActiveShifter
                 }
 
                 Settings.PolarityConfirmed = conclusive;
+                CopyPolarityToEveryProfile();
 
                 Log.Info(conclusive
                     ? "Calibration complete; force cap lifted."
@@ -485,6 +486,28 @@ namespace AB9ActiveShifter
                 try { this.SaveCommonSettings(SettingsKey, Store); }
                 catch (Exception ex) { Log.Error("Could not save settings after calibration", ex); }
             });
+        }
+
+        /// <summary>
+        /// Polarity describes the base, not a profile, so a measurement made in one is true in all
+        /// of them. Profiles carry their own copy because settings are stored per profile, and
+        /// leaving the others stale meant a user who calibrated in 7+R and then switched to
+        /// Sequential silently dropped back to the 10% cap - with the tuning tabs disappearing
+        /// with it, once they were gated on the same flag.
+        /// </summary>
+        private void CopyPolarityToEveryProfile()
+        {
+            if (Store == null || Store.Profiles == null || Settings == null) return;
+
+            foreach (ShifterProfile profile in Store.Profiles)
+            {
+                if (profile == null || profile.Settings == null || profile.Settings == Settings) continue;
+
+                profile.Settings.InvertConstantX = Settings.InvertConstantX;
+                profile.Settings.InvertConstantY = Settings.InvertConstantY;
+                profile.Settings.PolarityConfirmed = Settings.PolarityConfirmed;
+                profile.Settings.CalibrationForcePct = Settings.CalibrationForcePct;
+            }
         }
 
         /// <summary>Most recent measurement per effect family, for the settings page to display.</summary>
