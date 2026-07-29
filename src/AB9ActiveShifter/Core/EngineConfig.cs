@@ -192,8 +192,14 @@ namespace AB9ActiveShifter.Core
         /// Force used by the polarity measurement, as a percentage of full scale. Not subject to
         /// the unconfirmed-polarity cap: this is the measurement that lifts that cap, and it needs
         /// enough authority to visibly move the stick. Bounded well below full scale.
+        /// <para>
+        /// 10% is measured to be enough on this base - a probe stops the moment its direction is
+        /// certain, so what it needs is a movement the estimator can call, not a large one. It was
+        /// 25%, which worked and was simply more force than the job requires on an unmeasured base
+        /// that might be about to push the wrong way.
+        /// </para>
         /// </summary>
-        public int CalibrationForcePct = 25;
+        public int CalibrationForcePct = 10;
 
         // Geometry (raw axis counts)
 

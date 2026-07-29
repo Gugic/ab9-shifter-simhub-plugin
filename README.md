@@ -94,7 +94,7 @@ resort by comparison.
 
 Then **exit Cockpit completely**: it holds the stick exclusively while open, and the plugin
 cannot acquire the device until it lets go. Close any Pit House live-tuning page for the same
-reason, and disable Steam Input for the AB9 (or close Steam).
+reason.
 
 ### 4. Install the plugin
 
@@ -118,7 +118,12 @@ Building it yourself instead, and the `install.ps1` script that does all of the 
 
 Some AB9 firmware revisions apply DirectInput effects backwards, which would turn a centring
 force into one that throws the stick at its stops. Until this is measured the plugin **caps its
-force output at 10%**, so this step is what unlocks the shifter.
+force output at 10%**, and **only the Setup tab is shown** — there is no point offering force
+dials before it is known which way the base pushes. This step is what unlocks the shifter.
+
+The other tabs appear once polarity is measured *and* a vJoy device is available. Everything
+needed to satisfy both is on the Setup tab, including the vJoy picker and the base's vendor and
+product ids, so the gate can never hide the control that opens it.
 
 On the **Setup** tab press **Measure polarity**, take your hands off the stick, and wait about
 ten seconds. The plugin pushes the stick briefly each way, on each axis, for each effect family,
@@ -139,7 +144,13 @@ correct fore/aft, while its spring is the other way round.
 
 If a probe reports the stick **barely moved**, the cap deliberately stays on: an unmeasured
 direction is exactly the case it exists for. Check that nothing is touching the stick, then
-raise *Calibration force* and run it again.
+raise *Calibration force* and run it again. It defaults to 10%, which is enough on this base — a
+probe stops as soon as its direction is certain, so what it needs is a movement that can be read,
+not a large one.
+
+Once measured, the whole section collapses to its result and a **Measure again** button. Polarity
+is a property of the base rather than of a profile, so it only wants remeasuring if the hardware
+changes or the gate starts pushing the wrong way.
 
 ### 6. Switch the forces on
 
@@ -282,8 +293,8 @@ actually matters. The base can produce 12 Nm, so output is bounded on every path
 **"No device with VID 346E / PID 1000 found"** — the base is off, in a different mode, or another
 program has it. The message lists what was detected.
 
-**"The stick is held exclusively by another program"** — MOZA Cockpit, a Pit House tuning page,
-or Steam Input. Close them; the plugin retries automatically.
+**"The stick is held exclusively by another program"** — MOZA Cockpit or a Pit House tuning page,
+occasionally a game. Close them; the plugin retries automatically.
 
 **"vJoy device 1 is owned by another program"** — the message names the owning process. Close it,
 or pick a different device from the **vJoy output** list on the Setup tab, which shows every device

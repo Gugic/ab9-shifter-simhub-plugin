@@ -39,6 +39,65 @@ namespace AB9ActiveShifter.Output
         /// <summary>vJoy's own ceiling.</summary>
         public const uint MaxDeviceId = 16;
 
+        // One wrapper instance, reused. The settings page re-checks the chosen device every couple
+        // of seconds so the tab gate notices a device being taken while it is open, and building a
+        // wrapper each time to ask one question would be waste. UI thread only, like the rest of
+        // this class. A failure is remembered so a machine without vJoy does not throw on a timer;
+        // Forget() clears it, which is what the Refresh button is for after installing vJoy.
+        private static vJoy _driver;
+        private static string _driverProblem;
+
+        /// <summary>Drops the cached driver, so the next probe tries again from scratch.</summary>
+        public static void Forget()
+        {
+            _driver = null;
+            _driverProblem = null;
+        }
+
+        private static vJoy Driver(out string problem)
+        {
+            if (_driver != null) { problem = null; return _driver; }
+            if (_driverProblem != null) { problem = _driverProblem; return null; }
+
+            try
+            {
+                vJoy driver = new vJoy();
+                if (!driver.vJoyEnabled())
+                {
+                    _driverProblem = "vJoy is installed but not enabled, or no device has been created yet.";
+                    problem = _driverProblem;
+                    return null;
+                }
+
+                _driver = driver;
+                problem = null;
+                return _driver;
+            }
+            catch (Exception ex)
+            {
+                // Missing native DLL, wrong bitness, driver not installed: all the same story to
+                // a user, and none of them a reason to take the settings page down.
+                _driverProblem = "vJoy is not installed. The gate still works without it - you " +
+                                 "just get no gear output until vJoy is running. (" + ex.Message + ")";
+                problem = _driverProblem;
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// One device, for the cheap repeated check behind the tab gate. Reports Missing when
+        /// vJoy itself is unavailable, which is the answer that matters to a caller asking
+        /// "can this send gears".
+        /// </summary>
+        public static VJoyDeviceInfo ProbeOne(uint id)
+        {
+            string problem;
+            vJoy driver = Driver(out problem);
+            if (driver == null) return new VJoyDeviceInfo { Id = id, State = VJoyDeviceState.Missing };
+
+            return Describe(driver, id);
+        }
+
         /// <summary>
         /// Enumerates the devices vJoy reports. <paramref name="alwaysInclude"/> - normally the
         /// id currently saved - is listed even when it does not exist, so a picker can show the

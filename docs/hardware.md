@@ -159,10 +159,17 @@ plugin can render. Two verdicts from hardware, and both stand:
 The plugin takes the device `Exclusive | Background` — exclusive is required to create FFB
 effects, background so forces stay live while the *game* has focus rather than SimHub.
 
-Things that will take it away: **MOZA Cockpit**, a **Pit House** live-tuning page, **Steam
-Input**, and occasionally a game. The failure surfaces as `DIERR_OTHERAPPHASPRIO` /
+Things that will take it away: **MOZA Cockpit**, a **Pit House** live-tuning page, and
+occasionally a game. The failure surfaces as `DIERR_OTHERAPPHASPRIO` /
 `DIERR_NOTEXCLUSIVEACQUIRED`; the engine backs off (1/2/5 s) and retries, so a transient grab
 recovers on its own.
+
+**Steam Input is not one of them, on this rig.** It was listed as a required setup step from the
+start, inherited from BonusFFB's issue tracker rather than measured here, and in use with Steam
+running normally it has never taken the device or disturbed the gate. It is off the setup
+instructions and out of the checklist: an instruction that costs a user a step and buys nothing is
+worse than no instruction. If it turns out to matter it will be for one game's controller
+configuration rather than as a global setting, which is where to look before restoring it here.
 
 A useful safety property falls out of this: if SimHub exits or crashes, dropping the exclusive
 handle makes the driver discard the effects, so forces cannot outlive the process.
