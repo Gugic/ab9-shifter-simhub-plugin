@@ -332,7 +332,10 @@ parsed as pathspecs. Write the message to a scratchpad file and use `git commit 
 `C:\Program Files (x86)\SimHub\PluginsData\Common\AB9ShifterPlugin.GeneralSettings.json`. Edit it
 **only while SimHub is stopped** — it is rewritten on exit. Changing a default in
 `EngineConfig.cs` does not change a user who already has that key saved; patch the JSON too, and
-say so.
+say so. **Deleting that file does not give you a machine with no settings**: SimHub keeps ten
+rolling copies in `_Backups\` beside it and restores the newest when the primary is gone, so a
+first-start test that only deletes the primary silently measures the old settings. See
+DEVELOPMENT.md for the command that clears both and the two log lines that prove it worked.
 
 **Shipped profiles.** A fresh install starts from `DefaultProfiles.cs`, not from bare defaults:
 `ReadCommonSettings` finding nothing is the first-start signal, the factory returns the three
