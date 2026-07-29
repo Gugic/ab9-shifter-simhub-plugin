@@ -18,7 +18,7 @@ light — that is the safety cap doing its job, not a tuning problem.
 | Lockout gate, guarding 7/R | 70% | The push-through toll before 7 and R. Sits against the 5/6 column; width sets the toll with it. |
 | Neutral spring toward 3/4 | 0% (off) | The home spring: pulls the lever along the channel toward the 3/4 column, where a real H lever rests. Around 25–30% a released lever walks home past the humps; fades out with depth so a held gear feels nothing. Follows the mirror flags. |
 | Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
-| Wall friction | 15% | The gate surfaces' own grip: drag equal to this share of whatever force you are pressed against. Zero in free travel by construction, so it costs no lightness. Note: for lean-flutter the effective fix is MOZA Cockpit's Natural Damping at ~15% (zero-latency, at the servo); this dial is the software-side supplement. |
+| Wall friction | 15% | The gate surfaces' own grip: drag equal to this share of whatever force you are pressed against. Zero in free travel by construction, so it costs no lightness. Note: for lean-flutter the effective fix is MOZA Cockpit's Damper at ~15% (zero-latency, at the servo); this dial is the software-side supplement. |
 | Slot mouth | Square | Shape of the divider ends where they meet the tunnel. Square is the plain notch and changes nothing. |
 | Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
 | Neutral tunnel depth | 2600 counts | The state band: where "in the tunnel" ends and the lateral field's rise lives. Must exceed your fore/aft slop while sliding sideways, or you spend your time in the transition band instead. Measured on real hands: p50 1848, p90 3215. |
@@ -144,7 +144,7 @@ was zero, and the static hold only guards a hand already settled. That is what *
 was built for: drag proportional to the engaged force, zero in free travel — and the hardware
 verdict is that it was *not enough*, because everything the plugin renders arrives 3–4 ms late,
 a large slice of a 17 Hz cycle. What settles the lean-hunt on this base is **MOZA Cockpit's
-Natural Damping at ~15%** — real damping at the servo loop, ahead of the delay, and free of the
+Damper at ~15%** — real damping at the servo loop, ahead of the delay, and free of the
 throw-weight cost software damping has (see hardware.md). If a flutter while leaning returns:
 Cockpit damper first, wall friction second, software damping last.
 

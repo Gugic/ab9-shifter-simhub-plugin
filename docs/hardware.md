@@ -111,23 +111,29 @@ the argument and the gear falls back out.
 The real control is **MOZA Cockpit** — *not* Pit House, which has no Spring setting in flight
 mode. Required, once:
 
+The base must be in **flight-stick mode**, which is what makes it enumerate as the two-axis
+DirectInput FFB joystick this plugin opens. The rest is Cockpit's *Basic Settings* page, named
+exactly as that page names them:
+
 | Setting | Value |
 | --- | --- |
-| Input mode | **Flight stick** |
-| FFB Mode | **DirectInput** |
-| Spring | **0** |
-| Natural Damping | **~15%** (recommended — see below) |
-| Max Torque | 100% |
-| Overall Intensity | 100% |
-| Game FFB Gain | 100% |
-| Base Force Model | **Flight Base** |
-| Firmware | 1.1.3.4 or newer |
+| Force Feedback Mode | **DirectInput** |
+| Spring | **0%** |
+| Damper | **15%** (recommended — see below) |
+| Maximum Torque Output | 100% |
+| Overall Force Feedback Intensity | 100% |
+| Game Force Feedback Gain | 100% |
+| Inertia, Friction | 0% |
+| Firmware | 1.1.3.4 or newer; developed and tested against **1.1.5.2** |
+
+The damping control on this page is called **Damper**, not "Natural Damping" — this file said the
+latter until a screenshot of the actual page settled it (2026-07-28).
 
 Then **fully exit Cockpit** — it holds the device exclusively while open, and the plugin cannot
 acquire it. This was the fix for what looked for a long time like a plugin bug: the base fighting
 the gate everywhere with its own centring spring.
 
-**Natural Damping** in Cockpit is zero-latency physical damping, applied at the servo loop —
+**Damper** in Cockpit is zero-latency physical damping, applied at the servo loop —
 ahead of the USB round trip, which is what makes it categorically different from anything this
 plugin can render. Two verdicts from hardware, and both stand:
 
@@ -139,7 +145,7 @@ plugin can render. Two verdicts from hardware, and both stand:
   dissipation for that mode was tried the same night — wall friction at 15% of engaged force,
   ~17× the delay's negative damping on paper — and did not help, because everything the plugin
   renders arrives 3–4 ms late, a large fraction of a 17 Hz cycle. The firmware damper acts with
-  no delay at all. Recommend ~15% Natural Damping as part of setup for anyone chasing the last
+  no delay at all. Recommend ~15% Damper as part of setup for anyone chasing the last
   bit of lean calm.
 
 ## Exclusive access

@@ -429,7 +429,7 @@ static hold its stiction, and this is its kinetic friction — the third of the 
 `FrictionIsContinuousThroughZeroVelocity`.
 
 The hardware verdict on the lean-hunt, recorded so nobody chases it through this dial again:
-friction at the default 15% did **not** settle it. What did is **MOZA Cockpit's Natural Damping
+friction at the default 15% did **not** settle it. What did is **MOZA Cockpit's Damper
 at ~15%** — physical damping applied at the servo loop, ahead of the USB round trip. The
 arithmetic that predicted friction would work assumed the dissipation arrives in phase; at
 17.7 Hz a 3–4 ms rendering delay is 20–25° of the cycle, and a hand-coupled hunt feeds on
@@ -599,7 +599,7 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **A handover window keyed on `InChannel(y)`** | Moves the same reversal onto the depth axis. The crest and midpoint rules are thousands of counts apart at the lockout gap, so the other rule's flip window stays live: **2403 DI from one single axis count of fore/aft movement**, where the fore/aft wall's deadband leaves the lever freest. The window must span the hull of both rules. |
 | **A wide detent hysteresis as the cure for boundary chatter** | It only ever hid the cliff; 1500 counts of it bought a 3000-count dead strip once the field was zeroed at the boundary. Zero the field instead and the hysteresis can be small. |
 | **Device damper / friction / inertia to settle walls** | Condition effects are near-decorative on this base. Replaced by software velocity damping. |
-| **MOZA Cockpit Natural Damping** *(as a wall-buzz fix)* | Stiffens the lever, buzz unchanged. Damping cannot rescue a gradient this steep behind this much delay. **Scope matters**: for the *lean-hunt* — the slower hand-coupled mode left after the yield relay was fixed — ~15% Natural Damping is precisely what works, because it acts at the servo loop with zero delay. Rejected as a buzz cure, adopted as the lean-hunt cure; see hardware.md. |
+| **MOZA Cockpit Damper** *(as a wall-buzz fix)* | Stiffens the lever, buzz unchanged. Damping cannot rescue a gradient this steep behind this much delay. **Scope matters**: for the *lean-hunt* — the slower hand-coupled mode left after the yield relay was fixed — ~15% Damper is precisely what works, because it acts at the servo loop with zero delay. Rejected as a buzz cure, adopted as the lean-hunt cure; see hardware.md. |
 | **Raising the loop rate (400 Hz → 1 kHz)** | Buzz changed *pitch* and nothing else. Proved the limit cycle is set by geometry, not by delay distance. Kept anyway — it doubled the stable gradient range. |
 | **Rebound absorption alone** | Turning it toward 0 made oscillation slower *and stronger* — it drains the pump but does not stop it. Kept as one of four mechanisms. |
 | **A near-step wall face (~250 counts)** | Deep leaning went calm, but the face became a step: contact landed as a hammer blow, threw the stick out, hand pushed back in, repeat — felt exactly like ABS kicking, worst at corners. |
