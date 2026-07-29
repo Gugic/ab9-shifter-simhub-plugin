@@ -18,7 +18,7 @@ namespace AB9ActiveShifter
         private bool _enabled;
         private int _overallGainPct = 25;
         private int _lockoutForcePct = 70;
-        private int _calibrationForcePct = 25;
+        private int _calibrationForcePct = 10;
         private bool _polarityConfirmed;
         private bool _invertConstantX;
         private bool _invertConstantY;

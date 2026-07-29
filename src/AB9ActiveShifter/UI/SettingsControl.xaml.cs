@@ -38,6 +38,13 @@ namespace AB9ActiveShifter.UI
         private bool _refreshingProfiles;
         private bool _refreshingVJoy;
 
+        /// <summary>Last answer from the cheap repeated check on the chosen vJoy device.</summary>
+        private bool _vjoyReady;
+        private int _vjoyPollTicks;
+
+        /// <summary>Set by "Measure again", so the collapsed calibration panel opens back up.</summary>
+        private bool _recalibrating;
+
         public SettingsControl(AB9ShifterPlugin plugin) : this()
         {
             Plugin = plugin;
@@ -48,6 +55,7 @@ namespace AB9ActiveShifter.UI
             BindActiveProfile();
             RefreshProfiles();
             RefreshVJoyDevices();
+            UpdateCalibrationSection();
 
             plugin.ProfileChanged += OnProfileChanged;
         }
@@ -75,6 +83,7 @@ namespace AB9ActiveShifter.UI
 
             // The device number is stored per profile, so switching profile can change it.
             RefreshVJoyDevices();
+            UpdateCalibrationSection();
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -96,6 +105,7 @@ namespace AB9ActiveShifter.UI
             RefreshLockoutSummary();
             RefreshProfiles();
             RefreshVJoyDevices();
+            UpdateCalibrationSection();
             _timer.Start();
         }
 
@@ -150,6 +160,8 @@ namespace AB9ActiveShifter.UI
 
                 VJoyCombo.Items.Clear();
 
+                _vjoyReady = false;
+
                 if (!probe.DriverPresent || probe.Devices.Count == 0)
                 {
                     // No choice to offer. Keep the saved number visible rather than blanking the
@@ -172,7 +184,11 @@ namespace AB9ActiveShifter.UI
                 {
                     ComboBoxItem item = new ComboBoxItem { Content = device.Describe(), Tag = device.Id };
                     VJoyCombo.Items.Add(item);
-                    if (device.Id == selected) VJoyCombo.SelectedItem = item;
+                    if (device.Id == selected)
+                    {
+                        VJoyCombo.SelectedItem = item;
+                        _vjoyReady = CanCarryGears(device);
+                    }
                 }
 
                 if (VJoyCombo.SelectedItem == null && VJoyCombo.Items.Count > 0)
@@ -191,6 +207,19 @@ namespace AB9ActiveShifter.UI
             {
                 _refreshingVJoy = false;
             }
+
+            UpdateTabGate();
+        }
+
+        /// <summary>
+        /// Whether gears can actually reach this device. A shortfall of buttons is a warning
+        /// rather than a blocker - eight buttons still carries every gear, and the connect path
+        /// treats it the same way - so it does not hold the gate shut.
+        /// </summary>
+        private static bool CanCarryGears(VJoyDeviceInfo device)
+        {
+            return device != null &&
+                   (device.State == VJoyDeviceState.Free || device.State == VJoyDeviceState.Owned);
         }
 
         /// <summary>The sentence under the picker: what is wrong with the chosen device, if anything.</summary>
@@ -242,7 +271,80 @@ namespace AB9ActiveShifter.UI
 
         private void OnRefreshVJoyDevices(object sender, RoutedEventArgs e)
         {
+            // Forget a cached failure too: this button is what a user presses after installing
+            // vJoy, and it should not need a SimHub restart to be believed.
+            VJoyDeviceProbe.Forget();
             RefreshVJoyDevices();
+        }
+
+        /// <summary>
+        /// Everything except Setup stays hidden until the shifter can actually do its job:
+        /// polarity measured, so a force dial cannot be turned up on a base that might push the
+        /// wrong way, and a vJoy device present, so a gear has somewhere to go. Both are things a
+        /// user does once, and neither is discoverable from a page full of sliders.
+        /// <para>
+        /// Everything needed to satisfy those two conditions is on the Setup tab by construction -
+        /// the vJoy picker and the base's vendor and product ids included - so the gate can never
+        /// hide the control that opens it.
+        /// </para>
+        /// </summary>
+        private void UpdateTabGate()
+        {
+            if (FeelTab == null || _boundSettings == null) return;
+
+            bool polarity = _boundSettings.PolarityConfirmed;
+            bool ready = polarity && _vjoyReady;
+
+            Visibility visibility = ready ? Visibility.Visible : Visibility.Collapsed;
+            FeelTab.Visibility = visibility;
+            EffectsTab.Visibility = visibility;
+            GeometryTab.Visibility = visibility;
+            MonitorTab.Visibility = visibility;
+
+            // Collapsing the selected tab would leave the page blank, so come home first.
+            if (!ready)
+            {
+                TabControl tabs = FeelTab.Parent as TabControl;
+                if (tabs != null && tabs.SelectedIndex != 0) tabs.SelectedIndex = 0;
+            }
+
+            TabGateText.Text = ready
+                ? ""
+                : "Feel, Effects, Geometry and Monitor appear once two things are true: " +
+                  (polarity ? "polarity is measured (done)" : "polarity is measured (not yet - see below)") +
+                  ", and " +
+                  (_vjoyReady ? "a vJoy device is available (done)." : "a vJoy device is available (not yet - see above).");
+        }
+
+        /// <summary>
+        /// The measurement is a one-off, so once it is made the section collapses to its result
+        /// and a way back in. Leaving four paragraphs of explanation on the page forever suggests
+        /// there is something left to do.
+        /// </summary>
+        private void UpdateCalibrationSection()
+        {
+            if (CalibrationDonePanel == null || _boundSettings == null) return;
+
+            bool done = _boundSettings.PolarityConfirmed && !_recalibrating;
+
+            CalibrationDonePanel.Visibility = done ? Visibility.Visible : Visibility.Collapsed;
+            CalibrationFullPanel.Visibility = done ? Visibility.Collapsed : Visibility.Visible;
+
+            if (done)
+            {
+                CalibrationSummary.Text =
+                    "Polarity measured on this base: a push is " +
+                    (_boundSettings.InvertConstantX ? "inverted" : "normal") + " left/right and " +
+                    (_boundSettings.InvertConstantY ? "inverted" : "normal") + " forward/back. " +
+                    "The force cap is off. This is a property of the base, not of a profile, so it " +
+                    "only needs measuring again if you change hardware or the gate pushes the wrong way.";
+            }
+        }
+
+        private void OnRecalibrate(object sender, RoutedEventArgs e)
+        {
+            _recalibrating = true;
+            UpdateCalibrationSection();
         }
 
         private void OnProfileSelected(object sender, SelectionChangedEventArgs e)
@@ -395,6 +497,16 @@ namespace AB9ActiveShifter.UI
         private void OnSettingsChanged(object sender, PropertyChangedEventArgs e)
         {
             RefreshLockoutSummary();
+
+            // Calibration writes the flag from the engine thread; this is how the gate and the
+            // collapsed calibration panel find out that the measurement landed.
+            if (e == null || e.PropertyName == "PolarityConfirmed" ||
+                e.PropertyName == "InvertConstantX" || e.PropertyName == "InvertConstantY")
+            {
+                if (_boundSettings != null && _boundSettings.PolarityConfirmed) _recalibrating = false;
+                UpdateCalibrationSection();
+                UpdateTabGate();
+            }
         }
 
         private void RefreshStatus()
@@ -408,6 +520,23 @@ namespace AB9ActiveShifter.UI
             CancelCalibrationButton.IsEnabled = calibrating;
 
             RefreshCalibrationResults();
+
+            // Another program can take the vJoy device while this page is open, so the gate has
+            // to keep asking - but only every couple of seconds, and only about the one device
+            // that is chosen. Rebuilding the whole list on a timer would fight the dropdown.
+            if (++_vjoyPollTicks >= 10)
+            {
+                _vjoyPollTicks = 0;
+                if (_boundSettings != null)
+                {
+                    bool ready = CanCarryGears(VJoyDeviceProbe.ProbeOne(_boundSettings.VJoyDeviceId));
+                    if (ready != _vjoyReady)
+                    {
+                        _vjoyReady = ready;
+                        UpdateTabGate();
+                    }
+                }
+            }
         }
 
         /// <summary>

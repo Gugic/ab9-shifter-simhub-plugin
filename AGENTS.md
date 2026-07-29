@@ -276,6 +276,13 @@ runners cannot load, so anything worth testing must not touch it.
   that order, always. A gear must never stay stuck down.
 - The watchdog (500 ms timer, 1 s staleness) calls `EmergencyStop`. `StopForces` is the only
   device method callable off the engine thread, and it swallows everything.
+- **The tuning tabs are hidden until polarity is measured and a vJoy device is available**, and
+  everything needed to satisfy both conditions lives on the Setup tab *by construction* — the vJoy
+  picker and the base's vendor and product ids among them. Moving one of those behind the gate
+  would lock a user out of the control that opens it: a base that enumerates differently cannot be
+  calibrated, and the ids that would fix it would be on a tab that calibration is what reveals.
+  Before putting anything on Feel, Effects, Geometry or Monitor, ask whether a user could need it
+  in order to finish setup.
 - **Settings that arrive from outside are data, not settings.** A profile file is downloaded from
   a stranger, so `ProfileTransfer.Import` treats it as hostile: every value is range-checked (any
   `*Pct` to 0–100, positions to the 16-bit axis, the rest to their own envelope), an unreadable

@@ -61,6 +61,7 @@
                                 <TextBlock Text="{Binding GearText}" Margin="0,2" />
                                 <TextBlock Text="{Binding LoopText}" Margin="0,2" />
                             </UniformGrid>
+                            <TextBlock x:Name="TabGateText" TextWrapping="Wrap" Margin="0,8,0,0" Opacity="0.85" />
                             <TextBlock x:Name="VersionText" Margin="0,8,0,0" Opacity="0.6" />
                         </StackPanel>
                     </styles:SHSection>
@@ -76,6 +77,19 @@
                             <TextBlock x:Name="VJoyHint" TextWrapping="Wrap" Opacity="0.85" Margin="0,2,0,0" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0"
                                        Text="Which virtual device carries the gears into your game. The list is what vJoy reports right now, so create or resize a device in vJoyConf and press Refresh. Ten buttons are wanted: gears take 1-8 and the sequential up/down take 9-10. Fewer still works for whatever fits - nothing here stops the gate itself, which needs no vJoy at all." />
+
+                            <styles:SHExpander Header="Base device identity" Margin="0,8,0,0">
+                                <StackPanel Margin="0,8,0,0">
+                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                               Text="The base is matched by USB vendor and product id, written in hex as Device Manager shows them. The AB9 is 346E / 1000; only change these if your base enumerates differently. This lives here rather than with the other advanced settings because a base that is not found is exactly the case where the tuning tabs are still hidden." />
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Vendor id" VerticalAlignment="Center" Width="80" />
+                                        <TextBox Text="{Binding VendorIdHex, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="90" Margin="0,0,16,0" />
+                                        <TextBlock Text="Product id" VerticalAlignment="Center" Width="80" />
+                                        <TextBox Text="{Binding ProductIdHex, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="90" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </styles:SHExpander>
                         </StackPanel>
                     </styles:SHSection>
 
@@ -104,37 +118,48 @@
                             1. In MOZA Pit House, once: AB9 Mode = Flight Simulation Base. In Shifter mode the base runs its own gate and does not present the axes at all.<LineBreak />
                             2. In MOZA Cockpit, once: Force Feedback Mode = DirectInput, Spring = 0, Damper = 15%, and Maximum Torque Output, Overall Force Feedback Intensity and Game Force Feedback Gain at 100%. Without this the base fights the gate with its own centring.<LineBreak />
                             3. Fully exit both MOZA apps. They hold the stick exclusively and this plugin cannot open it while they do.<LineBreak />
-                            4. Disable Steam Input for the AB9, or close Steam.<LineBreak />
-                            5. Create a vJoy device with at least 10 buttons in vJoyConf (gears use 1-8, sequential up/down use 9-10), then pick it under vJoy output above.<LineBreak />
-                            6. Run the polarity calibration below, before turning the force up.<LineBreak />
-                            7. In your game, bind gears 1-7 and reverse to vJoy buttons 1-8, and do not bind the AB9 axes.
+                            4. Create a vJoy device with at least 10 buttons in vJoyConf (gears use 1-8, sequential up/down use 9-10), then pick it under vJoy output above.<LineBreak />
+                            5. Run the polarity calibration below, before turning the force up.<LineBreak />
+                            6. In your game, bind gears 1-7 and reverse to vJoy buttons 1-8, and do not bind the AB9 axes.
                         </TextBlock>
                     </styles:SHSection>
 
                     <styles:SHSection Title="POLARITY CALIBRATION" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
-                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8"
-                                       Text="Some AB9 firmware versions apply DirectInput effects backwards, which would turn a centring spring into one that throws the stick at its stops. Until this is measured the plugin caps its force at 10%." />
-                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8"
-                                       Text="Calibration applies a short push each way and watches which way the stick actually moves, so it works even though the base holds itself centred. Take your hands off the stick and leave them off - anything resisting the stick will spoil the measurement. It takes about four seconds." />
 
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <styles:SHButtonPrimary x:Name="CalibrateButton" Click="OnCalibrate"
-                                                        Content="Measure polarity" Margin="0,0,8,0" Padding="14,4" />
-                                <styles:SHButtonSecondary x:Name="CancelCalibrationButton" Click="OnCancelCalibration"
-                                                          Content="Cancel" Padding="14,4" />
+                            <!-- Done: the measurement is a one-off, so once it has been made this
+                                 collapses to its result and a way back in. -->
+                            <StackPanel x:Name="CalibrationDonePanel" Visibility="Collapsed" Margin="0,0,0,8">
+                                <TextBlock x:Name="CalibrationSummary" TextWrapping="Wrap" Opacity="0.85"
+                                           Margin="0,0,0,8" />
+                                <styles:SHButtonSecondary Click="OnRecalibrate" Content="Measure again"
+                                                          Padding="14,4" HorizontalAlignment="Left" />
                             </StackPanel>
 
-                            <Border x:Name="CalibrationResultBorder" Padding="10,8" Margin="0,0,0,8"
-                                    Background="#22FFFFFF" CornerRadius="3" Visibility="Collapsed">
-                                <StackPanel x:Name="CalibrationResultPanel" />
-                            </Border>
+                            <StackPanel x:Name="CalibrationFullPanel">
+                                <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8"
+                                           Text="Some AB9 firmware versions apply DirectInput effects backwards, which would turn a centring spring into one that throws the stick at its stops. Until this is measured the plugin caps its force at 10%, and the tuning tabs stay hidden." />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8"
+                                           Text="Calibration applies a short push each way and watches which way the stick actually moves, so it works even though the base holds itself centred. Take your hands off the stick and leave them off - anything resisting the stick will spoil the measurement. It takes about four seconds." />
 
-                            <ui:TitledSlider Title="Calibration force (%)" Minimum="5" Maximum="60" TickFrequency="5"
-                                             ShowResetButton="True" ResetValue="25"
-                                             Value="{Binding CalibrationForcePct, Mode=TwoWay}" />
-                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,10"
-                                       Text="Raise this only if calibration reports that the stick barely moved. First check that nothing is touching the stick, and that the base's own Spring is 0 in MOZA Cockpit - Pit House has no such setting in flight mode." />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <styles:SHButtonPrimary x:Name="CalibrateButton" Click="OnCalibrate"
+                                                            Content="Measure polarity" Margin="0,0,8,0" Padding="14,4" />
+                                    <styles:SHButtonSecondary x:Name="CancelCalibrationButton" Click="OnCancelCalibration"
+                                                              Content="Cancel" Padding="14,4" />
+                                </StackPanel>
+
+                                <Border x:Name="CalibrationResultBorder" Padding="10,8" Margin="0,0,0,8"
+                                        Background="#22FFFFFF" CornerRadius="3" Visibility="Collapsed">
+                                    <StackPanel x:Name="CalibrationResultPanel" />
+                                </Border>
+
+                                <ui:TitledSlider Title="Calibration force (%)" Minimum="5" Maximum="60" TickFrequency="5"
+                                                 ShowResetButton="True" ResetValue="10"
+                                                 Value="{Binding CalibrationForcePct, Mode=TwoWay}" />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,10"
+                                           Text="Raise this only if calibration reports that the stick barely moved. 10% is enough on this base - a probe stops the moment its direction is certain, so it needs a movement that can be read, not a large one. First check that nothing is touching the stick, and that the base's own Spring is 0 in MOZA Cockpit - Pit House has no such setting in flight mode." />
+                            </StackPanel>
 
                             <styles:SHExpander Header="Manual overrides">
                                 <StackPanel Margin="0,8,0,0">
@@ -193,7 +218,7 @@
         </styles:SHTabItem>
 
         <!-- ============================= FEEL ============================= -->
-        <styles:SHTabItem Header="Feel">
+        <styles:SHTabItem x:Name="FeelTab" Header="Feel">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="8">
 
@@ -362,7 +387,7 @@
         </styles:SHTabItem>
 
         <!-- =========================== EFFECTS ============================ -->
-        <styles:SHTabItem Header="Effects">
+        <styles:SHTabItem x:Name="EffectsTab" Header="Effects">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="8">
 
@@ -522,7 +547,7 @@
 
         <!-- =========================== GEOMETRY =========================== -->
 
-        <styles:SHTabItem Header="Geometry">
+        <styles:SHTabItem x:Name="GeometryTab" Header="Geometry">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="8">
 
@@ -593,15 +618,7 @@
                                              ShowResetButton="True" ResetValue="1000"
                                              Value="{Binding TickHz, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
-                                       Text="How often the gate is recomputed. Leave it at 1000: the base is the slow part of the loop, not this, so lowering it buys nothing and makes every wall arrive later. It is here to diagnose a struggling PC, not to tune feel. Which vJoy device carries the gears is on the Setup tab." />
-                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
-                                       Text="The device is matched by USB vendor and product id, written in hex as Device Manager shows them. The AB9 is 346E / 1000; only change these if your base enumerates differently." />
-                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                <TextBlock Text="Vendor id" VerticalAlignment="Center" Width="80" />
-                                <TextBox Text="{Binding VendorIdHex, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="90" Margin="0,0,16,0" />
-                                <TextBlock Text="Product id" VerticalAlignment="Center" Width="80" />
-                                <TextBox Text="{Binding ProductIdHex, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="90" />
-                            </StackPanel>
+                                       Text="How often the gate is recomputed. Leave it at 1000: the base is the slow part of the loop, not this, so lowering it buys nothing and makes every wall arrive later. It is here to diagnose a struggling PC, not to tune feel. Which vJoy device carries the gears, and the base's vendor and product ids, are on the Setup tab." />
                         </StackPanel>
                     </styles:SHExpander>
 
@@ -619,7 +636,7 @@
         </styles:SHTabItem>
 
         <!-- =========================== MONITOR ============================ -->
-        <styles:SHTabItem Header="Monitor">
+        <styles:SHTabItem x:Name="MonitorTab" Header="Monitor">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="8">
                     <styles:SHSection Title="LIVE GATE" ShowSeparator="True">
