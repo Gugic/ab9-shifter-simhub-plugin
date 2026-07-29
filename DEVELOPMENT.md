@@ -70,6 +70,27 @@ rewritten when SimHub exits — so edit that file only while SimHub is stopped. 
 `EngineConfig.cs` does **not** change a user who already has that key saved; patch the JSON too, and
 say so in the commit.
 
+**SimHub keeps ten rolling backups** of that file in the same folder under
+`_Backups\AB9ShifterPlugin.GeneralSettings_b1.json` … `_b10.json`, and restores from the newest one
+when the primary is missing. Deleting the settings file therefore does **not** give you a machine
+with no settings — measured: delete it, restart, and the plugin comes up with the old profiles and
+never logs the first-start line. To genuinely test a first start, take the backups too:
+
+```bash
+powershell -Command "Stop-Process -Name SimHubWPF -Force; Start-Sleep 3; Remove-Item 'C:\Program Files (x86)\SimHub\PluginsData\Common\AB9ShifterPlugin.GeneralSettings.json','C:\Program Files (x86)\SimHub\PluginsData\Common\_Backups\AB9ShifterPlugin.GeneralSettings_b*.json' -Force; Start-Process 'C:\Program Files (x86)\SimHub\SimHubWPF.exe'"
+```
+
+A real first start logs, at `Init`:
+
+```
+[AB9Shifter] No saved settings; installed the shipped profiles and made '7+R lockout' active.
+[AB9Shifter] Plugin is disabled in settings; engine not started.
+```
+
+Those two lines together are the check: the profiles arrived, and nothing is applying force. If the
+first line is absent, the settings were restored and whatever you concluded from the run is about
+the old ones.
+
 **The profiles a fresh install starts with** are in `DefaultProfiles.cs`, written as differences
 from a bare `ShifterSettings` so the tuning reads as tuning. The plugin writes them out on the
 first start — when `ReadCommonSettings` finds nothing — and they are ordinary settings from then
