@@ -43,7 +43,9 @@ meant to feel that way.
 - A **MOZA AB9** base on firmware **1.1.3.4 or newer** — developed and tested against **1.1.5.2**
 - **MOZA Pit House** and **MOZA Cockpit**, for the one-time base configuration below
 - [**vJoy**](https://sourceforge.net/projects/vjoystick/) with a device exposing at least
-  **10 buttons** — 1–8 carry the H patterns, 9 and 10 the sequential up/down
+  **10 buttons** — 1–8 carry the H patterns, 9 and 10 the sequential up/down. The Setup tab lists
+  the devices vJoy reports with their button counts, so you can check this without guessing; the
+  gate itself works without vJoy, you just get no gear output
 - .NET Framework 4.8, already present if SimHub runs
 
 ### 2. Put the base in flight mode — MOZA Pit House
@@ -229,7 +231,7 @@ reports the clutch pedal.
   slot-detent forces (resistance, pull, seated hold).
 - **Effects** — the telemetry effects above, each with volume and frequency.
 - **Geometry** — the positions the gate is built from: how wide the neutral tunnel and the
-  columns are, how far a push must travel to engage a gear, the vJoy device and loop rate, and
+  columns are, how far a push must travel to engage a gear, the loop rate, and
   scoped resets.
 - **Monitor** — a live drawing of the gate with the stick position and the shaded lockout band,
   plus a trace recorder that logs every tick to CSV so a feel problem can be replayed.
@@ -284,7 +286,8 @@ program has it. The message lists what was detected.
 or Steam Input. Close them; the plugin retries automatically.
 
 **"vJoy device 1 is owned by another program"** — the message names the owning process. Close it,
-or pick a different vJoy device number on the Geometry tab.
+or pick a different device from the **vJoy output** list on the Setup tab, which shows every device
+vJoy reports along with its button count and whether anything already holds it.
 
 **The stick fights you everywhere, or drifts to the stops** — polarity has not been measured, so
 the gate's forces are pushing the opposite way. Run *Measure polarity*. To check whether the
