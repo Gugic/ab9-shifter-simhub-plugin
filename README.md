@@ -191,6 +191,10 @@ lever, so it cannot be flicked through. Coming back out of 7/R is assisted, like
 gate. Once slotted in 7 or R the column behaves exactly like the others. The toll is the gate's
 force (80% in the shipped profile) times its width, and both are adjustable.
 
+That is what the lockout is *for*: without one there is nothing between 5th and reverse but empty
+travel, and a rushed downshift can find it. The whole design follows from wanting a barrier that a
+hurried hand cannot get through by accident and a deliberate one can.
+
 Two rules make it feel mechanical rather than like a set of forces. A gear can only be left
 **through the neutral tunnel** — leaning sideways, or shoving through a wall, will not hand you a
 different gear, it just pushes you back into the one you are in. And pushing into a gear slightly
@@ -208,7 +212,7 @@ Four, selectable per **profile** on the Setup tab:
 | Pattern | |
 | --- | --- |
 | **7+R** | The full gate above, with the lockout |
-| **6+R** | The slot where 7 would sit simply does not exist — the wall over it never opens |
+| **6+R** | The slot where 7 would sit genuinely does not exist — the wall over it never opens, so the lever cannot enter it at all. The stock firmware's 6+R leaves the seven-gear gate rendered with that slot merely inert, which is no guard against the misshift that choosing six gears is meant to prevent |
 | **5+R** | Three wider columns, no lockout |
 | **Sequential** | A sprung fore/aft lever: one shift per stroke, with a click you can tune |
 
