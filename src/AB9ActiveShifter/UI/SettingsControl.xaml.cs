@@ -1,11 +1,11 @@
 using System;
 using System.ComponentModel;
-using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using AB9ActiveShifter.Core;
+using AB9ActiveShifter.Output;
 
 namespace AB9ActiveShifter.UI
 {
@@ -36,6 +36,7 @@ namespace AB9ActiveShifter.UI
 
         private ShifterSettings _boundSettings;
         private bool _refreshingProfiles;
+        private bool _refreshingVJoy;
 
         public SettingsControl(AB9ShifterPlugin plugin) : this()
         {
@@ -46,6 +47,7 @@ namespace AB9ActiveShifter.UI
 
             BindActiveProfile();
             RefreshProfiles();
+            RefreshVJoyDevices();
 
             plugin.ProfileChanged += OnProfileChanged;
         }
@@ -70,6 +72,9 @@ namespace AB9ActiveShifter.UI
             BindActiveProfile();
             RefreshProfiles();
             RefreshLockoutSummary();
+
+            // The device number is stored per profile, so switching profile can change it.
+            RefreshVJoyDevices();
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -90,6 +95,7 @@ namespace AB9ActiveShifter.UI
             RefreshStatus();
             RefreshLockoutSummary();
             RefreshProfiles();
+            RefreshVJoyDevices();
             _timer.Start();
         }
 
@@ -125,6 +131,118 @@ namespace AB9ActiveShifter.UI
             {
                 _refreshingProfiles = false;
             }
+        }
+
+        /// <summary>
+        /// Asks vJoy what exists and offers it. Runs whenever the page appears and on demand,
+        /// because a user creating a device in vJoyConf does it with this page open in front of
+        /// them - and because the answer changes when another program grabs a device.
+        /// </summary>
+        private void RefreshVJoyDevices()
+        {
+            if (VJoyCombo == null || _boundSettings == null) return;
+
+            _refreshingVJoy = true;
+            try
+            {
+                uint selected = _boundSettings.VJoyDeviceId;
+                VJoyProbeResult probe = VJoyDeviceProbe.Probe(selected);
+
+                VJoyCombo.Items.Clear();
+
+                if (!probe.DriverPresent || probe.Devices.Count == 0)
+                {
+                    // No choice to offer. Keep the saved number visible rather than blanking the
+                    // control, so the setting is still legible when vJoy comes back.
+                    ComboBoxItem placeholder = new ComboBoxItem
+                    {
+                        Content = "Device " + selected + " - vJoy not available",
+                        Tag = selected
+                    };
+                    VJoyCombo.Items.Add(placeholder);
+                    VJoyCombo.SelectedIndex = 0;
+                    VJoyCombo.IsEnabled = false;
+                    VJoyHint.Text = probe.Problem ?? "vJoy is not available.";
+                    return;
+                }
+
+                VJoyCombo.IsEnabled = true;
+
+                foreach (VJoyDeviceInfo device in probe.Devices)
+                {
+                    ComboBoxItem item = new ComboBoxItem { Content = device.Describe(), Tag = device.Id };
+                    VJoyCombo.Items.Add(item);
+                    if (device.Id == selected) VJoyCombo.SelectedItem = item;
+                }
+
+                if (VJoyCombo.SelectedItem == null && VJoyCombo.Items.Count > 0)
+                {
+                    VJoyCombo.SelectedIndex = 0;
+                }
+
+                VJoyHint.Text = HintFor(probe, selected);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Could not enumerate vJoy devices", ex);
+                VJoyHint.Text = "Could not read the vJoy device list: " + ex.Message;
+            }
+            finally
+            {
+                _refreshingVJoy = false;
+            }
+        }
+
+        /// <summary>The sentence under the picker: what is wrong with the chosen device, if anything.</summary>
+        private static string HintFor(VJoyProbeResult probe, uint selected)
+        {
+            VJoyDeviceInfo chosen = null;
+            foreach (VJoyDeviceInfo d in probe.Devices)
+            {
+                if (d.Id == selected) { chosen = d; break; }
+            }
+
+            if (chosen == null) return "";
+
+            switch (chosen.State)
+            {
+                case VJoyDeviceState.Missing:
+                    return "Device " + selected + " has not been created. Make it in vJoyConf with at least " +
+                           VJoyDeviceInfo.ButtonsNeeded + " buttons, or pick one from the list that exists.";
+
+                case VJoyDeviceState.Busy:
+                    return "Device " + selected + " is held by another program, so gears cannot be sent to it. " +
+                           "Close that program or pick a free device.";
+
+                case VJoyDeviceState.Unknown:
+                    return "vJoy will not say what state device " + selected + " is in.";
+
+                default:
+                    return chosen.Buttons >= VJoyDeviceInfo.ButtonsNeeded
+                        ? "Ready. Bind gears 1-7 and reverse to buttons 1-8, and the sequential up/down to 9 and 10."
+                        : "Device " + selected + " has only " + chosen.Buttons + " buttons. Gears need 1-8 and " +
+                          "sequential needs 9-10, so raise the count in vJoyConf.";
+            }
+        }
+
+        private void OnVJoyDeviceSelected(object sender, SelectionChangedEventArgs e)
+        {
+            if (_refreshingVJoy || _boundSettings == null) return;
+
+            ComboBoxItem item = VJoyCombo.SelectedItem as ComboBoxItem;
+            if (item == null || !(item.Tag is uint)) return;
+
+            uint id = (uint)item.Tag;
+            if (id == _boundSettings.VJoyDeviceId) return;
+
+            // The engine notices the change and reconnects on its own; this only records it.
+            _boundSettings.VJoyDeviceId = id;
+            RefreshVJoyDevices();
+        }
+
+        private void OnRefreshVJoyDevices(object sender, RoutedEventArgs e)
+        {
+            RefreshVJoyDevices();
         }
 
         private void OnProfileSelected(object sender, SelectionChangedEventArgs e)

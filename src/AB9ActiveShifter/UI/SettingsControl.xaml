@@ -65,6 +65,20 @@
                         </StackPanel>
                     </styles:SHSection>
 
+                    <styles:SHSection Title="VJOY OUTPUT" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="Device" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox x:Name="VJoyCombo" Width="330" Margin="0,0,8,0"
+                                          SelectionChanged="OnVJoyDeviceSelected" />
+                                <styles:SHButtonSecondary Click="OnRefreshVJoyDevices" Content="Refresh" Padding="10,3" />
+                            </StackPanel>
+                            <TextBlock x:Name="VJoyHint" TextWrapping="Wrap" Opacity="0.85" Margin="0,2,0,0" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0"
+                                       Text="Which virtual device carries the gears into your game. The list is what vJoy reports right now, so create or resize a device in vJoyConf and press Refresh. Ten buttons are wanted: gears take 1-8 and the sequential up/down take 9-10. Fewer still works for whatever fits - nothing here stops the gate itself, which needs no vJoy at all." />
+                        </StackPanel>
+                    </styles:SHSection>
+
                     <styles:SHSection Title="ENABLE" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <styles:SHToggleCheckbox IsChecked="{Binding Enabled, Mode=TwoWay}"
@@ -91,7 +105,7 @@
                             2. In MOZA Cockpit, once: Force Feedback Mode = DirectInput, Spring = 0, Damper = 15%, and Maximum Torque Output, Overall Force Feedback Intensity and Game Force Feedback Gain at 100%. Without this the base fights the gate with its own centring.<LineBreak />
                             3. Fully exit both MOZA apps. They hold the stick exclusively and this plugin cannot open it while they do.<LineBreak />
                             4. Disable Steam Input for the AB9, or close Steam.<LineBreak />
-                            5. Create a vJoy device with at least 10 buttons in vJoyConf (gears use 1-8, sequential up/down use 9-10).<LineBreak />
+                            5. Create a vJoy device with at least 10 buttons in vJoyConf (gears use 1-8, sequential up/down use 9-10), then pick it under vJoy output above.<LineBreak />
                             6. Run the polarity calibration below, before turning the force up.<LineBreak />
                             7. In your game, bind gears 1-7 and reverse to vJoy buttons 1-8, and do not bind the AB9 axes.
                         </TextBlock>
@@ -575,14 +589,11 @@
 
                     <styles:SHExpander Header="Device and output">
                         <StackPanel Margin="0,8,0,8">
-                            <ui:TitledSlider Title="vJoy device number" Minimum="1" Maximum="16" TickFrequency="1"
-                                             ShowResetButton="True" ResetValue="1"
-                                             Value="{Binding VJoyDeviceId, Mode=TwoWay}" />
                             <ui:TitledSlider Title="FFB loop rate (Hz)" Minimum="100" Maximum="1000" TickFrequency="50"
                                              ShowResetButton="True" ResetValue="1000"
                                              Value="{Binding TickHz, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
-                                       Text="Which vJoy device carries the gears, and how often the gate is recomputed. Leave the rate at 1000: the base is the slow part of the loop, not this, so lowering it buys nothing and makes every wall arrive later. It is here to diagnose a struggling PC, not to tune feel." />
+                                       Text="How often the gate is recomputed. Leave it at 1000: the base is the slow part of the loop, not this, so lowering it buys nothing and makes every wall arrive later. It is here to diagnose a struggling PC, not to tune feel. Which vJoy device carries the gears is on the Setup tab." />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
                                        Text="The device is matched by USB vendor and product id, written in hex as Device Manager shows them. The AB9 is 346E / 1000; only change these if your base enumerates differently." />
                             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">

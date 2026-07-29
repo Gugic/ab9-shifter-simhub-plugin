@@ -96,11 +96,14 @@ src/AB9ActiveShifter/
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
     VelocityEstimator.cs   Position -> speed across a 4 ms window; per-tick differences alias
     TraceRecorder.cs       Per-tick ring buffer -> CSV, so a feel complaint can be replayed
+    VJoyDeviceInfo.cs      One vJoy device as the picker shows it, and the sentence describing it
   Device/                  DirectInput and Win32
     FfbDevice.cs           Open by VID/PID, exclusive+background, poll
     EffectSet.cs           The five effects; one force write per tick, fault handling
     NativeMethods.cs       timeBeginPeriod + high-resolution waitable timer
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
+  Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the picker. The one vJoy caller off the
+                           engine thread, and query-only - read its comment before adding another
   UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor) + GateVisualizer
 tests/AB9ActiveShifter.Tests/
   ForceComposerTests.cs    Force shape, stability properties, polarity, clamps
@@ -112,6 +115,7 @@ tests/AB9ActiveShifter.Tests/
   SettingsMappingTests.cs  ShifterSettings' derived dials (SeqThrow moves both threshold lines)
   DefaultProfilesTests.cs  The shipped profiles: forces off, cap on, store coherent
   ProfileTransferTests.cs  Round trip, machine facts kept, every clamp on the import path
+  VJoyDeviceInfoTests.cs   What the device picker says, including the too-few-buttons trap
 build/refs/                Reference-only stubs of SimHub's assemblies, so the plugin builds
                            on a machine with no SimHub. Read build/refs/README.md before
                            touching one - a wrong signature builds green and throws on the rig
