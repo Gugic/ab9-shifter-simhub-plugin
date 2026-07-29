@@ -80,12 +80,13 @@
 
                     <styles:SHSection Title="BEFORE YOU START" ShowSeparator="True">
                         <TextBlock TextWrapping="Wrap" Margin="0,4,0,8" Opacity="0.85">
-                            1. In MOZA Cockpit, once: Force Feedback Mode = DirectInput, Spring = 0, Damper = 15%, and Maximum Torque Output, Overall Force Feedback Intensity and Game Force Feedback Gain at 100%. Without this the base fights the gate with its own centring.<LineBreak />
-                            2. Fully exit MOZA Cockpit, and close any Pit House live-tuning page. They hold the stick exclusively and this plugin cannot open it while they do.<LineBreak />
-                            3. Disable Steam Input for the AB9, or close Steam.<LineBreak />
-                            4. Create a vJoy device with at least 10 buttons in vJoyConf (gears use 1-8, sequential up/down use 9-10).<LineBreak />
-                            5. Run the polarity calibration below, before turning the force up.<LineBreak />
-                            6. In your game, bind gears 1-7 and reverse to vJoy buttons 1-8, and do not bind the AB9 axes.
+                            1. In MOZA Pit House, once: AB9 Mode = Flight Simulation Base. In Shifter mode the base runs its own gate and does not present the axes at all.<LineBreak />
+                            2. In MOZA Cockpit, once: Force Feedback Mode = DirectInput, Spring = 0, Damper = 15%, and Maximum Torque Output, Overall Force Feedback Intensity and Game Force Feedback Gain at 100%. Without this the base fights the gate with its own centring.<LineBreak />
+                            3. Fully exit both MOZA apps. They hold the stick exclusively and this plugin cannot open it while they do.<LineBreak />
+                            4. Disable Steam Input for the AB9, or close Steam.<LineBreak />
+                            5. Create a vJoy device with at least 10 buttons in vJoyConf (gears use 1-8, sequential up/down use 9-10).<LineBreak />
+                            6. Run the polarity calibration below, before turning the force up.<LineBreak />
+                            7. In your game, bind gears 1-7 and reverse to vJoy buttons 1-8, and do not bind the AB9 axes.
                         </TextBlock>
                     </styles:SHSection>
 
