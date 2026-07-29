@@ -60,8 +60,10 @@ plugin opens. In *Shifter* mode the base runs its own gate in firmware and does 
 axes at all, so the plugin has nothing to read.
 
 The **Shifter Mode** dropdown greyed out underneath is the stock feature this plugin replaces —
-fixed layouts, no lockout, no telemetry effects. It has no bearing on anything once the base is
-in flight mode.
+fixed layouts and no lockout. It is not effect-less: it plays engine-rpm vibration and a shift
+effect of its own. What it has no notion of is the rest of a game's telemetry — the rev limiter,
+ABS, traction control, curbs and the clutch grind below are all things this plugin adds. None of
+it has any bearing on anything once the base is in flight mode.
 
 ### 3. Set up the force feedback — MOZA Cockpit
 
