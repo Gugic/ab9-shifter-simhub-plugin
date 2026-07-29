@@ -1,6 +1,6 @@
 # AB9 Active Shifter
 
-[![CI](https://github.com/Gugic/moza-ab9-simhub-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/Gugic/moza-ab9-simhub-plugin/actions/workflows/ci.yml)
+[![CI](https://github.com/Gugic/ab9-shifter-simhub-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/Gugic/ab9-shifter-simhub-plugin/actions/workflows/ci.yml)
 
 An alternative to the MOZA AB9's own shifter mode. This SimHub plugin renders the shift gate
 itself in force feedback — including the **push-through lockout** guarding 7th and reverse that
@@ -10,6 +10,30 @@ ABS and traction control, curbs. The selected gear comes out as **vJoy buttons**
 binds it like an ordinary shifter.
 
 ![The plugin's Setup tab, with the profile and pattern pickers](docs/img/setup-tab.png)
+
+## Read this first
+
+**It drives a 12 Nm active device, and the risk is yours.** The AB9 is a servo strong enough to
+hurt a wrist and to slam its own stops. This plugin computes forces in software, several
+milliseconds of USB away from that motor, and a force rendered through that delay can go unstable
+and oscillate on its own — most of this project's design exists to keep that from happening, which
+is also an admission that it can. A bug, an unlucky combination of settings, or a stalled loop can
+make the base shake, kick, or drive to a stop with no warning. Treat it as the powerful machine it
+is: keep your face and your free hand clear, start with the gain low, and know where the base's
+power switch is before you enable anything. You run it at your own risk. Nobody is liable for
+injury, or for damage to your hardware or anything attached to it, and there is no warranty of any
+kind — see [LICENSE](LICENSE).
+
+**Unofficial.** Not affiliated with, endorsed by, or supported by MOZA, SimHub or vJoy. "MOZA" and
+"AB9" appear here only to say which hardware this works with. Do not take a problem caused by this
+plugin to MOZA's support — a base running it is being driven by third-party software they did not
+write.
+
+**Early software.** It is in active development and is nowhere near polished. It has been built
+and tuned against exactly one base on one firmware revision, so behaviour on yours is genuinely
+untested; defaults, dial names and saved settings can still change between versions. Expect rough
+edges, and read [docs/tuning.md](docs/tuning.md) when something feels wrong before assuming it is
+meant to feel that way.
 
 ## Setup
 
@@ -72,23 +96,22 @@ reason, and disable Steam Input for the AB9 (or close Steam).
 
 ### 4. Install the plugin
 
-```powershell
-.\install.ps1
-```
+Download the zip from the [latest
+release](https://github.com/Gugic/ab9-shifter-simhub-plugin/releases/latest), **close SimHub**, and
+copy `AB9ActiveShifter.dll` out of it into `C:\Program Files (x86)\SimHub\`. SimHub locks the DLL
+while it runs, so the copy fails if you skip that.
 
-That builds it, stops SimHub, copies `AB9ActiveShifter.dll` into the SimHub folder (elevating if
-needed), and restarts SimHub. Or take a prebuilt DLL from the [Releases
-page](https://github.com/Gugic/moza-ab9-simhub-plugin/releases) and copy it in yourself with
-SimHub closed.
+The zip also carries `AB9ShifterPlugin.GeneralSettings.json` — [the profiles this plugin was tuned
+with](presets/AB9ShifterPlugin.GeneralSettings.json), so you can start from a working gate rather
+than bare defaults: **7+R lockout**, **5+R** and **Sequential**, each holding its own complete
+tuning, with forces off and the polarity cap on as they should be for a base that has not been
+measured yet. Copy it into `C:\Program Files (x86)\SimHub\PluginsData\Common\` **only if you have
+no settings there already** — it would otherwise replace your own tuning.
 
-Then enable **AB9 Active Shifter** under SimHub's *Settings → Plugins*.
+Start SimHub and enable **AB9 Active Shifter** under *Settings → Plugins*.
 
-On a machine with no saved settings yet, the installer also lays down
-[the profiles this plugin was tuned with](presets/AB9ShifterPlugin.GeneralSettings.json), so you
-start from a working gate rather than bare defaults — **7+R lockout**, **5+R**, and
-**Sequential**, each holding its own complete tuning. It never overwrites settings you already
-have. To add them by hand later, copy that file into
-`C:\Program Files (x86)\SimHub\PluginsData\Common\` while SimHub is not running.
+Building it yourself instead, and the `install.ps1` script that does all of the above in one step:
+[DEVELOPMENT.md](DEVELOPMENT.md).
 
 ### 5. Measure polarity
 
@@ -237,7 +260,8 @@ Events: `GearEngaged`, `GearReleased`. Actions: `ToggleShifterFFB`, `ReleaseAllG
 
 ## Safety
 
-The base can produce 12 Nm, so output is bounded on every path:
+These are the bounds on output, not a guarantee — *Read this first* above is the part that
+actually matters. The base can produce 12 Nm, so output is bounded on every path:
 
 - Force is capped at 10% until polarity has been measured.
 - A watchdog stops all output if the FFB loop stalls for more than a second.
@@ -272,26 +296,12 @@ that overall gain is not near zero.
 **Gears do not register in the game** — check `joy.cpl`: the vJoy device should light button *i*
 while gear *i* is held. If it does, the binding is the problem, not the plugin.
 
-## Building from source
-
-```powershell
-dotnet build src\AB9ActiveShifter\AB9ActiveShifter.csproj -c Release
-dotnet test  tests\AB9ActiveShifter.Tests\AB9ActiveShifter.Tests.csproj
-```
-
-If SimHub is installed somewhere other than `C:\Program Files (x86)\SimHub\`, copy
-`Directory.Build.props.user.example` to `Directory.Build.props.user` and set the path.
-
-The plugin compiles against nine assemblies that live inside SimHub's install folder, so a
-machine without SimHub — a CI runner, a fresh clone — falls back automatically to the reference
-stubs in [build/refs](build/refs), which declare just the API surface this plugin uses. Nothing
-about a local build changes if you have SimHub installed.
-
 ## Documentation
 
 | | |
 | --- | --- |
 | [docs/tuning.md](docs/tuning.md) | Every dial, and symptom → dial when something feels wrong |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Building, testing, deploying, and how the code fits together |
 | [docs/hardware.md](docs/hardware.md) | Measured facts about the base, the USB path, and MOZA's software |
 | [docs/force-model.md](docs/force-model.md) | How the gate is built, and every approach that was tried and rejected |
 | [docs/architecture.md](docs/architecture.md) | Threading, lifecycle, effect handling, safety |
@@ -299,4 +309,6 @@ about a local build changes if you have SimHub installed.
 
 ## Licence
 
-MIT — see `LICENSE`. Attribution and the clean-room note for BonusFFB are in `NOTICE.md`.
+MIT — see [LICENSE](LICENSE), whose second paragraph is the warranty and liability disclaimer
+behind *Read this first*. Attribution, trademark notices and the clean-room note for BonusFFB are
+in [NOTICE.md](NOTICE.md).

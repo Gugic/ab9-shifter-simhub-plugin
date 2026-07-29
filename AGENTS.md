@@ -6,7 +6,10 @@ profile. It renders the gate with DirectInput force feedback, detects the slotte
 position, and holds a vJoy button per gear (or pulses up/down buttons in sequential) so any game
 sees a normal shifter.
 
-This file is the orientation. The four documents under `docs/` hold the detail:
+It is unofficial and unaffiliated — see *Naming, and the disclaimers* under Conventions before
+writing anything user-facing.
+
+This file is the orientation. These documents hold the detail:
 
 | Document | Read it when |
 | --- | --- |
@@ -14,6 +17,7 @@ This file is the orientation. The four documents under `docs/` hold the detail:
 | [docs/force-model.md](docs/force-model.md) | You are changing how the gate feels. Records every approach tried and why it failed, so it is not retried. |
 | [docs/architecture.md](docs/architecture.md) | You are changing code structure, threading, or lifecycle. |
 | [docs/tuning.md](docs/tuning.md) | A human reports a feel problem and you need symptom → dial. |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | The human contributor's entry point: build, test, deploy, release, and a condensed architecture overview. Mirrors the build commands below — change both. |
 
 ## The one paragraph that matters
 
@@ -275,6 +279,16 @@ tool-attribution line to a commit, a tag or a pull request — this applies whic
 editor is writing, and overrides any default that adds one. The history was rewritten once to
 strip them out; keep it that way. The commit message is for the reasoning, nothing else.
 
+**Naming, and the disclaimers.** This project is unofficial and unaffiliated, and its names say
+so by omission: the repository is `ab9-shifter-simhub-plugin`, the plugin is `AB9 Active Shifter`,
+the assembly is `AB9ActiveShifter`. None of them carry a manufacturer's brand and none should
+start to. Name the hardware freely in prose — a reader has to know which base this is for — but
+not in a product name, and never in a way that reads as endorsement. Four places carry the same
+three disclaimers (risk, unofficial, early software): `README.md`'s *Read this first*,
+`NOTICE.md`, the Setup tab's `ABOUT` section, and the notes block in
+`.github/workflows/release.yml`. They are deliberately redundant, because each catches a reader
+the others miss — change them together or they drift.
+
 **PowerShell and git.** `git commit -m @'…'@` does not work in this environment — the quotes are
 parsed as pathspecs. Write the message to a scratchpad file and use `git commit -F <file>`.
 
@@ -308,8 +322,10 @@ update the right column **in the same commit**:
 | Force shape, stability mechanism, or a new dial | `docs/force-model.md` — including approaches you *rejected* and why |
 | A measured hardware fact, or a claim proven false | `docs/hardware.md`, in the table or the "disproven" section |
 | Threading, lifecycle, effect handling, safety ordering | `docs/architecture.md` and the invariants above |
-| Files added, moved, or renamed | the code map above |
+| Files added, moved, or renamed | the code map above, and the short one in `DEVELOPMENT.md` |
 | Setup steps, requirements, or anything a user does once | `README.md` |
+| Build, test, deploy or release procedure | `DEVELOPMENT.md`, and the build section above |
+| The risk, non-affiliation or early-software wording | all four copies at once — see *Naming, and the disclaimers* |
 | A new tuning symptom you diagnosed | the symptom table in `docs/tuning.md` |
 
 Two rules that matter more than the table:

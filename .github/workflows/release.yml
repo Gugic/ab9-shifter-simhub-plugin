@@ -6,7 +6,7 @@
 # The DLL is compiled against the reference stubs in build/refs, like every CI build. Before
 # tagging anything a human should have run, on a machine with SimHub installed:
 #
-#     pwsh -File tools\Verify-StubBuild.ps1
+#     powershell -File tools\Verify-StubBuild.ps1
 #
 # which proves the stub-built DLL still binds against the real SimHub assemblies. CI cannot
 # run that check - it has no SimHub - so it is the one release gate that stays manual.
@@ -121,11 +121,36 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PRERELEASE: ${{ inputs.prerelease }}
         run: |
+          # Every release carries the safety and non-affiliation notice, ahead of the generated
+          # changelog. A release page is where most people meet this plugin, and it is the one
+          # place we know they look before running it on a 12 Nm base.
+          $notes = @(
+            '> [!WARNING]',
+            '> **This drives a 12 Nm active force feedback device, at your own risk.** A defect, an',
+            '> unlucky combination of settings or a stalled loop can make the base shake, kick or',
+            '> drive to its stops without warning, which can injure you and damage hardware. Forces',
+            '> start off and are capped at 10% until polarity is measured - raise the gain slowly,',
+            '> keep clear, and know where the power switch is. There is no warranty of any kind and',
+            '> nobody is liable for injury or damage: see LICENSE and NOTICE.md in the zip.',
+            '',
+            '> [!NOTE]',
+            '> **Unofficial.** Not affiliated with, endorsed by or supported by MOZA, SimHub or vJoy.',
+            '> Early software, in active development, built and tuned against a single base on a',
+            '> single firmware revision.',
+            '',
+            'Install: close SimHub, copy `AB9ActiveShifter.dll` from the zip into',
+            '`C:\Program Files (x86)\SimHub\`, start SimHub and enable it under Settings -> Plugins.',
+            'Setup and tuning are in the README, which ships in the zip.',
+            ''
+          ) -join "`n"
+          Set-Content -Path artifacts/notes.md -Value $notes -Encoding utf8
+
           $ghArgs = @(
             'release', 'create', $env:TAG,
             "artifacts/AB9ActiveShifter-$env:VERSION.zip",
             'src/AB9ActiveShifter/bin/Release/AB9ActiveShifter.dll',
             '--title', "AB9 Active Shifter $env:VERSION",
+            '--notes-file', 'artifacts/notes.md',
             '--generate-notes'
           )
           if ($env:PRERELEASE -eq 'true') { $ghArgs += '--prerelease' }

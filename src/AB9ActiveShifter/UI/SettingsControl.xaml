@@ -57,6 +57,7 @@
                                 <TextBlock Text="{Binding GearText}" Margin="0,2" />
                                 <TextBlock Text="{Binding LoopText}" Margin="0,2" />
                             </UniformGrid>
+                            <TextBlock x:Name="VersionText" Margin="0,8,0,0" Opacity="0.6" />
                         </StackPanel>
                     </styles:SHSection>
 
@@ -66,6 +67,8 @@
                                                      Content="Shifter force feedback enabled" />
                             <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
                                        Text="Off by default. Enabling takes the base exclusively and starts applying force, so work through the checklist below first and have a hand on the stick. Turn it off again to give the base back to MOZA Pit House or another program." />
+                            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
+                                       Text="This is a 12 Nm base and this is third-party software driving it: if the lever ever shakes, kicks or drives itself to a stop, untick this - and if it will not stop, cut the base's power. Keep your face and free hand clear the first time you enable a profile you have not felt before. See ABOUT at the bottom of this tab." />
                         </StackPanel>
                     </styles:SHSection>
 
@@ -146,6 +149,24 @@
 
                             <TextBlock TextWrapping="Wrap" Margin="0,10,0,0" Opacity="0.75"
                                        Text="Once calibration succeeds the cap lifts by itself. Raise the overall gain slowly afterwards: this is a 12 Nm base." />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="ABOUT" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <TextBlock x:Name="AboutVersionText" TextWrapping="Wrap" Margin="0,0,0,10" />
+
+                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,10"
+                                       Text="It drives a 12 Nm active device, and the risk is yours. The AB9 is a servo strong enough to hurt a wrist and to slam its own stops. This plugin computes its forces in software, several milliseconds of USB away from the motor, and a force rendered through that delay can go unstable and oscillate on its own. A defect, an unlucky combination of settings, or a stalled loop can make the base shake, kick or drive to a stop with no warning, which can injure you and damage hardware. You run it at your own risk: there is no warranty of any kind, and nobody is liable for injury or for damage to your equipment. Forces starting off, the 10% cap until polarity is measured, and the watchdog all reduce that risk - they do not remove it." />
+
+                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,10"
+                                       Text="Unofficial. Not affiliated with, endorsed by or supported by MOZA, SimHub or vJoy. MOZA and AB9 are named here only to say which hardware this works with. Do not take a problem caused by this plugin to MOZA's support - a base running it is being driven by third-party software they did not write." />
+
+                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,10"
+                                       Text="Early software, in active development and nowhere near polished. It has been built and tuned against exactly one base on one firmware revision, so its behaviour on yours is genuinely untested, and defaults, dial names and saved settings can still change between versions." />
+
+                            <TextBlock TextWrapping="Wrap" Opacity="0.6"
+                                       Text="MIT licensed. The full text, the trademark notices and the attributions ship beside the plugin in LICENSE and NOTICE.md. github.com/Gugic/ab9-shifter-simhub-plugin" />
                         </StackPanel>
                     </styles:SHSection>
 
