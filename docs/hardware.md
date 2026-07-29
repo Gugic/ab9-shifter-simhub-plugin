@@ -117,7 +117,23 @@ The firmware mode switch is in **Pit House**, under **AB9 Mode**: set it to **Fl
 Base** rather than *Shifter*. That is what makes the base enumerate as the two-axis DirectInput
 FFB joystick this plugin opens — in *Shifter* mode it runs its own gate in firmware and does not
 present the axes at all. (The *Shifter Mode* dropdown below it, greyed out in flight mode, is the
-stock 7+R this project exists to replace: fixed layouts, no lockout.)
+stock 7+R this project exists to replace: fixed layouts, and no lockout.)
+
+**The stock shifter mode is not effect-less**, contrary to what this project's documentation said
+for a while. It plays engine-rpm vibration and a gear-shift effect of its own — reported by the
+user of this rig, who runs it. What it does not have is a lockout, selectable patterns, or
+anything keyed on the rest of a game's telemetry: no rev limiter, ABS, traction control, curbs,
+clutch grind, or arbitrary SimHub property. State the difference that way round. "It has no
+effects" is both wrong and easy for any owner to disprove.
+
+**Its 6+R is a 7-gear gate with an inert slot.** Selecting 6+R in the stock mode does not close
+the seventh position — the gate is still rendered with it there, it simply does nothing when the
+lever goes in. Reported from the same rig. That matters because misshift protection is the whole
+point of dropping to six gears: a slot you can still enter is no guard at all. This plugin's 6+R
+closes it properly — the missing slot is a fact of the gear map, `SlotExists` follows the map, and
+the wall over the hole never opens (see the invariants in AGENTS.md). It is the clearest
+behavioural difference between the two implementations after the lockout itself, and worth leading
+with when explaining the project to another owner.
 
 Everything else is **Cockpit's** *Basic Settings* page, named exactly as that page names them:
 

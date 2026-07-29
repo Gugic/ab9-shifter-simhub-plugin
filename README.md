@@ -60,8 +60,10 @@ plugin opens. In *Shifter* mode the base runs its own gate in firmware and does 
 axes at all, so the plugin has nothing to read.
 
 The **Shifter Mode** dropdown greyed out underneath is the stock feature this plugin replaces —
-fixed layouts, no lockout, no telemetry effects. It has no bearing on anything once the base is
-in flight mode.
+fixed layouts and no lockout. It is not effect-less: it plays engine-rpm vibration and a shift
+effect of its own. What it has no notion of is the rest of a game's telemetry — the rev limiter,
+ABS, traction control, curbs and the clutch grind below are all things this plugin adds. None of
+it has any bearing on anything once the base is in flight mode.
 
 ### 3. Set up the force feedback — MOZA Cockpit
 
@@ -189,6 +191,10 @@ lever, so it cannot be flicked through. Coming back out of 7/R is assisted, like
 gate. Once slotted in 7 or R the column behaves exactly like the others. The toll is the gate's
 force (80% in the shipped profile) times its width, and both are adjustable.
 
+That is what the lockout is *for*: without one there is nothing between 5th and reverse but empty
+travel, and a rushed downshift can find it. The whole design follows from wanting a barrier that a
+hurried hand cannot get through by accident and a deliberate one can.
+
 Two rules make it feel mechanical rather than like a set of forces. A gear can only be left
 **through the neutral tunnel** — leaning sideways, or shoving through a wall, will not hand you a
 different gear, it just pushes you back into the one you are in. And pushing into a gear slightly
@@ -206,7 +212,7 @@ Four, selectable per **profile** on the Setup tab:
 | Pattern | |
 | --- | --- |
 | **7+R** | The full gate above, with the lockout |
-| **6+R** | The slot where 7 would sit simply does not exist — the wall over it never opens |
+| **6+R** | The slot where 7 would sit genuinely does not exist — the wall over it never opens, so the lever cannot enter it at all. The stock firmware's 6+R leaves the seven-gear gate rendered with that slot merely inert, which is no guard against the misshift that choosing six gears is meant to prevent |
 | **5+R** | Three wider columns, no lockout |
 | **Sequential** | A sprung fore/aft lever: one shift per stroke, with a click you can tune |
 
