@@ -156,6 +156,7 @@ src/AB9ActiveShifter/
     TraceRecorder.cs       Per-tick ring buffer -> CSV, so a feel complaint can be replayed
   Device/                  DirectInput and Win32
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
+  Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the Setup tab's picker (query-only)
   UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor)
 tests/AB9ActiveShifter.Tests/
 build/refs/                Reference-only stubs of SimHub's assemblies

@@ -74,7 +74,7 @@ namespace AB9ActiveShifter.Output
                     }
 
                     int buttons = _vjoy.GetVJDButtonNumber(_deviceId);
-                    if (buttons < 10)
+                    if (buttons < Core.VJoyDeviceInfo.ButtonsNeeded)
                     {
                         // Not fatal: whatever buttons exist still work, so run and tell the
                         // user what is missing. Gears use 1..8; the sequential up/down pulses
