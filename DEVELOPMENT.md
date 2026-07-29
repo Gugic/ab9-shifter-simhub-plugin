@@ -179,6 +179,27 @@ tags the commit and publishes a GitHub Release.
 Before running it: `tools\Verify-StubBuild.ps1` on a machine with SimHub, and refresh
 `DefaultProfiles.cs` if the tuning has moved (see *Saved settings* above).
 
+## Working on it
+
+Changes reach `main` through a pull request:
+
+```bash
+git switch -c profile-export
+```
+
+```bash
+gh pr create --title "..." --body-file <file>
+```
+
+`gh pr create -b "..."` is awkward in this shell — the same quoting problem that makes
+`git commit -m` unusable for a multi-line message here — so write the description to a file. Rebase
+on `main` rather than merging it back in; the history is linear and worth keeping that way.
+
+Squash-merge, so the PR description becomes the commit message on `main`. That means writing it as
+one: what changed and why, with the measurement behind it, and how it was verified — including
+whether `Verify-StubBuild.ps1` was run and whether the change was felt on the rig. CI has to be
+green first.
+
 ## Conventions
 
 **Commits.** The subject is imperative and says the *why*, not the file list. The body is prose
