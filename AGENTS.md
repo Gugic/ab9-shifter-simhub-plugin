@@ -295,6 +295,26 @@ tool-attribution line to a commit, a tag or a pull request — this applies whic
 editor is writing, and overrides any default that adds one. The history was rewritten once to
 strip them out; keep it that way. The commit message is for the reasoning, nothing else.
 
+**Pull requests.** Work reaches `main` through a pull request, not a direct push. That holds for
+agents too: branch, push the branch, open the PR, and leave the merge to a human. The exceptions
+are narrow — a broken `main`, or a typo in prose — and if you take one, say so in the commit.
+
+- **One branch per change**, named for the change rather than for a ticket:
+  `lockout-one-way`, `profile-export`. Short-lived; rebase on `main` rather than merging it back
+  in, because a linear history is what makes `git log` readable here.
+- **The PR description is where the reasoning goes**, in the same voice as a commit body: what
+  changed and *why*, with any measurement behind it. Squash-merging makes that description the
+  commit message on `main`, so write it as one.
+- **Say how it was verified**, because the two checks that matter most cannot run in CI: whether
+  `tools\Verify-StubBuild.ps1` was run against a real SimHub, and whether the change was felt on
+  the rig. A feel change with no hardware note is not ready, however green the tests are — see
+  *Feel changes* below.
+- **CI must be green before merge**: format, build against the stubs, and the full test suite. A
+  red PR is not a PR to merge and explain; it is one to fix.
+- Nothing about the disclaimers, the force cap or the safety ordering changes without saying so
+  in the description in as many words. Those are the invariants above, and a diff that touches
+  them silently is the one thing review exists to catch.
+
 **Naming, and the disclaimers.** This project is unofficial and unaffiliated, and its names say
 so by omission: the repository is `ab9-shifter-simhub-plugin`, the plugin is `AB9 Active Shifter`,
 the assembly is `AB9ActiveShifter`. None of them carry a manufacturer's brand and none should
