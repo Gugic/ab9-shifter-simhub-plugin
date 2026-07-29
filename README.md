@@ -16,18 +16,34 @@ binds it like an ordinary shifter.
 ### 1. What you need
 
 - **SimHub** — developed against 9.11.21
-- A **MOZA AB9** base in flight-stick mode, on firmware **1.1.3.4 or newer** — developed and
-  tested against **1.1.5.2**
+- A **MOZA AB9** base on firmware **1.1.3.4 or newer** — developed and tested against **1.1.5.2**
+- **MOZA Pit House** and **MOZA Cockpit**, for the one-time base configuration below
 - [**vJoy**](https://sourceforge.net/projects/vjoystick/) with a device exposing at least
   **10 buttons** — 1–8 carry the H patterns, 9 and 10 the sequential up/down
 - .NET Framework 4.8, already present if SimHub runs
 
-### 2. Configure the base in MOZA Cockpit
+### 2. Put the base in flight mode — MOZA Pit House
 
-**This is not optional.** The AB9 self-centres in firmware, and DirectInput's request to switch
-that off is ignored — measured, across five configurations. Cockpit is the only place it can be
-turned off; Pit House has no Spring setting in flight mode at all. Skip this and the base fights
-the gate everywhere with its own centring spring.
+The AB9 has two firmware modes, and the switch lives in **Pit House**, under **AB9 Mode**. Set it
+to **Flight Simulation Base**.
+
+![Pit House: AB9 Mode set to Flight Simulation Base](docs/img/pit-house-mode.png)
+
+That is what makes the base enumerate as the two-axis DirectInput force feedback joystick this
+plugin opens. In *Shifter* mode the base runs its own gate in firmware and does not present the
+axes at all, so the plugin has nothing to read.
+
+The **Shifter Mode** dropdown greyed out underneath is the stock feature this plugin replaces —
+fixed layouts, no lockout, no telemetry effects. It has no bearing on anything once the base is
+in flight mode.
+
+### 3. Set up the force feedback — MOZA Cockpit
+
+**Also not optional**, and it is a different app from the last step. The AB9 self-centres in
+firmware, and DirectInput's request to switch that off is ignored — measured, across five
+configurations. Cockpit's **Spring** is the only place it can be turned off; Pit House has no
+Spring setting in flight mode at all. Skip this and the base fights the gate everywhere with its
+own centring.
 
 ![MOZA Cockpit basic settings: DirectInput mode, Spring 0, Damper 15%](docs/img/moza-cockpit.png)
 
@@ -54,7 +70,7 @@ Then **exit Cockpit completely**: it holds the stick exclusively while open, and
 cannot acquire the device until it lets go. Close any Pit House live-tuning page for the same
 reason, and disable Steam Input for the AB9 (or close Steam).
 
-### 3. Install the plugin
+### 4. Install the plugin
 
 ```powershell
 .\install.ps1
@@ -74,7 +90,7 @@ start from a working gate rather than bare defaults — **7+R lockout**, **5+R**
 have. To add them by hand later, copy that file into
 `C:\Program Files (x86)\SimHub\PluginsData\Common\` while SimHub is not running.
 
-### 4. Measure polarity
+### 5. Measure polarity
 
 Some AB9 firmware revisions apply DirectInput effects backwards, which would turn a centring
 force into one that throws the stick at its stops. Until this is measured the plugin **caps its
@@ -101,7 +117,7 @@ If a probe reports the stick **barely moved**, the cap deliberately stays on: an
 direction is exactly the case it exists for. Check that nothing is touching the stick, then
 raise *Calibration force* and run it again.
 
-### 5. Switch the forces on
+### 6. Switch the forces on
 
 The shifter **starts off**. Enabling it takes the base exclusively and begins applying force, so
 do it deliberately: put a hand on the stick, then tick *Shifter force feedback enabled* on the
@@ -109,7 +125,7 @@ Setup tab.
 
 Raise the overall gain slowly from there. This is a 12 Nm base.
 
-### 6. Bind the gears in your game
+### 7. Bind the gears in your game
 
 Bind gears **1–7 and reverse to vJoy buttons 1–8**, and the sequential up/down to **9 and 10**.
 Do **not** bind the AB9's own axes in the game — the plugin is what reads them.

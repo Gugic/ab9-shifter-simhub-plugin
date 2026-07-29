@@ -111,9 +111,15 @@ the argument and the gear falls back out.
 The real control is **MOZA Cockpit** — *not* Pit House, which has no Spring setting in flight
 mode. Required, once:
 
-The base must be in **flight-stick mode**, which is what makes it enumerate as the two-axis
-DirectInput FFB joystick this plugin opens. The rest is Cockpit's *Basic Settings* page, named
-exactly as that page names them:
+**The configuration is split across MOZA's two apps, and both are required.**
+
+The firmware mode switch is in **Pit House**, under **AB9 Mode**: set it to **Flight Simulation
+Base** rather than *Shifter*. That is what makes the base enumerate as the two-axis DirectInput
+FFB joystick this plugin opens — in *Shifter* mode it runs its own gate in firmware and does not
+present the axes at all. (The *Shifter Mode* dropdown below it, greyed out in flight mode, is the
+stock 7+R this project exists to replace: fixed layouts, no lockout.)
+
+Everything else is **Cockpit's** *Basic Settings* page, named exactly as that page names them:
 
 | Setting | Value |
 | --- | --- |
@@ -204,6 +210,8 @@ would silently undo the setup mid-session.
 Assumptions that looked reasonable, cost real time, and are false:
 
 - ~~Pit House flight mode has a Spring setting~~ → it does not; **MOZA Cockpit** is the control.
+  Pit House still matters, though — it owns the **AB9 Mode** switch that puts the base into
+  flight mode in the first place. The split is: Pit House sets the mode, Cockpit sets the forces.
 - ~~`DIPROP_AUTOCENTER` disables the base's centring~~ → ignored by firmware.
 - ~~The plugin disables the base's autocentring itself~~ → it cannot; the README claimed this for
   weeks and it misdirected debugging more than once.
