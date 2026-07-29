@@ -72,6 +72,10 @@
       <HintPath>$(SimHubDir)MahApps.Metro.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(SimHubDir)Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <!-- No SimHub install: compile against the reference stubs, and take the genuinely public
@@ -86,6 +90,12 @@
     <PackageReference Include="SharpDX" Version="4.2.0" ExcludeAssets="runtime" />
     <PackageReference Include="SharpDX.DirectInput" Version="4.2.0" ExcludeAssets="runtime" />
     <PackageReference Include="log4net" Version="2.0.15" ExcludeAssets="runtime" />
+    <!-- 13.0.4 exactly, because that is what SimHub ships and the versions are not
+         interchangeable at compile time: 13.0.4 added a one-argument JToken.ToString(Formatting)
+         that 13.0.3 does not have, so a DLL built here against 13.0.3 threw MissingMethodException
+         against SimHub's copy. The assembly identity is 13.0.0.0 either way - it is the API
+         surface, not the binding, that has to match. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <ItemGroup>

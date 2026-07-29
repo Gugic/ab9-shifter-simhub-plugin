@@ -101,14 +101,13 @@ release](https://github.com/Gugic/ab9-shifter-simhub-plugin/releases/latest), **
 copy `AB9ActiveShifter.dll` out of it into `C:\Program Files (x86)\SimHub\`. SimHub locks the DLL
 while it runs, so the copy fails if you skip that.
 
-The zip also carries `AB9ShifterPlugin.GeneralSettings.json` — [the profiles this plugin was tuned
-with](presets/AB9ShifterPlugin.GeneralSettings.json), so you can start from a working gate rather
-than bare defaults: **7+R lockout**, **5+R** and **Sequential**, each holding its own complete
-tuning, with forces off and the polarity cap on as they should be for a base that has not been
-measured yet. Copy it into `C:\Program Files (x86)\SimHub\PluginsData\Common\` **only if you have
-no settings there already** — it would otherwise replace your own tuning.
-
 Start SimHub and enable **AB9 Active Shifter** under *Settings → Plugins*.
+
+That is the whole install. The first start writes out three working profiles — **7+R lockout**,
+**5+R** and **Sequential**, each holding its own complete tuning — so you begin from a gate that
+was tuned on real hardware rather than from bare defaults. They are ordinary settings from then on:
+edit them, delete them, add your own. Forces are off and the force cap is on, as they should be on
+a base nobody has measured yet.
 
 Building it yourself instead, and the `install.ps1` script that does all of the above in one step:
 [DEVELOPMENT.md](DEVELOPMENT.md).
@@ -200,6 +199,12 @@ Four, selectable per **profile** on the Setup tab:
 
 A profile stores every dial together with its pattern, so each pattern keeps its own tuning and
 switching between them is one dropdown.
+
+**Profiles can be exported and imported**, so a tune can be shared as a file. What travels is the
+tuning only: your measured polarity, your device and vJoy numbers and your loop rate stay as they
+are on your machine. An import always *adds* a profile, numbering the name if it is taken, so
+someone else's file can never land on top of yours — and it always arrives with forces off, with
+every value range-checked on the way in.
 
 ## Game effects
 

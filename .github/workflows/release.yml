@@ -102,7 +102,6 @@ jobs:
           New-Item -ItemType Directory -Force $stage | Out-Null
           Copy-Item src/AB9ActiveShifter/bin/Release/AB9ActiveShifter.dll $stage
           Copy-Item src/AB9ActiveShifter/bin/Release/AB9ActiveShifter.pdb $stage -ErrorAction SilentlyContinue
-          Copy-Item presets/AB9ShifterPlugin.GeneralSettings.json $stage
           Copy-Item README.md, LICENSE, NOTICE.md $stage
           Compress-Archive -Path "$stage/*" -DestinationPath "artifacts/AB9ActiveShifter-$env:VERSION.zip" -Force
           Get-ChildItem artifacts -File | ForEach-Object { "  {0}  {1:N0} bytes" -f $_.Name, $_.Length }

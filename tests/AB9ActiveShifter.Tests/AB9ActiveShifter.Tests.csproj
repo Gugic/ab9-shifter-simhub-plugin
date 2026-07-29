@@ -14,6 +14,10 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- The plugin resolves this from SimHub at runtime and never ships a copy, so its own
+         reference excludes the runtime asset. The test host has no SimHub to resolve it from,
+         and ProfileTransfer is worth testing, so here it is a normal reference. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 
   <ItemGroup>
