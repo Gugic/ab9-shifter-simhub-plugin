@@ -28,7 +28,9 @@
                                           SelectionChanged="OnProfileSelected" />
                                 <styles:SHButtonSecondary Click="OnAddProfile" Content="Duplicate" Padding="10,3" Margin="0,0,6,0" />
                                 <styles:SHButtonSecondary Click="OnRenameProfile" Content="Rename" Padding="10,3" Margin="0,0,6,0" />
-                                <styles:SHButtonSecondary Click="OnDeleteProfile" Content="Delete" Padding="10,3" />
+                                <styles:SHButtonSecondary Click="OnDeleteProfile" Content="Delete" Padding="10,3" Margin="0,0,16,0" />
+                                <styles:SHButtonSecondary Click="OnExportProfile" Content="Export..." Padding="10,3" Margin="0,0,6,0" />
+                                <styles:SHButtonSecondary Click="OnImportProfile" Content="Import..." Padding="10,3" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                 <TextBlock Text="Pattern" VerticalAlignment="Center" Margin="0,0,8,0" />
@@ -45,6 +47,8 @@
                                              Value="{Binding SeqPulseMs, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0"
                                        Text="A profile holds every dial on every tab, the pattern included, so each pattern can carry its own tuning. Duplicate makes a copy of the current profile to experiment in; to rename, type the new name in the box and click Rename. Gears map to vJoy buttons 1..N with reverse as the highest; sequential pulses button 9 for upshift and button 10 for downshift - above every gear button, so no game binding can mean two things - and its push resistance and click are the detent dials on the Feel tab." />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0"
+                                       Text="Export writes the current profile to a file you can share. Import always adds a new profile, numbering the name if it is taken, so someone else's tune can never land on top of yours. What travels is the tuning only: your measured polarity, your device and vJoy numbers and your loop rate stay as they are, values are range-checked on the way in, and an imported profile always arrives with forces off." />
                         </StackPanel>
                     </styles:SHSection>
 

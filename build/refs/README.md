@@ -15,9 +15,15 @@ executed. At runtime the real SimHub assemblies are the ones loaded.
 | `SimHub.Logging` | `SimHub.Logging.Current` | Not strong-named; its `log4net` dependency comes from NuGet at the exact version SimHub ships (2.0.15) |
 | `vJoyInterfaceWrap` | The vJoy wrapper | Not strong-named. The real one is a mixed-mode x86 assembly that a 64-bit build host cannot even load |
 
-`SharpDX`, `SharpDX.DirectInput` and `log4net` are **not** stubbed — they are public NuGet
-packages, referenced at the exact versions SimHub ships (4.2.0, 4.2.0, 2.0.15) so the assembly
-identities the compiler writes into our DLL match the ones SimHub loads.
+`SharpDX`, `SharpDX.DirectInput`, `log4net` and `Newtonsoft.Json` are **not** stubbed — they are
+public NuGet packages, referenced at the exact versions SimHub ships (4.2.0, 4.2.0, 2.0.15,
+13.0.4) so the assembly identities the compiler writes into our DLL match the ones SimHub loads.
+
+Those versions are pinned, not floors. `Newtonsoft.Json` proved why: 13.0.4 added a one-argument
+`JToken.ToString(Formatting)` that 13.0.3 does not have, so a DLL built against 13.0.3 compiled
+cleanly and threw `MissingMethodException` against SimHub's copy — the same failure mode as a
+wrong stub signature, from a package version instead. The assembly identity is `13.0.0.0` for
+every 13.x, so binding was never the problem; the API surface was.
 
 ## The rule that makes this work
 

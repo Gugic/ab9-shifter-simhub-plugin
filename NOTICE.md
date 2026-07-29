@@ -90,6 +90,12 @@ This plugin links against assemblies distributed with
 redistributed here; they are referenced from a local SimHub installation at
 build time and resolved from the SimHub process at runtime.
 
+The same is true of the third-party libraries SimHub ships and this plugin uses
+— SharpDX (MIT), log4net (Apache-2.0) and
+[Newtonsoft.Json](https://www.newtonsoft.com/json) (MIT), the last of which
+serialises exported profiles. None are redistributed here: they are compiled
+against at the versions SimHub ships and loaded from SimHub's own copies.
+
 ## vJoy
 
 Virtual joystick output uses [vJoy](https://sourceforge.net/projects/vjoystick/)

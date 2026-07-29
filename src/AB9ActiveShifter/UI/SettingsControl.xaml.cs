@@ -20,9 +20,8 @@ namespace AB9ActiveShifter.UI
         {
             InitializeComponent();
 
-            string version = BuildVersion();
-            VersionText.Text = "Version " + version;
-            AboutVersionText.Text = "AB9 Active Shifter " + version;
+            VersionText.Text = "Version " + PluginInfo.Version;
+            AboutVersionText.Text = "AB9 Active Shifter " + PluginInfo.Version;
 
             _timer = new DispatcherTimer(DispatcherPriority.Background)
             {
@@ -34,26 +33,6 @@ namespace AB9ActiveShifter.UI
             Unloaded += OnUnloaded;
         }
 
-        /// <summary>
-        /// The version stamped into the assembly at build time. A release build carries a plain
-        /// number; CI adds a suffix and the commit it was built from, trimmed here to the short
-        /// hash - which is the one thing worth having in a bug report, and unreadable at forty
-        /// characters. Falls back to the assembly version if nothing stamped an informational one.
-        /// </summary>
-        private static string BuildVersion()
-        {
-            Assembly asm = typeof(SettingsControl).Assembly;
-            AssemblyInformationalVersionAttribute info = (AssemblyInformationalVersionAttribute)
-                Attribute.GetCustomAttribute(asm, typeof(AssemblyInformationalVersionAttribute));
-
-            string version = info != null && !string.IsNullOrEmpty(info.InformationalVersion)
-                ? info.InformationalVersion
-                : asm.GetName().Version.ToString();
-
-            int plus = version.IndexOf('+');
-            if (plus >= 0 && version.Length > plus + 8) version = version.Substring(0, plus + 8);
-            return version;
-        }
 
         private ShifterSettings _boundSettings;
         private bool _refreshingProfiles;
@@ -193,6 +172,106 @@ namespace AB9ActiveShifter.UI
             }
 
             Plugin.DeleteActiveProfile();
+        }
+
+        private void OnExportProfile(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || Plugin.Store == null) return;
+
+            ShifterProfile active = Plugin.Store.FindActive();
+            if (active == null) return;
+
+            Microsoft.Win32.SaveFileDialog dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Export profile",
+                FileName = SafeFileName(active.Name) + ProfileTransfer.FileExtension,
+                DefaultExt = ".json",
+                Filter = "AB9 shifter profile (*.json)|*.json|All files (*.*)|*.*",
+                AddExtension = true,
+                OverwritePrompt = true
+            };
+            if (dialog.ShowDialog() != true) return;
+
+            try
+            {
+                System.IO.File.WriteAllText(dialog.FileName, ProfileTransfer.Export(active),
+                    new System.Text.UTF8Encoding(false));
+                Log.Info("Exported profile '" + active.Name + "'.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Could not export profile", ex);
+                MessageBox.Show("Could not write that file.\n\n" + ex.Message,
+                    "AB9 Active Shifter", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void OnImportProfile(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null) return;
+
+            Microsoft.Win32.OpenFileDialog dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Import profile",
+                DefaultExt = ".json",
+                Filter = "AB9 shifter profile (*.json)|*.json|All files (*.*)|*.*",
+                CheckFileExists = true
+            };
+            if (dialog.ShowDialog() != true) return;
+
+            ProfileImportResult result;
+            try
+            {
+                result = ProfileTransfer.Import(System.IO.File.ReadAllText(dialog.FileName), Plugin.Settings);
+            }
+            catch (ProfileTransferException ex)
+            {
+                // Expected: the file is not one of ours, or is unreadable. Say what, not how.
+                MessageBox.Show(ex.Message, "AB9 Active Shifter",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Could not import profile", ex);
+                MessageBox.Show("Could not read that file.\n\n" + ex.Message,
+                    "AB9 Active Shifter", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            string name = Plugin.AddImportedProfile(result.Profile);
+            if (name == null) return;
+
+            // Tell them what actually arrived. A silent import that quietly dropped or clamped
+            // half a file is how someone ends up debugging a feel they never chose.
+            string message = "Imported as '" + name + "' and made active.\n\n" +
+                             result.Applied + " settings applied.";
+            if (result.Clamped > 0)
+            {
+                message += "\n" + result.Clamped + " were outside the supported range and were " +
+                           "brought back into it.";
+            }
+            if (result.Unknown > 0)
+            {
+                message += "\n" + result.Unknown + " were not recognised by this version and were ignored.";
+            }
+            message += "\n\nForces are off, and your own measured polarity has been kept.";
+
+            MessageBox.Show(message, "AB9 Active Shifter", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        /// <summary>A profile name with anything Windows refuses in a filename taken out.</summary>
+        private static string SafeFileName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "profile";
+
+            System.Text.StringBuilder sb = new System.Text.StringBuilder(name.Length);
+            char[] invalid = System.IO.Path.GetInvalidFileNameChars();
+            foreach (char c in name)
+            {
+                sb.Append(Array.IndexOf(invalid, c) >= 0 ? '_' : c);
+            }
+            return sb.ToString().Trim();
         }
 
         private void OnSettingsChanged(object sender, PropertyChangedEventArgs e)

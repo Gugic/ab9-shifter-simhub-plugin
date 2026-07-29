@@ -41,8 +41,7 @@ dotnet format whitespace --verify-no-changes
 ## Deploy to SimHub
 
 SimHub locks the DLL, so it has to be stopped first. The script does the whole cycle — build, stop,
-copy (elevating if needed), restart — and on a machine with no saved settings it also lays down the
-tuned profiles from `presets/`:
+copy (elevating if needed), restart:
 
 ```bash
 powershell -File install.ps1
@@ -70,6 +69,20 @@ grabbed the device briefly.
 rewritten when SimHub exits — so edit that file only while SimHub is stopped. Changing a default in
 `EngineConfig.cs` does **not** change a user who already has that key saved; patch the JSON too, and
 say so in the commit.
+
+**The profiles a fresh install starts with** are in `DefaultProfiles.cs`, written as differences
+from a bare `ShifterSettings` so the tuning reads as tuning. The plugin writes them out on the
+first start — when `ReadCommonSettings` finds nothing — and they are ordinary settings from then
+on. To refresh them after retuning on the rig, stop SimHub and turn the saved file back into
+assignments:
+
+```bash
+powershell -File tools\Show-ProfileDeltas.ps1
+```
+
+It prints paste-ready C# per profile. Two lines from its output must **not** be pasted:
+`Enabled` and `PolarityConfirmed` stay at their defaults, because forces ship off and the 10% cap
+guards a base nobody has measured. `DefaultProfilesTests` fails if either creeps in.
 
 ## Building without SimHub
 
@@ -106,6 +119,9 @@ src/AB9ActiveShifter/
                            settings load/save, DataUpdate -> TelemetryState
   ShifterSettings.cs       Persisted POCO -> ToEngineConfig()
   ShifterProfiles.cs       Named profiles, legacy migration, cloning
+  DefaultProfiles.cs       What a fresh install starts with, as deltas from bare defaults
+  ProfileTransfer.cs       Export/import of one profile as a shareable file, with validation
+  PluginInfo.cs            The build's version string
   Core/                    Pure, no I/O, fully unit-tested
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
     GateGeometry.cs        Column targets, hysteresis bands, gear map, unit conversions
@@ -123,7 +139,7 @@ src/AB9ActiveShifter/
 tests/AB9ActiveShifter.Tests/
 build/refs/                Reference-only stubs of SimHub's assemblies
 tools/Verify-StubBuild.ps1 Proves a stub-built DLL binds against the real SimHub
-presets/                   Shipped default profiles
+tools/Show-ProfileDeltas.ps1 Turns a tuned settings file back into DefaultProfiles.cs assignments
 ```
 
 [docs/architecture.md](docs/architecture.md) has the detail: threading, lifecycle, effect handling
@@ -157,13 +173,11 @@ build stays green.
 
 `.github/workflows/release.yml` is manual (`workflow_dispatch`). Give it a version like `0.9.0` or
 `1.0.0-rc1` and it validates the number, refuses one that is already tagged, builds with the
-version stamped into the assembly, confirms the stamp arrived, packages the DLL with the presets
-and the notices, tags the commit and publishes a GitHub Release.
+version stamped into the assembly, confirms the stamp arrived, packages the DLL with the notices,
+tags the commit and publishes a GitHub Release.
 
 Before running it: `tools\Verify-StubBuild.ps1` on a machine with SimHub, and refresh
-`presets/AB9ShifterPlugin.GeneralSettings.json` if the tuning has moved (copy the live settings
-file with SimHub stopped, then clear `Enabled` and `PolarityConfirmed` in every profile — forces
-must ship off, and polarity is a per-unit measured fact the 10% cap exists to guard).
+`DefaultProfiles.cs` if the tuning has moved (see *Saved settings* above).
 
 ## Conventions
 

@@ -80,6 +80,10 @@ src/AB9ActiveShifter/
                            DataUpdate -> TelemetryState for the effects
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
   ShifterProfiles.cs       ProfileStore (named settings + active), legacy migration, cloning
+  DefaultProfiles.cs       The three profiles a fresh install writes out, as deltas from bare
+                           defaults (see "Saved settings" below)
+  ProfileTransfer.cs       One profile as a shareable file: what travels, and what is refused
+  PluginInfo.cs            The build's version string, for the UI and for exported files
   Core/                    Pure, no I/O, fully unit-tested
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
     GateGeometry.cs        Column targets, hysteresis bands, gear map, unit conversions
@@ -106,13 +110,15 @@ tests/AB9ActiveShifter.Tests/
   VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
   SequentialTests.cs       One-shift-per-stroke, re-arm, mirror, spring shape, click kick
   SettingsMappingTests.cs  ShifterSettings' derived dials (SeqThrow moves both threshold lines)
-presets/
-  AB9ShifterPlugin.GeneralSettings.json  Shipped default profiles (see "Saved settings" below)
+  DefaultProfilesTests.cs  The shipped profiles: forces off, cap on, store coherent
+  ProfileTransferTests.cs  Round trip, machine facts kept, every clamp on the import path
 build/refs/                Reference-only stubs of SimHub's assemblies, so the plugin builds
                            on a machine with no SimHub. Read build/refs/README.md before
                            touching one - a wrong signature builds green and throws on the rig
 tools/Verify-StubBuild.ps1 Proves a stub-built DLL binds against the real SimHub. Needs a
                            local SimHub install; run it before tagging a release
+tools/Show-ProfileDeltas.ps1 Turns a tuned settings file back into DefaultProfiles.cs
+                           assignments, for refreshing what a fresh install starts with
 .github/workflows/         ci.yml (format, build, test, artifact on every push and PR) and
                            release.yml (manual, versioned, tags and publishes)
 ```
@@ -266,6 +272,16 @@ runners cannot load, so anything worth testing must not touch it.
   that order, always. A gear must never stay stuck down.
 - The watchdog (500 ms timer, 1 s staleness) calls `EmergencyStop`. `StopForces` is the only
   device method callable off the engine thread, and it swallows everything.
+- **Settings that arrive from outside are data, not settings.** A profile file is downloaded from
+  a stranger, so `ProfileTransfer.Import` treats it as hostile: every value is range-checked (any
+  `*Pct` to 0–100, positions to the 16-bit axis, the rest to their own envelope), an unreadable
+  dial keeps the local value instead of failing the import, and `Enabled` and `FreeStick` are
+  forced off whatever the file says — opening a file must never take the device or apply force.
+  The machine's own facts are never taken from a file either: measured polarity, the device and
+  vJoy ids and the loop rate are not written on export and are kept from the receiving machine on
+  import. Someone else's polarity would drive the gate backwards, and their `PolarityConfirmed`
+  would lift the 10% cap on a base nobody here has probed. Import also only ever *adds*, under a
+  uniquified name, so a shared file cannot overwrite a tune. `ProfileTransferTests` pins all of it.
 
 ## Conventions
 
@@ -296,11 +312,18 @@ parsed as pathspecs. Write the message to a scratchpad file and use `git commit 
 `C:\Program Files (x86)\SimHub\PluginsData\Common\AB9ShifterPlugin.GeneralSettings.json`. Edit it
 **only while SimHub is stopped** — it is rewritten on exit. Changing a default in
 `EngineConfig.cs` does not change a user who already has that key saved; patch the JSON too, and
-say so. The shipped copy under `presets/` is that file with every profile's `Enabled` and
-`PolarityConfirmed` set to false — forces must start off, and polarity is a per-unit measured
-fact the 10% cap exists to guard, so do not ship it confirmed. `install.ps1` installs the preset
-only when no saved settings exist. To refresh it after a retune: copy the live JSON (SimHub
-stopped) and clear those two flags in every profile again.
+say so.
+
+**Shipped profiles.** A fresh install starts from `DefaultProfiles.cs`, not from bare defaults:
+`ReadCommonSettings` finding nothing is the first-start signal, the factory returns the three
+tuned profiles, and `Init` writes them straight out so they are ordinary settings from the second
+start on. They are written as *deltas* from a bare `ShifterSettings`, so the tuning reads as
+tuning and a dial that gains a better default inherits it. This used to be a JSON file copied in
+by `install.ps1`; it is code now because renaming a setting silently drops its value from a JSON
+and breaks the build here. To refresh after a retune, run `tools\Show-ProfileDeltas.ps1` (SimHub
+stopped) and paste its output — **except** `Enabled` and `PolarityConfirmed`, which must stay at
+their defaults: forces ship off, and polarity is a per-unit measured fact the 10% cap exists to
+guard. `DefaultProfilesTests` fails if either creeps in.
 
 **Hardware claims.** Measure, do not assume, and write the number down in
 [docs/hardware.md](docs/hardware.md) with how it was measured. Several plausible assumptions in
@@ -325,6 +348,7 @@ update the right column **in the same commit**:
 | Files added, moved, or renamed | the code map above, and the short one in `DEVELOPMENT.md` |
 | Setup steps, requirements, or anything a user does once | `README.md` |
 | Build, test, deploy or release procedure | `DEVELOPMENT.md`, and the build section above |
+| A dial added, renamed or removed | `DefaultProfiles.cs` if the shipped tuning names it, and check whether it should travel in `ProfileTransfer.NotShared` |
 | The risk, non-affiliation or early-software wording | all four copies at once — see *Naming, and the disclaimers* |
 | A new tuning symptom you diagnosed | the symptom table in `docs/tuning.md` |
 

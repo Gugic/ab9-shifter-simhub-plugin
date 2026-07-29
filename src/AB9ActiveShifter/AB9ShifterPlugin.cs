@@ -63,14 +63,28 @@ namespace AB9ActiveShifter
         {
             Log.Info("Init (plugin instance created).");
 
-            Store = this.ReadCommonSettings<ProfileStore>(SettingsKey, () => new ProfileStore());
+            // The factory runs only when there is nothing saved, which is the signal that this is
+            // a first start: take the shipped profiles and write them out below, so from the next
+            // start they are ordinary saved settings with no special case anywhere.
+            //
+            // Nothing is riding on that being true, deliberately. The write below saves whatever
+            // Store ends up holding after the file has been read, so if SimHub ever called this
+            // factory on a start that did have settings, the worst it could do is rewrite the
+            // settings that were just loaded. It can never put the shipped tuning over a user's.
+            bool firstStart = false;
+            Store = this.ReadCommonSettings<ProfileStore>(SettingsKey, () =>
+            {
+                firstStart = true;
+                return DefaultProfiles.Create();
+            });
             if (Store == null) Store = new ProfileStore();
 
             if (Store.FindActive() == null)
             {
-                // Either a fresh install or a settings file from before profiles existed. A
-                // legacy file deserialises into an empty store, so re-read it as the flat
-                // settings it was and carry every tuned dial into the first profile.
+                // A settings file from before profiles existed: it deserialises into an empty
+                // store, so re-read it as the flat settings it was and carry every tuned dial
+                // into the first profile. A fresh install never lands here - the factory above
+                // already gave it profiles.
                 ShifterSettings legacy =
                     this.ReadCommonSettings<ShifterSettings>(SettingsKey, () => new ShifterSettings());
 
@@ -85,6 +99,16 @@ namespace AB9ActiveShifter
             ShifterProfile active = Store.FindActive();
             Store.ActiveProfile = active.Name;
             Settings = active.Settings;
+
+            if (firstStart)
+            {
+                // Write them out now rather than waiting for shutdown, so the file exists from
+                // the first run and a crash before then cannot cost the user their starting
+                // point. Forces are off and the polarity cap is on, as the defaults say.
+                Log.Info("No saved settings; installed the shipped profiles and made '" +
+                         Store.ActiveProfile + "' active.");
+                SaveStore();
+            }
 
             lock (EngineSync)
             {
@@ -263,6 +287,24 @@ namespace AB9ActiveShifter
 
             Store.Profiles.Add(profile);
             ActivateProfile(profile.Name);
+        }
+
+        /// <summary>
+        /// Adds an imported profile and makes it live. Its name is always made unique, so an
+        /// import can only ever add - a shared file never lands on top of a tune you already
+        /// have, however it happens to be named.
+        /// </summary>
+        public string AddImportedProfile(ShifterProfile imported)
+        {
+            if (Store == null || imported == null || imported.Settings == null) return null;
+            if (Store.Profiles == null) Store.Profiles = new System.Collections.Generic.List<ShifterProfile>();
+
+            imported.Name = Store.UniqueName(imported.Name);
+            Store.Profiles.Add(imported);
+            ActivateProfile(imported.Name);
+
+            Log.Info("Imported profile '" + imported.Name + "'.");
+            return imported.Name;
         }
 
         /// <summary>Deletes the active profile. The last profile cannot be deleted.</summary>
