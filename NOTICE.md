@@ -4,6 +4,34 @@
 
 AB9 Active Shifter is licensed under the MIT License (see `LICENSE`).
 
+## No affiliation
+
+This is an independent, unofficial project. It is **not** affiliated with, endorsed by, sponsored
+by or supported by MOZA Racing, by Wotever (SimHub), or by the vJoy project. None of them have
+reviewed it, and a problem caused by this plugin is not theirs to answer for.
+
+MOZA, MOZA Racing, MOZA Pit House, MOZA Cockpit, AB9, SimHub and vJoy are the trademarks or
+product names of their respective owners. They appear here only descriptively — to identify which
+hardware and which host application this plugin works with — which is the whole of their use and
+implies no endorsement or association.
+
+## No warranty, and the risk that comes with the hardware
+
+The MIT License above disclaims all warranties and all liability, in the two paragraphs beginning
+`THE SOFTWARE IS PROVIDED "AS IS"`. That is not boilerplate here, so it is worth restating in
+plain words:
+
+This software commands an active force feedback device capable of roughly 12 Nm. It renders forces
+from a software loop, and forces rendered that way can become unstable and oscillate. A defect, an
+unfortunate combination of settings, or a stalled loop can make the base shake, kick, or drive to
+its stops without warning, which can cause **physical injury and damage to hardware**.
+
+You choose to run it, and you accept that risk. The authors and copyright holders accept no
+responsibility or liability for injury, or for damage to your equipment or anything attached to
+it. Bounds on output — forces off by default, a 10% cap until polarity has been measured, a
+watchdog that stops output if the loop stalls — reduce the risk; they do not remove it and are not
+a guarantee.
+
 ## FanaBridge (MIT)
 
 Project scaffolding patterns — the SDK-style `net48` csproj layout, the

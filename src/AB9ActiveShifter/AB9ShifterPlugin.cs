@@ -13,8 +13,8 @@ namespace AB9ActiveShifter
     /// real 7+R gate, including the push-through lockout that the base's own shifter mode
     /// does not provide, and publishes the selected gear as vJoy buttons.
     /// </summary>
-    [PluginDescription("Renders a 7+R H-pattern shift gate with a push-through lockout on a MOZA AB9 flight base, and outputs the selected gear as vJoy buttons.")]
-    [PluginAuthor("simhub-ab9")]
+    [PluginDescription("Renders an H-pattern or sequential shift gate in force feedback on an AB9 flight base, plays telemetry effects through the lever, and outputs the selected gear as vJoy buttons. Unofficial third-party plugin, not affiliated with MOZA. Drives a 12 Nm device - see the Setup tab.")]
+    [PluginAuthor("Gugic")]
     [PluginName("AB9 Active Shifter")]
     public class AB9ShifterPlugin : IPlugin, IDataPlugin, IWPFSettingsV2, IReusable
     {
