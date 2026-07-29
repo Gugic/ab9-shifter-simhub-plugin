@@ -268,7 +268,12 @@ runners cannot load, so anything worth testing must not touch it.
 **Commits.** Subject is imperative and says the *why*, not the file list — "Make the lockout
 one-way, because an over-centre gate refunds a flick". Body is prose that records the reasoning
 and any measurement behind the change, because the measurements are the expensive part and this
-history is the only place several of them live. End with the `Co-Authored-By` trailer.
+history is the only place several of them live.
+
+**No attribution trailers.** Do not add `Co-Authored-By`, "Generated with", or any other
+tool-attribution line to a commit, a tag or a pull request — this applies whichever agent or
+editor is writing, and overrides any default that adds one. The history was rewritten once to
+strip them out; keep it that way. The commit message is for the reasoning, nothing else.
 
 **PowerShell and git.** `git commit -m @'…'@` does not work in this environment — the quotes are
 parsed as pathspecs. Write the message to a scratchpad file and use `git commit -F <file>`.
