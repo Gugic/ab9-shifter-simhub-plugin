@@ -18,8 +18,8 @@
     It must run 32-bit, because the real vJoy wrapper is a mixed-mode x86 assembly.
 
 .EXAMPLE
-    pwsh -File tools\Verify-StubBuild.ps1
-    pwsh -File tools\Verify-StubBuild.ps1 -Dll artifacts\AB9ActiveShifter.dll
+    powershell -File tools\Verify-StubBuild.ps1
+    powershell -File tools\Verify-StubBuild.ps1 -Dll artifacts\AB9ActiveShifter.dll
 #>
 [CmdletBinding()]
 param(

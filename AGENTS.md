@@ -47,7 +47,7 @@ the same commit or CI goes red while your local build stays green.
 Deploy needs SimHub stopped, because it locks the DLL:
 
 ```bash
-pwsh -File install.ps1
+powershell -File install.ps1
 ```
 
 Or by hand, which is what an agent usually wants (note the output path has **no** `net48`

@@ -31,7 +31,7 @@ The signatures here were taken by reflecting over the real assemblies rather tha
 documentation. To prove a stub-built DLL still binds, build with the stubs and run:
 
 ```powershell
-pwsh -File tools\Verify-StubBuild.ps1
+powershell -File tools\Verify-StubBuild.ps1
 ```
 
 It loads that DLL with the real SimHub assemblies on the resolve path and asks the JIT to
