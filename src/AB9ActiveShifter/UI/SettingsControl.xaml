@@ -11,6 +11,7 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
 
         <!--
             Applies to every ui:TitledSlider with no per-instance markup needed: a tooltip
@@ -279,6 +280,12 @@
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
                                        Text="Every wall is a percentage of full force, so 90% is a wall you cannot push through by hand. These are the same kind of force as the lockout, which is why they can be made properly solid." />
 
+                            <CheckBox x:Name="GeometryPercentToggle" Content="Show the lateral geometry dials below and under Advanced gate geometry as % of column spacing"
+                                      Margin="0,0,0,4"
+                                      Checked="OnGeometryPercentToggleChanged" Unchecked="OnGeometryPercentToggleChanged" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.6" Margin="0,0,0,8"
+                                       Text="Column spacing genuinely differs by pattern - about 21845 counts on the four-column H6R/H7R, 32767 on the three-column H5R - so the same raw axis count is a different fraction of the room between columns depending which pattern a profile was tuned on. This only changes how the affected dials are displayed and edited here; it does not touch any stored value or rescale anything when the pattern is switched." />
+
                             <ui:TitledSlider Title="Gate wall, between columns (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="90"
                                              Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
@@ -286,13 +293,18 @@
                             <ui:TitledSlider Title="Slot wall / lateral rail (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="90"
                                              Value="{Binding ColumnPinForcePct, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Slot width, free corridor (axis counts)" Minimum="0" Maximum="2400"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="1100"
-                                             Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
-                                             Value="{Binding SlotHalfWidth, Mode=TwoWay}" />
-                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
-                                       Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
-                                       Text="A slot is a corridor with walls, not a pull toward its centre line. If a middle gear shakes while seated, widen this: a narrow corridor leaves the stick balanced on a point it can hunt around. The outer gears never shake because their wall only pushes one way, against the end of travel. Zero is the rail gate: the lever pulled straight onto the column line, like the native shifter mode - stable only with a moderate slot wall, so if a railed gear trembles, lower the wall force first." />
+                            <StackPanel Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                                <ui:TitledSlider Title="Slot width, free corridor (axis counts)" Minimum="0" Maximum="2400"
+                                                 TickFrequency="100" ShowResetButton="True" ResetValue="1100"
+                                                 Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
+                                                 Value="{Binding SlotHalfWidth, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="Slot width, free corridor (% of column spacing)" Minimum="0" Maximum="12"
+                                                 TickFrequency="0.5"
+                                                 Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
+                                                 Value="{Binding SlotHalfWidthPercent, Mode=TwoWay}" />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                           Text="A slot is a corridor with walls, not a pull toward its centre line. If a middle gear shakes while seated, widen this: a narrow corridor leaves the stick balanced on a point it can hunt around. The outer gears never shake because their wall only pushes one way, against the end of travel. Zero is the rail gate: the lever pulled straight onto the column line, like the native shifter mode - stable only with a moderate slot wall, so if a railed gear trembles, lower the wall force first." />
+                            </StackPanel>
                             <ui:TitledSlider Title="Tunnel depth, free corridor (axis counts)" Minimum="0" Maximum="4000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2600"
                                              Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
@@ -308,7 +320,12 @@
                                              Value="{Binding ChannelGuideForcePct, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Wall bite distance (axis counts)" Minimum="60" Maximum="6000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="600"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
                                              Value="{Binding WallRamp, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Wall bite distance (% of column spacing)" Minimum="0" Maximum="30"
+                                             TickFrequency="0.5"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
+                                             Value="{Binding WallRampPercent, Mode=TwoWay}" />
                             <TextBlock x:Name="WallRampSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" />
                             <ui:TitledSlider Title="Wall attack (ms to full force, 0 = off)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="0"
@@ -382,16 +399,27 @@
                                              TickFrequency="5" ShowResetButton="True" ResetValue="70"
                                              Visibility="{Binding HasLockout, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding LockoutForcePct, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Lockout gate half-width (axis counts)" Minimum="500" Maximum="6000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="2200"
-                                             Visibility="{Binding HasLockout, Converter={StaticResource BoolToVis}}"
-                                             Value="{Binding LockoutHalfWidth, Mode=TwoWay}" />
+                            <StackPanel Visibility="{Binding HasLockout, Converter={StaticResource BoolToVis}}">
+                                <ui:TitledSlider Title="Lockout gate half-width (axis counts)" Minimum="500" Maximum="6000"
+                                                 TickFrequency="100" ShowResetButton="True" ResetValue="2200"
+                                                 Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
+                                                 Value="{Binding LockoutHalfWidth, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="Lockout gate half-width (% of column spacing)" Minimum="0" Maximum="30"
+                                                 TickFrequency="0.5"
+                                                 Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
+                                                 Value="{Binding LockoutHalfWidthPercent, Mode=TwoWay}" />
+                            </StackPanel>
                             <ui:TitledSlider Title="Humps between the other columns (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="15"
                                              Value="{Binding BarrierForcePct, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Hump width (axis counts)" Minimum="400" Maximum="8000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2500"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
                                              Value="{Binding BarrierWidth, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Hump width (% of column spacing)" Minimum="0" Maximum="40"
+                                             TickFrequency="1"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
+                                             Value="{Binding BarrierWidthPercent, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Pull into a column (%)" Minimum="0" Maximum="60"
                                              TickFrequency="1" ShowResetButton="True" ResetValue="12"
                                              Value="{Binding ColumnDetentForcePct, Mode=TwoWay}" />
@@ -595,7 +623,12 @@
                         <StackPanel Margin="0,4,0,8">
                             <ui:TitledSlider Title="Gate wall fade width, across a column (axis counts)" Minimum="200" Maximum="6000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="1500"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
                                              Value="{Binding WallBlend, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Gate wall fade width, across a column (% of column spacing)" Minimum="0" Maximum="30"
+                                             TickFrequency="0.5"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
+                                             Value="{Binding WallBlendPercent, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
                                        Text="How far sideways it takes the fore/aft gate wall to go from open, on a column, to solid between columns. This is the mouth of each slot seen from the tunnel: narrow and the gate snaps shut as you leave a column, wide and every entry feels vague. It is a sideways gradient, so it is also what corners are made of - widen it if corners feel harsh." />
 
@@ -622,13 +655,28 @@
                                        Text="How far fore or aft of centre still counts as the neutral tunnel. This is a genuine hysteresis pair - the lever has to travel past the larger figure to be considered out of neutral, and come back inside the smaller one to be back in it, so resting on the boundary cannot flutter the gear. The gap between them is also the distance over which the slot walls fade in as you leave the tunnel, so widening it makes the handover gentler." />
                             <ui:TitledSlider Title="Outer column half-width" Minimum="500" Maximum="10000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2600"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
                                              Value="{Binding ColumnEdgeEnter, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Outer column half-width (% of column spacing)" Minimum="0" Maximum="50"
+                                             TickFrequency="1"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
+                                             Value="{Binding ColumnEdgeEnterPercent, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Inner column half-width" Minimum="300" Maximum="8000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="1200"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
                                              Value="{Binding ColumnInnerHalfEnter, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Inner column half-width (% of column spacing)" Minimum="0" Maximum="40"
+                                             TickFrequency="1"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
+                                             Value="{Binding ColumnInnerHalfEnterPercent, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Lockout clearance from the last column" Minimum="300" Maximum="10000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2400"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
                                              Value="{Binding ColumnInnerHalfExit, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Lockout clearance from the last column (% of column spacing)" Minimum="0" Maximum="50"
+                                             TickFrequency="1"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
+                                             Value="{Binding ColumnInnerHalfExitPercent, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
                                        Text="How wide each column's territory is, measured either side of its centre line - the outer two get more because they run to the end of travel. There is no matching release width: once the lever is in a gear the only way out is back through the tunnel, at any sideways distance whatever. The last figure is the room the lockout gate leaves beside the 5/6 column before its band begins." />
                             <ui:TitledSlider Title="Engage depth (from the end of travel)" Minimum="500" Maximum="28000"
@@ -641,7 +689,12 @@
                                        Text="Both measure from the ends of travel, so raising them shortens the throw - centre is 32767, and the shift fires once the lever is within the engage depth of a stop. This is also the sequential lever's activation distance: its spring reaches full resistance exactly at the threshold and the click moves with it, so a short throw stays progressive. Keep the release depth 2000-4000 above the engage depth or the re-arm point sits on top of the firing point." />
                             <ui:TitledSlider Title="Column handover width" Minimum="0" Maximum="6000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="400"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
                                              Value="{Binding DetentHysteresis, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Column handover width (% of column spacing)" Minimum="0" Maximum="30"
+                                             TickFrequency="0.5"
+                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
+                                             Value="{Binding DetentHysteresisPercent, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
                                        Text="Nothing to do with the slot detents. Sliding along the tunnel, the sideways pull has to change which column it belongs to at some point, and that swap is a reversal of a force: this is how far either side of the boundary the pull is faded out so the change cannot arrive as a step. It is deliberately small - the whole width is dead space with no sideways guidance, so a wide setting leaves the lever unguided across half the gate." />
                             <ui:TitledSlider Title="Ticks required to engage" Minimum="1" Maximum="20" TickFrequency="1"

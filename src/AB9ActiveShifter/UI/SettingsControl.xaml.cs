@@ -57,8 +57,18 @@ namespace AB9ActiveShifter.UI
         // necessarily had ApplyTemplate() called yet, and the logical tree reflects the
         // XAML-declared content regardless of template realization timing.
         private readonly Dictionary<string, TitledSlider> _sliderByProperty = new Dictionary<string, TitledSlider>();
+        private readonly Dictionary<TitledSlider, string> _propertyBySlider = new Dictionary<TitledSlider, string>();
         private readonly Dictionary<TitledSlider, string> _originalTitle = new Dictionary<TitledSlider, string>();
-        private readonly Dictionary<TitledSlider, double> _previousValue = new Dictionary<TitledSlider, double>();
+
+        // Keyed by the canonical RAW property name (see CanonicalKeyFor), not by TitledSlider
+        // instance: a percent-of-spacing dial and its raw counterpart are two separate slider
+        // instances sharing one backing field, and undo has to survive switching the display
+        // toggle between an edit and the right-click - otherwise adjusting a value while the
+        // percent view is showing left the raw slider's own history untouched, so undo worked
+        // right up until the display was toggled and then silently had nothing to restore.
+        // Values are always stored as the raw count, converted to whichever unit a given
+        // slider displays only when shown or written back - see ToSliderUnits.
+        private readonly Dictionary<string, double> _previousValue = new Dictionary<string, double>();
         private readonly HashSet<TitledSlider> _gestureActive = new HashSet<TitledSlider>();
         private Dictionary<string, object> _profileBaseline = new Dictionary<string, object>();
 
@@ -142,6 +152,7 @@ namespace AB9ActiveShifter.UI
                 if (string.IsNullOrEmpty(property)) continue;
 
                 _sliderByProperty[property] = slider;
+                _propertyBySlider[slider] = property;
                 _originalTitle[slider] = slider.Title;
                 slider.ContextMenu = _sliderContextMenu;
             }
@@ -161,6 +172,24 @@ namespace AB9ActiveShifter.UI
             }
         }
 
+        /// <summary>The raw dials with a percent-of-spacing counterpart - see ShifterSettings.</summary>
+        private static readonly string[] PercentPairedProperties =
+        {
+            "WallRamp", "SlotHalfWidth", "LockoutHalfWidth", "BarrierWidth", "WallBlend",
+            "ColumnEdgeEnter", "ColumnInnerHalfEnter", "ColumnInnerHalfExit", "DetentHysteresis"
+        };
+
+        /// <summary>
+        /// Flipping the geometry percent-display checkbox changes which of a raw/percent pair
+        /// is visible without firing any ShifterSettings.PropertyChanged - nothing else would
+        /// otherwise re-run RefreshDirtyMarker, so a dial already marked dirty on the hidden
+        /// side of the pair would show no marker at all once revealed.
+        /// </summary>
+        private void OnGeometryPercentToggleChanged(object sender, RoutedEventArgs e)
+        {
+            foreach (string name in PercentPairedProperties) RefreshDirtyMarker(name);
+        }
+
         // ---------------------------------------------------------------- slider undo
 
         /// <summary>
@@ -174,7 +203,9 @@ namespace AB9ActiveShifter.UI
         {
             if (slider == null || _gestureActive.Contains(slider)) return;
             _gestureActive.Add(slider);
-            _previousValue[slider] = slider.Value;
+
+            string key = CanonicalKeyFor(slider);
+            if (key != null) _previousValue[key] = CurrentRawValue(key);
         }
 
         private void EndGesture(TitledSlider slider)
@@ -187,25 +218,69 @@ namespace AB9ActiveShifter.UI
         private void OnSliderGestureStartKey(object sender, KeyEventArgs e) { BeginGesture(sender as TitledSlider); }
         private void OnSliderGestureEndKey(object sender, KeyEventArgs e) { EndGesture(sender as TitledSlider); }
 
+        /// <summary>
+        /// The raw property name a slider's undo history is filed under: its own bound property,
+        /// or - for a percent-of-spacing view - the raw dial it shares a backing field with.
+        /// Without this, editing through one view of a paired dial and then switching the
+        /// display toggle before right-clicking found no history at all, because the two views
+        /// are separate TitledSlider instances that had never independently tracked each other.
+        /// </summary>
+        private string CanonicalKeyFor(TitledSlider slider)
+        {
+            string property;
+            if (slider == null || !_propertyBySlider.TryGetValue(slider, out property)) return null;
+
+            return property.EndsWith("Percent", StringComparison.Ordinal)
+                ? property.Substring(0, property.Length - "Percent".Length)
+                : property;
+        }
+
+        /// <summary>The live raw count for a canonical key, read from the settings object itself rather than any slider's Value - so it is correct regardless of which view (if either) is currently on screen.</summary>
+        private double CurrentRawValue(string canonicalKey)
+        {
+            if (Plugin == null || Plugin.Settings == null) return 0;
+            PropertyInfo prop = typeof(ShifterSettings).GetProperty(canonicalKey);
+            return prop != null ? Convert.ToDouble(prop.GetValue(Plugin.Settings, null)) : 0;
+        }
+
+        /// <summary>Converts a raw count to whatever unit a specific slider displays - itself, or a percentage of the current ColumnSpacing if that slider is the percent view of its pair.</summary>
+        private double ToSliderUnits(TitledSlider slider, double rawValue)
+        {
+            string property;
+            if (slider != null && _propertyBySlider.TryGetValue(slider, out property)
+                && property.EndsWith("Percent", StringComparison.Ordinal)
+                && Plugin != null && Plugin.Settings != null)
+            {
+                int spacing = Plugin.Settings.ToEngineConfig().BuildGeometry().ColumnSpacing;
+                return spacing > 0 ? rawValue * 100.0 / spacing : 0;
+            }
+
+            return rawValue;
+        }
+
         private void OnSliderContextMenuOpened(object sender, RoutedEventArgs e)
         {
             TitledSlider slider = _sliderContextMenu.PlacementTarget as TitledSlider;
+            string key = CanonicalKeyFor(slider);
 
-            double previous = 0;
-            bool hasPrevious = slider != null && _previousValue.TryGetValue(slider, out previous) && previous != slider.Value;
+            double previousRaw = 0;
+            bool hasPrevious = key != null && _previousValue.TryGetValue(key, out previousRaw)
+                               && previousRaw != CurrentRawValue(key);
+
             _undoMenuItem.IsEnabled = hasPrevious;
             _undoMenuItem.Header = hasPrevious
-                ? string.Format("Undo to previous value ({0:0.##})", previous)
+                ? string.Format("Undo to previous value ({0:0.##})", ToSliderUnits(slider, previousRaw))
                 : "Undo to previous value";
         }
 
         private void OnUndoSlider(object sender, RoutedEventArgs e)
         {
             TitledSlider slider = _sliderContextMenu.PlacementTarget as TitledSlider;
-            if (slider == null) return;
+            string key = CanonicalKeyFor(slider);
+            if (key == null) return;
 
-            double previous;
-            if (_previousValue.TryGetValue(slider, out previous)) slider.Value = previous;
+            double previousRaw;
+            if (_previousValue.TryGetValue(key, out previousRaw)) slider.Value = ToSliderUnits(slider, previousRaw);
         }
 
         // ---------------------------------------------------------------- modified-since-open marker
@@ -231,18 +306,51 @@ namespace AB9ActiveShifter.UI
             }
         }
 
+        /// <summary>
+        /// A percent-of-spacing view shares its backing field with a raw property, and both get
+        /// their own TitledSlider (one always Visibility=Collapsed, per the toggle). Dirtiness
+        /// always has to be judged from the RAW value: comparing the percent value directly
+        /// would flag every lateral dial as dirty the moment Pattern changes ColumnSpacing,
+        /// even though nothing was actually set.
+        ///
+        /// The computed state is applied to whichever of the pair is meant to be showing - read
+        /// off GeometryPercentToggle.IsChecked directly, not either slider's own Visibility.
+        /// Both sliders' Visibility bindings point at that same checkbox, and asking a slider
+        /// "are you visible" right as the checkbox that drives it changes risks reading a
+        /// binding that has not been re-evaluated yet. That race is exactly what left both
+        /// labels drawn on top of each other after toggling off - the Adorner renders even
+        /// while its element is Collapsed, so a stale "still visible" answer for the slider
+        /// about to hide was enough to keep its marker painted alongside the other one's.
+        /// </summary>
         private void RefreshDirtyMarker(string propertyName)
         {
-            TitledSlider slider;
-            if (string.IsNullOrEmpty(propertyName) || !_sliderByProperty.TryGetValue(propertyName, out slider)) return;
+            if (string.IsNullOrEmpty(propertyName)) return;
 
-            PropertyInfo prop = typeof(ShifterSettings).GetProperty(propertyName);
+            string rawName = propertyName.EndsWith("Percent", StringComparison.Ordinal)
+                ? propertyName.Substring(0, propertyName.Length - "Percent".Length)
+                : propertyName;
+
+            TitledSlider rawSlider;
+            if (!_sliderByProperty.TryGetValue(rawName, out rawSlider)) return;
+
+            PropertyInfo prop = typeof(ShifterSettings).GetProperty(rawName);
             if (prop == null || Plugin == null || Plugin.Settings == null) return;
 
             object baseline;
             object current = prop.GetValue(Plugin.Settings, null);
-            bool dirty = !_profileBaseline.TryGetValue(propertyName, out baseline) || !Equals(baseline, current);
-            SetDirty(slider, dirty);
+            bool dirty = !_profileBaseline.TryGetValue(rawName, out baseline) || !Equals(baseline, current);
+
+            TitledSlider percentSlider;
+            if (_sliderByProperty.TryGetValue(rawName + "Percent", out percentSlider))
+            {
+                bool percentMode = GeometryPercentToggle.IsChecked == true;
+                SetDirty(rawSlider, dirty && !percentMode);
+                SetDirty(percentSlider, dirty && percentMode);
+            }
+            else
+            {
+                SetDirty(rawSlider, dirty && rawSlider.Visibility == Visibility.Visible);
+            }
         }
 
         private readonly Dictionary<TitledSlider, Adorner> _dirtyAdorners = new Dictionary<TitledSlider, Adorner>();

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using AB9ActiveShifter;
@@ -95,6 +96,12 @@ namespace AB9ActiveShifter.Tests
             {
                 if (!prop.CanRead || !prop.CanWrite) continue;
                 if (prop.Name == "Pattern" || prop.Name == "PatternIndex") continue;
+
+                // The percent-of-column-spacing views are meant to differ here: they are the
+                // same raw dial read against a different ColumnSpacing, which is exactly what
+                // changing Pattern changes. Comparing them would fail this test for the one
+                // property family whose whole point is to move with the pattern.
+                if (prop.Name.EndsWith("Percent", StringComparison.Ordinal)) continue;
 
                 Assert.Equal(prop.GetValue(sevenR, null), prop.GetValue(fiveR, null));
             }

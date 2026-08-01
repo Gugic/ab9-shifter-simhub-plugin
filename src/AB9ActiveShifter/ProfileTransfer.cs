@@ -78,7 +78,15 @@ namespace AB9ActiveShifter
             "Enabled", "FreeStick",
 
             // Adapters the XAML binds, each fully derived from a dial that is written.
-            "PatternIndex", "MouthShapeIndex", "SeqThrow"
+            "PatternIndex", "MouthShapeIndex", "SeqThrow",
+
+            // The Feel tab's percent-of-column-spacing display toggle: each is fully derived
+            // from the raw dial it shares a backing field with. Sharing both would write the
+            // same fact twice under two keys, applied back in alphabetical order on import -
+            // whichever name sorts last would silently win over the other.
+            "WallRampPercent", "SlotHalfWidthPercent", "LockoutHalfWidthPercent",
+            "BarrierWidthPercent", "WallBlendPercent", "ColumnEdgeEnterPercent",
+            "ColumnInnerHalfEnterPercent", "ColumnInnerHalfExitPercent", "DetentHysteresisPercent"
         };
 
         /// <summary>The dials a profile file carries, in a stable order.</summary>

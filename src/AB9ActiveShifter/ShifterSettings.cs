@@ -112,7 +112,11 @@ namespace AB9ActiveShifter
         public int LockoutForcePct { get { return _lockoutForcePct; } set { Set(ref _lockoutForcePct, value); } }
 
         /// <summary>Half-width of the lockout gate: a dot on the neutral channel, not a zone.</summary>
-        public int LockoutHalfWidth { get { return _lockoutHalfWidth; } set { Set(ref _lockoutHalfWidth, value); } }
+        public int LockoutHalfWidth
+        {
+            get { return _lockoutHalfWidth; }
+            set { Set(ref _lockoutHalfWidth, value); OnChanged("LockoutHalfWidthPercent"); }
+        }
 
         /// <summary>Force used when measuring polarity. Raise it if calibration is inconclusive.</summary>
         public int CalibrationForcePct { get { return _calibrationForcePct; } set { Set(ref _calibrationForcePct, value); } }
@@ -221,15 +225,15 @@ namespace AB9ActiveShifter
         /// <summary>How much of the safe opening to use, as a percentage.</summary>
         public int MouthOpenPct { get { return _mouthOpenPct; } set { Set(ref _mouthOpenPct, value); } }
 
-        public int WallRamp { get { return _wallRamp; } set { Set(ref _wallRamp, value); } }
+        public int WallRamp { get { return _wallRamp; } set { Set(ref _wallRamp, value); OnChanged("WallRampPercent"); } }
 
         /// <summary>How many milliseconds a wall takes to reach full force on contact. The hammer fix.</summary>
         public int WallAttackMs { get { return _wallAttackMs; } set { Set(ref _wallAttackMs, value); } }
-        public int BarrierWidth { get { return _barrierWidth; } set { Set(ref _barrierWidth, value); } }
-        public int WallBlend { get { return _wallBlend; } set { Set(ref _wallBlend, value); } }
+        public int BarrierWidth { get { return _barrierWidth; } set { Set(ref _barrierWidth, value); OnChanged("BarrierWidthPercent"); } }
+        public int WallBlend { get { return _wallBlend; } set { Set(ref _wallBlend, value); OnChanged("WallBlendPercent"); } }
 
         /// <summary>Free lateral corridor inside a slot. Widen it if a gear shakes when seated; zero rails the slot.</summary>
-        public int SlotHalfWidth { get { return _slotHalfWidth; } set { Set(ref _slotHalfWidth, value); } }
+        public int SlotHalfWidth { get { return _slotHalfWidth; } set { Set(ref _slotHalfWidth, value); OnChanged("SlotHalfWidthPercent"); } }
 
         /// <summary>Free fore/aft depth of the neutral tunnel before its centring begins. Zero rails the tunnel.</summary>
         public int ChannelFreeDepth { get { return _channelFreeDepth; } set { Set(ref _channelFreeDepth, value); } }
@@ -247,6 +251,18 @@ namespace AB9ActiveShifter
                 OnChanged("IsHPattern");
                 OnChanged("IsSequential");
                 OnChanged("HasLockout");
+
+                // ColumnSpacing depends on pattern, so every percent-of-spacing view changes
+                // even though none of the underlying raw counts did.
+                OnChanged("WallRampPercent");
+                OnChanged("SlotHalfWidthPercent");
+                OnChanged("LockoutHalfWidthPercent");
+                OnChanged("BarrierWidthPercent");
+                OnChanged("WallBlendPercent");
+                OnChanged("ColumnEdgeEnterPercent");
+                OnChanged("ColumnInnerHalfEnterPercent");
+                OnChanged("ColumnInnerHalfExitPercent");
+                OnChanged("DetentHysteresisPercent");
             }
         }
 
@@ -380,9 +396,9 @@ namespace AB9ActiveShifter
 
         public int ChannelHalfEnter { get { return _channelHalfEnter; } set { Set(ref _channelHalfEnter, value); } }
         public int ChannelHalfExit { get { return _channelHalfExit; } set { Set(ref _channelHalfExit, value); } }
-        public int ColumnEdgeEnter { get { return _columnEdgeEnter; } set { Set(ref _columnEdgeEnter, value); } }
-        public int ColumnInnerHalfEnter { get { return _columnInnerHalfEnter; } set { Set(ref _columnInnerHalfEnter, value); } }
-        public int ColumnInnerHalfExit { get { return _columnInnerHalfExit; } set { Set(ref _columnInnerHalfExit, value); } }
+        public int ColumnEdgeEnter { get { return _columnEdgeEnter; } set { Set(ref _columnEdgeEnter, value); OnChanged("ColumnEdgeEnterPercent"); } }
+        public int ColumnInnerHalfEnter { get { return _columnInnerHalfEnter; } set { Set(ref _columnInnerHalfEnter, value); OnChanged("ColumnInnerHalfEnterPercent"); } }
+        public int ColumnInnerHalfExit { get { return _columnInnerHalfExit; } set { Set(ref _columnInnerHalfExit, value); OnChanged("ColumnInnerHalfExitPercent"); } }
         public int EngageDepth
         {
             get { return _engageDepth; }
@@ -390,8 +406,114 @@ namespace AB9ActiveShifter
         }
 
         public int ReleaseDepth { get { return _releaseDepth; } set { Set(ref _releaseDepth, value); } }
-        public int DetentHysteresis { get { return _detentHysteresis; } set { Set(ref _detentHysteresis, value); } }
+        public int DetentHysteresis { get { return _detentHysteresis; } set { Set(ref _detentHysteresis, value); OnChanged("DetentHysteresisPercent"); } }
         public int MinEngageTicks { get { return _minEngageTicks; } set { Set(ref _minEngageTicks, value); } }
+
+        /// <summary>
+        /// <see cref="GateGeometry.ColumnSpacing"/> for the current pattern, without building a
+        /// full geometry just to read one derived int.
+        /// </summary>
+        private int ColumnSpacing { get { return ToEngineConfig().BuildGeometry().ColumnSpacing; } }
+
+        // Percent-of-column-spacing views onto the lateral geometry dials above, for the Feel
+        // tab's display toggle. ColumnSpacing genuinely differs by pattern - about 21845 counts
+        // on the four-column H6R/H7R and 32767 on the three-column H5R - so the same raw axis
+        // count is a different fraction of the room between columns depending which pattern a
+        // profile was tuned on. WallRamp's ceiling (see ForceComposer.WallRampCeiling) is
+        // computed from exactly this room, which is why a bite that never gets silently
+        // clamped on one pattern can start being clamped on another at the same raw count: the
+        // percentage is what actually carries a tuned feel across patterns, not the count.
+        //
+        // Only the genuinely lateral (X-axis) dials get this treatment. ChannelHalfEnter,
+        // ChannelHalfExit, EngageDepth, ReleaseDepth and ChannelFreeDepth are fore/aft (Y-axis)
+        // depths: the Y-axis travel range does not change between patterns, only the column
+        // count does, so those dials mean the same thing on every pattern already and gained
+        // nothing from a percent view. WallRamp is the one exception worth flagging: it is also
+        // the fore/aft wall bite in ForceComposer.ComposeNeutral, so this percentage describes
+        // only its lateral (slot-wall) meaning, not that second use.
+        //
+        // Display-only: switching Pattern does not rescale the stored raw counts, so the
+        // *percentage* shown for an unchanged raw value moves when the pattern changes,
+        // exactly like it would if measured by hand. Automatically rescaling the raw counts to
+        // preserve the percentage across a pattern switch is a separate, higher-risk change -
+        // it would be writing new numbers into force-affecting settings automatically - and
+        // belongs in its own change with its own tests, not folded in here.
+        public double WallRampPercent
+        {
+            get { return PercentOfSpacing(_wallRamp); }
+            set { SetPercentOfSpacing(ref _wallRamp, value, "WallRamp", "WallRampPercent"); }
+        }
+
+        public double SlotHalfWidthPercent
+        {
+            get { return PercentOfSpacing(_slotHalfWidth); }
+            set { SetPercentOfSpacing(ref _slotHalfWidth, value, "SlotHalfWidth", "SlotHalfWidthPercent"); }
+        }
+
+        public double LockoutHalfWidthPercent
+        {
+            get { return PercentOfSpacing(_lockoutHalfWidth); }
+            set { SetPercentOfSpacing(ref _lockoutHalfWidth, value, "LockoutHalfWidth", "LockoutHalfWidthPercent"); }
+        }
+
+        public double BarrierWidthPercent
+        {
+            get { return PercentOfSpacing(_barrierWidth); }
+            set { SetPercentOfSpacing(ref _barrierWidth, value, "BarrierWidth", "BarrierWidthPercent"); }
+        }
+
+        public double WallBlendPercent
+        {
+            get { return PercentOfSpacing(_wallBlend); }
+            set { SetPercentOfSpacing(ref _wallBlend, value, "WallBlend", "WallBlendPercent"); }
+        }
+
+        public double ColumnEdgeEnterPercent
+        {
+            get { return PercentOfSpacing(_columnEdgeEnter); }
+            set { SetPercentOfSpacing(ref _columnEdgeEnter, value, "ColumnEdgeEnter", "ColumnEdgeEnterPercent"); }
+        }
+
+        public double ColumnInnerHalfEnterPercent
+        {
+            get { return PercentOfSpacing(_columnInnerHalfEnter); }
+            set { SetPercentOfSpacing(ref _columnInnerHalfEnter, value, "ColumnInnerHalfEnter", "ColumnInnerHalfEnterPercent"); }
+        }
+
+        public double ColumnInnerHalfExitPercent
+        {
+            get { return PercentOfSpacing(_columnInnerHalfExit); }
+            set { SetPercentOfSpacing(ref _columnInnerHalfExit, value, "ColumnInnerHalfExit", "ColumnInnerHalfExitPercent"); }
+        }
+
+        public double DetentHysteresisPercent
+        {
+            get { return PercentOfSpacing(_detentHysteresis); }
+            set { SetPercentOfSpacing(ref _detentHysteresis, value, "DetentHysteresis", "DetentHysteresisPercent"); }
+        }
+
+        private double PercentOfSpacing(int raw)
+        {
+            int spacing = ColumnSpacing;
+            return spacing > 0 ? raw * 100.0 / spacing : 0.0;
+        }
+
+        /// <summary>
+        /// Writes the raw field from a percentage of the current spacing, and notifies both
+        /// names - the raw property (so anything bound to it, including the hidden slider the
+        /// display toggle is not currently showing, stays in sync) and this percent property
+        /// itself (so the slider snaps to the value the rounded raw count actually corresponds
+        /// to, rather than the fractional percent the user may have dragged to).
+        /// </summary>
+        private void SetPercentOfSpacing(ref int field, double percent, string rawPropertyName, string percentPropertyName)
+        {
+            int raw = (int)Math.Round(percent / 100.0 * ColumnSpacing);
+            if (field == raw) return;
+
+            field = raw;
+            OnChanged(rawPropertyName);
+            OnChanged(percentPropertyName);
+        }
 
         public EngineConfig ToEngineConfig()
         {
