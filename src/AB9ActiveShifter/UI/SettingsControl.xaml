@@ -11,6 +11,34 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <!--
+            Applies to every ui:TitledSlider with no per-instance markup needed: a tooltip
+            advertising the undo gesture, and the event/context-menu wiring that implements it.
+            Gesture boundaries are bracketed by whichever gets there first - a mouse press, a
+            key press, or gaining keyboard focus (typing into the value box) - paired with its
+            matching end event, so a five-second drag-and-hold is one adjustment and a quick
+            +/- click is another, whatever the interaction. TitledSlider is SimHub's own
+            compiled control, so none of this touches it directly - ToolTip and ContextMenu are
+            plain FrameworkElement properties any control accepts from outside.
+        -->
+        <Style TargetType="{x:Type ui:TitledSlider}">
+            <Setter Property="ToolTip" Value="Right-click to undo the last adjustment." />
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="OnSliderGestureStartMouse" />
+            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="OnSliderGestureEndMouse" />
+            <EventSetter Event="PreviewKeyDown" Handler="OnSliderGestureStartKey" />
+            <EventSetter Event="PreviewKeyUp" Handler="OnSliderGestureEndKey" />
+            <EventSetter Event="GotKeyboardFocus" Handler="OnSliderGestureStartFocus" />
+            <EventSetter Event="LostKeyboardFocus" Handler="OnSliderGestureEndFocus" />
+            <EventSetter Event="ContextMenuOpening" Handler="OnSliderContextMenuOpening" />
+            <Setter Property="ContextMenu">
+                <Setter.Value>
+                    <ContextMenu>
+                        <MenuItem Header="Undo to previous value" Click="OnUndoSlider" />
+                    </ContextMenu>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <styles:SHTabControl>
