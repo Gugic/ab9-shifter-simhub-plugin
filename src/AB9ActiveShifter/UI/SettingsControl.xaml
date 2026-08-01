@@ -270,6 +270,7 @@
                             <ui:TitledSlider Title="Wall bite distance (axis counts)" Minimum="60" Maximum="6000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="600"
                                              Value="{Binding WallRamp, Mode=TwoWay}" />
+                            <TextBlock x:Name="WallRampSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" />
                             <ui:TitledSlider Title="Wall attack (ms to full force, 0 = off)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="0"
                                              Value="{Binding WallAttackMs, Mode=TwoWay}" />
