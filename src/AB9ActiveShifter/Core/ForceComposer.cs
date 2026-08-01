@@ -973,6 +973,17 @@ namespace AB9ActiveShifter.Core
             }
         }
 
+        /// <summary>
+        /// How deep ChannelFreeDepth can reach before <see cref="ComposeNeutral"/> clamps it to
+        /// the neutral channel's own enter band - a force deadband wider than that would be a
+        /// wall the state machine believes exists and the hand never meets. Exposed alongside
+        /// <see cref="WallRampCeiling"/> so the Feel tab has one mechanism for "this dial has a
+        /// computed ceiling that isn't obvious from the slider," rather than a second one-off
+        /// display for the same class of silently-clamped dial. Unlike the wall bite, this
+        /// ceiling is a single geometry fact, not a per-column minimum.
+        /// </summary>
+        public int ChannelFreeDepthCeiling { get { return _geo.ChannelHalfEnter; } }
+
         private int SlotCorridor(Column column)
         {
             int limit = Math.Max(0, _geo.ColumnFreeHalfWidth(column) - 100);
