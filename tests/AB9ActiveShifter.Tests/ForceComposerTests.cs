@@ -1349,6 +1349,26 @@ namespace AB9ActiveShifter.Tests
                 "seated hold " + hold + " is too weak to keep a gear against a self-centring base");
         }
 
+        [Fact]
+        public void DetentMagnitudeSamplesTheFullCurveByFraction()
+        {
+            // DetentMagnitude is public and takes the engage fraction directly so the Feel
+            // tab's detent curve visualization can sample this exact formula for a plot rather
+            // than reimplementing a shape that could drift from what a real shift renders.
+            // Pins the four breakpoints the visualization needs to place correctly: nothing at
+            // the channel centre, full resist at the crossover, full pull at the seat, and the
+            // flat hold from the engage depth on.
+            EngineConfig cfg = FullGainConfig();
+            ForceComposer c = Composer(cfg);
+
+            Assert.Equal(0, c.DetentMagnitude(ShiftDir.Fwd, 0.0, muted: false));
+            Assert.Equal(1100, c.DetentMagnitude(ShiftDir.Fwd, 0.275, muted: false));
+            Assert.Equal(2200, c.DetentMagnitude(ShiftDir.Fwd, 0.55, muted: false));
+            Assert.Equal(-3500, c.DetentMagnitude(ShiftDir.Fwd, 0.80, muted: false));
+            Assert.Equal(-5500, c.DetentMagnitude(ShiftDir.Fwd, 1.00, muted: false));
+            Assert.Equal(-5500, c.DetentMagnitude(ShiftDir.Fwd, 1.20, muted: false));
+        }
+
         // ---------------------------------------------------------------- rebound absorption
 
         [Fact]

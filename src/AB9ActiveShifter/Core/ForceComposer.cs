@@ -895,7 +895,7 @@ namespace AB9ActiveShifter.Core
             // the slot detent replaces the tunnel's gate wall, which is what makes a gear a place
             // the lever can go rather than a wall it bounces off.
             f.ConstantX = Combine(LateralGuide(x, y), BarrierForceIn(x, y));
-            f.ConstantY = DetentMagnitude(direction, y, muteDetent);
+            f.ConstantY = DetentMagnitude(direction, _geo.EngageFraction(direction, y), muteDetent);
 
             return f;
         }
@@ -1062,10 +1062,15 @@ namespace AB9ActiveShifter.Core
         /// lever back out however deep it is held - a border, the way a blocking synchro ring
         /// stops the lever a third of the way in, not a lean. The moment the clutch goes down
         /// the normal profile returns and the pull arrives whole, like the snick it is.
+        ///
+        /// Takes the engage fraction directly rather than a raw y, so the Feel tab's detent
+        /// curve visualization can sample this exact formula across 0..1.2 for a plot, instead
+        /// of a separate reimplementation that could drift from what a real shift actually
+        /// feels. Public for the same reason.
         /// </summary>
-        private int DetentMagnitude(ShiftDir direction, int y, bool muted)
+        public int DetentMagnitude(ShiftDir direction, double engageFraction, bool muted)
         {
-            double d = _geo.EngageFraction(direction, y);
+            double d = engageFraction;
 
             double restoring;
             if (muted)

@@ -124,6 +124,7 @@ namespace AB9ActiveShifter.UI
             {
                 _boundSettings.PropertyChanged += OnSettingsChanged;
                 Visualizer.Attach(_boundSettings);
+                DetentCurve.Attach(_boundSettings);
             }
 
             // A fresh baseline for "modified since I opened this profile" - not since the last
