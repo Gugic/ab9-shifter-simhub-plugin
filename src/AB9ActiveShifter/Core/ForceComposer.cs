@@ -642,17 +642,23 @@ namespace AB9ActiveShifter.Core
         /// dial. That structurally retires the steepest gradient in the gate: the funnel's, at 13.3
         /// DI per count against a wall face of 3.8, which existed only in the mouth and only
         /// because its ramp was a free parameter someone had turned to its floor.
+        ///
+        /// Takes the guide column as a parameter rather than reading the private _guideColumn
+        /// field directly - MouthExtra and MouthOpeningFor below do the same - so the Feel tab's
+        /// Sliding Across The Gate visualization can sweep every column across the whole gate
+        /// width for a static plot without touching the live per-tick state Compose() tracks.
+        /// Public for the same reason.
         /// </summary>
-        private int LateralGuide(int x, int y)
+        public int LateralGuide(int x, int y, Column guideColumn)
         {
-            if (_guideColumn == Column.None) return 0;
+            if (guideColumn == Column.None) return 0;
 
             int depth = Math.Abs(y - GateGeometry.AxisCenter);
             int plateau = GuidePlateau(depth);
             if (plateau <= 0) return 0;
 
-            int offset = x - _geo.ColumnTarget(_guideColumn);
-            int corridor = SlotCorridor(_guideColumn) + MouthExtra(offset, depth, y);
+            int offset = x - _geo.ColumnTarget(guideColumn);
+            int corridor = SlotCorridor(guideColumn) + MouthExtra(offset, depth, y, guideColumn);
             int face = GuideFace(plateau, corridor);
 
             return (int)Math.Round(Saturating(offset, plateau, face, corridor) * Relief(x, face));
@@ -694,14 +700,14 @@ namespace AB9ActiveShifter.Core
         /// and the only gradient introduced is the flank's own slope, capped at
         /// <see cref="EngineConfig.MouthSlopeMax"/> - half the wall face at worst.
         /// </summary>
-        private int MouthExtra(int offset, int depth, int y)
+        private int MouthExtra(int offset, int depth, int y, Column guideColumn)
         {
             if (_mouthOpening <= 0 || offset == 0) return 0;
 
             // A slot that holds no gear has no mouth to shape - the divider runs straight
             // across it, and widening the corridor there would carve an entry into a wall
             // the state machine will never open.
-            if (!_geo.SlotExists(_guideColumn, _geo.DirectionOf(y))) return 0;
+            if (!_geo.SlotExists(guideColumn, _geo.DirectionOf(y))) return 0;
 
             int side = offset > 0 ? 1 : -1;
             int reach = Math.Max(1, _cfg.MouthDepth);
@@ -714,7 +720,7 @@ namespace AB9ActiveShifter.Core
             if (_cfg.MouthShape == SlotMouthShape.Angled)
             {
                 // One flank only, and only where a next gear exists to be steered toward.
-                if (side != _geo.SequentialBias(_guideColumn, _geo.DirectionOf(y))) return 0;
+                if (side != _geo.SequentialBias(guideColumn, _geo.DirectionOf(y))) return 0;
                 profile = 1.0 - u;
             }
             else
@@ -726,7 +732,7 @@ namespace AB9ActiveShifter.Core
                 profile = 0.5 * (1.0 + Math.Cos(Math.PI * u));
             }
 
-            return (int)Math.Round(MouthOpeningFor(side) * profile);
+            return (int)Math.Round(MouthOpeningFor(side, guideColumn) * profile);
         }
 
         /// <summary>
@@ -734,12 +740,12 @@ namespace AB9ActiveShifter.Core
         /// flank facing the lockout, by the gate's band - nothing belonging to a column may reach
         /// into the gate, or the toll's size would start depending on the mouth setting.
         /// </summary>
-        private int MouthOpeningFor(int side)
+        private int MouthOpeningFor(int side, Column guideColumn)
         {
-            int target = _geo.ColumnTarget(_guideColumn);
-            int room = (_geo.ColumnSpacing / 2) - SlotCorridor(_guideColumn) - 200;
+            int target = _geo.ColumnTarget(guideColumn);
+            int room = (_geo.ColumnSpacing / 2) - SlotCorridor(guideColumn) - 200;
 
-            int gapIndex = side > 0 ? (int)_guideColumn : (int)_guideColumn - 1;
+            int gapIndex = side > 0 ? (int)guideColumn : (int)guideColumn - 1;
             if (gapIndex == _geo.LockoutGapIndex)
             {
                 int edge = side > 0
@@ -750,7 +756,7 @@ namespace AB9ActiveShifter.Core
                 // the band is not enough: widening the corridor moves where the face begins, so the
                 // force inside the gate's band changes even though nothing has crossed into it, and
                 // the size of the toll would start depending on the mouth setting.
-                int corridor = SlotCorridor(_guideColumn);
+                int corridor = SlotCorridor(guideColumn);
                 room = Math.Min(room, edge - corridor - SlotRamp(corridor) - 100);
             }
 
@@ -809,8 +815,11 @@ namespace AB9ActiveShifter.Core
         /// plate has its gate cut into the tunnel, not into the slots, so below the channel the
         /// slot walls own the lateral axis alone. Applied in every state, like the guide, because
         /// anything indexed on the state machine puts the step back.
+        ///
+        /// Public alongside LateralGuide for the Feel tab's Sliding Across The Gate
+        /// visualization - the two together are exactly ComposeNeutral's own ConstantX.
         /// </summary>
-        private int BarrierForceIn(int x, int y)
+        public int BarrierForceIn(int x, int y)
         {
             double faded = 1.0 - _geo.SlotConfinementFactor(y);
             if (faded <= 0.0) return 0;
@@ -856,7 +865,7 @@ namespace AB9ActiveShifter.Core
                 SpringY = SpringPreset.Off
             };
 
-            f.ConstantX = Combine(LateralGuide(x, y), BarrierForceIn(x, y));
+            f.ConstantX = Combine(LateralGuide(x, y, _guideColumn), BarrierForceIn(x, y));
 
             // The horizontal guide. Lined up with a column this nearly vanishes so a gear can be
             // taken; between columns it is a full wall. The channel has width for the same reason
@@ -894,7 +903,7 @@ namespace AB9ActiveShifter.Core
             // Fore and aft is the one thing a latch does change, and the only thing it changes:
             // the slot detent replaces the tunnel's gate wall, which is what makes a gear a place
             // the lever can go rather than a wall it bounces off.
-            f.ConstantX = Combine(LateralGuide(x, y), BarrierForceIn(x, y));
+            f.ConstantX = Combine(LateralGuide(x, y, _guideColumn), BarrierForceIn(x, y));
             f.ConstantY = DetentMagnitude(direction, _geo.EngageFraction(direction, y), muteDetent);
 
             return f;

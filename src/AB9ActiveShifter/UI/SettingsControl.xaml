@@ -279,6 +279,11 @@
                         <StackPanel Margin="0,4,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
                                        Text="Every wall is a percentage of full force, so 90% is a wall you cannot push through by hand. These are the same kind of force as the lockout, which is why they can be made properly solid." />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                       Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
+                                       Text="This shows the wall you feel pushing back if you drift away from centre without lining up on a column: nothing at all for a short free stretch, then a quick ramp up to a wall you cannot push through by hand once past it. Line up with a column instead and this wall gets out of the way entirely - blocking everywhere except where a gear actually is is the whole job of the gate." />
+                            <local:GateWallCurveVisualizer x:Name="GateWallCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8"
+                                                            Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" />
 
                             <CheckBox x:Name="GeometryPercentToggle" Content="Show the lateral geometry dials below and under Advanced gate geometry as % of column spacing"
                                       Margin="0,0,0,4"
@@ -393,7 +398,8 @@
                                       Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                         <StackPanel Margin="0,4,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
-                                       Text="What the hand feels moving along the neutral channel: a light pull into each column, a hump to climb between the ordinary columns, and the lockout gate before 7/R - a one-way fight, flat toward the main gears across a compact band, so a fast flick pays the same price as a slow push. Leaving 7/R is assisted, like a real range gate. Its width times its force is the toll: if slams still get through, widen or strengthen it." />
+                                       Text="What the hand feels moving along the neutral channel: a light pull into each column, a hump to climb between the ordinary columns, and the lockout gate before 7/R - a one-way fight, flat toward the main gears across a compact band, so a fast flick pays the same price as a slow push. Leaving 7/R is assisted, like a real range gate. Its width times its force is the toll: if slams still get through, widen or strengthen it. The graph below shows this across the whole width of the gate, coloured band and all; the white dot tracks where the stick actually is while sliding." />
+                            <local:SlidingAcrossGateVisualizer x:Name="SlidingAcrossGateCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" />
 
                             <ui:TitledSlider Title="Lockout gate, guarding the R column (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="70"
