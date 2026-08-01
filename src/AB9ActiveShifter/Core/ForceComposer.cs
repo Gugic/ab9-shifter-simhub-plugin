@@ -999,6 +999,19 @@ namespace AB9ActiveShifter.Core
             return GateGeometry.Clamp(_cfg.SlotHalfWidth, 0, limit);
         }
 
+        /// <summary>
+        /// Half the free corridor's width at a given fore/aft depth, on one flank - the normal
+        /// slot corridor plus whatever the mouth shaping currently adds there. side is +1 or -1
+        /// for which flank; only its sign matters, matching MouthExtra's own convention. For
+        /// the Feel tab's Slot Mouths visualization, which draws the widening funnel this
+        /// produces as the stick approaches from the tunnel - the exact corridor boundary
+        /// LateralGuide renders, not a redrawn approximation of it.
+        /// </summary>
+        public int SlotCorridorHalfWidthAt(Column column, int side, int depth, int y)
+        {
+            return SlotCorridor(column) + MouthExtra(side, depth, y, column);
+        }
+
         /// <summary>Humps guarding the ordinary gaps, and the lockout gate guarding 7/R's gap.</summary>
         private int BarrierForceAt(int x)
         {

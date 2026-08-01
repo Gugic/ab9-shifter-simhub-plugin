@@ -127,6 +127,7 @@ namespace AB9ActiveShifter.UI
                 DetentCurve.Attach(_boundSettings);
                 GateWallCurve.Attach(_boundSettings);
                 SlidingAcrossGateCurve.Attach(_boundSettings);
+                SlotMouthCurve.Attach(_boundSettings);
             }
 
             // A fresh baseline for "modified since I opened this profile" - not since the last

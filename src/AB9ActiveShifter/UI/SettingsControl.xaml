@@ -373,7 +373,8 @@
                                       Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                         <StackPanel Margin="0,4,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
-                                       Text="The ends of the dividers between slots, where they meet the neutral tunnel. Square is the plain rectangular notch the gate has always had. The other two open the slot out toward the tunnel, which a hand reads as an eased or a chamfered edge - they only ever remove force, never add it, so the shaping guides rather than shoves." />
+                                       Text="The ends of the dividers between slots, where they meet the neutral tunnel. Square is the plain rectangular notch the gate has always had. The other two open the slot out toward the tunnel, which a hand reads as an eased or a chamfered edge - they only ever remove force, never add it, so the shaping guides rather than shoves. The diagram below is a view from above: depth into the slot running right, how much lateral room there is either side of the column running up and down. The white dot tracks the stick while it is actually in a column." />
+                            <local:SlotMouthVisualizer x:Name="SlotMouthCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" />
 
                             <TextBlock Text="Mouth shape" Margin="0,0,0,4" />
                             <ComboBox SelectedIndex="{Binding MouthShapeIndex, Mode=TwoWay}" Margin="0,0,0,8"
