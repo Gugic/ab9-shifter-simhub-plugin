@@ -601,7 +601,7 @@ namespace AB9ActiveShifter.UI
 
             WallRampSummary.Text = ceiling < s.WallRamp
                 ? string.Format(
-                    "Effective bite: {0} counts, capped down from {1} - the tightest column has no room for a longer bite at the current geometry.",
+                    "Effective bite: {0} counts, capped down from {1} - the tightest column has no room for a longer bite at the current geometry. Lowering Slot width, free corridor (SlotHalfWidth) would raise this ceiling.",
                     ceiling, s.WallRamp)
                 : string.Format("Effective bite: {0} counts.", s.WallRamp);
         }
@@ -624,7 +624,7 @@ namespace AB9ActiveShifter.UI
 
             ChannelFreeDepthSummary.Text = ceiling < s.ChannelFreeDepth
                 ? string.Format(
-                    "Effective depth: {0} counts, capped down from {1} - the neutral channel's own enter band leaves no more free room at the current geometry.",
+                    "Effective depth: {0} counts, capped down from {1} - the neutral channel's own enter band leaves no more free room at the current geometry. Raising Neutral tunnel half-depth (enter) (ChannelHalfEnter), under Advanced gate geometry, would allow more.",
                     ceiling, s.ChannelFreeDepth)
                 : string.Format("Effective depth: {0} counts.", s.ChannelFreeDepth);
         }
