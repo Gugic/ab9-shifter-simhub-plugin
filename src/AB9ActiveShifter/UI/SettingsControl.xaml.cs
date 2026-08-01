@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -24,6 +26,11 @@ namespace AB9ActiveShifter.UI
         public SettingsControl()
         {
             InitializeComponent();
+
+            _undoMenuItem.Click += OnUndoSlider;
+            _sliderContextMenu.Items.Add(_undoMenuItem);
+            _sliderContextMenu.Opened += OnSliderContextMenuOpened;
+
             IndexSliders();
 
             VersionText.Text = "Version " + PluginInfo.Version;
@@ -54,6 +61,14 @@ namespace AB9ActiveShifter.UI
         private readonly Dictionary<TitledSlider, double> _previousValue = new Dictionary<TitledSlider, double>();
         private readonly HashSet<TitledSlider> _gestureActive = new HashSet<TitledSlider>();
         private Dictionary<string, object> _profileBaseline = new Dictionary<string, object>();
+
+        // Built and wired entirely in code, not XAML: a MenuItem's inline Click="..." handler
+        // placed inside UserControl.Resources shifts the compiler's connectionId numbering and
+        // throws an unrelated cast exception at load (see the comment in SettingsControl.xaml).
+        // One shared instance handed to every slider; ContextMenu.PlacementTarget tells
+        // OnSliderContextMenuOpened/OnUndoSlider which one was actually right-clicked.
+        private readonly ContextMenu _sliderContextMenu = new ContextMenu();
+        private readonly MenuItem _undoMenuItem = new MenuItem { Header = "Undo to previous value" };
 
         private static readonly Brush DirtyBrush = MakeDirtyBrush();
 
@@ -128,6 +143,7 @@ namespace AB9ActiveShifter.UI
 
                 _sliderByProperty[property] = slider;
                 _originalTitle[slider] = slider.Title;
+                slider.ContextMenu = _sliderContextMenu;
             }
         }
 
@@ -148,10 +164,11 @@ namespace AB9ActiveShifter.UI
         // ---------------------------------------------------------------- slider undo
 
         /// <summary>
-        /// Brackets one adjustment: whichever event gets there first among a mouse press, a key
-        /// press, or gaining keyboard focus (typing into the value box) snapshots the value, and
-        /// its matching end event closes the bracket. A held drag or a held +/- repeat is one
-        /// adjustment this way, whatever the interaction, without guessing from a settle timer.
+        /// Brackets one adjustment: whichever event gets there first between a mouse press and a
+        /// key press snapshots the value, and its matching end event closes the bracket. A held
+        /// drag or a held +/- repeat is one adjustment this way, whatever the interaction,
+        /// without guessing from a settle timer. Deliberately not also bracketed by keyboard
+        /// focus - see the comment on the Style in SettingsControl.xaml for why that broke undo.
         /// </summary>
         private void BeginGesture(TitledSlider slider)
         {
@@ -169,30 +186,22 @@ namespace AB9ActiveShifter.UI
         private void OnSliderGestureEndMouse(object sender, MouseButtonEventArgs e) { EndGesture(sender as TitledSlider); }
         private void OnSliderGestureStartKey(object sender, KeyEventArgs e) { BeginGesture(sender as TitledSlider); }
         private void OnSliderGestureEndKey(object sender, KeyEventArgs e) { EndGesture(sender as TitledSlider); }
-        private void OnSliderGestureStartFocus(object sender, KeyboardFocusChangedEventArgs e) { BeginGesture(sender as TitledSlider); }
-        private void OnSliderGestureEndFocus(object sender, KeyboardFocusChangedEventArgs e) { EndGesture(sender as TitledSlider); }
 
-        private void OnSliderContextMenuOpening(object sender, ContextMenuEventArgs e)
+        private void OnSliderContextMenuOpened(object sender, RoutedEventArgs e)
         {
-            TitledSlider slider = sender as TitledSlider;
-            MenuItem item = slider != null && slider.ContextMenu != null && slider.ContextMenu.Items.Count > 0
-                ? slider.ContextMenu.Items[0] as MenuItem
-                : null;
-            if (slider == null || item == null) return;
+            TitledSlider slider = _sliderContextMenu.PlacementTarget as TitledSlider;
 
-            double previous;
-            bool hasPrevious = _previousValue.TryGetValue(slider, out previous) && previous != slider.Value;
-            item.IsEnabled = hasPrevious;
-            item.Header = hasPrevious
+            double previous = 0;
+            bool hasPrevious = slider != null && _previousValue.TryGetValue(slider, out previous) && previous != slider.Value;
+            _undoMenuItem.IsEnabled = hasPrevious;
+            _undoMenuItem.Header = hasPrevious
                 ? string.Format("Undo to previous value ({0:0.##})", previous)
                 : "Undo to previous value";
         }
 
         private void OnUndoSlider(object sender, RoutedEventArgs e)
         {
-            MenuItem item = sender as MenuItem;
-            ContextMenu menu = item != null ? item.Parent as ContextMenu : null;
-            TitledSlider slider = menu != null ? menu.PlacementTarget as TitledSlider : null;
+            TitledSlider slider = _sliderContextMenu.PlacementTarget as TitledSlider;
             if (slider == null) return;
 
             double previous;
@@ -236,13 +245,72 @@ namespace AB9ActiveShifter.UI
             SetDirty(slider, dirty);
         }
 
+        private readonly Dictionary<TitledSlider, Adorner> _dirtyAdorners = new Dictionary<TitledSlider, Adorner>();
+
+        /// <summary>
+        /// An Adorner paints the whole marked-up label directly over the control from outside
+        /// its template: setting TitledSlider's Foreground externally had no visible effect
+        /// (confirmed on hardware) - its template evidently hardcodes the title's brush rather
+        /// than binding it to the control's own Foreground. The real Title is blanked while
+        /// dirty so the (uncoloured) original text underneath cannot show through or double up
+        /// with the red one drawn on top; restoring it is why the original has to be tracked.
+        /// </summary>
         private void SetDirty(TitledSlider slider, bool dirty)
         {
             string original;
             if (!_originalTitle.TryGetValue(slider, out original)) return;
 
-            slider.Title = dirty ? "* " + original : original;
-            slider.Foreground = dirty ? DirtyBrush : SystemColors.ControlTextBrush;
+            Adorner existing;
+            if (_dirtyAdorners.TryGetValue(slider, out existing))
+            {
+                AdornerLayer layer = AdornerLayer.GetAdornerLayer(slider);
+                if (layer != null) layer.Remove(existing);
+                _dirtyAdorners.Remove(slider);
+            }
+
+            if (dirty)
+            {
+                slider.Title = string.Empty;
+
+                AdornerLayer layer = AdornerLayer.GetAdornerLayer(slider);
+                if (layer != null)
+                {
+                    Adorner adorner = new DirtyMarkerAdorner(slider, "* " + original, DirtyBrush);
+                    layer.Add(adorner);
+                    _dirtyAdorners[slider] = adorner;
+                }
+            }
+            else
+            {
+                slider.Title = original;
+            }
+        }
+
+        /// <summary>
+        /// Paints the whole label in red over a slider's title area, independent of its
+        /// template. Position and size are a best-effort match to TitledSlider's own title
+        /// text - there is no source to read the real values from - so this is the one part of
+        /// the feature most likely to need a visual nudge once seen on the actual control.
+        /// </summary>
+        private sealed class DirtyMarkerAdorner : Adorner
+        {
+            private readonly string _text;
+            private readonly Brush _brush;
+
+            public DirtyMarkerAdorner(UIElement adorned, string text, Brush brush) : base(adorned)
+            {
+                _text = text;
+                _brush = brush;
+                IsHitTestVisible = false;
+            }
+
+            protected override void OnRender(DrawingContext drawingContext)
+            {
+                Typeface typeface = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+                FormattedText text = new FormattedText(
+                    _text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, 13, _brush, 1.0);
+                drawingContext.DrawText(text, new Point(0, 0));
+            }
         }
 
         private void OnProfileChanged()
