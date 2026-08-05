@@ -54,6 +54,30 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void NoShippedProfileNeedsItsReleaseDepthRepaired()
+        {
+            // GateGeometry quietly repairs a release depth that is not deeper than engage, to
+            // engage + 1. That is a safety net for a hand-edited setting, not something a shipped
+            // profile should ever land on: one axis count of hysteresis in 65535 is a gear that
+            // re-registers on noise. Asserting the repair changes nothing says "these values are
+            // self-consistent" more precisely than any inequality on the raw numbers would.
+            //
+            // This exists because the shipped H profiles did land on it - copied off the rig with
+            // release 17789 against engage 20852, the wrong way round. Depth counts inward from
+            // the extreme, so release must be the larger number, and Show-ProfileDeltas.ps1 will
+            // happily reproduce the mistake from a settings file that still has it.
+            foreach (ShifterProfile p in DefaultProfiles.Create().Profiles)
+            {
+                GateGeometry geo = p.Settings.ToEngineConfig().BuildGeometry();
+
+                Assert.Equal(p.Settings.EngageDepth, geo.EngageDepth);
+                Assert.True(geo.ReleaseDepth == p.Settings.ReleaseDepth,
+                    p.Name + " ships engage " + p.Settings.EngageDepth + " / release " +
+                    p.Settings.ReleaseDepth + ", which the geometry repaired to " + geo.ReleaseDepth);
+            }
+        }
+
+        [Fact]
         public void TheStoreIsCoherent()
         {
             ProfileStore store = DefaultProfiles.Create();

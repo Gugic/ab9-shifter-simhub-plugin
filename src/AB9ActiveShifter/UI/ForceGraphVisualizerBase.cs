@@ -64,16 +64,27 @@ namespace AB9ActiveShifter.UI
         private void OnTick(object sender, EventArgs e)
         {
             ShifterEngine engine = AB9ShifterPlugin.Engine;
-            Snapshot = engine != null ? engine.Snapshot : new EngineSnapshot();
-            InvalidateVisual();
+            EngineSnapshot snap = engine != null ? engine.Snapshot : new EngineSnapshot();
+
+            // Redraw only when something a graph actually draws has moved. Every OnRender here
+            // rebuilds an EngineConfig, a GateGeometry and a ForceComposer, and the Feel tab
+            // shows several of these at once - so an unconditional 30 Hz invalidate meant a
+            // steady stream of allocations on the UI thread of a process whose other thread is
+            // holding a 1 kHz deadline. A gen0 collection pauses that thread too. With a hand
+            // off the stick nothing moves, which is most of the time a settings page is open.
+            bool moved = snap.X != _snapshot.X
+                         || snap.Y != _snapshot.Y
+                         || snap.State != _snapshot.State
+                         || snap.Column != _snapshot.Column
+                         || snap.Gear != _snapshot.Gear
+                         || snap.DeviceConnected != _snapshot.DeviceConnected;
+
+            _snapshot = snap;
+            if (moved) InvalidateVisual();
         }
 
         /// <summary>The live engine snapshot as of the last poll tick - never touches the device itself.</summary>
-        protected EngineSnapshot Snapshot
-        {
-            get { return _snapshot; }
-            private set { _snapshot = value; }
-        }
+        protected EngineSnapshot Snapshot { get { return _snapshot; } }
 
         protected virtual double GraphHeight { get { return 220; } }
 

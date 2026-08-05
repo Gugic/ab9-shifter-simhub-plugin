@@ -914,7 +914,19 @@ namespace AB9ActiveShifter.Core
         /// plateau and then holds. The short ramp is what makes it read as a wall rather than a
         /// spring; the deadband keeps the stick from dithering when it is already on target.
         /// </summary>
-        private static int Saturating(int displacement, int plateau, int ramp, int deadBand)
+        /// <summary>
+        /// The shape every wall in this gate is made of: a free deadband, a linear rise over the
+        /// bite distance, then a flat plateau - opposing the displacement, hence the sign flip.
+        /// <para>
+        /// Public so the Feel tab's Gate Walls graph plots this function rather than a copy of
+        /// it. It was a copy: three lines, provably identical at the time, and the one curve on
+        /// that tab which could quietly stop matching the gate it claims to draw. A graph whose
+        /// whole promise is "this is the real force" cannot be the one place the real force is
+        /// re-derived, and the drift would show up exactly where someone was trying to diagnose
+        /// a feel problem with it.
+        /// </para>
+        /// </summary>
+        public static int Saturating(int displacement, int plateau, int ramp, int deadBand)
         {
             if (plateau <= 0) return 0;
 

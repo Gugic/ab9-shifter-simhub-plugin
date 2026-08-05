@@ -99,9 +99,19 @@ namespace AB9ActiveShifter
             s.DetentPullPct = 0;
             s.DetentHoldPct = 40;
 
-            // A long push to engage, matching a real lever's travel.
+            // A long push to engage, matching a real lever's travel. Release sits 3000 counts
+            // shallower than engage, which is the hysteresis: the lever has to be pulled back out
+            // meaningfully before the gear drops, rather than falling out on the dither of a hand
+            // resting at the engage line.
+            //
+            // The rig this was copied from had these the wrong way round - release 17789 against
+            // engage 20852 - which GateGeometry repairs to engage + 1, leaving one axis count of
+            // hysteresis in 65535. That is a gear that re-registers on noise, and it is the most
+            // likely cause of the intermittent-registration report that the wall-bite ceiling work
+            // set out to explain. Depth counts inward from the extreme, so release must be the
+            // LARGER number; that is easy to get backwards and a test now checks it.
             s.EngageDepth = 20852;
-            s.ReleaseDepth = 17789;
+            s.ReleaseDepth = 23852;
 
             // Sequential dials still persist in an H profile; these are the values carried on the
             // rig, kept so switching pattern on this profile lands somewhere sane.

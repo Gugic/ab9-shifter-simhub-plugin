@@ -104,7 +104,15 @@ src/AB9ActiveShifter/
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
   Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the picker. The one vJoy caller off the
                            engine thread, and query-only - read its comment before adding another
-  UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor) + GateVisualizer
+  UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor)
+    GateVisualizer.cs      The Monitor tab's gate plan view with the live stick position
+    ForceGraphVisualizerBase.cs Shared scaffolding for the Feel tab's curve graphs: axes,
+                           labels, the 33 ms snapshot poll, and the redraw-only-if-moved gate
+    DetentCurveVisualizer.cs      Slot detent force against engage fraction
+    GateWallCurveVisualizer.cs    The neutral tunnel's fore/aft wall against depth
+    SlidingAcrossGateVisualizer.cs Lateral field across the whole gate width
+    SlotMouthVisualizer.cs        The corridor a mouth opens as the slot is approached
+    InverseBooleanToVisibilityConverter.cs  The negation the raw/percent toggle needs
 tests/AB9ActiveShifter.Tests/
   ForceComposerTests.cs    Force shape, stability properties, polarity, clamps
   EffectComposerTests.cs   Carrier amplitudes and gain cap, staleness cut, grind conditions
@@ -276,6 +284,16 @@ runners cannot load, so anything worth testing must not touch it.
   that order, always. A gear must never stay stuck down.
 - The watchdog (500 ms timer, 1 s staleness) calls `EmergencyStop`. `StopForces` is the only
   device method callable off the engine thread, and it swallows everything.
+- **A force graph samples `ForceComposer`, never a copy of its arithmetic.** The Feel tab's curves
+  exist to answer "what will this dial actually do", so a graph that re-derives the shape is the
+  one place it can quietly stop matching the gate — and it would mislead precisely when someone is
+  using it to diagnose a feel problem. Every graph builds its **own** `ForceComposer` from
+  `Settings.ToEngineConfig()`, never the live engine's: it must render with the plugin disabled,
+  when no engine thread exists, and reaching into the running one would be a cross-thread read of
+  engine state. Where a graph needs an internal shape, make the method public with a comment
+  saying a graph calls it — `Saturating`, `LateralGuide`, `BarrierForceIn`, `DetentMagnitude` and
+  `SlotCorridorHalfWidthAt` are all public for exactly that reason. One copy already drifted into
+  the codebase and was removed; do not reintroduce one because it is only three lines.
 - **The tuning tabs are hidden until polarity is measured and a vJoy device is available**, and
   everything needed to satisfy both conditions lives on the Setup tab *by construction* — the vJoy
   picker and the base's vendor and product ids among them. Moving one of those behind the gate

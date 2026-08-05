@@ -6,7 +6,29 @@ Geometry. All of them apply on the next FFB tick, so nothing needs restarting. F
 gain, so raising overall gain lifts the whole gate together and keeps tuned ratios intact.
 
 Run **Measure polarity** first. Until it succeeds, gain is capped at 10% and everything feels
-light — that is the safety cap doing its job, not a tuning problem.
+light — that is the safety cap doing its job, not a tuning problem. The Feel, Effects, Geometry and
+Monitor tabs stay hidden until polarity is measured and a vJoy device is available, so if this
+guide describes a tab you cannot see, that is why.
+
+## What the Feel tab shows you while you turn a dial
+
+Four things worth knowing before working through the rest of this guide, because they answer
+questions that used to need a trip to the rig:
+
+- **Force curves.** Each section draws the shape its dials produce — the slot detent against push
+  depth, the tunnel's fore/aft wall, the lateral field across the whole gate, and the corridor a
+  slot mouth opens. Each is sampled from the force code itself, not redrawn, so what you see is
+  what the gate renders. A dot tracks your actual stick position on the curve when the base is
+  connected.
+- **Effective values.** Two dials are silently bounded by the geometry rather than by their
+  slider: *wall bite distance* (the room between columns) and *tunnel free depth* (the state
+  band). Both now print what the gate will actually use, and say so when the slider is asking for
+  more than it can have. See the bite symptom below — that gap is what it feels like.
+- **Undo per slider**, and a marker on every dial changed since the profile was opened, so an
+  experiment can be walked back one dial at a time instead of by resetting the tab.
+- **Raw counts or percent of column spacing.** The lateral dials can be read either way. Percent
+  is the more portable view, because column spacing changes with the pattern — a slot width tuned
+  on 7+R is a different fraction of the room on 5+R, which has three columns instead of four.
 
 ## Start here
 
@@ -158,6 +180,13 @@ is two ramps meeting at a point, soft enough to hold a lever inside at depth. Th
 right not to call that a gear; the geometry should never have allowed the lever there. Keep the
 bite at or below ~3000 with the default slot width, which still leaves ~1500 counts of solid
 divider. Raising **slot width** eats the same budget from the other end.
+
+The Feel tab now shows this rather than leaving it to be discovered on the rig. Under *Wall bite
+distance* it prints the **effective** bite — what the gate actually renders after the room between
+columns has had its say — and says "capped down from N" when the slider is asking for more than
+the geometry allows. If the two numbers differ, the slider has been lying to you, and this symptom
+is what that feels like. The **Gate Walls** graph beside it draws the resulting curve, so a
+divider with no plateau left is visible as a shape rather than inferred from a number.
 
 **Pressing toward a wall grinds instantly — not a bounce or a buzz, but like pushing the lever
 against a running gear.**

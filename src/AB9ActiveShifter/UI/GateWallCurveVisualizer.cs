@@ -76,14 +76,15 @@ namespace AB9ActiveShifter.UI
             }
         }
 
-        /// <summary>The same shape as ForceComposer's private Saturating(), specialised to this
-        /// one wall's inputs - see the class comment for why reimplementing this specific
-        /// three-line ramp is an acceptable tradeoff against adding new ForceComposer surface.</summary>
+        /// <summary>
+        /// The wall's magnitude at a given depth, from <see cref="ForceComposer.Saturating"/>
+        /// itself rather than a copy of its arithmetic - so this curve cannot drift away from
+        /// the wall it draws. Saturating opposes the displacement, and this graph plots
+        /// magnitude, hence the Abs.
+        /// </summary>
         private static int WallForceAt(double depth, int plateau, int ramp, int deadband)
         {
-            if (depth <= deadband) return 0;
-            double t = GateGeometry.Clamp((depth - deadband) / ramp, 0.0, 1.0);
-            return (int)Math.Round(plateau * t);
+            return Math.Abs(ForceComposer.Saturating((int)Math.Round(depth), plateau, ramp, deadband));
         }
 
         private static double MapX(double depth, double left, double right, double domain)
