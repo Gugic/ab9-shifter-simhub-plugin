@@ -435,6 +435,9 @@
 
                     <styles:SHSection Title="SLOT DETENT" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                       Text="This is what makes a gear feel like it clicks into place, the way a real gearbox does - not just friction holding the lever, but a shaped force that changes three times on the way in. Push toward a gear and it resists at first, like pushing into a spring. Keep pushing past that resistance and the lever gets pulled the rest of the way in on its own - the snick, the same moment a synchro drops into place in a real box. Once seated, a steady hold keeps the gear from slipping back out, even against a base that is still trying to nudge the stick back to centre. The white dot on the graph below tracks exactly where in that sequence the stick currently is." />
+                            <local:DetentCurveVisualizer x:Name="DetentCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" />
                             <ui:TitledSlider Title="Resistance entering the slot (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="22"
                                              Value="{Binding DetentResistPct, Mode=TwoWay}" />
