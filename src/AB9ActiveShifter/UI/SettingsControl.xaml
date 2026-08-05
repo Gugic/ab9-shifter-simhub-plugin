@@ -11,6 +11,43 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <!--
+            Applies to every ui:TitledSlider with no per-instance markup needed: a tooltip
+            advertising the undo gesture, and the gesture-bracketing events that implement it.
+            Gesture boundaries are bracketed by whichever gets there first - a mouse press or a
+            key press - paired with its matching end event, so a five-second drag-and-hold is
+            one adjustment and a quick +/- click is another, whatever the interaction.
+            TitledSlider is SimHub's own compiled control, so none of this touches it directly -
+            ToolTip is a plain FrameworkElement property any control accepts from outside.
+
+            Deliberately NOT bracketed by Got/LostKeyboardFocus: those looked like they would
+            also catch typing into the value box, but a real edit already starts with
+            PreviewKeyDown (which fires on the element that already has focus), so the focus
+            events added nothing real - and they actively broke undo. Right-clicking to open
+            the context menu moves keyboard focus to the popup, and closing it - which happens
+            right as "Undo to previous value" is clicked - hands focus back to the slider,
+            firing GotKeyboardFocus a moment before the click handler runs and re-snapshotting
+            the CURRENT (already-edited) value over the correct "previous" one. Confirmed via
+            SimHub's log: "begin gesture ... snapshot=77" landing between "menu opened ...
+            previous=100" and "undo: ... requested=77" - the undo was writing the value back
+            to itself.
+
+            The ContextMenu itself is built in code-behind (IndexSliders), not here: a XAML
+            element with an inline event attribute (Click="...") placed inside
+            UserControl.Resources - which is parsed before the SHTabControl root below it -
+            shifts which element the compiler's connectionId numbering assigns to the root,
+            throwing "Unable to cast ... MenuItem ... to ... SHTabControl" at load. EventSetter
+            handlers below are unaffected: they resolve through the style engine, not through
+            IComponentConnector.Connect.
+        -->
+        <Style TargetType="{x:Type ui:TitledSlider}">
+            <Setter Property="ToolTip" Value="Right-click to undo the last adjustment." />
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="OnSliderGestureStartMouse" />
+            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="OnSliderGestureEndMouse" />
+            <EventSetter Event="PreviewKeyDown" Handler="OnSliderGestureStartKey" />
+            <EventSetter Event="PreviewKeyUp" Handler="OnSliderGestureEndKey" />
+        </Style>
     </UserControl.Resources>
 
     <styles:SHTabControl>

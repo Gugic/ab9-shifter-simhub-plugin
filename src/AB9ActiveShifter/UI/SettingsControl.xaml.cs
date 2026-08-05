@@ -1,11 +1,18 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using AB9ActiveShifter.Core;
 using AB9ActiveShifter.Output;
+using SimHub.Plugins.UI;
 
 namespace AB9ActiveShifter.UI
 {
@@ -19,6 +26,12 @@ namespace AB9ActiveShifter.UI
         public SettingsControl()
         {
             InitializeComponent();
+
+            _undoMenuItem.Click += OnUndoSlider;
+            _sliderContextMenu.Items.Add(_undoMenuItem);
+            _sliderContextMenu.Opened += OnSliderContextMenuOpened;
+
+            IndexSliders();
 
             VersionText.Text = "Version " + PluginInfo.Version;
             AboutVersionText.Text = "AB9 Active Shifter " + PluginInfo.Version;
@@ -37,6 +50,34 @@ namespace AB9ActiveShifter.UI
         private ShifterSettings _boundSettings;
         private bool _refreshingProfiles;
         private bool _refreshingVJoy;
+
+        // Slider undo and the modified-since-profile-opened marker. Built once from the
+        // logical tree in the constructor - LogicalTreeHelper rather than VisualTreeHelper,
+        // because at this point SHTabControl's tab content and SHSection's template have not
+        // necessarily had ApplyTemplate() called yet, and the logical tree reflects the
+        // XAML-declared content regardless of template realization timing.
+        private readonly Dictionary<string, TitledSlider> _sliderByProperty = new Dictionary<string, TitledSlider>();
+        private readonly Dictionary<TitledSlider, string> _originalTitle = new Dictionary<TitledSlider, string>();
+        private readonly Dictionary<TitledSlider, double> _previousValue = new Dictionary<TitledSlider, double>();
+        private readonly HashSet<TitledSlider> _gestureActive = new HashSet<TitledSlider>();
+        private Dictionary<string, object> _profileBaseline = new Dictionary<string, object>();
+
+        // Built and wired entirely in code, not XAML: a MenuItem's inline Click="..." handler
+        // placed inside UserControl.Resources shifts the compiler's connectionId numbering and
+        // throws an unrelated cast exception at load (see the comment in SettingsControl.xaml).
+        // One shared instance handed to every slider; ContextMenu.PlacementTarget tells
+        // OnSliderContextMenuOpened/OnUndoSlider which one was actually right-clicked.
+        private readonly ContextMenu _sliderContextMenu = new ContextMenu();
+        private readonly MenuItem _undoMenuItem = new MenuItem { Header = "Undo to previous value" };
+
+        private static readonly Brush DirtyBrush = MakeDirtyBrush();
+
+        private static Brush MakeDirtyBrush()
+        {
+            SolidColorBrush brush = new SolidColorBrush(Color.FromRgb(0xC7, 0x3B, 0x3B));
+            brush.Freeze();
+            return brush;
+        }
 
         /// <summary>Last answer from the cheap repeated check on the chosen vJoy device.</summary>
         private bool _vjoyReady;
@@ -65,6 +106,7 @@ namespace AB9ActiveShifter.UI
         {
             if (_boundSettings != null) _boundSettings.PropertyChanged -= OnSettingsChanged;
 
+            ShifterSettings previous = _boundSettings;
             _boundSettings = Plugin != null ? Plugin.Settings : null;
             DataContext = _boundSettings;
 
@@ -72,6 +114,202 @@ namespace AB9ActiveShifter.UI
             {
                 _boundSettings.PropertyChanged += OnSettingsChanged;
                 Visualizer.Attach(_boundSettings);
+            }
+
+            // A fresh baseline for "modified since I opened this profile" - not since the last
+            // autosave, which fires a couple of seconds after every edit and would make the
+            // marker flash and clear on its own. Only on an actual profile change: SimHub
+            // re-fires Loaded on every navigation back to this page, and re-binding the SAME
+            // settings object on one of those must not wipe markers for edits already sitting
+            // on the current profile.
+            if (!ReferenceEquals(previous, _boundSettings)) RefreshProfileBaseline();
+        }
+
+        /// <summary>
+        /// Walks the logical tree once for every ui:TitledSlider, so the undo gesture and the
+        /// dirty marker work generically without an x:Name or extra markup on each of the ~40
+        /// sliders across every tab. Reads each slider's Value binding path to learn which
+        /// ShifterSettings property it shows, rather than requiring one to be declared.
+        /// </summary>
+        private void IndexSliders()
+        {
+            foreach (TitledSlider slider in FindTitledSliders(this))
+            {
+                BindingExpression expr = BindingOperations.GetBindingExpression(slider, TitledSlider.ValueProperty);
+                string property = expr != null && expr.ParentBinding != null && expr.ParentBinding.Path != null
+                    ? expr.ParentBinding.Path.Path
+                    : null;
+                if (string.IsNullOrEmpty(property)) continue;
+
+                _sliderByProperty[property] = slider;
+                _originalTitle[slider] = slider.Title;
+                slider.ContextMenu = _sliderContextMenu;
+            }
+        }
+
+        private static IEnumerable<TitledSlider> FindTitledSliders(DependencyObject root)
+        {
+            foreach (object child in LogicalTreeHelper.GetChildren(root))
+            {
+                DependencyObject element = child as DependencyObject;
+                if (element == null) continue;
+
+                TitledSlider slider = element as TitledSlider;
+                if (slider != null) yield return slider;
+
+                foreach (TitledSlider nested in FindTitledSliders(element)) yield return nested;
+            }
+        }
+
+        // ---------------------------------------------------------------- slider undo
+
+        /// <summary>
+        /// Brackets one adjustment: whichever event gets there first between a mouse press and a
+        /// key press snapshots the value, and its matching end event closes the bracket. A held
+        /// drag or a held +/- repeat is one adjustment this way, whatever the interaction,
+        /// without guessing from a settle timer. Deliberately not also bracketed by keyboard
+        /// focus - see the comment on the Style in SettingsControl.xaml for why that broke undo.
+        /// </summary>
+        private void BeginGesture(TitledSlider slider)
+        {
+            if (slider == null || _gestureActive.Contains(slider)) return;
+            _gestureActive.Add(slider);
+            _previousValue[slider] = slider.Value;
+        }
+
+        private void EndGesture(TitledSlider slider)
+        {
+            if (slider != null) _gestureActive.Remove(slider);
+        }
+
+        private void OnSliderGestureStartMouse(object sender, MouseButtonEventArgs e) { BeginGesture(sender as TitledSlider); }
+        private void OnSliderGestureEndMouse(object sender, MouseButtonEventArgs e) { EndGesture(sender as TitledSlider); }
+        private void OnSliderGestureStartKey(object sender, KeyEventArgs e) { BeginGesture(sender as TitledSlider); }
+        private void OnSliderGestureEndKey(object sender, KeyEventArgs e) { EndGesture(sender as TitledSlider); }
+
+        private void OnSliderContextMenuOpened(object sender, RoutedEventArgs e)
+        {
+            TitledSlider slider = _sliderContextMenu.PlacementTarget as TitledSlider;
+
+            double previous = 0;
+            bool hasPrevious = slider != null && _previousValue.TryGetValue(slider, out previous) && previous != slider.Value;
+            _undoMenuItem.IsEnabled = hasPrevious;
+            _undoMenuItem.Header = hasPrevious
+                ? string.Format("Undo to previous value ({0:0.##})", previous)
+                : "Undo to previous value";
+        }
+
+        private void OnUndoSlider(object sender, RoutedEventArgs e)
+        {
+            TitledSlider slider = _sliderContextMenu.PlacementTarget as TitledSlider;
+            if (slider == null) return;
+
+            double previous;
+            if (_previousValue.TryGetValue(slider, out previous)) slider.Value = previous;
+        }
+
+        // ---------------------------------------------------------------- modified-since-open marker
+
+        /// <summary>
+        /// Snapshots every slider-bound property's current value as the baseline "as opened"
+        /// state, and clears every dirty marker back to it. Called whenever the bound settings
+        /// object changes - a profile switch or the initial load - never by the autosave, so
+        /// the marker means "since you opened this profile," not "since the last debounced save."
+        /// </summary>
+        private void RefreshProfileBaseline()
+        {
+            _profileBaseline = new Dictionary<string, object>();
+            if (Plugin == null || Plugin.Settings == null) return;
+
+            foreach (KeyValuePair<string, TitledSlider> pair in _sliderByProperty)
+            {
+                PropertyInfo prop = typeof(ShifterSettings).GetProperty(pair.Key);
+                if (prop == null) continue;
+
+                _profileBaseline[pair.Key] = prop.GetValue(Plugin.Settings, null);
+                SetDirty(pair.Value, false);
+            }
+        }
+
+        private void RefreshDirtyMarker(string propertyName)
+        {
+            TitledSlider slider;
+            if (string.IsNullOrEmpty(propertyName) || !_sliderByProperty.TryGetValue(propertyName, out slider)) return;
+
+            PropertyInfo prop = typeof(ShifterSettings).GetProperty(propertyName);
+            if (prop == null || Plugin == null || Plugin.Settings == null) return;
+
+            object baseline;
+            object current = prop.GetValue(Plugin.Settings, null);
+            bool dirty = !_profileBaseline.TryGetValue(propertyName, out baseline) || !Equals(baseline, current);
+            SetDirty(slider, dirty);
+        }
+
+        private readonly Dictionary<TitledSlider, Adorner> _dirtyAdorners = new Dictionary<TitledSlider, Adorner>();
+
+        /// <summary>
+        /// An Adorner paints the whole marked-up label directly over the control from outside
+        /// its template: setting TitledSlider's Foreground externally had no visible effect
+        /// (confirmed on hardware) - its template evidently hardcodes the title's brush rather
+        /// than binding it to the control's own Foreground. The real Title is blanked while
+        /// dirty so the (uncoloured) original text underneath cannot show through or double up
+        /// with the red one drawn on top; restoring it is why the original has to be tracked.
+        /// </summary>
+        private void SetDirty(TitledSlider slider, bool dirty)
+        {
+            string original;
+            if (!_originalTitle.TryGetValue(slider, out original)) return;
+
+            Adorner existing;
+            if (_dirtyAdorners.TryGetValue(slider, out existing))
+            {
+                AdornerLayer layer = AdornerLayer.GetAdornerLayer(slider);
+                if (layer != null) layer.Remove(existing);
+                _dirtyAdorners.Remove(slider);
+            }
+
+            if (dirty)
+            {
+                slider.Title = string.Empty;
+
+                AdornerLayer layer = AdornerLayer.GetAdornerLayer(slider);
+                if (layer != null)
+                {
+                    Adorner adorner = new DirtyMarkerAdorner(slider, "* " + original, DirtyBrush);
+                    layer.Add(adorner);
+                    _dirtyAdorners[slider] = adorner;
+                }
+            }
+            else
+            {
+                slider.Title = original;
+            }
+        }
+
+        /// <summary>
+        /// Paints the whole label in red over a slider's title area, independent of its
+        /// template. Position and size are a best-effort match to TitledSlider's own title
+        /// text - there is no source to read the real values from - so this is the one part of
+        /// the feature most likely to need a visual nudge once seen on the actual control.
+        /// </summary>
+        private sealed class DirtyMarkerAdorner : Adorner
+        {
+            private readonly string _text;
+            private readonly Brush _brush;
+
+            public DirtyMarkerAdorner(UIElement adorned, string text, Brush brush) : base(adorned)
+            {
+                _text = text;
+                _brush = brush;
+                IsHitTestVisible = false;
+            }
+
+            protected override void OnRender(DrawingContext drawingContext)
+            {
+                Typeface typeface = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+                FormattedText text = new FormattedText(
+                    _text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, 13, _brush, 1.0);
+                drawingContext.DrawText(text, new Point(0, 0));
             }
         }
 
@@ -503,6 +741,7 @@ namespace AB9ActiveShifter.UI
             RefreshLockoutSummary();
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
+            if (e != null) RefreshDirtyMarker(e.PropertyName);
 
             // Calibration writes the flag from the engine thread; this is how the gate and the
             // collapsed calibration panel find out that the measurement landed.
