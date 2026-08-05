@@ -81,6 +81,7 @@ namespace AB9ActiveShifter.UI
             RefreshProfiles();
             RefreshLockoutSummary();
             RefreshWallRampSummary();
+            RefreshChannelFreeDepthSummary();
 
             // The device number is stored per profile, so switching profile can change it.
             RefreshVJoyDevices();
@@ -105,6 +106,7 @@ namespace AB9ActiveShifter.UI
             RefreshStatus();
             RefreshLockoutSummary();
             RefreshWallRampSummary();
+            RefreshChannelFreeDepthSummary();
             RefreshProfiles();
             RefreshVJoyDevices();
             UpdateCalibrationSection();
@@ -500,6 +502,7 @@ namespace AB9ActiveShifter.UI
         {
             RefreshLockoutSummary();
             RefreshWallRampSummary();
+            RefreshChannelFreeDepthSummary();
 
             // Calibration writes the flag from the engine thread; this is how the gate and the
             // collapsed calibration panel find out that the measurement landed.
@@ -598,9 +601,32 @@ namespace AB9ActiveShifter.UI
 
             WallRampSummary.Text = ceiling < s.WallRamp
                 ? string.Format(
-                    "Effective bite: {0} counts, capped down from {1} - the tightest column has no room for a longer bite at the current geometry.",
+                    "Effective bite: {0} counts, capped down from {1} - the tightest column has no room for a longer bite at the current geometry. Lowering Slot width, free corridor (SlotHalfWidth) would raise this ceiling.",
                     ceiling, s.WallRamp)
                 : string.Format("Effective bite: {0} counts.", s.WallRamp);
+        }
+
+        /// <summary>
+        /// Same clamp-visibility treatment as <see cref="RefreshWallRampSummary"/>, for item #2
+        /// of the enhancement brief: the Tunnel depth slider accepts up to 4000, but
+        /// <see cref="ForceComposer.ChannelFreeDepthCeiling"/> silently clamps it to the neutral
+        /// channel's own enter band. One mechanism for both dials rather than two one-off
+        /// displays.
+        /// </summary>
+        private void RefreshChannelFreeDepthSummary()
+        {
+            if (ChannelFreeDepthSummary == null || Plugin == null || Plugin.Settings == null) return;
+
+            ShifterSettings s = Plugin.Settings;
+            EngineConfig cfg = s.ToEngineConfig();
+            ForceComposer composer = new ForceComposer(cfg.BuildGeometry(), cfg);
+            int ceiling = composer.ChannelFreeDepthCeiling;
+
+            ChannelFreeDepthSummary.Text = ceiling < s.ChannelFreeDepth
+                ? string.Format(
+                    "Effective depth: {0} counts, capped down from {1} - the neutral channel's own enter band leaves no more free room at the current geometry. Raising Neutral tunnel half-depth (enter) (ChannelHalfEnter), under Advanced gate geometry, would allow more.",
+                    ceiling, s.ChannelFreeDepth)
+                : string.Format("Effective depth: {0} counts.", s.ChannelFreeDepth);
         }
 
         private void OnCalibrate(object sender, RoutedEventArgs e)
@@ -748,6 +774,7 @@ namespace AB9ActiveShifter.UI
             Plugin.Settings.ResetToDefaults(scope);
             RefreshLockoutSummary();
             RefreshWallRampSummary();
+            RefreshChannelFreeDepthSummary();
         }
 
         private static Brush ResultBrush(CalibrationOutcome outcome)

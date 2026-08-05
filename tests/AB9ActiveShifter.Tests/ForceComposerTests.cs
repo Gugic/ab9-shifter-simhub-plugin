@@ -1707,6 +1707,43 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void ChannelFreeDepthCeilingMatchesTheChannelsEnterBand()
+        {
+            // The ceiling is a single geometry fact - the channel's own enter band - not a
+            // per-column minimum the way WallRampCeiling is.
+            EngineConfig cfg = FullGainConfig();
+            ForceComposer c = Composer(cfg);
+
+            Assert.Equal(cfg.BuildGeometry().ChannelHalfEnter, c.ChannelFreeDepthCeiling);
+        }
+
+        [Fact]
+        public void ChannelFreeDepthCeilingIsIndependentOfTheConfiguredDepth()
+        {
+            // Same reasoning as WallRampCeiling: the UI needs the ceiling separate from the
+            // configured value to tell whether it is actually being overridden.
+            EngineConfig shallow = FullGainConfig();
+            shallow.ChannelFreeDepth = 0;
+
+            EngineConfig deep = FullGainConfig();
+            deep.ChannelFreeDepth = 99999;
+
+            Assert.Equal(Composer(shallow).ChannelFreeDepthCeiling, Composer(deep).ChannelFreeDepthCeiling);
+        }
+
+        [Fact]
+        public void AChannelFreeDepthAboveTheCeilingIsActuallyBeingOverridden()
+        {
+            // Mirrors FreeDepthCannotExceedTheStateBand's absurd value, but checks the ceiling
+            // reads below the request rather than only checking the resulting force shape.
+            EngineConfig cfg = FullGainConfig();
+            cfg.ChannelFreeDepth = 99999;
+            ForceComposer c = Composer(cfg);
+
+            Assert.True(c.ChannelFreeDepthCeiling < cfg.ChannelFreeDepth);
+        }
+
+        [Fact]
         public void AnAliasedSpeedEstimateCannotGrindTheWall()
         {
             // The failure this pins: distinct positions arrive at ~500 Hz under write

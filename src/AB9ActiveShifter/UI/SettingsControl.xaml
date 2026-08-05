@@ -260,6 +260,8 @@
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2600"
                                              Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding ChannelFreeDepth, Mode=TwoWay}" />
+                            <TextBlock x:Name="ChannelFreeDepthSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
+                                       Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
                                        Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
                                        Text="The fore/aft twin of the slot width: how deep the tunnel stays free before its centring force begins. Zero closes the last free space in the gate, so the lever is guided on exactly one axis everywhere - together with zero slot width this is the native shifter-mode topology. Values above the neutral channel enter band are capped to it." />
