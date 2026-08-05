@@ -157,6 +157,63 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void WallRampCeilingMatchesTheShippedGeometrysDocumentedBound()
+        {
+            // SlotRamp's own comment quotes 4711 as what the shipped geometry allows; this
+            // pins that number so the two cannot drift apart silently.
+            EngineConfig cfg = FullGainConfig();
+            ForceComposer c = Composer(cfg);
+
+            Assert.Equal(4711, c.WallRampCeiling);
+        }
+
+        [Fact]
+        public void WallRampCeilingTightensAsTheSlotCorridorWidens()
+        {
+            // The Feel-tab regression this exists to prevent: SlotHalfWidth 2400 against the
+            // shipped H7R geometry leaves an edge column's corridor with far less room than
+            // the inner columns', so the ceiling that actually binds is the edge columns'.
+            EngineConfig cfg = FullGainConfig();
+            cfg.SlotHalfWidth = 2400;
+            ForceComposer c = Composer(cfg);
+
+            Assert.Equal(4061, c.WallRampCeiling);
+        }
+
+        [Fact]
+        public void WallRampCeilingIsIndependentOfTheConfiguredBite()
+        {
+            // The ceiling is a fact about the geometry and the slot corridor alone - the UI
+            // needs it separate from the configured WallRamp to tell whether a value is
+            // actually being overridden, rather than only ever seeing the already-clamped
+            // result SlotRamp() returns internally.
+            EngineConfig narrow = FullGainConfig();
+            narrow.SlotHalfWidth = 2400;
+            narrow.WallRamp = 200;
+
+            EngineConfig wide = FullGainConfig();
+            wide.SlotHalfWidth = 2400;
+            wide.WallRamp = 6000;
+
+            Assert.Equal(Composer(narrow).WallRampCeiling, Composer(wide).WallRampCeiling);
+        }
+
+        [Fact]
+        public void AWallRampAboveTheCeilingIsActuallyBeingOverridden()
+        {
+            // This is the exact scenario from the field report: SlotHalfWidth 2400 with
+            // WallRamp asked for at 6000. The ceiling must read below the request, or the
+            // Feel tab's "capped from" indicator would stay silent while the override still
+            // happens.
+            EngineConfig cfg = FullGainConfig();
+            cfg.SlotHalfWidth = 2400;
+            cfg.WallRamp = 6000;
+            ForceComposer c = Composer(cfg);
+
+            Assert.True(c.WallRampCeiling < cfg.WallRamp);
+        }
+
+        [Fact]
         public void RestingInTheChannelCostsNoForce()
         {
             EngineConfig cfg = FullGainConfig();

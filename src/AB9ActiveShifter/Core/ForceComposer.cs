@@ -930,13 +930,47 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         private int SlotRamp(int corridor)
         {
-            // Room for the rising face AND the relief flank, which is the same length, plus the
-            // handover window they have to fit either side of. Halved for that reason: without it an
-            // absurd bite makes the two ramps overlap and the wall never reaches full strength at all,
-            // instead of merely reaching it late. Real bites are nowhere near this bound - at the
-            // shipped geometry it allows 4711 - so this only ever catches a hostile setting.
+            return Math.Min(_cfg.WallRamp, SlotRampCeiling(corridor));
+        }
+
+        /// <summary>
+        /// The room-bound half of <see cref="SlotRamp"/>, without the configured WallRamp mixed
+        /// in - so a caller can tell whether a given bite is actually being cut down, rather than
+        /// just seeing the already-clamped result.
+        ///
+        /// Room for the rising face AND the relief flank, which is the same length, plus the
+        /// handover window they have to fit either side of. Halved for that reason: without it an
+        /// absurd bite makes the two ramps overlap and the wall never reaches full strength at all,
+        /// instead of merely reaching it late. Real bites are nowhere near this bound - at the
+        /// shipped geometry it allows 4711 - so this only ever catches a hostile setting.
+        /// </summary>
+        private int SlotRampCeiling(int corridor)
+        {
             int room = (_geo.ColumnSpacing / 2) - corridor - _geo.DetentHysteresis;
-            return Math.Min(_cfg.WallRamp, Math.Max(200, room / 2));
+            return Math.Max(200, room / 2);
+        }
+
+        /// <summary>
+        /// The tightest bite ceiling <see cref="SlotRamp"/> enforces across every column in this
+        /// geometry - the number the Feel tab shows next to the Wall bite distance slider. A
+        /// column's corridor narrows this (see <see cref="SlotCorridor"/>), and edge and inner
+        /// columns generally allow different corridors for the same SlotHalfWidth, so the
+        /// binding ceiling is whichever column is tightest, not any one column in particular.
+        /// Independent of the configured WallRamp: compare against it to tell whether the
+        /// ceiling is actually biting rather than sitting above the request unnoticed.
+        /// </summary>
+        public int WallRampCeiling
+        {
+            get
+            {
+                int worst = int.MaxValue;
+                for (int i = 0; i < _geo.ColumnCount; i++)
+                {
+                    int ceiling = SlotRampCeiling(SlotCorridor((Column)i));
+                    if (ceiling < worst) worst = ceiling;
+                }
+                return worst;
+            }
         }
 
         private int SlotCorridor(Column column)

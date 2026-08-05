@@ -80,6 +80,7 @@ namespace AB9ActiveShifter.UI
             BindActiveProfile();
             RefreshProfiles();
             RefreshLockoutSummary();
+            RefreshWallRampSummary();
 
             // The device number is stored per profile, so switching profile can change it.
             RefreshVJoyDevices();
@@ -103,6 +104,7 @@ namespace AB9ActiveShifter.UI
             BindActiveProfile();
             RefreshStatus();
             RefreshLockoutSummary();
+            RefreshWallRampSummary();
             RefreshProfiles();
             RefreshVJoyDevices();
             UpdateCalibrationSection();
@@ -497,6 +499,7 @@ namespace AB9ActiveShifter.UI
         private void OnSettingsChanged(object sender, PropertyChangedEventArgs e)
         {
             RefreshLockoutSummary();
+            RefreshWallRampSummary();
 
             // Calibration writes the flag from the engine thread; this is how the gate and the
             // collapsed calibration panel find out that the measurement landed.
@@ -575,6 +578,29 @@ namespace AB9ActiveShifter.UI
                 : string.Format(
                     "Of what the base can produce: gate walls about {0:0}%.{1}",
                     wall, capped);
+        }
+
+        /// <summary>
+        /// The Wall bite distance slider accepts up to 6000, but the geometry silently clamps
+        /// the effective bite lower whenever the corridor leaves no room for it (see
+        /// <see cref="ForceComposer.WallRampCeiling"/>). Spelling that out here is what item
+        /// #1 of the enhancement brief asked for: a user should see a value being overridden
+        /// immediately, not discover it through a support conversation and empirical testing.
+        /// </summary>
+        private void RefreshWallRampSummary()
+        {
+            if (WallRampSummary == null || Plugin == null || Plugin.Settings == null) return;
+
+            ShifterSettings s = Plugin.Settings;
+            EngineConfig cfg = s.ToEngineConfig();
+            ForceComposer composer = new ForceComposer(cfg.BuildGeometry(), cfg);
+            int ceiling = composer.WallRampCeiling;
+
+            WallRampSummary.Text = ceiling < s.WallRamp
+                ? string.Format(
+                    "Effective bite: {0} counts, capped down from {1} - the tightest column has no room for a longer bite at the current geometry.",
+                    ceiling, s.WallRamp)
+                : string.Format("Effective bite: {0} counts.", s.WallRamp);
         }
 
         private void OnCalibrate(object sender, RoutedEventArgs e)
@@ -721,6 +747,7 @@ namespace AB9ActiveShifter.UI
 
             Plugin.Settings.ResetToDefaults(scope);
             RefreshLockoutSummary();
+            RefreshWallRampSummary();
         }
 
         private static Brush ResultBrush(CalibrationOutcome outcome)
