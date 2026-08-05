@@ -245,7 +245,10 @@ reports the clutch pedal.
 
 - **Feel** — master gain; the gate and slot walls with their bite distance, attack, rebound
   absorption and friction; the lockout gate and the humps; the slot mouths; the three
-  slot-detent forces (resistance, pull, seated hold).
+  slot-detent forces (resistance, pull, seated hold). Each section **draws the force curve its
+  dials produce**, sampled from the force code itself and with your stick position tracked live
+  on it, so a change can be seen before it is felt. Dials bounded by the geometry rather than by
+  their slider print what the gate will actually use, and every slider has its own undo.
 - **Effects** — the telemetry effects above, each with volume and frequency.
 - **Geometry** — the positions the gate is built from: how wide the neutral tunnel and the
   columns are, how far a push must travel to engage a gear, the loop rate, and

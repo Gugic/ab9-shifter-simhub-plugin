@@ -536,6 +536,26 @@ one they are feeling. What the bite still does not cover:
 Time shaping is the tool for both, because it acts on force change regardless of which spatial
 gradient produced it.
 
+### The bite has a ceiling the slider does not show
+
+`SlotRamp` clamps the configured `WallRamp` to the room the geometry actually has: half of what is
+left of a column's half-spacing once the corridor and the detent hysteresis are taken out. The
+halving is deliberate — the rising face and the handover window's relief flank are the same length
+and must both fit, either side of the window — and without it an extreme bite makes the two
+overlap, so the wall never reaches full strength at all rather than merely reaching it late.
+
+The consequence is that **a bite and a slot width are spending the same budget**, and past a point
+the divider between two gears has no full-strength plateau left: it becomes two ramps meeting at a
+point, soft enough to hold a lever between columns at gear depth. That is the "no gear registers"
+symptom in [tuning.md](tuning.md), and the state machine is right to refuse it — the geometry
+should never have let the lever there.
+
+None of this is new behaviour; the clamp has always been there. What was new is that nothing
+*said* so, and a slider that goes to 6000 while the gate renders 4061 is a slider that lies. The
+Feel tab now prints the effective bite beside the dial and marks when it has been capped down. If
+you are changing either dial, the useful question is not "what did I ask for" but "what is the gate
+rendering, and is there any flat divider left".
+
 ## The vibration channel and the grind
 
 The telemetry effects (`Core/EffectComposer.cs`) are the one family of force that is neither a
