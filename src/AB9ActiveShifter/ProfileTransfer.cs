@@ -74,11 +74,20 @@ namespace AB9ActiveShifter
             // This machine's hardware and loop.
             "VendorId", "ProductId", "VendorIdHex", "ProductIdHex", "VJoyDeviceId", "TickHz",
 
+            // The clutch pedal binding: a device id that means nothing on another machine, and a
+            // travel measured on pedals nobody here owns. ClutchSource goes with them, because it
+            // is only meaningful if the binding is - a file arriving with it set to Pedal against
+            // no calibration would read the clutch as permanently released and grind on every
+            // shift. The bite point and the grind mode DO travel: those are feel, not hardware.
+            "PedalDeviceId", "PedalAxisIndex", "PedalRawMin", "PedalRawMax",
+            "PedalDeadzoneLow", "PedalDeadzoneHigh", "PedalInvert", "ClutchSource",
+
             // Live switches. An imported file must not arm anything or take the device.
             "Enabled", "FreeStick",
 
             // Adapters the XAML binds, each fully derived from a dial that is written.
-            "PatternIndex", "MouthShapeIndex", "SeqThrow",
+            "PatternIndex", "MouthShapeIndex", "SeqThrow", "ClutchSourceIndex",
+            "GrindClutchModeIndex",
 
             // The Feel tab's percent-of-column-spacing display toggle: each is fully derived
             // from the raw dial it shares a backing field with. Sharing both would write the

@@ -92,6 +92,10 @@ src/AB9ActiveShifter/
     ForceComposer.cs       The gate itself: position+velocity -> forces. The heart.
     EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
     TelemetryState.cs      Immutable game-telemetry snapshot, data thread -> engine thread
+    ClutchTypes.cs         Where the clutch is read from, and how it decides the grind
+    AxisCalibration.cs     A pedal's measured travel/direction/slack -> 0..100, SimHub's scale
+    AxisCapture.cs         "Press the pedal you want": three-phase auto-detect, no I/O, no timers
+    PedalDeviceInfo.cs     One controller as the pedal picker shows it
     PolarityCalibrator.cs  Measures effect polarity on hardware
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
     VelocityEstimator.cs   Position -> speed across a 4 ms window; per-tick differences alias
@@ -99,6 +103,8 @@ src/AB9ActiveShifter/
     VJoyDeviceInfo.cs      One vJoy device as the picker shows it, and the sentence describing it
   Device/                  DirectInput and Win32
     FfbDevice.cs           Open by VID/PID, exclusive+background, poll
+    PedalDevice.cs         The clutch pedal's own handle. NON-exclusive by design - the game
+                           needs those pedals too - and read-only; it never creates an effect
     EffectSet.cs           The five effects; one force write per tick, fault handling
     NativeMethods.cs       timeBeginPeriod + high-resolution waitable timer
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
@@ -123,6 +129,9 @@ tests/AB9ActiveShifter.Tests/
   SettingsMappingTests.cs  ShifterSettings' derived dials (SeqThrow moves both threshold lines)
   DefaultProfilesTests.cs  The shipped profiles: forces off, cap on, store coherent
   ProfileTransferTests.cs  Round trip, machine facts kept, every clamp on the import path
+  AxisCaptureTests.cs      A pedal wired backwards, one that rests at full scale, a silent device
+  ClutchModeTests.cs       Threshold mode is byte-identical to what shipped; the bite-point pulse
+  ProfileCycleTests.cs     What a bound Next/Previous hotkey walks through, incl. stale names
   VJoyDeviceInfoTests.cs   What the device picker says, including the too-few-buttons trap
 build/refs/                Reference-only stubs of SimHub's assemblies, so the plugin builds
                            on a machine with no SimHub. Read build/refs/README.md before
@@ -310,6 +319,23 @@ runners cannot load, so anything worth testing must not touch it.
   calibrated, and the ids that would fix it would be on a tab that calibration is what reveals.
   Before putting anything on Feel, Effects, Geometry or Monitor, ask whether a user could need it
   in order to finish setup.
+- **The pedals are opened NON-exclusively, and nothing but the base is ever taken exclusive.**
+  The base is exclusive because creating force feedback effects requires it. A pedal set is not:
+  the game is reading those pedals too, and an exclusive grab would silently take the clutch away
+  from whatever is being driven. `PedalDevice` never creates an effect and never writes — it is a
+  reader. The same rule covers the picker: `PedalDevice.Enumerate` opens each device briefly,
+  sets no cooperative level, and disposes it.
+- **The clutch enters the system at exactly one place, and it is a number, not a source.**
+  `TelemetryState.Clutch` is written once per tick and read once, by `EffectComposer`. A directly
+  read pedal is substituted into a scratch snapshot the engine owns (`CopyFromWithClutch`) — never
+  into the published one, which the data thread is still writing and other readers expect whole —
+  and it allocates nothing, because this is the 1 kHz path. Anything else wanting the clutch reads
+  that one field rather than asking where it came from.
+- **The bite point is a property of the car, not of the pedals.** Travel, direction and slack are
+  measured by `AxisCapture`; the bite point cannot be, so it is a setting. Do not try to infer it
+  from a press — nothing in the pedal's motion marks it. It is deliberately not owned by the
+  grind: it is the one point on a clutch's travel that means anything mechanically, so a second
+  effect that wants it asks `ClutchBitePointPct` rather than growing its own dial.
 - **Settings that arrive from outside are data, not settings.** A profile file is downloaded from
   a stranger, so `ProfileTransfer.Import` treats it as hostile: every value is range-checked (any
   `*Pct` to 0–100, positions to the 16-bit axis, the rest to their own envelope), an unreadable

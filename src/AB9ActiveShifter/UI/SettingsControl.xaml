@@ -131,6 +131,59 @@
                         </StackPanel>
                     </styles:SHSection>
 
+                    <styles:SHSection Title="CLUTCH" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="Read from" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox SelectedIndex="{Binding ClutchSourceIndex, Mode=TwoWay}" Width="240">
+                                    <ComboBoxItem Content="The game's telemetry" />
+                                    <ComboBoxItem Content="The pedal itself" />
+                                </ComboBox>
+                            </StackPanel>
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                       Text="The game's own clutch reading needs no setup and is right whenever the game reports the pedal at all. Read the pedal directly if your game does not report a clutch, or if the grind feels late: telemetry arrives at the game's update rate, which is tens of milliseconds old against a shift that is over in a couple of hundred. The pedal is opened non-exclusively, so the game keeps reading it too." />
+
+                            <StackPanel x:Name="PedalPanel">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="Pedals" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <ComboBox x:Name="PedalCombo" Width="330" Margin="0,0,8,0"
+                                              SelectionChanged="OnPedalDeviceSelected" />
+                                    <styles:SHButtonSecondary Click="OnRefreshPedalDevices" Content="Refresh" Padding="10,3" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <styles:SHButtonPrimary x:Name="PedalCaptureButton" Click="OnCapturePedal"
+                                                            Content="Press the clutch to bind it" Padding="12,4" Margin="0,0,10,0" />
+                                    <TextBlock x:Name="PedalCaptureHint" VerticalAlignment="Center" Opacity="0.85" />
+                                </StackPanel>
+                                <TextBlock x:Name="PedalReading" Opacity="0.85" Margin="0,0,0,6" />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.75"
+                                           Text="Press the button, hold still for a moment, then press the clutch all the way down and let it come back up. Which axis it is, which way it travels and how much slack it has at rest are all measured from that one press - nothing here needs to be typed. This binding describes your rig, so it is never written into a shared profile." />
+                            </StackPanel>
+
+                            <ui:TitledSlider Title="Bite point (% of pedal travel)" Minimum="0" Maximum="100"
+                                             ResetValue="25" Margin="0,10,0,0"
+                                             Value="{Binding ClutchBitePointPct, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="Where the clutch starts to bite. This is a property of the car rather than of the pedals, so it cannot be measured from the hardware - set it where the car actually picks up. It is what the progressive grind fades across, and what the bite-point pulse on the Effects tab fires on." />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="PROFILE HOTKEYS" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                       Text="Bind Next profile and Previous profile to a wheel button or a key in SimHub's own Controls page - this plugin only decides what they walk through. Tick the profiles to include; with none ticked they walk through all of them. Switching releases any held gear before the new gate is applied, so it is safe to press while driving." />
+                            <ItemsControl x:Name="CycleList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <styles:SHToggleCheckbox Content="{Binding Name}"
+                                                                 IsChecked="{Binding InCycle, Mode=TwoWay}"
+                                                                 Margin="0,2" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </styles:SHSection>
+
                     <styles:SHSection Title="ENABLE" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <styles:SHToggleCheckbox IsChecked="{Binding Enabled, Mode=TwoWay}"
@@ -497,6 +550,15 @@
                             <ui:TitledSlider Title="Balk wall (%)" Minimum="0" Maximum="100" TickFrequency="5"
                                              ShowResetButton="True" ResetValue="70"
                                              Value="{Binding GrindWallPct, Mode=TwoWay}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,4">
+                                <TextBlock Text="How the clutch decides" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox SelectedIndex="{Binding GrindClutchModeIndex, Mode=TwoWay}" Width="260">
+                                    <ComboBoxItem Content="One threshold - grind or no grind" />
+                                    <ComboBoxItem Content="Fade across the pedal from the bite point" />
+                                </ComboBox>
+                            </StackPanel>
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,6"
+                                       Text="A threshold is one line: above it the clutch is down and nothing grinds, below it a clutchless shift grinds at full strength. Fading instead scales the grind across the pedal's travel from the bite point upward, so feathering the clutch feathers the grind - which needs the bite point on the Setup tab to be set honestly. The balk wall does not fade either way: a border that softened as the clutch lifted would let a determined shove through exactly when it mattered." />
                             <ui:TitledSlider Title="Clutch counts as pressed above (%)" Minimum="5" Maximum="90"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="25"
                                              Value="{Binding GrindClutchThresholdPct, Mode=TwoWay}" />
@@ -505,6 +567,25 @@
                                              Value="{Binding GrindMinSpeedKmh, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
                                        Text="The balk wall is the border a rejected shift meets: it stacks on the slot's entry resistance and stays, so the lever grinds against something solid instead of a light lean - and the grind gets louder the harder you force it. It only acts while rejection is balking the gear; zero leaves just the resistance. Raise the speed floor if garage or pit-lane shuffling grinds when you would rather it stayed quiet. SimHub reports pedals as 0-100; if your game's clutch never crosses the threshold, watch the Clutch property in SimHub and set the threshold below what a pressed pedal reads." />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="CLUTCH BITE POINT" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <styles:SHToggleCheckbox IsChecked="{Binding FxBiteEnabled, Mode=TwoWay}"
+                                                     Content="Pulse as the clutch crosses its bite point"
+                                                     Margin="0,0,0,6" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,6"
+                                       Text="A short pulse through the lever as the clutch passes the bite point, in either direction, so the engagement point is something the hand knows rather than something the foot guesses. Set the bite point itself on the Setup tab. Nothing fires while the pedal moves without crossing it, so riding the clutch stays quiet." />
+                            <ui:TitledSlider Title="Volume (%)" Minimum="0" Maximum="100" TickFrequency="5"
+                                             ShowResetButton="True" ResetValue="35"
+                                             Value="{Binding FxBiteGainPct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Frequency (Hz)" Minimum="10" Maximum="120" TickFrequency="1"
+                                             ShowResetButton="True" ResetValue="50"
+                                             Value="{Binding FxBiteFreqHz, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Pulse length (ms)" Minimum="20" Maximum="400" TickFrequency="10"
+                                             ShowResetButton="True" ResetValue="60"
+                                             Value="{Binding FxBiteDurationMs, Mode=TwoWay}" />
                         </StackPanel>
                     </styles:SHSection>
 

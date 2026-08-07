@@ -128,6 +128,9 @@ namespace AB9ActiveShifter
             _engine.CalibrationFinished -= OnCalibrationFinished;
             _engine.CalibrationFinished += OnCalibrationFinished;
 
+            _engine.PedalCaptureCompleted -= OnPedalCaptureCompleted;
+            _engine.PedalCaptureCompleted += OnPedalCaptureCompleted;
+
             Settings.PropertyChanged -= OnSettingsChanged;
             Settings.PropertyChanged += OnSettingsChanged;
 
@@ -230,6 +233,7 @@ namespace AB9ActiveShifter
                 engine.GearChanged -= OnGearChanged;
                 engine.CalibrationCompleted -= OnCalibrationCompleted;
                 engine.CalibrationFinished -= OnCalibrationFinished;
+                engine.PedalCaptureCompleted -= OnPedalCaptureCompleted;
                 engine.Dispose();
             }
 
@@ -271,6 +275,31 @@ namespace AB9ActiveShifter
             SaveStore();
             RaiseProfileChanged();
             Log.Info("Profile '" + target.Name + "' activated.");
+        }
+
+        /// <summary>
+        /// Moves one step around the profile cycle. Called from a bound hotkey, so it can arrive
+        /// at any moment - mid-corner, mid-shift, with a gear held - and everything that makes
+        /// that safe is already in the config swap: rebuilding the gate releases the held gear
+        /// button and clears any sequential pulse in flight before the new forces are applied.
+        /// </summary>
+        public void CycleProfile(int direction)
+        {
+            try
+            {
+                if (Store == null) return;
+
+                string next = Store.NextInCycle(Store.ActiveProfile, direction);
+                if (string.IsNullOrEmpty(next)) return;
+
+                ActivateProfile(next);
+            }
+            catch (Exception ex)
+            {
+                // An action runs on SimHub's thread; letting this escape would take a keypress
+                // handler down with it rather than just failing to switch.
+                Log.ErrorThrottled("cycle-profile", "Could not switch profile", ex);
+            }
         }
 
         /// <summary>Adds a copy of the current profile under the given name and makes it live.</summary>
@@ -334,7 +363,12 @@ namespace AB9ActiveShifter
             RaiseProfileChanged();
         }
 
-        private void SaveStore()
+        /// <summary>
+        /// Writes the profile store out. Internal rather than private because the settings page
+        /// edits the store directly for things that are not per-profile settings - which profiles
+        /// a hotkey cycles through being the only one so far.
+        /// </summary>
+        internal void SaveStore()
         {
             try { this.SaveCommonSettings(SettingsKey, Store); }
             catch (Exception ex) { Log.Error("Could not save profiles", ex); }
@@ -416,6 +450,30 @@ namespace AB9ActiveShifter
             {
                 Log.ErrorThrottled("trigger-event", "Could not raise gear event", ex);
             }
+        }
+
+        /// <summary>
+        /// Stores a captured clutch pedal. Raised on the engine thread, so like the polarity
+        /// result it is marshalled before touching settings WPF is bound to.
+        /// <para>
+        /// A capture that did not commit - cancelled, or nothing moved - deliberately leaves the
+        /// existing binding alone. Clearing it would mean an accidental press of the button loses
+        /// a working calibration and the clutch silently reverts to reading zero.
+        /// </para>
+        /// </summary>
+        private void OnPedalCaptureCompleted(AxisCapture capture)
+        {
+            if (capture == null || capture.Phase != CapturePhase.Committed || capture.Result == null)
+            {
+                return;
+            }
+
+            OnUiThread(() =>
+            {
+                Settings.ApplyPedalCapture(capture.DeviceId, capture.AxisIndex, capture.Result);
+                PushSettingsToEngine();
+                SaveStore();
+            });
         }
 
         /// <summary>
@@ -565,6 +623,12 @@ namespace AB9ActiveShifter
                 ShifterEngine engine = _engine;
                 if (engine != null) engine.EmergencyStop("manual release requested");
             });
+
+            // Bindable to a wheel button or a key in SimHub's own Controls page, which is the
+            // point: switching between an H gate and a sequential lever is a thing done between
+            // sessions, or between cars, without reaching for a mouse.
+            this.AddAction("NextProfile", (a, b) => CycleProfile(1));
+            this.AddAction("PreviousProfile", (a, b) => CycleProfile(-1));
         }
 
         private static EngineSnapshot Snapshot()

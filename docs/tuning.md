@@ -77,6 +77,13 @@ end-stop are both measured from the firing point, so the whole stroke shortens a
 Keep one **profile** per pattern you actually use — every dial, the pattern included, is stored
 per profile, so switching is one dropdown.
 
+**Switching without the dropdown.** *Next profile* and *Previous profile* are actions, so they
+bind to a wheel button or a key in SimHub's own **Controls** page like any other. Which profiles
+they walk through is on the Setup tab under *Profile hotkeys*: tick the ones you want, or tick
+none and they walk through all of them. Switching releases any held gear and clears a sequential
+pulse in flight before the new gate is applied, so it is safe to press while driving — which is
+the point, if you keep an H profile and a sequential one for different cars.
+
 ## Telemetry effects (the Effects tab)
 
 Vibration driven by the game, on top of the gate: all off by default, all silenced within half a
@@ -90,6 +97,7 @@ included). Each row is enable + volume + frequency:
 | Rev limiter | Revs ≥ the redline percentage | Silent when the game reports no redline. |
 | ABS / TC | The game's own ABS-active / TC-active flags | Different default pitches (44 / 60 Hz) so both firing in one corner stay distinguishable. |
 | Curbs and bumps | Rapid shake in the car's vertical acceleration | No surface data needed: a baseline tracker follows sustained load (corners, braking) so only the shake plays, with a ~150 ms ring-down that keeps a rumble strip's rhythm. **Full volume at (G)** is the sensitivity — lower it to make gentle curbs louder. Silent in games that report no acceleration; the ShakeIt bridge below is the per-wheel alternative. |
+| Clutch bite point | The clutch crosses the bite point, either way | Tells the hand where the drivetrain connects. Silent while the pedal moves without crossing, so riding the clutch stays quiet. Set the point itself on the **Setup** tab — it is a property of the car, not of the pedals. |
 | Gear shift pulse | The game's reported gear changes | Confirms what the game *accepted* — useful in sequential and with paddle cars. |
 | Custom property | Any SimHub property, 0–100 → volume | Try `DataCorePlugin.GameData.Throttle` to hear it work. The real use: a ShakeIt Bass Shakers effect group with *Export property* enabled puts road rumble, wheel slip and impacts on the lever with all of ShakeIt's own tuning. |
 
@@ -103,6 +111,36 @@ Symptoms:
 | The grind feels like a lean, not a border | Raise **balk wall (%)** — it stacks on the entry resistance while a shift is rejected. It only acts with rejection on. |
 | Effects feel weak | They share the overall gain; check polarity is confirmed (the 10% cap mutes effects too) before raising per-effect volumes. |
 | A buzz outlives the game | It cannot, by design (500 ms staleness cut). If you feel one, it is the gate — record a trace. |
+
+## The clutch (Setup tab)
+
+Where the clutch reading comes from, and the one number that describes your car rather than your
+hardware.
+
+**Read from** is *the game's telemetry* by default, which needs no setup and is right whenever the
+game reports the pedal at all. Switch to *the pedal itself* for either of two reasons:
+
+- the game reports no clutch, so the grind has nothing to key on;
+- the grind feels late — telemetry arrives at the game's update rate, tens of milliseconds old
+  against a shift that is over in a couple of hundred.
+
+The pedal is opened **non-exclusively**, so the game keeps reading it exactly as before. Press
+*Press the clutch to bind it*, hold still a moment, then press the clutch fully and let it back up:
+which axis, which direction it travels and how much slack it has at rest are all measured from that
+one press. A pedal whose axis falls when pressed is detected and handled — nothing needs typing,
+and there is no invert box to get wrong. The binding describes your rig, so it never travels in a
+shared profile.
+
+**Bite point** is where the clutch starts to pick up, as a percentage of travel. It cannot be
+measured from the pedal — nothing in the motion marks it — so set it where the car actually bites.
+Two things use it: the bite-point pulse on the Effects tab, and the grind's *fade* mode.
+
+| Symptom | Dial |
+| --- | --- |
+| The grind is all-or-nothing, and feathering the clutch does nothing | Effects → **How the clutch decides** → *Fade across the pedal from the bite point*. Then set the bite point honestly, because that is where the fade ends. |
+| The grind fades out too early or too late | The **bite point**, not the threshold — the threshold belongs to the other mode and is ignored while fading. |
+| The bite-point pulse fires while I ride the clutch | It cannot: it is edge-triggered on the crossing. If you feel something there it is the grind or the engine hum. |
+| The pedal reads 0% however hard I press | Wrong axis, or the pedals were rebound to a different device. Re-run the capture; the reading under the button shows the live value while you press. |
 
 ## The rail gate recipe
 

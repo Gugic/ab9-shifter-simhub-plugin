@@ -73,6 +73,59 @@ namespace AB9ActiveShifter.Core
         private PolarityCalibrator _calibrator;
         private readonly Queue<CalibrationTarget> _calibrationQueue = new Queue<CalibrationTarget>();
 
+        // --- the clutch pedal, when it is read directly rather than from the game -------------
+        //
+        // A second DirectInput handle, held NON-exclusively so the game keeps its own pedals.
+        // Polled well below the loop rate: a pedal moves at the speed of an ankle, and every
+        // poll is time taken out of a one-millisecond budget that the gate needs more.
+        private const int PedalPollEveryTicks = 10;
+
+        private readonly PedalDevice _pedals = new PedalDevice();
+        private readonly int[] _pedalAxes = new int[PedalDevice.AxisCount];
+        private readonly TelemetryState _pedalTelemetry = new TelemetryState();
+        private bool _pedalsOpen;
+        private string _pedalDeviceOpened;
+
+        /// <summary>Last raw reading of the bound axis, for the calibration bar in the UI.</summary>
+        private volatile int _pedalRaw;
+
+        /// <summary>Last scaled reading, 0..100, whether or not it is the clutch in use.</summary>
+        private double _pedalPercent;
+
+        private int _pedalCaptureRequest;
+        private AxisCapture _pedalCapture;
+        private volatile string _captureHint;
+
+        /// <summary>Last raw value of the bound pedal axis, for the calibration bar.</summary>
+        public int PedalRaw { get { return _pedalRaw; } }
+
+        /// <summary>Last scaled pedal reading, 0..100, whatever the clutch source is.</summary>
+        public double PedalPercent { get { return _pedalPercent; } }
+
+        /// <summary>What the capture wants the user to do right now; null when not capturing.</summary>
+        public string PedalCaptureHint { get { return _pedalCapture != null ? _captureHint : null; } }
+
+        /// <summary>Raised on the engine thread when a pedal capture finishes, however it ended.</summary>
+        public event Action<AxisCapture> PedalCaptureCompleted;
+
+        /// <summary>
+        /// Asks the engine to listen for a clutch pedal. The pedal device is opened for the
+        /// duration even if the clutch source is still the game's telemetry, so the axis can be
+        /// bound before the source is switched over.
+        /// </summary>
+        public void RequestPedalCapture()
+        {
+            Interlocked.Exchange(ref _pedalCaptureRequest, 1);
+        }
+
+        /// <summary>Abandons a capture in progress. Safe to call when none is running.</summary>
+        public void CancelPedalCapture()
+        {
+            Interlocked.Exchange(ref _pedalCaptureRequest, 0);
+            AxisCapture capture = _pedalCapture;
+            if (capture != null) capture.Cancel();
+        }
+
         /// <summary>Raised on the engine thread when the selected gear changes (new, previous).</summary>
         public event Action<int, int> GearChanged;
 
@@ -444,6 +497,8 @@ namespace AB9ActiveShifter.Core
                 TelemetryState telemetry = _telemetry;
                 int telemetryAge = unchecked(Environment.TickCount - telemetry.CapturedAtTick);
 
+                telemetry = ReadPedals(cfg, telemetry, tickCount, nowMs);
+
                 ForceFrame frame;
                 GateState traceState;
                 Column traceColumn;
@@ -547,6 +602,119 @@ namespace AB9ActiveShifter.Core
         /// and no gain scaling applied. It is measuring the raw behaviour those settings exist to
         /// correct, so passing them through the composer would hide the very thing being measured.
         /// </summary>
+        /// <summary>
+        /// Reads the clutch pedal, if it is being read directly, and returns the telemetry the
+        /// effects should run on. Everything here is best-effort by design: losing the pedals
+        /// must never stop the gate, so a failure falls back to whatever the game reported and
+        /// says so once.
+        /// </summary>
+        private TelemetryState ReadPedals(EngineConfig cfg, TelemetryState telemetry,
+                                          long tickCount, long nowMs)
+        {
+            bool wanted = cfg.ClutchSource == ClutchSource.Pedal || _pedalCaptureRequest != 0
+                          || _pedalCapture != null;
+
+            if (!wanted)
+            {
+                if (_pedalsOpen) ClosePedals();
+                return telemetry;
+            }
+
+            // Reopen when the chosen device changes, so switching pedal sets in the picker takes
+            // effect without restarting the plugin.
+            if (_pedalsOpen && _pedalDeviceOpened != cfg.PedalDeviceId) ClosePedals();
+
+            if (!_pedalsOpen)
+            {
+                string error;
+                if (!_pedals.Open(cfg.PedalDeviceId, WindowHandleProvider.Get(), out error))
+                {
+                    Log.WarnThrottled("pedal-open", "Clutch pedal unavailable: " + error, 30);
+                    return telemetry;
+                }
+                _pedalsOpen = true;
+                _pedalDeviceOpened = cfg.PedalDeviceId;
+            }
+
+            // An ankle does not need a kilohertz, and every poll is time the gate is not getting.
+            if (tickCount % PedalPollEveryTicks != 0) return EffectiveTelemetry(cfg, telemetry);
+
+            if (!_pedals.TryPoll(_pedalAxes))
+            {
+                Log.WarnThrottled("pedal-poll", "Lost the clutch pedal device; falling back to " +
+                                                "the game's own clutch reading.", 30);
+                ClosePedals();
+                return telemetry;
+            }
+
+            StepPedalCapture(nowMs);
+
+            int axis = cfg.PedalAxisIndex;
+            if (axis >= 0 && axis < _pedalAxes.Length)
+            {
+                _pedalRaw = _pedalAxes[axis];
+                _pedalPercent = cfg.PedalCalibration != null
+                    ? cfg.PedalCalibration.ToPercent(_pedalRaw)
+                    : 0.0;
+            }
+
+            return EffectiveTelemetry(cfg, telemetry);
+        }
+
+        /// <summary>
+        /// The snapshot the effects see. When the pedal is the source, the clutch is swapped into
+        /// a scratch instance the engine owns - never into the published snapshot, which the data
+        /// thread is still writing and other readers expect to be whole.
+        /// </summary>
+        private TelemetryState EffectiveTelemetry(EngineConfig cfg, TelemetryState telemetry)
+        {
+            if (cfg.ClutchSource != ClutchSource.Pedal) return telemetry;
+
+            _pedalTelemetry.CopyFromWithClutch(telemetry, _pedalPercent);
+            return _pedalTelemetry;
+        }
+
+        private void StepPedalCapture(long nowMs)
+        {
+            if (Interlocked.Exchange(ref _pedalCaptureRequest, 0) == 1)
+            {
+                _pedalCapture = new AxisCapture(nowMs);
+                Log.Info("Listening for a clutch pedal.");
+            }
+
+            AxisCapture capture = _pedalCapture;
+            if (capture == null) return;
+
+            capture.Observe(_pedalDeviceOpened, _pedalAxes, nowMs);
+            _captureHint = capture.Hint;
+
+            if (!capture.IsFinished) return;
+
+            _pedalCapture = null;
+
+            if (capture.Phase == CapturePhase.Committed)
+            {
+                Log.Info("Clutch pedal bound to axis " + capture.AxisIndex +
+                         (capture.Result.Invert ? " (inverted)" : "") + ".");
+            }
+            else
+            {
+                Log.Info("Clutch pedal capture ended: " + capture.Phase + ".");
+            }
+
+            Action<AxisCapture> done = PedalCaptureCompleted;
+            if (done != null) done(capture);
+        }
+
+        private void ClosePedals()
+        {
+            _pedals.Close();
+            _pedalsOpen = false;
+            _pedalDeviceOpened = null;
+            _pedalRaw = 0;
+            _pedalPercent = 0;
+        }
+
         private bool HandleCalibration(EngineConfig cfg, long nowMs, int x, int y, double loopHz)
         {
             if (Interlocked.Exchange(ref _calibrationRequest, 0) == 1)
@@ -1058,6 +1226,11 @@ namespace AB9ActiveShifter.Core
             if (_output != null) _output.ReleaseAll();
             DisposeEffects();
             DisposeDevice();
+
+            // The pedals last, and outside that ordering entirely: this handle is read-only and
+            // non-exclusive, so it can neither hold a button down nor leave a force running. It
+            // still has to go, or a disabled plugin keeps a handle on the user's pedal set.
+            ClosePedals();
         }
 
         private void DisposeEffects()
