@@ -283,7 +283,25 @@ Available for dashboards and formulas:
 | `LoopHz` | measured FFB loop rate |
 | `StatusMessage` | the same text shown on the Setup tab |
 
-Events: `GearEngaged`, `GearReleased`. Actions: `ToggleShifterFFB`, `ReleaseAllGears`.
+Events: `GearEngaged`, `GearReleased`.
+
+### Actions you can bind to a button
+
+| Action | What it does |
+| --- | --- |
+| `NextProfile` | Move one step around the profile cycle. **This is the one to bind** if you want a single button that swaps between, say, an H gate and a sequential lever. |
+| `PreviousProfile` | The same, backwards. Only worth binding once three or more profiles are in the cycle. |
+| `ToggleShifterFFB` | Turn the shifter's force feedback on and off. |
+| `ReleaseAllGears` | Drop every held gear button and stop output — the panic button. |
+
+Bind them in SimHub's own **Controls and events** page, not here: add a mapping, press the
+wheel button or key you want, then search the action list for the name (it appears under this
+plugin, as `AB9ShifterPlugin.NextProfile` and so on).
+
+Which profiles `NextProfile` walks through is set on the plugin's **Setup** tab under *Profile
+hotkeys* — tick the ones you want in the ring, or tick none and it walks through all of them.
+Switching releases any held gear and clears a sequential pulse in flight before the new gate is
+applied, so it is safe to press while driving.
 
 ## Safety
 
