@@ -745,8 +745,32 @@ namespace AB9ActiveShifter.UI
         /// status. Kept to plain text rather than a bar: what a user needs while binding is
         /// "is this the pedal I am pressing", and a number answers that at a glance.
         /// </summary>
+        /// <summary>
+        /// Hides whichever clutch dial the current grind mode does not read.
+        /// <para>
+        /// The threshold and the bite point never both decide - Threshold mode reads the
+        /// threshold and ignores the bite point, fading reads the bite point and ignores the
+        /// threshold, and a test pins that. Showing both regardless made it look as though they
+        /// competed, which was the first question asked about the feature.
+        /// </para>
+        /// </summary>
+        private void RefreshGrindModeVisibility()
+        {
+            if (GrindThresholdSlider == null || _boundSettings == null) return;
+
+            bool usesThreshold = _boundSettings.GrindClutchMode == GrindClutchMode.Threshold;
+
+            GrindThresholdSlider.Visibility = usesThreshold ? Visibility.Visible : Visibility.Collapsed;
+            if (GrindBitePointNote != null)
+            {
+                GrindBitePointNote.Visibility = usesThreshold ? Visibility.Collapsed : Visibility.Visible;
+            }
+        }
+
         private void RefreshPedalStatus()
         {
+            RefreshGrindModeVisibility();
+
             if (PedalPanel == null || _boundSettings == null) return;
 
             PedalPanel.Visibility = _boundSettings.ClutchSource == ClutchSource.Pedal

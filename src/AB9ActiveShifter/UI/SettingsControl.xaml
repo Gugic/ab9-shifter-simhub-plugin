@@ -559,9 +559,13 @@
                             </StackPanel>
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,6"
                                        Text="A threshold is one line: above it the clutch is down and nothing grinds, below it a clutchless shift grinds at full strength. Fading instead scales the grind across the pedal's travel from the bite point upward, so feathering the clutch feathers the grind - which needs the bite point on the Setup tab to be set honestly. The balk wall does not fade either way: a border that softened as the clutch lifted would let a determined shove through exactly when it mattered." />
-                            <ui:TitledSlider Title="Clutch counts as pressed above (%)" Minimum="5" Maximum="90"
+                            <ui:TitledSlider x:Name="GrindThresholdSlider"
+                                             Title="Clutch counts as pressed above (%)" Minimum="5" Maximum="90"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="25"
                                              Value="{Binding GrindClutchThresholdPct, Mode=TwoWay}" />
+                            <TextBlock x:Name="GrindBitePointNote" TextWrapping="Wrap" Opacity="0.75"
+                                       Margin="0,2,0,4"
+                                       Text="Fading uses the bite point on the Setup tab instead of a threshold, so the threshold dial is hidden while this mode is selected - it would do nothing." />
                             <ui:TitledSlider Title="Only grind above (km/h)" Minimum="0" Maximum="40" TickFrequency="1"
                                              ShowResetButton="True" ResetValue="0"
                                              Value="{Binding GrindMinSpeedKmh, Mode=TwoWay}" />
