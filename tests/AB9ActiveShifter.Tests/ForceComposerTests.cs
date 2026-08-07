@@ -1163,6 +1163,56 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void AnInvertedTunnelPairCannotBecomeAForceCliff()
+        {
+            // Measured on the rig, from a trace recorded on a night the base died three times:
+            // the tunnel's enter and exit depths had been typed the wrong way round - enter 7200
+            // against exit 5200. The ordering clamp repaired that to exit = enter + 1, which is
+            // well-formed for the state machine and a catastrophe for the force, because the same
+            // two numbers are the guide plateau's ramp span. The plateau then read 0 DI at depth
+            // 7200 and full scale at 7201: one axis count of sensor dither commanding a 12 Nm
+            // reversal, at the report rate, for as long as the lever sat there.
+            //
+            // The repair is now a real span, so the cliff cannot be built by hand at all. This
+            // test is written against the settings as a user could type them, not against the
+            // repaired geometry, because typing them is the failure being prevented.
+            EngineConfig cfg = FullGainConfig();
+            cfg.ChannelHalfEnter = 7200;
+            cfg.ChannelHalfExit = 5200;
+
+            GateGeometry geo = cfg.BuildGeometry();
+            Assert.True(geo.ChannelHalfExit - geo.ChannelHalfEnter >= GateGeometry.MinBandSpan,
+                "the inverted pair repaired to a span of "
+                + (geo.ChannelHalfExit - geo.ChannelHalfEnter));
+
+            // Full scale spread over the narrowest span the repair will produce, plus the same
+            // quantisation term the sibling depth-step test carries: GuideFace is an integer, so
+            // a face that grows with the plateau shifts where the lever sits on it by up to a
+            // count. Worth single digits, against the 10000 the unrepaired cliff produced.
+            int bound = (int)Math.Ceiling(GateGeometry.ForceMax / (double)GateGeometry.MinBandSpan)
+                        + (int)Math.Ceiling(GateGeometry.ForceMax * cfg.ColumnPinForcePct / 100.0
+                                            / Math.Max(1, cfg.WallRamp))
+                        + 2;
+
+            for (int x = 0; x <= Max; x += 37)
+            {
+                ForceComposer c = Composer(cfg);
+                int previous = Neutral(c, x, Center).ConstantX;
+
+                for (int depth = 1; depth <= 12000; depth++)
+                {
+                    int force = Neutral(c, x, Center + depth).ConstantX;
+
+                    Assert.True(Math.Abs(force - previous) <= bound,
+                        "depth step of " + (force - previous) + " at x=" + x
+                        + " depth=" + depth + ", bound " + bound);
+
+                    previous = force;
+                }
+            }
+        }
+
+        [Fact]
         public void NoSingleCountOfDepthEverStepsTheLateralField()
         {
             // The same property on the other axis, because the natural way to write the fix - fade

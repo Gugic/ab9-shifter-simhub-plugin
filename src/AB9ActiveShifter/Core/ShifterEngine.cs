@@ -292,6 +292,8 @@ namespace AB9ActiveShifter.Core
                         continue;
                     }
 
+                    WatchForceOutput(nowMs);
+
                     Tick(cfg, nowMs, tickCount, loopHz);
 
                     tickCount++;
@@ -423,6 +425,8 @@ namespace AB9ActiveShifter.Core
                     return;
                 }
 
+                NotePosition(rawX, rawY, nowMs);
+
                 // Positions stay in the device's own coordinates throughout. Spring anchors are
                 // sent back to the device in those coordinates, so mirroring the readings here
                 // would put every anchor on the wrong side of the gate. Layout preference is
@@ -516,6 +520,11 @@ namespace AB9ActiveShifter.Core
                 // After Apply, so what is recorded is what was actually sent.
                 _trace.Add(nowMs, x, y, _velocity.X, _velocity.Y, dtMs,
                            traceState, traceColumn, traceDir, traceGear, frame.ConstantX, frame.ConstantY);
+
+                // What the stall watch arms on. Read one tick later, by which time it describes
+                // the push the lever has just had a millisecond to answer.
+                _lastCommandedForce = Math.Max(Math.Abs(frame.ConstantX), Math.Abs(frame.ConstantY));
+                _lastTickEngaged = traceState == GateState.Engaged;
 
                 if (_effects.IsFaulted)
                 {
@@ -894,6 +903,139 @@ namespace AB9ActiveShifter.Core
             };
 
             _snapshot = snapshot;
+        }
+
+        // --- force-output watch -------------------------------------------------------------
+        //
+        // The base has twice been observed to stop producing torque while staying enumerated,
+        // answering polls and accepting every effect write without error. Nothing in the write
+        // path can see that: from the loop's side everything succeeded. On the second occasion
+        // MOZA's own Cockpit also showed no axis movement, which puts the fault squarely in the
+        // base's firmware and means the only remedy is a power cycle - see docs/hardware.md.
+        //
+        // The plugin cannot fix it. It can stop the user losing a race to it, which needs two
+        // independent signals, because either alone can be wrong:
+        //
+        //   - what the device says about its own actuators, which is authoritative when the
+        //     driver answers at all, and Unknown when it will not;
+        //   - whether the reported position has moved, which caught the real outage when the
+        //     first signal might not have, and which is only suggestive because a lever nobody
+        //     is touching is also perfectly still.
+        //
+        // Neither ever stops the loop or cuts force. This watch reports; the watchdog is the
+        // one that intervenes.
+        //
+        // The second signal was first written as stillness alone, and it was worse than useless:
+        // it fired four times in five minutes against a base that was demonstrably healthy, for
+        // the reason its own comment admitted - the lever was simply not being held. Worse, the
+        // warnings were then read back as evidence and produced a confident diagnosis of a
+        // hardware fault that the logs did not support. A detector that invents symptoms costs
+        // more than no detector, so this one now has to be ARMED before it can fire.
+        private const int HealthPollMs = 1000;
+
+        // Armed only while the gate is pushing this hard. Below it the lever is free, so its
+        // stillness says nothing about the base; above it a lever that never moves is either
+        // being held or is not responding, and that is the case worth a sentence.
+        private const int StallForceFloor = 1500;
+
+        // Long enough that holding the lever against a wall while thinking does not trip it.
+        private const int FrozenPositionMs = 30000;
+
+        private long _nextHealthPollMs;
+        private ForceOutputHealth _health = ForceOutputHealth.Unknown;
+        private int _lastSeenX = int.MinValue;
+        private int _lastSeenY = int.MinValue;
+        private long _stalledSinceMs;
+        private bool _frozenReported;
+
+        // Last tick's commanded force and latch state, recorded after the frame was actually
+        // sent. NotePosition runs before the frame is composed, so it reads these one tick
+        // stale - a millisecond, against a thirty-second window.
+        private int _lastCommandedForce;
+        private bool _lastTickEngaged;
+
+        /// <summary>
+        /// Called once per tick from the Run phase; does real work about once a second. Cheap
+        /// enough for that rate - one driver query - and deliberately not on the hot path of
+        /// composing forces.
+        /// </summary>
+        private void WatchForceOutput(long nowMs)
+        {
+            if (nowMs < _nextHealthPollMs) return;
+            _nextHealthPollMs = nowMs + HealthPollMs;
+
+            FfbDevice device = _device;
+            if (device == null) return;
+
+            ForceOutputHealth now = device.ReadForceOutputHealth();
+
+            if (now == _health || now == ForceOutputHealth.Unknown) return;
+
+            bool wasFault = ForceFeedbackHealth.IsFault(_health);
+            _health = now;
+
+            if (ForceFeedbackHealth.IsFault(now))
+            {
+                Log.Warn("Force output: " + ForceFeedbackHealth.Describe(now));
+                _status = ForceFeedbackHealth.Describe(now);
+
+                // One nudge, then let the next poll say whether it took. Recreating the effects
+                // is the reopen path's job, not this one - it owns the device lock.
+                if (ForceFeedbackHealth.WorthRecovering(now)) device.TryWakeForceFeedback();
+            }
+            else if (wasFault)
+            {
+                // Only worth a line as a recovery. Saying "producing" every time the lever leaves
+                // a wall would bury the one message that matters.
+                Log.Info("Force output: recovered, the base is producing force again.");
+            }
+        }
+
+        /// <summary>
+        /// Called from the tick with each fresh reading. A base that has stopped reporting looks
+        /// exactly like a lever nobody is touching, so stillness on its own is never reported:
+        /// the clock runs only while the gate is shoving the lever and no gear is holding it.
+        /// Warns once, and clears itself the moment anything moves.
+        /// </summary>
+        private void NotePosition(int x, int y, long nowMs)
+        {
+            if (x != _lastSeenX || y != _lastSeenY)
+            {
+                _lastSeenX = x;
+                _lastSeenY = y;
+                _stalledSinceMs = 0;
+                _frozenReported = false;
+                return;
+            }
+
+            // Two ways a healthy base sits perfectly still, both of them ordinary, and neither
+            // says anything about its health:
+            //
+            //   - nothing is pushing the lever, so there is nothing for it to fail to do;
+            //   - a gear is engaged, and the seated hold is supposed to keep the lever exactly
+            //     where it is - a straight in fourth would otherwise trip this every lap.
+            //
+            // Disarmed rather than paused, so the window always measures one continuous stall.
+            if (_lastCommandedForce < StallForceFloor || _lastTickEngaged)
+            {
+                _stalledSinceMs = 0;
+                return;
+            }
+
+            // A base that was already frozen when the plugin started never moves, so the clock
+            // starts on the first armed tick rather than on the first movement - otherwise the
+            // one case where the user most needs telling is the one case this stays silent for.
+            if (_stalledSinceMs == 0) _stalledSinceMs = nowMs;
+
+            if (_frozenReported) return;
+            if (nowMs - _stalledSinceMs < FrozenPositionMs) return;
+
+            _frozenReported = true;
+            Log.Warn("The base has not moved for " + ((nowMs - _stalledSinceMs) / 1000) +
+                     " s while the gate was pushing it, and no gear is holding it there. If your " +
+                     "hand was not on the lever this is nothing; if it was, the base has stopped " +
+                     "responding and only a power cycle will bring it back - MOZA Cockpit will " +
+                     "show it frozen too.");
         }
 
         private void WatchdogTick(object state)

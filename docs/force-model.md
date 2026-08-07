@@ -556,6 +556,37 @@ Feel tab now prints the effective bite beside the dial and marks when it has bee
 you are changing either dial, the useful question is not "what did I ask for" but "what is the gate
 rendering, and is there any flat divider left".
 
+### A repaired band is a ramp span, and one axis count is a cliff
+
+The neutral tunnel's `ChannelHalfEnter` / `ChannelHalfExit` pair is two things at once: hysteresis
+for the state machine, and the span the guide plateau ramps its force across (`GuidePlateau`, and
+`SlotConfinementFactor` the same way). `GateGeometry` has always repaired an inverted pair by
+clamping exit to `enter + 1`, which is correct for the first job and catastrophic for the second.
+
+Measured, from a trace recorded on a night the base died three times — the pair had been typed the
+wrong way round, enter 7200 against exit 5200:
+
+| depth | guide plateau |
+| --- | --- |
+| 7200 | 0 DI |
+| 7201 | 10000 DI |
+
+Full scale across **one axis count in 65535**. Park the lever there and a single count of sensor
+dither commands a ±12 Nm square wave at the report rate, for as long as it sits. It is the most
+violent thing this codebase has ever been able to ask the base for, and it was reachable by typing
+one number into the wrong box — the two dials sit adjacent on the Geometry tab and differ by one
+word.
+
+The repair is now `enter + GateGeometry.MinBandSpan` (1000 counts), which bounds the gradient at 10
+DI per axis count against the shipped gate's 3.8. The floor is narrower than every shipped tunnel
+gap, so it only ever rescues a broken configuration. `AnInvertedTunnelPairCannotBecomeAForceCliff`
+pins it, and fails with a step of thousands if the clamp goes back to `+ 1`.
+
+The other two pairs deliberately keep the ordering-only clamp: no force ramps across them, and the
+shipped Sequential profile runs a 500-count release gap on purpose. The general rule this leaves
+behind: **before clamping a band to "just enough to be ordered", check whether a force ramps across
+it.** Ordering is a state-machine property; a ramp needs a width.
+
 ## The vibration channel and the grind
 
 The telemetry effects (`Core/EffectComposer.cs`) are the one family of force that is neither a

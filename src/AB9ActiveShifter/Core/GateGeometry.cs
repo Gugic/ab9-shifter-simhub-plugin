@@ -20,6 +20,15 @@ namespace AB9ActiveShifter.Core
         public const int AxisMax = 65535;
         public const int AxisCenter = 32767;
 
+        /// <summary>
+        /// The narrowest the neutral tunnel's enter/exit band is allowed to be after repair. Not
+        /// a user dial and not a feel constant: it is the width below which a band that also
+        /// serves as a force ramp stops being a ramp and becomes a step the hand meets as a bang.
+        /// At full scale this bounds the gradient at 10 DI per axis count; the shipped gate runs
+        /// at 3.8. Bands that are only ever state hysteresis do not need it - see the constructor.
+        /// </summary>
+        public const int MinBandSpan = 1000;
+
         /// <summary>Full-scale force in DirectInput units.</summary>
         public const int ForceMax = 10000;
 
@@ -114,8 +123,22 @@ namespace AB9ActiveShifter.Core
             // Exit bands must be looser than enter bands or the hysteresis inverts and
             // the state machine oscillates. Clamp rather than throw: these come from
             // user-editable settings and a bad value must not kill the FFB loop.
+            //
+            // The tunnel pair gets a wider floor than the rest, because it is the only one that
+            // does double duty: GuidePlateau and SlotConfinementFactor ramp the force ACROSS it.
+            // Ordering alone is enough for a state band, and enter + 1 delivers that - but as a
+            // ramp span, one axis count in 65535 is not a narrow ramp, it is a cliff. Measured on
+            // this rig from a trace: with the pair typed the wrong way round (enter 7200, exit
+            // 5200) the repair produced a span of 1, the plateau read 0 DI at depth 7200 and full
+            // scale at 7201, and one count of sensor dither commanded a 12 Nm reversal at the
+            // report rate for as long as the lever sat there.
+            //
+            // The floor is narrower than the shipped tunnel gap (2600), so it repairs a broken
+            // configuration and touches nothing anyone has tuned. The other two pairs keep the
+            // ordering-only clamp: they are hysteresis, no force ramps across them, and the
+            // shipped Sequential profile deliberately runs a 500-count release gap.
             ChannelHalfEnter = channelHalfEnter;
-            ChannelHalfExit = Math.Max(channelHalfExit, channelHalfEnter + 1);
+            ChannelHalfExit = Math.Max(channelHalfExit, channelHalfEnter + MinBandSpan);
             ColumnEdgeEnter = columnEdgeEnter;
             ColumnInnerHalfEnter = columnInnerHalfEnter;
             ColumnInnerHalfExit = Math.Max(columnInnerHalfExit, columnInnerHalfEnter + 1);
@@ -169,7 +192,7 @@ namespace AB9ActiveShifter.Core
             return c == Column.None ? AxisCenter : _targets[(int)c];
         }
 
-        /// <summary>Converts a raw axis reading to the DirectInput ±10000 force/position scale.</summary>
+        /// <summary>Converts a raw axis reading to the DirectInput Â±10000 force/position scale.</summary>
         public static int AxisToDi(int axis)
         {
             double di = (axis - (AxisMax / 2.0)) * (2.0 * ForceMax / AxisMax);
@@ -543,3 +566,4 @@ namespace AB9ActiveShifter.Core
         }
     }
 }
+
