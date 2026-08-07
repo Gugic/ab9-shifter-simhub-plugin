@@ -436,6 +436,7 @@ update the right column **in the same commit**:
 | Setup steps, requirements, or anything a user does once | `README.md` |
 | Build, test, deploy or release procedure | `DEVELOPMENT.md`, and the build section above |
 | A dial added, renamed or removed | `DefaultProfiles.cs` if the shipped tuning names it, and check whether it should travel in `ProfileTransfer.NotShared` |
+| **Any label, section or control in `SettingsControl.xaml`** | `docs/tuning.md`, which **quotes UI labels verbatim** so a human can read the two side by side. The XAML is the authority: when they disagree the doc is wrong, and a doc that names a dial the UI does not have sends someone hunting for a control that is not there. This has already happened — the doc said *"Slot wall, once in a gear"* long after the UI said *"Slot wall / lateral rail"*. A new control also needs a home on the right tab: everything required to finish setup must stay on Setup (see the tab-gating invariant) |
 | The risk, non-affiliation or early-software wording | all four copies at once — see *Naming, and the disclaimers* |
 | A new tuning symptom you diagnosed | the symptom table in `docs/tuning.md` |
 
