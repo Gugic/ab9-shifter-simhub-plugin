@@ -246,6 +246,28 @@ Assumptions that looked reasonable, cost real time, and are false:
   else.
 - ~~Software could compensate for the firmware centring curve~~ → abandoned; the measurement it
   depended on was contaminated by too short a settle time, and configuring Cockpit made it moot.
+- ~~The base drops off USB because it is being sent too much torque~~ → tested by raising overall
+  gain to 80%, which killed it *sooner* — and the gate has since run a full race at **100% gain**
+  with every telemetry effect on and no fault at all. Magnitude is not the variable.
+- ~~The base drops off USB because the write pipe is saturated~~ → measured from the trace
+  archive. A session that ran the pipe at **85%** utilisation was fine; the sessions that died
+  were idling at **11–29%**, with 65–73% of ticks commanding exactly zero force. Backwards.
+- ~~The base drops off USB because the force stream is violent~~ → same archive. The traces from
+  the night of three failures have the **lowest** slew on record (mean 12–54 DI/tick, zero
+  half-scale jumps, zero sign reversals); trouble-free days ran mean slew up to 318.
+- ~~The failures have been getting steadily worse for nine days~~ → an artifact of counting
+  `Device lost` log lines. A **deliberate power-off logs the identical `0x8007048F`**, and the
+  later sessions were debugging sessions full of power-cycles. Measure time-from-open-to-loss
+  instead: the early "failures" all sat 14–74 minutes in, which is a human switching off.
+
+The two useful discriminators, since this will be diagnosed again:
+
+- **`0x8007048F` is `ERROR_DEVICE_NOT_CONNECTED`** — the device leaving the bus, not a rejected
+  write. No `SetParameters` can produce it directly.
+- **The base is a composite device**: `MI_00` is a USB serial port (COM12) and `MI_02` is the HID
+  game controller. **Pit House and MOZA Cockpit talk to `MI_00`; we use `MI_02`.** So "it works
+  fine in Pit House gearbox mode" is not evidence that the base is healthy — that mode never
+  touches the interface the plugin uses, nor the DirectInput force feedback path at all.
 
 One coding hazard worth remembering because it produced a completely silent failure: the constant
 force rate limiter once seeded its "last write" timestamp to `long.MinValue`, so `now - last`
