@@ -266,7 +266,12 @@ namespace AB9ActiveShifter
             }
             if (target == null || target.Settings == Settings) return;
 
-            if (Settings != null) Settings.PropertyChanged -= OnSettingsChanged;
+            if (Settings != null)
+            {
+                Settings.CarryLiveSwitchesTo(target.Settings);
+                Settings.PropertyChanged -= OnSettingsChanged;
+            }
+
             Settings = target.Settings;
             Settings.PropertyChanged += OnSettingsChanged;
             Store.ActiveProfile = target.Name;

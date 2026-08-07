@@ -119,5 +119,60 @@ namespace AB9ActiveShifter.Tests
 
             Assert.Equal(new List<string> { "A", "B" }, s.CycleOrder());
         }
+
+        // ---------- the live switches follow you across a switch ----------
+
+        [Fact]
+        public void SwitchingProfileDoesNotTurnTheShifterOff()
+        {
+            // Measured on the rig, and the reason this exists: every shipped profile starts
+            // disabled, because forces must never come on by themselves. Enable one, switch to
+            // another, and the base went "stopped" - the new profile's own Enabled=false won.
+            // A bound hotkey makes that a shifter that dies mid-session on a keypress.
+            var running = new ShifterSettings { Enabled = true };
+            var arriving = new ShifterSettings { Enabled = false };
+
+            running.CarryLiveSwitchesTo(arriving);
+
+            Assert.True(arriving.Enabled);
+        }
+
+        [Fact]
+        public void SwitchingProfileDoesNotTurnTheShifterOnEither()
+        {
+            // The same rule in the direction that matters for safety: leaving a disabled session
+            // must not arm the base just because the profile being opened was saved enabled.
+            var running = new ShifterSettings { Enabled = false, FreeStick = true };
+            var arriving = new ShifterSettings { Enabled = true, FreeStick = false };
+
+            running.CarryLiveSwitchesTo(arriving);
+
+            Assert.False(arriving.Enabled);
+            Assert.True(arriving.FreeStick);
+        }
+
+        [Fact]
+        public void CarryingTheSwitchesTouchesNothingElse()
+        {
+            // It is two flags and nothing more. Anything else carried across would be tuning
+            // leaking between profiles, which is the exact opposite of what a profile is for.
+            var running = new ShifterSettings { Enabled = true, OverallGainPct = 100, WallRamp = 6000 };
+            var arriving = new ShifterSettings { OverallGainPct = 25, WallRamp = 600 };
+
+            running.CarryLiveSwitchesTo(arriving);
+
+            Assert.Equal(25, arriving.OverallGainPct);
+            Assert.Equal(600, arriving.WallRamp);
+        }
+
+        [Fact]
+        public void CarryingOntoItselfIsHarmless()
+        {
+            var only = new ShifterSettings { Enabled = true };
+            only.CarryLiveSwitchesTo(only);
+            only.CarryLiveSwitchesTo(null);
+
+            Assert.True(only.Enabled);
+        }
     }
 }
