@@ -316,7 +316,7 @@ namespace AB9ActiveShifter.Core
                     if (_configDirty)
                     {
                         _configDirty = false;
-                        ApplyConfigChange(_config);
+                        ApplyConfigChange(_config, nowMs);
                         periodTicks = Stopwatch.Frequency / Math.Max(1, _config.TickHz);
                     }
 
@@ -570,6 +570,21 @@ namespace AB9ActiveShifter.Core
                     traceGear = t.Gear;
                 }
 
+                // Between one gate and the next: nothing at all while the lever comes home, then
+                // the new gate wound in rather than switched on, then the profile number pulsed
+                // out. Applied here, to the finished frame, so it scales whatever the gate and
+                // the carriers agreed on and cannot be confused with a force of its own.
+                if (_transition.Active)
+                {
+                    _transition.Step(nowMs, x, y);
+                    frame = ScaleFrame(frame, _transition.ForceScale);
+
+                    if (_transition.PulseEnvelope > 0)
+                    {
+                        frame.ConstantY += ConfirmPulse(cfg, dtMs, _transition.PulseEnvelope);
+                    }
+                }
+
                 _effects.Apply(frame, nowMs);
 
                 // After Apply, so what is recorded is what was actually sent.
@@ -704,6 +719,44 @@ namespace AB9ActiveShifter.Core
 
             Action<AxisCapture> done = PedalCaptureCompleted;
             if (done != null) done(capture);
+        }
+
+        // --- switching gates ------------------------------------------------------------------
+        private readonly ProfileSwitchTransition _transition = new ProfileSwitchTransition();
+        private double _confirmPhase;
+
+        /// <summary>Amplitude of the profile-confirmation pulse, in DirectInput units.</summary>
+        private const int ConfirmPulseAmplitude = 2600;
+
+        /// <summary>Pitch of that pulse. Low enough to read as a thump rather than a buzz.</summary>
+        private const double ConfirmPulseHz = 28.0;
+
+        /// <summary>
+        /// Scales a finished frame. Springs are untouched because every frame ships them Off, and
+        /// the damper is untouched because it opposes motion by construction - winding a
+        /// stabiliser in alongside the force it stabilises would be backwards.
+        /// </summary>
+        private static ForceFrame ScaleFrame(ForceFrame frame, double scale)
+        {
+            if (scale >= 1.0) return frame;
+
+            frame.ConstantX = (int)Math.Round(frame.ConstantX * scale);
+            frame.ConstantY = (int)Math.Round(frame.ConstantY * scale);
+            return frame;
+        }
+
+        /// <summary>
+        /// One tick of the confirmation buzz. Keyed on time like every other carrier, so it can
+        /// never join the position-to-force loop, and scaled by the same effective gain as the
+        /// gate so the 10% unconfirmed-polarity cap covers it too.
+        /// </summary>
+        private int ConfirmPulse(EngineConfig cfg, double dtMs, double envelope)
+        {
+            _confirmPhase += 2.0 * Math.PI * ConfirmPulseHz * dtMs / 1000.0;
+            if (_confirmPhase > 2.0 * Math.PI) _confirmPhase -= 2.0 * Math.PI;
+
+            double amplitude = ConfirmPulseAmplitude * cfg.EffectiveGain * envelope;
+            return (int)Math.Round(Math.Sin(_confirmPhase) * amplitude);
         }
 
         private void ClosePedals()
@@ -904,7 +957,7 @@ namespace AB9ActiveShifter.Core
             _phase = EnginePhase.SearchDevice;
         }
 
-        private void ApplyConfigChange(EngineConfig cfg)
+        private void ApplyConfigChange(EngineConfig cfg, long nowMs)
         {
             EngineConfig previous = _activeConfig;
             _activeConfig = cfg;
@@ -942,6 +995,15 @@ namespace AB9ActiveShifter.Core
                 _pulseButton = 0;
                 _pulsePending = 0;
                 _seqPushed = ShiftDir.None;
+
+                // The gate itself moved, which is the only case worth easing into. A force slider
+                // does not come through here, so dragging one still applies immediately - the
+                // whole point of a live dial. Skipped on the very first build, when there is no
+                // previous gate to have been thrown out of and nothing to confirm.
+                if (previous != null)
+                {
+                    _transition.Begin(nowMs, cfg.ProfileConfirmPulses);
+                }
             }
 
             // Only a change of identity needs a reopen. Forces, damping and geometry are all

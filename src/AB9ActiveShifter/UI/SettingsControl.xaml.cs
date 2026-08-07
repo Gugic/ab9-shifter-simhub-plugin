@@ -843,9 +843,26 @@ namespace AB9ActiveShifter.UI
 
         private readonly List<CycleEntry> _cycleEntries = new List<CycleEntry>();
 
+        private void OnConfirmProfileSwitchChanged(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || Plugin.Store == null || ConfirmSwitchCheck == null) return;
+
+            Plugin.Store.ConfirmProfileSwitch = ConfirmSwitchCheck.IsChecked == true;
+            Plugin.SaveStore();
+
+            // The count reaches the engine through the config, so it needs a push to take effect
+            // on the next switch rather than the one after.
+            Plugin.PushSettingsToEngine();
+        }
+
         private void RefreshCycleList()
         {
             if (CycleList == null || Plugin == null || Plugin.Store == null) return;
+
+            if (ConfirmSwitchCheck != null)
+            {
+                ConfirmSwitchCheck.IsChecked = Plugin.Store.ConfirmProfileSwitch;
+            }
 
             _cycleEntries.Clear();
 

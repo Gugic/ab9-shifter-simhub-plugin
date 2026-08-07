@@ -190,6 +190,14 @@ namespace AB9ActiveShifter.Core
         public int FxBiteDurationMs = 60;
 
         /// <summary>
+        /// How many times to thump the lever after a profile switch, so the hand can count which
+        /// profile arrived without looking at a screen. Set by the plugin to the profile's own
+        /// position in the store - one for the first, two for the second - and zero to say nothing.
+        /// Not a dial anyone types: the count IS the answer.
+        /// </summary>
+        public int ProfileConfirmPulses;
+
+        /// <summary>
         /// Where the clutch reading comes from. The game's own telemetry by default - it needs no
         /// setup and no second device handle.
         /// </summary>

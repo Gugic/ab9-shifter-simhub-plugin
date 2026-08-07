@@ -46,6 +46,30 @@ namespace AB9ActiveShifter
         public bool? SessionFreeStick { get; set; }
 
         /// <summary>
+        /// Whether a profile switch thumps the lever once per profile number, so which one
+        /// arrived can be counted by hand rather than read off a screen. On by default: the whole
+        /// reason profile switching moved onto a hotkey was to stop needing to look at the screen.
+        /// </summary>
+        public bool ConfirmProfileSwitch { get; set; } = true;
+
+        /// <summary>
+        /// Where the active profile sits in the list, zero-based, or -1 if there is no match. The
+        /// confirmation count is built from this, so it follows the order shown in the dropdown -
+        /// the same order a user would count in their head.
+        /// </summary>
+        public int IndexOfActive()
+        {
+            if (Profiles == null) return -1;
+
+            for (int i = 0; i < Profiles.Count; i++)
+            {
+                ShifterProfile p = Profiles[i];
+                if (p != null && p.Name == ActiveProfile) return i;
+            }
+            return -1;
+        }
+
+        /// <summary>
         /// The profiles a bound Next/Previous hotkey walks through, in order. Empty means every
         /// profile, which is what a user who never opens the list gets and is the obvious reading
         /// of "cycle profiles".

@@ -403,7 +403,16 @@ namespace AB9ActiveShifter
             ShifterEngine engine = _engine;
             if (engine == null || Settings == null) return;
 
-            engine.ApplyConfig(Settings.ToEngineConfig());
+            EngineConfig cfg = Settings.ToEngineConfig();
+
+            // How many times the lever thumps after a switch, so the profile can be counted by
+            // hand. The count is the profile's own place in the store, which is a fact only the
+            // plugin knows - ShifterSettings has no idea it lives in a list.
+            cfg.ProfileConfirmPulses = Store != null && Store.ConfirmProfileSwitch
+                ? Store.IndexOfActive() + 1
+                : 0;
+
+            engine.ApplyConfig(cfg);
 
             if (Settings.Enabled && !engine.IsRunning) engine.Start();
             else if (!Settings.Enabled && engine.IsRunning) engine.Stop(TimeSpan.FromSeconds(2));

@@ -208,6 +208,11 @@
 
                             <styles:SHSectionSeparator Margin="0,8,0,8" />
 
+                            <styles:SHToggleCheckbox x:Name="ConfirmSwitchCheck"
+                                                     Content="Thump the lever once per profile number after a switch"
+                                                     Click="OnConfirmProfileSwitchChanged" Margin="0,0,0,6" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,10"
+                                       Text="One thump for the first profile in the list, two for the second, and so on - so which one arrived can be counted by hand instead of read off a screen, which is the point of putting switching on a button in the first place. The gate is also eased in rather than switched on: forces are held at nothing while the lever comes back to centre, then wound up over a third of a second. Without that, switching pattern while sitting in a gear put the new gate's full force onto a lever that was hard over, and it oscillated." />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,6"
                                        Text="Which profiles those keys walk through. Tick none and they walk through all of them." />
                             <ItemsControl x:Name="CycleList">
