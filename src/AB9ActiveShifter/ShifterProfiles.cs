@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 
@@ -8,6 +9,14 @@ namespace AB9ActiveShifter
     {
         public string Name { get; set; }
         public ShifterSettings Settings { get; set; }
+
+        /// <summary>
+        /// Optional vehicle ids (whatever the game's car-model telemetry reports) that should
+        /// activate this profile automatically. Never travels through <see cref="ProfileTransfer"/> -
+        /// that only reflects over <see cref="ShifterSettings"/> - so a shared tune cannot silently
+        /// steal another car's mapping on import.
+        /// </summary>
+        public List<string> CarModels { get; set; } = new List<string>();
     }
 
     /// <summary>
@@ -143,6 +152,28 @@ namespace AB9ActiveShifter
             foreach (ShifterProfile p in Profiles)
             {
                 if (p != null && p.Settings != null) return p;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// The first profile whose vehicle list names this car, or null if none claims it. Order
+        /// follows <see cref="Profiles"/>, so if more than one profile lists the same car, the
+        /// earlier one wins - deliberately simple, since resolving a genuine conflict is the
+        /// user's call, not something to guess at automatically.
+        /// </summary>
+        public ShifterProfile FindByCarModel(string carModel)
+        {
+            if (string.IsNullOrEmpty(carModel) || Profiles == null) return null;
+
+            foreach (ShifterProfile p in Profiles)
+            {
+                if (p == null || p.CarModels == null) continue;
+                foreach (string model in p.CarModels)
+                {
+                    if (string.Equals(model, carModel, StringComparison.OrdinalIgnoreCase)) return p;
+                }
             }
 
             return null;

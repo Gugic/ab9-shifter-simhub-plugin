@@ -29,6 +29,17 @@ namespace AB9ActiveShifter
         private static readonly object EngineSync = new object();
         private bool _processExitHooked;
 
+        /// <summary>Last car-model telemetry value seen, so auto-switch acts on a change, not every tick.</summary>
+        private volatile string _lastCarModel;
+
+        /// <summary>
+        /// The most recent car-model value seen, for the Setup tab's "add last used vehicle"
+        /// convenience button. Written from <see cref="DataUpdate"/> (SimHub's data thread), read
+        /// from the UI thread - a single writer and a plain reference read/write needs no lock,
+        /// and a stale read for a moment is harmless for a display value.
+        /// </summary>
+        public string LastCarModel { get { return _lastCarModel; } }
+
         public ShifterSettings Settings { get; private set; }
 
         /// <summary>Every profile plus which one is live. What actually gets persisted.</summary>
@@ -176,6 +187,25 @@ namespace AB9ActiveShifter
 
             StatusDataBase d = data.NewData;
 
+            // Cheap on every tick by construction: a string compare, and the actual match/switch
+            // only runs on a genuine change, marshalled off this thread. DataUpdate is SimHub's
+            // critical path - no locks, no file I/O, no touching the settings UI from here.
+            try
+            {
+                object rawCar = pluginManager.GetPropertyValue("DataCorePlugin.GameData.CarModel");
+                string carModel = rawCar == null ? null : Convert.ToString(rawCar, System.Globalization.CultureInfo.InvariantCulture);
+                if (!string.IsNullOrEmpty(carModel) && carModel != _lastCarModel)
+                {
+                    _lastCarModel = carModel;
+                    OnUiThread(() => TryAutoSwitchProfile(carModel));
+                }
+            }
+            catch
+            {
+                // No car-model property on this game, or it is not a string. Auto-switch simply
+                // never fires - not a reason to disturb telemetry processing.
+            }
+
             // The custom effect's source property is sampled here, where the property system
             // lives; the engine only ever sees the value.
             double custom = 0;
@@ -317,6 +347,23 @@ namespace AB9ActiveShifter
             }
         }
 
+        /// <summary>
+        /// A convenience switch, not a safety one: activates whichever profile lists this car,
+        /// if any, and never touches the active profile otherwise. Runs only on a car-model
+        /// change (see <see cref="DataUpdate"/>), so a profile picked by hand stands until the
+        /// car itself changes again - it never fights a manual switch mid-session.
+        /// </summary>
+        private void TryAutoSwitchProfile(string carModel)
+        {
+            if (Store == null) return;
+
+            ShifterProfile match = Store.FindByCarModel(carModel);
+            if (match != null && match.Name != Store.ActiveProfile)
+            {
+                ActivateProfile(match.Name);
+            }
+        }
+
         /// <summary>Adds a copy of the current profile under the given name and makes it live.</summary>
         public void AddProfileFromCurrent(string requestedName)
         {
@@ -436,6 +483,16 @@ namespace AB9ActiveShifter
             }
 
             PushSettingsToEngine();
+            ScheduleSave();
+        }
+
+        /// <summary>
+        /// For edits that touch the store outside a settings dial - the vehicle-model list is on
+        /// <see cref="ShifterProfile"/>, not <see cref="ShifterSettings"/>, so nothing fires
+        /// <see cref="OnSettingsChanged"/> for it. Same debounce either way.
+        /// </summary>
+        public void ScheduleProfilesSave()
+        {
             ScheduleSave();
         }
 
