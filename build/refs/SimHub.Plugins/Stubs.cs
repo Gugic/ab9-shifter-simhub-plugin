@@ -124,6 +124,11 @@ namespace SimHub.Plugins.Styles
     using System.Windows;
     using System.Windows.Controls.Primitives;
 
+    /// <summary>A horizontal rule, for splitting a section into parts without titling each one.</summary>
+    public class SHSectionSeparator : Control
+    {
+    }
+
     /// <summary>
     /// A titled block of settings. Properties are dependency properties because the XAML binds
     /// some of them, and WPF rejects a Binding on a plain CLR property at compile time.
@@ -181,6 +186,39 @@ namespace SimHub.Plugins.Styles
 namespace SimHub.Plugins.UI
 {
     using System.Windows;
+
+    /// <summary>
+    /// SimHub's own input-binding row, embeddable in a plugin's settings page: it shows what an
+    /// action is currently bound to and lets the user rebind it in place, without sending them off
+    /// to the Controls and events page to hunt for the action by name.
+    /// <para>
+    /// <c>ActionName</c> is the fully qualified name SimHub registers an action under, which is
+    /// the plugin's type name and the name passed to <c>AddAction</c> joined by a dot - so
+    /// <c>AddAction("NextProfile", ...)</c> on <c>AB9ShifterPlugin</c> is bound here as
+    /// <c>"AB9ShifterPlugin.NextProfile"</c>. Getting that string wrong is silent: the row simply
+    /// never binds anything, so it is worth checking against the log rather than by eye.
+    /// </para>
+    /// </summary>
+    public class ControlsEditor : Control
+    {
+        public static readonly DependencyProperty ActionNameProperty =
+            DependencyProperty.Register("ActionName", typeof(string), typeof(ControlsEditor));
+
+        public static readonly DependencyProperty FriendlyNameProperty =
+            DependencyProperty.Register("FriendlyName", typeof(string), typeof(ControlsEditor));
+
+        public string ActionName
+        {
+            get { return (string)GetValue(ActionNameProperty); }
+            set { SetValue(ActionNameProperty, value); }
+        }
+
+        public string FriendlyName
+        {
+            get { return (string)GetValue(FriendlyNameProperty); }
+            set { SetValue(FriendlyNameProperty, value); }
+        }
+    }
 
     /// <summary>
     /// Slider with a caption and a reset arrow. Every property is a dependency property: the

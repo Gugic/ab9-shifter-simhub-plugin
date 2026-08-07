@@ -112,6 +112,15 @@
                                        Text="Off by default. Enabling takes the base exclusively and starts applying force, so work through the checklist below first and have a hand on the stick. Turn it off again to give the base back to MOZA Pit House or another program." />
                             <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
                                        Text="This is a 12 Nm base and this is third-party software driving it: if the lever ever shakes, kicks or drives itself to a stop, untick this - and if it will not stop, cut the base's power. Keep your face and free hand clear the first time you enable a profile you have not felt before. See ABOUT at the bottom of this tab." />
+
+                            <styles:SHSectionSeparator Margin="0,10,0,8" />
+
+                            <TextBlock TextWrapping="Wrap" Margin="0,0,0,6" Opacity="0.75"
+                                       Text="Bind these to a wheel button if you would rather not reach for the mouse. Release everything drops every held gear and stops output - worth binding somewhere you can hit without looking, for the same reason the warning above exists." />
+                            <ui:ControlsEditor ActionName="AB9ShifterPlugin.ToggleShifterFFB"
+                                               FriendlyName="Turn the shifter's forces on or off" />
+                            <ui:ControlsEditor ActionName="AB9ShifterPlugin.ReleaseAllGears"
+                                               FriendlyName="Release everything (panic)" />
                         </StackPanel>
                     </styles:SHSection>
 
@@ -190,7 +199,17 @@
                     <styles:SHSection Title="PROFILE HOTKEYS" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
-                                       Text="Bind Next profile and Previous profile to a wheel button or a key in SimHub's own Controls page - this plugin only decides what they walk through. Tick the profiles to include; with none ticked they walk through all of them. Switching releases any held gear before the new gate is applied, so it is safe to press while driving." />
+                                       Text="Bind a wheel button or a key here and it walks around the profiles ticked below. Next profile on its own is the simple cycle button - with two profiles ticked it just alternates between them; Previous profile only earns a binding once there are three or more. Switching releases any held gear before the new gate is applied, so it is safe to press while driving." />
+
+                            <ui:ControlsEditor ActionName="AB9ShifterPlugin.NextProfile"
+                                               FriendlyName="Next profile" />
+                            <ui:ControlsEditor ActionName="AB9ShifterPlugin.PreviousProfile"
+                                               FriendlyName="Previous profile" />
+
+                            <styles:SHSectionSeparator Margin="0,8,0,8" />
+
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,6"
+                                       Text="Which profiles those keys walk through. Tick none and they walk through all of them." />
                             <ItemsControl x:Name="CycleList">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>

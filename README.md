@@ -294,9 +294,11 @@ Events: `GearEngaged`, `GearReleased`.
 | `ToggleShifterFFB` | Turn the shifter's force feedback on and off. |
 | `ReleaseAllGears` | Drop every held gear button and stop output — the panic button. |
 
-Bind them in SimHub's own **Controls and events** page, not here: add a mapping, press the
-wheel button or key you want, then search the action list for the name (it appears under this
-plugin, as `AB9ShifterPlugin.NextProfile` and so on).
+**Bind them on the Setup tab**, next to the thing they control: the profile keys under *Profile
+hotkeys*, the force toggle and the panic release under *Enable*. Click the row, press the wheel
+button or key, done. SimHub's own **Controls and events** page shows the same bindings if you
+prefer to manage them all in one place — they are the same actions either way, listed there as
+`AB9ShifterPlugin.NextProfile` and so on.
 
 Which profiles `NextProfile` walks through is set on the plugin's **Setup** tab under *Profile
 hotkeys* — tick the ones you want in the ring, or tick none and it walks through all of them.
