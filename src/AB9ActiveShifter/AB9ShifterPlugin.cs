@@ -100,6 +100,15 @@ namespace AB9ActiveShifter
             Store.ActiveProfile = active.Name;
             Settings = active.Settings;
 
+            // The live switches belong to the session, not to a profile. A settings file written
+            // before that was true has no value here, so adopt whatever the profile that happens
+            // to be active says - which is exactly what used to decide it - and from then on the
+            // store is the authority and activating a profile can never change it.
+            if (!Store.SessionEnabled.HasValue) Store.SessionEnabled = Settings.Enabled;
+            if (!Store.SessionFreeStick.HasValue) Store.SessionFreeStick = Settings.FreeStick;
+
+            Settings.ApplyLiveSwitches(Store.SessionEnabled, Store.SessionFreeStick);
+
             if (firstStart)
             {
                 // Write them out now rather than waiting for shutdown, so the file exists from
@@ -266,11 +275,12 @@ namespace AB9ActiveShifter
             }
             if (target == null || target.Settings == Settings) return;
 
-            if (Settings != null)
-            {
-                Settings.CarryLiveSwitchesTo(target.Settings);
-                Settings.PropertyChanged -= OnSettingsChanged;
-            }
+            // The session's switches, not the outgoing profile's: an activation must never be the
+            // thing that decides whether the shifter is running. Applied before the swap so the
+            // engine sees one coherent config rather than the new gate with the old switch.
+            target.Settings.ApplyLiveSwitches(Store.SessionEnabled, Store.SessionFreeStick);
+
+            if (Settings != null) Settings.PropertyChanged -= OnSettingsChanged;
 
             Settings = target.Settings;
             Settings.PropertyChanged += OnSettingsChanged;
@@ -401,6 +411,21 @@ namespace AB9ActiveShifter
 
         private void OnSettingsChanged(object sender, PropertyChangedEventArgs e)
         {
+            // Ticking Enabled or FreeStick is a decision about the session, so it is recorded
+            // where the session lives. Without this the store would keep whatever was migrated at
+            // startup and the switch would spring back on the next profile activation.
+            if (Store != null && Settings != null)
+            {
+                if (e == null || e.PropertyName == null || e.PropertyName == "Enabled")
+                {
+                    Store.SessionEnabled = Settings.Enabled;
+                }
+                if (e == null || e.PropertyName == null || e.PropertyName == "FreeStick")
+                {
+                    Store.SessionFreeStick = Settings.FreeStick;
+                }
+            }
+
             PushSettingsToEngine();
             ScheduleSave();
         }

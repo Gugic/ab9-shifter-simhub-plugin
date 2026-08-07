@@ -445,33 +445,26 @@ namespace AB9ActiveShifter
         public bool PedalInvert { get { return _pedalInvert; } set { Set(ref _pedalInvert, value); } }
 
         /// <summary>
-        /// Hands this profile's live switches to the one being activated.
+        /// Applies the session's live switches to this profile as it becomes active.
         /// <para>
         /// <see cref="Enabled"/> and <see cref="FreeStick"/> are the odd pair among the settings:
         /// they say whether the shifter is running <em>right now</em>, which is a fact about the
         /// session rather than about this gate. Everything else here is tuning, and switching
-        /// profile is supposed to change the tuning.
+        /// profile is supposed to change the tuning and nothing else. The authority for these two
+        /// is <see cref="ProfileStore.SessionEnabled"/>; the copy here exists only because the UI
+        /// binds it and <see cref="ToEngineConfig"/> reads it.
         /// </para>
         /// <para>
-        /// Without this, a switch handed that decision to whichever profile you landed on - and
-        /// because the shipped profiles all start disabled (forces must never come on by
-        /// themselves), moving off the one profile you had enabled silently stopped the base.
-        /// Reported from the rig in exactly those terms: 7+R worked, 5+R and Sequential went
-        /// "stopped", switching back fixed it. The first-start guarantee is untouched, because
-        /// every profile still ships disabled - it is the first deliberate enable that follows you.
-        /// </para>
-        /// <para>
-        /// It matters more since the profile hotkey landed: a bound key that quietly kills the
-        /// shifter mid-session is worse than no key at all. <c>ProfileTransfer</c> already treats
-        /// these two as not-tuning, forcing both off on import whatever a file says.
+        /// The direction matters and was got wrong once: taking the value from the profile being
+        /// <em>left</em> makes an arbitrary profile the authority and writes its answer onto the
+        /// one being opened, which destroys a stored flag the moment you start on a disabled
+        /// profile. Pulling from the store instead means an activation can never decide anything.
         /// </para>
         /// </summary>
-        public void CarryLiveSwitchesTo(ShifterSettings target)
+        public void ApplyLiveSwitches(bool? enabled, bool? freeStick)
         {
-            if (target == null || ReferenceEquals(target, this)) return;
-
-            target.Enabled = Enabled;
-            target.FreeStick = FreeStick;
+            if (enabled.HasValue) Enabled = enabled.Value;
+            if (freeStick.HasValue) FreeStick = freeStick.Value;
         }
 
         /// <summary>True once a pedal has actually been captured; the source is unusable before.</summary>

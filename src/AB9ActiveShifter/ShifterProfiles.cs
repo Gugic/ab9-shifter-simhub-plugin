@@ -23,6 +23,29 @@ namespace AB9ActiveShifter
         public string ActiveProfile { get; set; }
 
         /// <summary>
+        /// Whether the shifter is running, and whether the stick is free. These are the only two
+        /// switches that describe the <em>session</em> rather than a gate, and they live here
+        /// rather than in a profile for a reason learned the hard way.
+        /// <para>
+        /// They used to be per-profile like everything else, so switching profiles handed the
+        /// decision to whichever one you landed on: every shipped profile starts disabled, so
+        /// moving off the one you had enabled stopped the base. The first attempt at a fix copied
+        /// the switch from the outgoing profile onto the incoming one, which is worse - it makes
+        /// the profile you happen to be leaving the authority, and it <em>writes</em> that onto
+        /// the profile you arrive at. Starting on a disabled profile and switching away therefore
+        /// destroyed the enabled flag on the profile you switched to, permanently, because the
+        /// store is saved on every activation. Measured on the rig within a minute of deploying it.
+        /// </para>
+        /// <para>
+        /// Nullable so that a settings file written before this existed can be told apart from one
+        /// that genuinely says "off": null means migrate from whichever profile is active.
+        /// </para>
+        /// </summary>
+        public bool? SessionEnabled { get; set; }
+
+        public bool? SessionFreeStick { get; set; }
+
+        /// <summary>
         /// The profiles a bound Next/Previous hotkey walks through, in order. Empty means every
         /// profile, which is what a user who never opens the list gets and is the obvious reading
         /// of "cycle profiles".

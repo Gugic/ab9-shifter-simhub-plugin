@@ -104,6 +104,25 @@
                         </StackPanel>
                     </styles:SHSection>
 
+                    <styles:SHSection Title="ENABLE" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <styles:SHToggleCheckbox IsChecked="{Binding Enabled, Mode=TwoWay}"
+                                                     Content="Shifter force feedback enabled" />
+                            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
+                                       Text="Off by default. Enabling takes the base exclusively and starts applying force, so work through the checklist below first and have a hand on the stick. Turn it off again to give the base back to MOZA Pit House or another program." />
+                            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
+                                       Text="This is a 12 Nm base and this is third-party software driving it: if the lever ever shakes, kicks or drives itself to a stop, untick this - and if it will not stop, cut the base's power. Keep your face and free hand clear the first time you enable a profile you have not felt before. See ABOUT at the bottom of this tab." />
+                        </StackPanel>
+                    </styles:SHSection>
+
+                    <styles:SHSection Title="FREE STICK" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <styles:SHToggleCheckbox IsChecked="{Binding FreeStick, Mode=TwoWay}"
+                                                     Content="Release all forces (free stick)" />
+                            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
+                                       Text="Holds the base but applies nothing, so you can feel how the stick moves on its own. Any resistance left with this on is coming from the hardware, not from the gate - almost always the base's own centring, which only MOZA Cockpit's Spring setting can switch off. This base centres in firmware and ignores DirectInput's request to stop." />
+                        </StackPanel>
+                    </styles:SHSection>
                     <styles:SHSection Title="VJOY OUTPUT" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
@@ -184,25 +203,6 @@
                         </StackPanel>
                     </styles:SHSection>
 
-                    <styles:SHSection Title="ENABLE" ShowSeparator="True">
-                        <StackPanel Margin="0,4,0,8">
-                            <styles:SHToggleCheckbox IsChecked="{Binding Enabled, Mode=TwoWay}"
-                                                     Content="Shifter force feedback enabled" />
-                            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
-                                       Text="Off by default. Enabling takes the base exclusively and starts applying force, so work through the checklist below first and have a hand on the stick. Turn it off again to give the base back to MOZA Pit House or another program." />
-                            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
-                                       Text="This is a 12 Nm base and this is third-party software driving it: if the lever ever shakes, kicks or drives itself to a stop, untick this - and if it will not stop, cut the base's power. Keep your face and free hand clear the first time you enable a profile you have not felt before. See ABOUT at the bottom of this tab." />
-                        </StackPanel>
-                    </styles:SHSection>
-
-                    <styles:SHSection Title="FREE STICK" ShowSeparator="True">
-                        <StackPanel Margin="0,4,0,8">
-                            <styles:SHToggleCheckbox IsChecked="{Binding FreeStick, Mode=TwoWay}"
-                                                     Content="Release all forces (free stick)" />
-                            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
-                                       Text="Holds the base but applies nothing, so you can feel how the stick moves on its own. Any resistance left with this on is coming from the hardware, not from the gate - almost always the base's own centring, which only MOZA Cockpit's Spring setting can switch off. This base centres in firmware and ignores DirectInput's request to stop." />
-                        </StackPanel>
-                    </styles:SHSection>
 
                     <styles:SHSection Title="BEFORE YOU START" ShowSeparator="True">
                         <TextBlock TextWrapping="Wrap" Margin="0,4,0,8" Opacity="0.85">

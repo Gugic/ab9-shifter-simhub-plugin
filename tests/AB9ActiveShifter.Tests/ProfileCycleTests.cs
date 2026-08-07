@@ -129,10 +129,9 @@ namespace AB9ActiveShifter.Tests
             // disabled, because forces must never come on by themselves. Enable one, switch to
             // another, and the base went "stopped" - the new profile's own Enabled=false won.
             // A bound hotkey makes that a shifter that dies mid-session on a keypress.
-            var running = new ShifterSettings { Enabled = true };
             var arriving = new ShifterSettings { Enabled = false };
 
-            running.CarryLiveSwitchesTo(arriving);
+            arriving.ApplyLiveSwitches(enabled: true, freeStick: null);
 
             Assert.True(arriving.Enabled);
         }
@@ -140,39 +139,75 @@ namespace AB9ActiveShifter.Tests
         [Fact]
         public void SwitchingProfileDoesNotTurnTheShifterOnEither()
         {
-            // The same rule in the direction that matters for safety: leaving a disabled session
-            // must not arm the base just because the profile being opened was saved enabled.
-            var running = new ShifterSettings { Enabled = false, FreeStick = true };
+            // The same rule in the direction that matters for safety: a disabled session must not
+            // arm the base just because the profile being opened was saved enabled.
             var arriving = new ShifterSettings { Enabled = true, FreeStick = false };
 
-            running.CarryLiveSwitchesTo(arriving);
+            arriving.ApplyLiveSwitches(enabled: false, freeStick: true);
 
             Assert.False(arriving.Enabled);
             Assert.True(arriving.FreeStick);
         }
 
         [Fact]
-        public void CarryingTheSwitchesTouchesNothingElse()
+        public void TheProfileBeingLeftIsNeverTheAuthority()
         {
-            // It is two flags and nothing more. Anything else carried across would be tuning
-            // leaking between profiles, which is the exact opposite of what a profile is for.
-            var running = new ShifterSettings { Enabled = true, OverallGainPct = 100, WallRamp = 6000 };
+            // The bug this replaces, stated as a property. The first fix copied the switch off the
+            // profile being left and wrote it onto the one being opened, so starting on a disabled
+            // profile and switching away destroyed the enabled flag on the profile switched to -
+            // permanently, because the store is saved on every activation. It cost the rig its
+            // only enabled profile within a minute of deploying.
+            //
+            // The session value is the only input now, so a profile can be opened from anywhere
+            // and land in the same state.
+            var fromDisabled = new ShifterSettings { Enabled = false };
+            var fromEnabled = new ShifterSettings { Enabled = true };
+
+            fromDisabled.ApplyLiveSwitches(enabled: true, freeStick: null);
+            fromEnabled.ApplyLiveSwitches(enabled: true, freeStick: null);
+
+            Assert.True(fromDisabled.Enabled);
+            Assert.True(fromEnabled.Enabled);
+        }
+
+        [Fact]
+        public void AStoreWithNoSessionValueLeavesTheProfileAlone()
+        {
+            // The migration path: a settings file written before the switches moved to the store
+            // has nothing to say, and must not be read as "off". Null means "do not touch", and
+            // the plugin seeds the store from the active profile instead.
+            var untouched = new ShifterSettings { Enabled = true, FreeStick = true };
+
+            untouched.ApplyLiveSwitches(enabled: null, freeStick: null);
+
+            Assert.True(untouched.Enabled);
+            Assert.True(untouched.FreeStick);
+        }
+
+        [Fact]
+        public void ApplyingTheSwitchesTouchesNothingElse()
+        {
+            // Two flags and nothing more. Anything else crossing over would be tuning leaking
+            // between profiles, which is the exact opposite of what a profile is for.
             var arriving = new ShifterSettings { OverallGainPct = 25, WallRamp = 600 };
 
-            running.CarryLiveSwitchesTo(arriving);
+            arriving.ApplyLiveSwitches(enabled: true, freeStick: true);
 
             Assert.Equal(25, arriving.OverallGainPct);
             Assert.Equal(600, arriving.WallRamp);
         }
 
         [Fact]
-        public void CarryingOntoItselfIsHarmless()
+        public void TheStoreCarriesTheSwitchesRatherThanAnyProfile()
         {
-            var only = new ShifterSettings { Enabled = true };
-            only.CarryLiveSwitchesTo(only);
-            only.CarryLiveSwitchesTo(null);
+            // Where they live is the fix. A store round-trips them; nothing about activating a
+            // profile can write to them.
+            var store = new ProfileStore();
+            Assert.Null(store.SessionEnabled);
+            Assert.Null(store.SessionFreeStick);
 
-            Assert.True(only.Enabled);
+            store.SessionEnabled = true;
+            Assert.True(store.SessionEnabled.Value);
         }
     }
 }
