@@ -185,6 +185,18 @@ namespace AB9ActiveShifter.Core
 
             LockoutHalfWidth = Clamp(requestedHalfWidth, 200, Math.Max(200, room / 2));
             LockoutCentre = _targets[(int)main] + (sign * (clearance + LockoutHalfWidth));
+
+            // The crest must stay in the main section's half of the gap. Ownership hands the
+            // locked column over at the gap's midpoint (see ColumnAt), so a crest sitting past
+            // that midpoint would leave positions that belong to 7/R but are short of the gate -
+            // and a push out of the tunnel there would select 7/R without the toll ever being
+            // paid. It cannot happen at the shipped bands, only if the clearance dial is driven
+            // wider than the reverse column's own free width, which is exactly the kind of
+            // setting a repair exists for.
+            int midpoint = (_targets[(int)main] + _targets[(int)locked]) / 2;
+            LockoutCentre = MirrorColumns
+                ? Math.Max(LockoutCentre, midpoint + 1)
+                : Math.Min(LockoutCentre, midpoint - 1);
         }
 
         public int ColumnTarget(Column c)
@@ -216,18 +228,32 @@ namespace AB9ActiveShifter.Core
             return v < lo ? lo : (v > hi ? hi : v);
         }
 
-        /// <summary>Which column x is inside, using the tight enter bands. None if between columns.</summary>
+        /// <summary>
+        /// Which column owns x: the one it is physically nearest, boundaries at the midpoints
+        /// between columns. Never None - every position in the gate belongs to some column.
+        ///
+        /// This is what a push out of the tunnel selects, and it is deliberately the same
+        /// ownership <see cref="ChannelBlockFactor"/> already uses to decide where the fore/aft
+        /// wall opens, and the same one <see cref="GuideColumn"/> falls back to. One rule, so the
+        /// force and the state machine cannot disagree about whose slot the lever is heading for.
+        ///
+        /// It used to be a tight band - <see cref="ColumnInnerHalfEnter"/> either side of the
+        /// target - and outside it a push selected nothing at all. That is a narrower promise than
+        /// the force can keep. The fore/aft wall opens over the free width and then blends shut
+        /// across WallBlend counts, so between the two there is an annulus where the wall is
+        /// passable and no gear existed to be selected; and past that the wall is only 12 Nm,
+        /// which a hand simply beats. Measured on the rig: two pushes to FULL deflection, 896 ms
+        /// and 616 ms, roughly 2400 counts off the column, state still Neutral, no gear - the
+        /// lever shoved home and the game told nothing. A silent non-shift is the worst answer
+        /// available here; selecting the column the hand was plainly reaching for is the least bad.
+        ///
+        /// Which slot, if any, that column holds is still a fact of the gear map - see
+        /// <see cref="SlotExists"/>. Ownership says whose territory this is, not that there is
+        /// something in it.
+        /// </summary>
         public Column ColumnAt(int x)
         {
-            if (x <= ColumnEdgeEnter) return Column.C1;
-            if (x >= AxisMax - ColumnEdgeEnter) return (Column)(ColumnCount - 1);
-
-            for (int i = 1; i < ColumnCount - 1; i++)
-            {
-                if (Math.Abs(x - _targets[i]) <= ColumnInnerHalfEnter) return (Column)i;
-            }
-
-            return Column.None;
+            return ColumnPastCrests(x, 0, true);
         }
 
         public bool InChannel(int y)
@@ -296,15 +322,22 @@ namespace AB9ActiveShifter.Core
         /// the full +-12 Nm from a hundred counts of drift, and felt as the notches kicking while
         /// sliding along the tunnel.
         ///
-        /// The window has to cover every position ANY rule can hand over at, which is why it spans
-        /// the hull of both. <see cref="Pick"/> biases each boundary by <see cref="DetentHysteresis"/>
-        /// toward whichever column is held, so the flip can land anywhere in a band that wide; and
-        /// <see cref="GuideColumn"/> uses the barrier crest in the tunnel but the plain midpoint below
-        /// it, which at the lockout gap are thousands of counts apart. Covering only the rule in force
-        /// at the current depth was measured to move the same reversal onto the DEPTH axis instead -
-        /// 2403 DI from one single axis count of fore/aft movement, right where the fore/aft wall's
-        /// own deadband leaves the lever freest. Taking the hull makes this a function of x alone, so
-        /// no amount of wander can find a step and a cold start resolves identically.
+        /// The window has to cover every position the guide can hand over at, and that is now one
+        /// rule rather than two: <see cref="GuideColumn"/> only ever changes hands in the tunnel,
+        /// where the boundaries are the barrier crests. <see cref="Pick"/> biases each crest by
+        /// <see cref="DetentHysteresis"/> toward whichever column is held, so the flip can land
+        /// anywhere in a band that wide, and that band is the whole window.
+        ///
+        /// It used to span the hull of the crest AND the plain midpoint, because the pick was live
+        /// below the tunnel too and used midpoints down there. At the lockout gap those are
+        /// thousands of counts apart, so the window swallowed the gate's whole doorway - and since
+        /// the fade applied at every depth, a gear held at the bottom of the pattern lost its
+        /// lateral wall entirely across that span. Freezing the pick outside the tunnel retires
+        /// the second rule, and the window shrinks to what one rule actually needs.
+        ///
+        /// Still a function of x alone, so no amount of wander can find a step in it; the fade
+        /// that consumes it is what carries the depth term, and only in the direction of giving
+        /// the wall BACK. See ForceComposer.Relief.
         /// </summary>
         public int HandoverClearance(int x)
         {
@@ -313,12 +346,9 @@ namespace AB9ActiveShifter.Core
             for (int gap = 0; gap < ColumnCount - 1; gap++)
             {
                 int crest = BarrierCentre(gap);
-                int mid = (_targets[gap] + _targets[gap + 1]) / 2;
 
-                int lo = Math.Min(crest, mid) - DetentHysteresis;
-                int hi = Math.Max(crest, mid) + DetentHysteresis;
-
-                int outside = Math.Max(0, Math.Max(lo - x, x - hi));
+                int outside = Math.Max(0, Math.Max(crest - DetentHysteresis - x,
+                                                   x - (crest + DetentHysteresis)));
                 if (outside < nearest) nearest = outside;
             }
 
@@ -419,24 +449,35 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// Which column the lateral guide belongs to. In the tunnel the boundaries are the barrier
-        /// crests, so fighting through the lockout gate hands the lever to 7/R rather than letting
-        /// it be dragged back. Below the tunnel they are the plain midpoints instead: down there
-        /// the lever simply belongs to the column it is physically nearest.
+        /// Which column the lateral guide belongs to. The boundaries are the barrier crests, so
+        /// fighting through the lockout gate hands the lever to 7/R rather than letting it be
+        /// dragged back into the gate it has just paid for.
         ///
-        /// That distinction closes a lockout bypass, and it has to be positional rather than
-        /// historical to close it properly. The gate sits well off its gap's midpoint, so with
-        /// crest boundaries a lever at gear depth just past the gate is "in 7/R's territory" and
-        /// the guide pushes it that way at full pin force for thousands of counts - the wall that
-        /// was holding it in 5/6 reverses into a conveyor toward 7, and the toll is never paid.
-        /// Pull out of 5, drag right at depth, drop into 7: no lockout at all. Using midpoints
-        /// below the tunnel means that lever keeps 5/6's inward wall the whole way, exactly as it
-        /// did before the lateral field was unified, and a cold start at that position resolves
-        /// the same way as a lever that was dragged there.
+        /// It changes hands ONLY in the tunnel. Out of the tunnel the answer is simply the one
+        /// already held, which is what makes the whole lateral field safe: a handover is the only
+        /// discontinuity this field has, and confining it to the tunnel confines it to the depths
+        /// where <see cref="ForceComposer"/>'s plateau is the light detent rather than the full
+        /// slot wall. That is what lets the relief window - the fade that pays for the handover -
+        /// be faded out with depth, and that fade is what stops a latched gear's wall being holed
+        /// at every gap (measured: a gear held at full deflection had 0 DI of lateral wall at
+        /// three separate places, and a hand parks in every one of them).
+        ///
+        /// It also closes a lockout bypass that a live pick at depth used to leave open. The gate
+        /// sits well off its gap's midpoint, so a lever at gear depth just past the gate reads as
+        /// "in 7/R's territory": the wall that was holding it in 5/6 reversed into a conveyor
+        /// toward 7 and the toll was never paid. Pull out of 5, drag right at depth, drop into 7.
+        /// A frozen pick cannot do that - the lever keeps whichever column it left the tunnel
+        /// with, and it can only have left the tunnel where the tunnel's own crests put it.
+        ///
+        /// The fallback for a pick that does not exist yet - a cold start, or the first tick after
+        /// the forces are released - is the plain nearest column, which is the same ownership rule
+        /// <see cref="ColumnAt"/> captures by, so a lever that starts life below the tunnel is
+        /// pushed toward the very column that is about to claim it.
         /// </summary>
         public Column GuideColumn(int x, Column current, bool inTunnel)
         {
-            return Pick(x, current, !inTunnel);
+            if (!inTunnel) return current == Column.None ? ColumnAt(x) : current;
+            return Pick(x, current, false);
         }
 
         private Column ColumnPastCrests(int x, int bias, bool byMidpoint)

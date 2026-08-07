@@ -208,16 +208,15 @@ Damper at ~15%** — real damping at the servo loop, ahead of the delay, and fre
 throw-weight cost software damping has (see hardware.md). If a flutter while leaning returns:
 Cockpit damper first, wall friction second, software damping last.
 
-**With a long bite I can push to gear depth *between* columns, and no gear registers.**
-The bite's hidden upper bound. The bite is spent three times over between two columns: the slot
-wall's face rises over one bite, the handover window's relief flank falls over another, and the
-fore/aft wall's rise stretches over it too. The space between two corridors is fixed — at a slot
-width of 2400 it is about 8500 counts a side — so by a bite of ~4000 the face and the flank meet in
-the middle and the divider has **no full-strength plateau left at all**: the "wall" between gears
-is two ramps meeting at a point, soft enough to hold a lever inside at depth. The state machine is
-right not to call that a gear; the geometry should never have allowed the lever there. Keep the
-bite at or below ~3000 with the default slot width, which still leaves ~1500 counts of solid
-divider. Raising **slot width** eats the same budget from the other end.
+**With a long bite I can push to gear depth *between* columns.**
+The bite's hidden upper bound. The bite is spent twice over between two columns: the slot wall's
+face rises over one bite, and the fore/aft wall's rise stretches over it too. The space between two
+corridors is fixed — at a slot width of 2400 it is about 8500 counts a side — so a long enough bite
+leaves the divider with **no full-strength plateau at all**: the "wall" between gears is two ramps
+meeting at a point, soft enough to hold a lever inside at depth. You now get the nearer gear rather
+than nothing (see the next entry), so this is no longer a silent failure — but it is still a divider
+that is not doing its job. Keep the bite at or below ~3000 with the default slot width, which leaves
+~1500 counts of solid divider. Raising **slot width** eats the same budget from the other end.
 
 The Feel tab now shows this rather than leaving it to be discovered on the rig. Under *Wall bite
 distance* it prints the **effective** bite — what the gate actually renders after the room between
@@ -225,6 +224,26 @@ columns has had its say — and says "capped down from N" when the slider is ask
 the geometry allows. If the two numbers differ, the slider has been lying to you, and this symptom
 is what that feels like. The **Gate Walls** graph beside it draws the resulting curve, so a
 divider with no plateau left is visible as a shape rather than inferred from a number.
+
+**I pushed the lever all the way home and nothing happened.**
+Fixed, and it was a real bug rather than a tuning problem. Selecting a gear used to need the lever
+inside a narrow band around the column's centre line, while the fore/aft wall opens over a wider one
+and blends shut over wider still — so between them lay a strip where the gate was passable and there
+was no gear to select. And past that strip the wall is only 12 Nm, which a hand beats anyway.
+Measured on the rig: two pushes to full deflection, held nearly a second each, about 2400 counts
+right of 5/6 — resting on the lockout gate's entry face — with the game told nothing. Every position
+in the gate now belongs to the column it is nearest, so a push that gets through always lands in a
+slot. If you are getting the *wrong* gear this way, the divider between those two columns is too
+soft: see the bite entry above, and raise **gate wall** strength.
+
+**Dragging the lever sideways while in gear, I feel extra slots that aren't gears.**
+Also fixed. The lateral field is faded to nothing across a narrow window at each column boundary, so
+that the guide can change hands there without the force reversing — necessary in the tunnel, where
+the lever really does pass from one column to the next. It was being applied at every depth,
+including down in a slot, where the guide never changes hands at all. The result was a hole in the
+slot wall at each gap: measured at exactly zero force, and a hand hunting sideways settles into every
+one. They feel like half-slots because that is what they were. The window is now spent by the time
+the tunnel is left, so a latched gear's wall is solid the entire width of the gate.
 
 **Pressing toward a wall grinds instantly — not a bounce or a buzz, but like pushing the lever
 against a running gear.**
@@ -299,19 +318,23 @@ were comparing it against. Both kinds of wall now use the full **wall bite dista
 shakes, the bite is genuinely too short for both.
 
 **I pushed through the lockout but no gear engaged, and I got shoved back unexpectedly.**
-Also fixed. The gate used to sit at the middle of the gap, thousands of counts right of the 5/6
-column, so stopping at the gate left you nowhere near a slot. It now sits directly against the 5/6
-column's band, and the **funnel** steers an off-column push into the slot instead of just blocking
-it. If you turned **pull into a column** down to 0, the funnel still works — it is a separate dial.
+Also fixed, in three steps over time. The gate used to sit at the middle of the gap, thousands of
+counts right of the 5/6 column, so stopping at the gate left you nowhere near a slot; it now sits
+directly against the 5/6 column. The **funnel** steers an off-column push into the slot instead of
+just blocking it — and if you turned **pull into a column** down to 0 the funnel still works, it is
+a separate dial. And stopping anywhere short of the gate's crest now selects 5 or 6 rather than
+nothing, because every position belongs to a column. Past the crest it is 7/R, as it should be.
 
 **I can drag the lever sideways from gear to gear along the top or bottom of the gate.**
 You can still *move* it — no wall can out-push a hand on a 12 Nm base — but it can no longer
 accomplish anything. The gear stays the gear you are in, at any lateral distance, and the slot wall
-pushes back the whole way; the only route to another gear is back through the tunnel. Two things had
-to change for that: lateral confinement now belongs to the depth rather than to the state machine's
+pushes back the whole way; the only route to another gear is back through the tunnel. Three things
+had to change for that: lateral confinement belongs to the depth rather than to the state machine's
 latch (overpowering one wall used to leave no lateral wall at all, and the guide then helped you
-along to each column you passed), and the lateral release is gone entirely, because any distance at
-which it fired was a distance at which the rest of the pattern came back and could capture you.
+along to each column you passed); the lateral release is gone entirely, because any distance at
+which it fired was a distance at which the rest of the pattern came back and could capture you; and
+the handover window no longer applies at gear depth, which is what used to leave a hole in that wall
+at every gap.
 
 **A gear changed without my going through neutral.**
 It cannot any more: a latched gear is released only by returning through the tunnel. If you see it

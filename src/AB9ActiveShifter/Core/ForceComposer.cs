@@ -661,12 +661,13 @@ namespace AB9ActiveShifter.Core
             int corridor = SlotCorridor(guideColumn) + MouthExtra(offset, depth, y, guideColumn);
             int face = GuideFace(plateau, corridor);
 
-            return (int)Math.Round(Saturating(offset, plateau, face, corridor) * Relief(x, face));
+            return (int)Math.Round(Saturating(offset, plateau, face, corridor) * Relief(x, y, face));
         }
 
         /// <summary>
-        /// How much of the lateral guide survives at this x: 1 out on the plate, 0 across every
-        /// position the guide can change hands at, one wall face of flank in between.
+        /// How much of the lateral guide survives here: 1 out on the plate, 0 across every position
+        /// the guide can change hands at, one wall face of flank in between - and 1 again, whatever
+        /// x says, once the tunnel has been left behind.
         ///
         /// A MULTIPLIER on the finished force, and a function of position alone, and both of those
         /// are load-bearing. The obvious shape - truncate the plateau at a distance measured from the
@@ -677,17 +678,37 @@ namespace AB9ActiveShifter.Core
         /// history dependence - the full pin force at one physical position, selected by whether the
         /// lever had once dipped into the tunnel - and left a latched gear with no push-back at all
         /// over three quarters of the axis. A shared scalar cannot do either: the field becomes
-        /// F_old(history) x Relief(x), so any two histories the old field made equal stay equal, and
-        /// the wall still reaches the end of travel at full strength.
+        /// F_old(history) x Relief(position), so any two histories the old field made equal stay equal.
+        ///
+        /// The depth term is the fix for what the window cost when it had none. Relief applied at
+        /// every depth means the slot walls are holed wherever the tunnel needs a handover, and a
+        /// gear latched at full deflection then has three places across the gate with no lateral
+        /// wall at all - measured on the rig at exactly 0 DI, at the two ordinary gaps and across
+        /// the lockout's whole doorway, and a hand hunting sideways settles into every one of them.
+        /// They read as extra half-slots that do not change gear, which is precisely what the
+        /// absolute latch promises cannot exist.
+        ///
+        /// Fading it out is only sound because the handover is gone by then: GuideColumn freezes
+        /// the pick outside the tunnel, so below <see cref="GateGeometry.ChannelHalfEnter"/> the
+        /// field has nothing left to discontinue. The fade rides SlotConfinementFactor - the same
+        /// band, the same shape as the plateau's own rise - so the window is at full strength
+        /// through every depth a handover can still happen at, and the two depth terms are bounded
+        /// by the same span rather than by two spans that could be typed apart.
         ///
         /// The flank is one wall face, so its gradient is plateau/face, which
         /// <see cref="GuideFace"/> pins at pin force over the wall's bite - the same stiffness as
         /// every other lateral force, and independent of depth, so the flank adds no cross-gradient.
         /// </summary>
-        private double Relief(int x, int face)
+        private double Relief(int x, int y, int face)
         {
-            return GateGeometry.Clamp(
+            double window = GateGeometry.Clamp(
                 _geo.HandoverClearance(x) / (double)Math.Max(1, face), 0.0, 1.0);
+
+            // 1 anywhere inside the tunnel's enter band, 0 by its exit band: exactly the depths
+            // where the pick is still live, and exactly the band the plateau rises across.
+            double inTunnel = 1.0 - _geo.SlotConfinementFactor(y);
+
+            return 1.0 - ((1.0 - window) * inTunnel);
         }
 
         /// <summary>
