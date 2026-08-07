@@ -229,6 +229,53 @@ namespace AB9ActiveShifter.Device
         /// Kills all output immediately. Safe to call from the watchdog: it swallows
         /// everything, because by the time it runs the device may already be gone.
         /// </summary>
+        /// <summary>
+        /// Asks the device what it is doing with the forces it is being sent - which is a
+        /// different question from whether the writes succeeded, and the only one that can catch
+        /// a base that has stopped producing torque while still accepting everything sent to it.
+        /// Returns <see cref="ForceOutputHealth.Unknown"/> rather than throwing if the device
+        /// will not answer; a driver that dislikes the query must not take the loop down.
+        /// </summary>
+        public ForceOutputHealth ReadForceOutputHealth()
+        {
+            if (_joystick == null || !_acquired) return ForceOutputHealth.Unknown;
+
+            try
+            {
+                ForceFeedbackState s = _joystick.GetForceFeedbackState();
+
+                return ForceFeedbackHealth.Classify(
+                    deviceLost: (s & ForceFeedbackState.DeviceLost) != 0,
+                    powerOff: (s & ForceFeedbackState.PowerOff) != 0,
+                    safetyCutout: (s & ForceFeedbackState.SafetySwitchOff) != 0
+                                  || (s & ForceFeedbackState.UserSafetySwitchOff) != 0,
+                    actuatorsOff: (s & ForceFeedbackState.ActuatorsOff) != 0,
+                    stoppedOrPaused: (s & ForceFeedbackState.Stopped) != 0
+                                     || (s & ForceFeedbackState.Paused) != 0,
+                    empty: (s & ForceFeedbackState.Empty) != 0);
+            }
+            catch (Exception)
+            {
+                return ForceOutputHealth.Unknown;
+            }
+        }
+
+        /// <summary>
+        /// Best-effort nudge for a device that has stopped playing: reset it and switch the
+        /// actuators back on. Whether it takes is the caller's problem to observe on the next
+        /// health read - this only asks.
+        /// </summary>
+        public void TryWakeForceFeedback()
+        {
+            if (_joystick == null || !_acquired) return;
+
+            try { _joystick.SendForceFeedbackCommand(ForceFeedbackCommand.SetActuatorsOn); }
+            catch (Exception) { }
+
+            try { _joystick.SendForceFeedbackCommand(ForceFeedbackCommand.Continue); }
+            catch (Exception) { }
+        }
+
         public void StopForces()
         {
             try
