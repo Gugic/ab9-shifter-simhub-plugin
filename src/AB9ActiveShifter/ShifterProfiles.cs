@@ -22,6 +22,68 @@ namespace AB9ActiveShifter
         public List<ShifterProfile> Profiles { get; set; }
         public string ActiveProfile { get; set; }
 
+        /// <summary>
+        /// The profiles a bound Next/Previous hotkey walks through, in order. Empty means every
+        /// profile, which is what a user who never opens the list gets and is the obvious reading
+        /// of "cycle profiles".
+        /// <para>
+        /// It lives on the store rather than in <see cref="ShifterSettings"/> deliberately: a
+        /// per-profile list would be a different list in every profile, so cycling would change
+        /// the very thing defining the cycle and the second press would go somewhere the first
+        /// press did not promise.
+        /// </para>
+        /// </summary>
+        public List<string> CycleProfiles { get; set; }
+
+        /// <summary>
+        /// The profile a hotkey press should activate, walking <paramref name="direction"/> (+1 or
+        /// -1) around the cycle. Returns null when there is nowhere to go.
+        /// <para>
+        /// Names in the cycle that no longer exist are skipped rather than treated as an error -
+        /// a profile can be renamed or deleted while the list still mentions it, and a hotkey that
+        /// silently did nothing would be blamed on the binding rather than on the stale entry.
+        /// </para>
+        /// </summary>
+        public string NextInCycle(string current, int direction)
+        {
+            List<string> ring = CycleOrder();
+            if (ring.Count == 0) return null;
+
+            int index = ring.IndexOf(current ?? "");
+
+            // Not in the ring at all - a hotkey press should still land somewhere sensible, so
+            // going forward starts at the beginning and going back starts at the end.
+            if (index < 0) return direction >= 0 ? ring[0] : ring[ring.Count - 1];
+
+            if (ring.Count == 1) return null;
+
+            int step = direction >= 0 ? 1 : -1;
+            int next = ((index + step) % ring.Count + ring.Count) % ring.Count;
+            return ring[next];
+        }
+
+        /// <summary>The cycle as it actually stands: chosen names that still exist, else all.</summary>
+        public List<string> CycleOrder()
+        {
+            var order = new List<string>();
+            if (Profiles == null) return order;
+
+            if (CycleProfiles != null && CycleProfiles.Count > 0)
+            {
+                foreach (string name in CycleProfiles)
+                {
+                    if (name != null && NameTaken(name) && !order.Contains(name)) order.Add(name);
+                }
+                if (order.Count > 0) return order;
+            }
+
+            foreach (ShifterProfile p in Profiles)
+            {
+                if (p != null && p.Name != null && p.Settings != null) order.Add(p.Name);
+            }
+            return order;
+        }
+
         public ShifterProfile FindActive()
         {
             if (Profiles == null || Profiles.Count == 0) return null;
