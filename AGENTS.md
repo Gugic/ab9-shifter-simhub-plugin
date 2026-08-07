@@ -272,6 +272,15 @@ runners cannot load, so anything worth testing must not touch it.
   stronger than the pin gets a longer face, never a steeper one), flat plateau beyond, faded
   with depth like the humps, anchored to the map's gear-column 1 so mirroring moves it. It has
   the rail's hunt ceiling: a lever trembling at home wants the spring lowered, never damping.
+- **A band a force ramps across gets a width, not just an ordering.** `GateGeometry` repairs
+  inverted enter/exit pairs, and for a pure state band `enter + 1` is the right repair. The neutral
+  tunnel pair is not a pure state band — `GuidePlateau` and `SlotConfinementFactor` ramp force
+  across it — so `+ 1` turns a typo into a full-scale cliff: measured at 0 DI on one axis count and
+  10000 DI on the next, a ±12 Nm square wave at the report rate from sensor dither alone. Its floor
+  is `GateGeometry.MinBandSpan`, and the two dials that produce it sit adjacent in the UI differing
+  by one word, so this *will* be typed wrong again. Pinned by
+  `AnInvertedTunnelPairCannotBecomeAForceCliff`. Before clamping any new pair, ask whether a force
+  ramps across it.
 
 **Safety ordering**
 
