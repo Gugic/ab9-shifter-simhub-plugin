@@ -111,9 +111,11 @@ src/AB9ActiveShifter/
   Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the picker. The one vJoy caller off the
                            engine thread, and query-only - read its comment before adding another
   UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor)
-    GateVisualizer.cs      The Monitor tab's gate plan view with the live stick position
-    ForceGraphVisualizerBase.cs Shared scaffolding for the Feel tab's curve graphs: axes,
-                           labels, the 33 ms snapshot poll, and the redraw-only-if-moved gate
+    GateVisualizer.cs      The gate plan view with the live stick position, on Monitor and again
+                           at the top of Geometry. Draws the gate's real free space, the mouths
+                           and the engage/release notches, so every geometry dial moves something
+    ForceGraphVisualizerBase.cs Shared scaffolding for every visualization: axes, labels, the
+                           33 ms snapshot poll, and the redraw-only-if-moved gate
     DetentCurveVisualizer.cs      Slot detent force against engage fraction
     GateWallCurveVisualizer.cs    The neutral tunnel's fore/aft wall against depth
     SlidingAcrossGateVisualizer.cs Lateral field across the whole gate width
@@ -324,10 +326,14 @@ runners cannot load, so anything worth testing must not touch it.
   that order, always. A gear must never stay stuck down.
 - The watchdog (500 ms timer, 1 s staleness) calls `EmergencyStop`. `StopForces` is the only
   device method callable off the engine thread, and it swallows everything.
-- **A force graph samples `ForceComposer`, never a copy of its arithmetic.** The Feel tab's curves
-  exist to answer "what will this dial actually do", so a graph that re-derives the shape is the
-  one place it can quietly stop matching the gate — and it would mislead precisely when someone is
-  using it to diagnose a feel problem. Every graph builds its **own** `ForceComposer` from
+- **A picture of the gate samples `ForceComposer`, never a copy of its arithmetic.** The Feel tab's
+  curves and the gate plan view both exist to answer "what will this dial actually do", so a
+  drawing that re-derives the shape is the one place it can quietly stop matching the gate — and it
+  would mislead precisely when someone is using it to diagnose a feel problem. That covers plan
+  geometry as much as force: `GateVisualizer` gets each slot's corridor from
+  `SlotCorridorHalfWidthAt` rather than re-deriving the mouth, and asks `GateGeometry` where the
+  lockout is rather than keeping a second copy of the position (the Monitor tab's shading used to
+  be exactly that bug). Every one of them builds its **own** `ForceComposer` from
   `Settings.ToEngineConfig()`, never the live engine's: it must render with the plugin disabled,
   when no engine thread exists, and reaching into the running one would be a cross-thread read of
   engine state. Where a graph needs an internal shape, make the method public with a comment

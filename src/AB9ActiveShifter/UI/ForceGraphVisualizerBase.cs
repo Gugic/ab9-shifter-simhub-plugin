@@ -9,13 +9,12 @@ using AB9ActiveShifter.Core;
 namespace AB9ActiveShifter.UI
 {
     /// <summary>
-    /// Shared scaffolding for the Feel tab's small force-curve visualizations
-    /// (DetentCurveVisualizer and its siblings): settings-driven redraw, the same
-    /// 33 ms/DispatcherPriority.Render live-snapshot poll GateVisualizer uses for its own
-    /// stick position, and the axis/label drawing primitives common to all of them. Extracted
-    /// once a second visualizer needed the identical boilerplate, rather than upfront -
-    /// verified to render pixel-identically to the pre-extraction version before anything was
-    /// built on top of it.
+    /// Shared scaffolding for every visualization in the settings UI - the Feel tab's small
+    /// force-curve graphs (DetentCurveVisualizer and its siblings) and the gate plan view
+    /// (GateVisualizer): settings-driven redraw, a 33 ms/DispatcherPriority.Render live-snapshot
+    /// poll, and the axis/label drawing primitives common to all of them. Extracted once a second
+    /// visualizer needed the identical boilerplate, rather than upfront - verified to render
+    /// pixel-identically to the pre-extraction version before anything was built on top of it.
     ///
     /// A subclass overrides DrawGraph with whatever it samples and however its own axes are
     /// scaled; this base only owns what every one of them needs regardless of shape.
@@ -151,13 +150,16 @@ namespace AB9ActiveShifter.UI
             dc.DrawText(t, new Point(drawX, y));
         }
 
-        protected FormattedText Text(string value, double size, Brush brush)
+        protected FormattedText Text(string value, double size, Brush brush, bool bold = false)
         {
             return new FormattedText(
                 value,
                 CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight,
-                new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal),
+                new Typeface(new FontFamily("Segoe UI"),
+                             FontStyles.Normal,
+                             bold ? FontWeights.Bold : FontWeights.Normal,
+                             FontStretches.Normal),
                 size,
                 brush,
                 VisualTreeHelper.GetDpi(this).PixelsPerDip);

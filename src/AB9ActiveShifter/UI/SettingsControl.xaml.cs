@@ -125,6 +125,7 @@ namespace AB9ActiveShifter.UI
             {
                 _boundSettings.PropertyChanged += OnSettingsChanged;
                 Visualizer.Attach(_boundSettings);
+                GeometryGate.Attach(_boundSettings);
                 DetentCurve.Attach(_boundSettings);
                 GateWallCurve.Attach(_boundSettings);
                 SlidingAcrossGateCurve.Attach(_boundSettings);
