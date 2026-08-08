@@ -466,12 +466,19 @@ namespace AB9ActiveShifter.UI
             RefreshPedalDevices();
             RefreshCycleList();
             UpdateCalibrationSection();
+
+            // Lets the data thread look up the current car even when no profile lists one yet,
+            // which is the only way the "add last used vehicle" button has anything to offer.
+            if (Plugin != null) Plugin.WatchCarModel(true);
+
             _timer.Start();
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
             _timer.Stop();
+
+            if (Plugin != null) Plugin.WatchCarModel(false);
 
             if (_boundSettings != null)
             {
@@ -543,15 +550,24 @@ namespace AB9ActiveShifter.UI
             ShifterProfile active = Plugin.Store.FindActive();
             if (active == null) return;
 
+            active.CarModels = ReadCarModelLines();
+            Plugin.ScheduleProfilesSave();
+        }
+
+        /// <summary>The vehicle box as a clean list: one trimmed id per non-blank line.</summary>
+        private System.Collections.Generic.List<string> ReadCarModelLines()
+        {
             var models = new System.Collections.Generic.List<string>();
-            foreach (string line in CarModelsBox.Text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            if (CarModelsBox == null) return models;
+
+            foreach (string line in (CarModelsBox.Text ?? string.Empty)
+                     .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
             {
                 string trimmed = line.Trim();
                 if (trimmed.Length > 0) models.Add(trimmed);
             }
 
-            active.CarModels = models;
-            Plugin.ScheduleProfilesSave();
+            return models;
         }
 
         /// <summary>
@@ -565,10 +581,20 @@ namespace AB9ActiveShifter.UI
             if (AddLastCarButton == null || Plugin == null) return;
 
             string last = Plugin.LastCarModel;
-            AddLastCarButton.IsEnabled = !string.IsNullOrEmpty(last);
-            AddLastCarButton.Content = string.IsNullOrEmpty(last)
+            string caption = string.IsNullOrEmpty(last)
                 ? "Add last used vehicle (none seen yet)"
                 : "Add last used vehicle: " + last;
+
+            // Only when it actually changed. This runs on the status timer, and reassigning
+            // Content re-lays out the button every tick for a string that is the same one
+            // almost every time - the same reason the visualizations redraw only when something
+            // has moved.
+            if (!string.Equals(AddLastCarButton.Content as string, caption, StringComparison.Ordinal))
+            {
+                AddLastCarButton.Content = caption;
+            }
+
+            AddLastCarButton.IsEnabled = !string.IsNullOrEmpty(last);
         }
 
         private void OnAddLastCarModel(object sender, RoutedEventArgs e)
@@ -581,12 +607,7 @@ namespace AB9ActiveShifter.UI
             ShifterProfile active = Plugin.Store.FindActive();
             if (active == null) return;
 
-            var models = new System.Collections.Generic.List<string>();
-            foreach (string line in CarModelsBox.Text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
-            {
-                string trimmed = line.Trim();
-                if (trimmed.Length > 0) models.Add(trimmed);
-            }
+            System.Collections.Generic.List<string> models = ReadCarModelLines();
 
             bool alreadyThere = models.Exists(m => string.Equals(m, last, StringComparison.OrdinalIgnoreCase));
             if (!alreadyThere) models.Add(last);
