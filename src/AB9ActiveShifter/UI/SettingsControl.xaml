@@ -87,6 +87,22 @@
                                        Text="A profile holds every dial on every tab, the pattern included, so each pattern can carry its own tuning. Duplicate makes a copy of the current profile to experiment in; to rename, type the new name in the box and click Rename. Gears map to vJoy buttons 1..N with reverse as the highest; sequential pulses button 9 for upshift and button 10 for downshift - above every gear button, so no game binding can mean two things - and its push resistance and click are the detent dials on the Feel tab." />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0"
                                        Text="Export writes the current profile to a file you can share. Import always adds a new profile, numbering the name if it is taken, so someone else's tune can never land on top of yours. What travels is the tuning only: your measured polarity, your device and vJoy numbers and your loop rate stay as they are, values are range-checked on the way in, and an imported profile always arrives with forces off." />
+
+                            <styles:SHExpander Header="Vehicle models (optional)" Margin="0,10,0,0">
+                                <StackPanel Margin="0,8,0,0">
+                                    <TextBox x:Name="CarModelsBox" AcceptsReturn="True" Height="70" TextWrapping="Wrap"
+                                             VerticalScrollBarVisibility="Auto" LostFocus="OnCarModelsChanged" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                        <styles:SHButtonSecondary x:Name="AddLastCarButton" Click="OnAddLastCarModel"
+                                                                   Content="Add last used vehicle" Padding="10,3" Margin="0,0,6,0" />
+                                        <styles:SHButtonSecondary Click="OnAddBlankCarModelLine" Content="+ Add manually"
+                                                                   Padding="10,3"
+                                                                   ToolTip="Adds a blank line to the box above so you can type an id by hand" />
+                                    </StackPanel>
+                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
+                                               Text="One vehicle id per line - whatever the game's own car-model telemetry reports (SimHub's Available properties page shows the exact value, usually named something like DataCorePlugin.GameData.CarModel). When the current car matches a line here, this profile activates automatically; leave it empty to keep this profile out of auto-switching. It only acts when the car itself changes, so picking a different profile by hand is never overridden until you change cars again. 'Add last used vehicle' reads whatever the running game most recently reported - unlike SimHub's own car catalogue, this is the raw telemetry value, not a prettified name, because that is genuinely all a plugin can see." />
+                                </StackPanel>
+                            </styles:SHExpander>
                         </StackPanel>
                     </styles:SHSection>
 
@@ -796,16 +812,21 @@
                                              TickFrequency="1"
                                              Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding ColumnInnerHalfEnterPercent, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Lockout clearance from the last column" Minimum="300" Maximum="10000"
-                                             TickFrequency="100" ShowResetButton="True" ResetValue="2400"
-                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
-                                             Value="{Binding ColumnInnerHalfExit, Mode=TwoWay}" />
-                            <ui:TitledSlider Title="Lockout clearance from the last column (% of column spacing)" Minimum="0" Maximum="50"
-                                             TickFrequency="1"
-                                             Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
-                                             Value="{Binding ColumnInnerHalfExitPercent, Mode=TwoWay}" />
+                            <StackPanel Visibility="{Binding HasLockout, Converter={StaticResource BoolToVis}}">
+                                <ui:TitledSlider Title="Lockout clearance from the last column" Minimum="300" Maximum="10000"
+                                                 TickFrequency="100" ShowResetButton="True" ResetValue="2400"
+                                                 Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
+                                                 Value="{Binding ColumnInnerHalfExit, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="Lockout clearance from the last column (% of column spacing)" Minimum="0" Maximum="50"
+                                                 TickFrequency="1"
+                                                 Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
+                                                 Value="{Binding ColumnInnerHalfExitPercent, Mode=TwoWay}" />
+                            </StackPanel>
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
-                                       Text="How wide the opening at each column is, measured either side of its centre line - the outer two get more because they run to the end of travel. Inside it the fore/aft wall is fully open so the lever can go straight into the slot; outside it the wall blends shut over the wall blend distance on the Feel tab. It is not what decides which gear a push selects: every position in the gate belongs to the column it is nearest, so a push that beats the wall lands in the nearer slot rather than in nothing at all. There is no matching release width: once the lever is in a gear the only way out is back through the tunnel, at any sideways distance whatever. The last figure is the room the lockout gate leaves beside the 5/6 column before its band begins." />
+                                       Text="How wide the opening at each column is, measured either side of its centre line - the outer two get more because they run to the end of travel. Inside it the fore/aft wall is fully open so the lever can go straight into the slot; outside it the wall blends shut over the wall blend distance on the Feel tab. It is not what decides which gear a push selects: every position in the gate belongs to the column it is nearest, so a push that beats the wall lands in the nearer slot rather than in nothing at all. There is no matching release width: once the lever is in a gear the only way out is back through the tunnel, at any sideways distance whatever." />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
+                                       Visibility="{Binding HasLockout, Converter={StaticResource BoolToVis}}"
+                                       Text="The lockout clearance above is the room the lockout gate leaves beside the 5/6 column before its band begins - hidden along with its slider on patterns with no lockout, since it does nothing there." />
                             <ui:TitledSlider Title="Engage depth (from the end of travel)" Minimum="500" Maximum="28000"
                                              TickFrequency="500" ShowResetButton="True" ResetValue="4000"
                                              Value="{Binding EngageDepth, Mode=TwoWay}" />

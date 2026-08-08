@@ -431,6 +431,7 @@ namespace AB9ActiveShifter.UI
         {
             BindActiveProfile();
             RefreshProfiles();
+            RefreshCarModels();
             RefreshLockoutSummary();
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
@@ -460,6 +461,7 @@ namespace AB9ActiveShifter.UI
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
             RefreshProfiles();
+            RefreshCarModels();
             RefreshVJoyDevices();
             RefreshPedalDevices();
             RefreshCycleList();
@@ -503,6 +505,115 @@ namespace AB9ActiveShifter.UI
             // The cycle list names profiles, so it has to follow every add, rename and delete -
             // otherwise a renamed profile silently drops out of a bound hotkey's walk.
             RefreshCycleList();
+        }
+
+        private bool _refreshingCarModels;
+
+        private void RefreshCarModels()
+        {
+            if (CarModelsBox == null || Plugin == null || Plugin.Store == null) return;
+
+            ShifterProfile active = Plugin.Store.FindActive();
+            if (active == null) return;
+
+            _refreshingCarModels = true;
+            try
+            {
+                CarModelsBox.Text = active.CarModels == null
+                    ? string.Empty
+                    : string.Join(Environment.NewLine, active.CarModels);
+            }
+            finally
+            {
+                _refreshingCarModels = false;
+            }
+
+            RefreshLastCarModelButton();
+        }
+
+        /// <summary>
+        /// Commits the vehicle list on focus loss, the same trigger the vendor/product id boxes
+        /// use - a per-keystroke save would fight typing, and this list has no live force effect
+        /// to preview, so there is nothing lost by waiting for the box to be left.
+        /// </summary>
+        private void OnCarModelsChanged(object sender, RoutedEventArgs e)
+        {
+            if (_refreshingCarModels || Plugin == null || Plugin.Store == null || CarModelsBox == null) return;
+
+            ShifterProfile active = Plugin.Store.FindActive();
+            if (active == null) return;
+
+            var models = new System.Collections.Generic.List<string>();
+            foreach (string line in CarModelsBox.Text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string trimmed = line.Trim();
+                if (trimmed.Length > 0) models.Add(trimmed);
+            }
+
+            active.CarModels = models;
+            Plugin.ScheduleProfilesSave();
+        }
+
+        /// <summary>
+        /// Shows what the running game most recently reported, the same convenience SimHub's own
+        /// Motion profile properties dialog offers - polled on the existing status timer rather
+        /// than wired to a change event, since <see cref="AB9ShifterPlugin.LastCarModel"/> is a
+        /// plain field with no notification.
+        /// </summary>
+        private void RefreshLastCarModelButton()
+        {
+            if (AddLastCarButton == null || Plugin == null) return;
+
+            string last = Plugin.LastCarModel;
+            AddLastCarButton.IsEnabled = !string.IsNullOrEmpty(last);
+            AddLastCarButton.Content = string.IsNullOrEmpty(last)
+                ? "Add last used vehicle (none seen yet)"
+                : "Add last used vehicle: " + last;
+        }
+
+        private void OnAddLastCarModel(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || Plugin.Store == null || CarModelsBox == null) return;
+
+            string last = Plugin.LastCarModel;
+            if (string.IsNullOrEmpty(last)) return;
+
+            ShifterProfile active = Plugin.Store.FindActive();
+            if (active == null) return;
+
+            var models = new System.Collections.Generic.List<string>();
+            foreach (string line in CarModelsBox.Text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string trimmed = line.Trim();
+                if (trimmed.Length > 0) models.Add(trimmed);
+            }
+
+            bool alreadyThere = models.Exists(m => string.Equals(m, last, StringComparison.OrdinalIgnoreCase));
+            if (!alreadyThere) models.Add(last);
+
+            active.CarModels = models;
+            CarModelsBox.Text = string.Join(Environment.NewLine, models);
+            Plugin.ScheduleProfilesSave();
+        }
+
+        /// <summary>
+        /// A lighter stand-in for SimHub's own chip-list "+": rather than a full add/remove chip
+        /// control, this opens a blank line in the box and focuses it, so typing and the existing
+        /// LostFocus commit handle the rest.
+        /// </summary>
+        private void OnAddBlankCarModelLine(object sender, RoutedEventArgs e)
+        {
+            if (CarModelsBox == null) return;
+
+            string text = CarModelsBox.Text ?? string.Empty;
+            if (text.Length > 0 && !text.EndsWith(Environment.NewLine, StringComparison.Ordinal))
+            {
+                text += Environment.NewLine;
+            }
+
+            CarModelsBox.Text = text;
+            CarModelsBox.Focus();
+            CarModelsBox.CaretIndex = CarModelsBox.Text.Length;
         }
 
         /// <summary>
@@ -1134,6 +1245,7 @@ namespace AB9ActiveShifter.UI
             ShifterEngine engine = AB9ShifterPlugin.Engine;
             EngineSnapshot snap = engine != null ? engine.Snapshot : new EngineSnapshot();
             _status.Update(snap);
+            RefreshLastCarModelButton();
 
             bool calibrating = engine != null && engine.IsCalibrating;
             CalibrateButton.IsEnabled = !calibrating;
