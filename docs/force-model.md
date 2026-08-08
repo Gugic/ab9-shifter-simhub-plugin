@@ -143,25 +143,90 @@ left with no push-back at all over three quarters of the axis. A shared scalar c
 the field becomes `F_old(history) × Relief(x)` - any two histories the old field made equal stay equal.
 `TheReliefWindowCannotInventHistoryDependence` pins it.
 
-**The window spans both boundary rules, not the one in force at this depth.** `GuideColumn` uses the
-barrier crest in the tunnel and the plain midpoint below it, and at the lockout gap those are thousands
-of counts apart. A window keyed on `InChannel(y)` leaves the other rule's flip window on a live part of
-the field, and then **one single count of fore/aft movement reverses the guide - measured at 2403 DI** -
-right where the fore/aft wall's own deadband leaves the lever freest. That is the original bug moved
-from the x axis to the depth axis, and it is the natural thing to write, so it is recorded in the
-rejected table below. Taking the hull of both rules makes the window a function of x alone.
+**The window must cover the whole flip band, not the boundary alone.** `Pick` biases each boundary by
+`DetentHysteresis` toward whichever column is held, so the flip can land anywhere in a band that wide,
+and the window is exactly that band.
 
 **The hysteresis shrank because of it.** `DetentHysteresis` was 1500 and load-bearing: the boundary was a
 cliff, so a wide band was all that stopped the lever chattering between two opposite full-scale forces.
 With the field zeroed there, a flip costs nothing, so it is now 400 - and since the window has to cover
 it, that turns an ordinary divider's dead strip from 3000 counts into 800.
 
-The price, stated plainly: at the **lockout gap only**, where the two rules genuinely disagree over
-thousands of counts, a latched 5/6 dragged toward 7/R at gear depth goes slack across the gate's
-doorway instead of being shepherded home. The gear cannot change there - the lock is absolute and
-positional - and the gate's own force is deliberately faded at depth anyway, because a plate has its
-gate cut into the tunnel and not into the slots. `OnlyTheLockoutGapLosesItsWallToTheHandoverWindow`
-pins that this is confined to that one gap.
+**The window is spent by the time the tunnel is left.** This is the part that took two goes.
+
+The window pays for a handover, and a handover is the only discontinuity this field has. Applied at
+*every* depth, it therefore holes the slot walls as well as the tunnel - and a latched gear's wall is
+the entire enforcement of the absolute lock, so those holes are places the lever can be parked at gear
+depth with nothing pushing it home. Measured, replaying `trace-20260807-053305`: latched in fifth, lever
+held at full forward deflection and dragged the width of the gate, the lateral force read **exactly 0
+DI** around x≈10 900 and again across x≈52 000, and stayed under 500 DI for **1.8 seconds** at the first
+of them. A hand hunting sideways finds every one and settles in it. Reported from the rig as shifting
+between "distinct half slots" that do not change gear - which is precisely what the lock promises cannot
+exist.
+
+The fix is not to narrow the window but to **fade it out with depth**, and that is only sound because the
+handover is gone by then. `GuideColumn` now changes hands **only in the tunnel**; out of it, the pick is
+simply the one already held. So below `ChannelHalfEnter` there is nothing left to pay for, and `Relief`
+rides `SlotConfinementFactor` - the same band, the same shape as the plateau's own rise - reaching 1
+by the channel's exit band and staying there. The window is at full strength through every depth a
+handover can still happen at, and gone through every depth a wall has to hold.
+
+Two things fall out of freezing the pick. The **crest-versus-midpoint duality disappears**: the pick is
+crest-only now, so the window no longer has to span the hull of two rules, and at the lockout gap it
+shrinks from 3 323 counts to 801. And the **lockout bypass that duality existed to close is closed more
+cheaply**: a live pick at depth read a lever just past the gate as being in 7/R's territory and turned
+5/6's wall into a conveyor toward 7, so the toll was never paid. A frozen pick cannot - the lever keeps
+whatever column it left the tunnel with, and it can only have left the tunnel where the tunnel's own
+crests put it.
+
+The residual: at depths inside the hysteresis band the window is partly faded while the pick is already
+frozen, which costs nothing, and a lever that is *Neutral* below the tunnel keeps a frozen pick that may
+disagree with the tunnel's on the way back up. That disagreement is bounded by the light detent, exactly
+like the latch handover it resembles, and after the ownership fix below the only way to be Neutral at
+depth at all is a missing slot. `TheHandoverWindowIsSpentByTheTimeTheTunnelIsLeft` and
+`ALatchedGearKeepsItsWallAcrossTheWholeGate` pin both halves.
+
+### Every position has an owning column
+
+`ColumnAt` decides which column a push out of the tunnel selects. It used to be a tight band -
+`ColumnInnerHalfEnter` either side of the target - and outside it a push selected **nothing**.
+
+That is a narrower promise than the force can keep, in two separate ways. The fore/aft wall opens over
+`ColumnFreeHalfWidth` and then blends shut across `WallBlend`, so between the two lies an annulus where
+the gate is passable and there is no gear to be selected. And past that annulus the wall is only 12 Nm,
+which a hand simply beats. Measured, `trace-20260807-053318`: two pushes to **full deflection**, held
+896 ms and 616 ms, roughly 2 400 counts right of the 5/6 column - resting on the lockout gate's entry
+face, in a strip belonging to nothing - state `Neutral`, gear 0. The lever shoved fully home and the game
+told nothing at all.
+
+The fore/aft force at those positions, from the same trace, shows how little the wall had to say about it:
+
+| offset from the column | wall closed | fy seen | ticks |
+| --- | --- | --- | --- |
+| 1 250 | 3% | 2 282-3 411 | 9 |
+| 1 750 | 35% | 5 099-6 100 | 224 |
+| 2 250 | 67% | 7 398-10 000 | 572 |
+| 2 750 | 99% | 9 959-10 000 | 183 |
+| 3 250 | 100% | 10 000 | 28 |
+
+The hand went through it at full scale. So `ColumnAt` now returns the column x is **nearest**, boundaries
+at the gap midpoints, never `None`. That is deliberately the same ownership `ChannelBlockFactor` already
+uses to decide where the wall opens, and the same one `GuideColumn` falls back to - one rule, so the
+force and the state machine cannot disagree about whose slot the lever is heading for, and no dial can be
+typed to separate them.
+
+Widening capture is not a licence to select the wrong gear: reaching gear depth between two columns still
+means beating a fully closed wall, and doing so now lands in the nearer slot rather than in silence. A
+silent non-shift is the worst answer available here. What a slot *holds* is still a fact of the gear map
+alone, so 6+R's missing 7 refuses across the whole of its column's territory rather than across the old
+band.
+
+One geometry repair goes with it. Ownership hands the locked column over at the gap's midpoint, so
+`PlaceLockout` now clamps the gate's crest to stay on the main section's side of that midpoint -
+otherwise a wide clearance dial could leave positions that belong to 7/R but sit short of the gate, and a
+push there would select 7/R with the toll unpaid. `TheWallAndTheStateMachineAgreeAboutWhoseSlotThisIs`,
+`APushAllTheWayHomeAlwaysSelectsAGear` and `StoppingShortOfTheGatesCrestCannotReachTheLockedColumn` pin
+the three halves of this.
 
 ### One lateral field
 
@@ -680,7 +745,9 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **Pull toward a slot's centre line** | Middle columns shook violently when seated; outer columns fine. Interior equilibrium = oscillator. Replaced by corridors. |
 | **A guide plateau held flat up to the column boundary** | The boundary reverses the force, so a flat plateau makes the reversal a step of 2 × plateau in one tick - measured at 20000 DI, a clamped ±12 Nm, from 100 counts of drift, and felt as the notches kicking while sliding the tunnel. Replaced by the handover window. |
 | **A guide reach measured from the guide column** | The natural fix, and it invents history dependence: the reach belongs to *which* column owns the field, so the latched branch and the position-picked branch disagree by the full pin force wherever both columns lie on the same side of the lever - exactly where a flat plateau had made them identical. Measured 10000 DI at one position selected by whether the lever once dipped into the tunnel, plus no push-back over 75% of the axis at gear depth. Use a positional multiplier, which both branches share. |
-| **A handover window keyed on `InChannel(y)`** | Moves the same reversal onto the depth axis. The crest and midpoint rules are thousands of counts apart at the lockout gap, so the other rule's flip window stays live: **2403 DI from one single axis count of fore/aft movement**, where the fore/aft wall's deadband leaves the lever freest. The window must span the hull of both rules. |
+| **A handover window keyed on `InChannel(y)`** | Moves the same reversal onto the depth axis. With the pick live at every depth and using a different rule down there, keying the window on `InChannel(y)` leaves the other rule's flip window on a live part of the field: **2403 DI from one single axis count of fore/aft movement**, where the fore/aft wall's deadband leaves the lever freest. Not to be confused with the fade that replaced it: that is continuous in depth, and it is only safe because freezing the pick outside the tunnel means there is no other rule and no flip left to price. |
+| **A handover window applied at every depth** | It holes the slot walls as well as the tunnel, and a latched gear's wall is the whole enforcement of the absolute lock. Measured: a gear held at full deflection had **exactly 0 DI** of lateral wall at each gap, and under 500 DI for 1.8 s at one of them - felt as extra half-slots that do not change gear. Faded out with depth instead, over the band the plateau already rises across. |
+| **A live guide pick below the tunnel** | Keeps a handover alive at depths where the plateau is the full slot wall, so the window cannot be faded out there - which is what forced the holes above. It also needs two boundary rules to stay safe, and therefore a window spanning both. The pick is frozen outside the tunnel now; one rule, and the window is a tunnel-only concern. |
 | **A wide detent hysteresis as the cure for boundary chatter** | It only ever hid the cliff; 1500 counts of it bought a 3000-count dead strip once the field was zeroed at the boundary. Zero the field instead and the hysteresis can be small. |
 | **Device damper / friction / inertia to settle walls** | Condition effects are near-decorative on this base. Replaced by software velocity damping. |
 | **MOZA Cockpit Damper** *(as a wall-buzz fix)* | Stiffens the lever, buzz unchanged. Damping cannot rescue a gradient this steep behind this much delay. **Scope matters**: for the *lean-hunt* — the slower hand-coupled mode left after the yield relay was fixed — ~15% Damper is precisely what works, because it acts at the servo loop with zero delay. Rejected as a buzz cure, adopted as the lean-hunt cure; see hardware.md. |
@@ -704,7 +771,8 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **A separate funnel strength** (`ColumnFunnelForcePct`) | A waypoint on the guide's rise. Placed anywhere but on the straight line it made one leg steeper than the wall face; placed on the line it was redundant. Deleted; the detent sets the shallow end and the slot wall the deep one. |
 | **A separate ramp for the lateral guide** (`DetentRamp`) | A free parameter on a gradient. At its floor it made the funnel 13.3 DI/count against a 3.8 wall face - the steepest thing in the gate, in the region crossed on every shift. Faces are derived from plateaus at the wall's stiffness now, and the dial is deleted. |
 | **Using the wall's bite as the plateau's depth span** | They are different axes. A long bite delayed the slot wall's full strength by tens of thousands of counts of depth, so the wall vanished where a gear is held. The depth span is the channel's own width. |
-| **Crest watersheds below the tunnel** | Opened a complete lockout bypass: past the gate's off-centre crest at gear depth the guide adopts 7/R and conveys the lever toward 7 at full pin force, toll unpaid. Midpoints below the tunnel. |
+| **Crest watersheds below the tunnel** | Opened a complete lockout bypass: past the gate's off-centre crest at gear depth the guide adopts 7/R and conveys the lever toward 7 at full pin force, toll unpaid. Midpoints below the tunnel closed it, at the cost of a second boundary rule; freezing the pick outside the tunnel closes it with no second rule at all, because the lever keeps whatever column the tunnel gave it. |
+| **A column selection band narrower than the wall's mouth** | The wall opens over the column's free width and blends shut across `WallBlend`; capture wanted the lever inside `ColumnInnerHalfEnter`. Between them the gate is passable with no gear to select, and beyond them the wall is only 12 Nm. Measured: two pushes to **full deflection**, 896 ms and 616 ms, ~2400 counts off the column, state Neutral, gear 0 - the lever shoved home and the game told nothing. Every position belongs to the column it is nearest now. |
 | **Mouth shaping confined to the channel band** | 1000 counts deep, against a 1500-2000 count round-trip distance: zero corrected samples landed inside it at shift speed. Peak 946 DI at gain 100, 197 DI at the default - the latter equal to the static-hold floor, i.e. a mode that did nothing. The shaping spans the withdrawal stroke instead. |
 | **A circular fillet for the rounded mouth** | Its flank goes vertical where it meets the slot wall - an unbounded gradient at exactly the depth a hand dwells. A raised cosine leaves at zero slope on both ends. |
 | **A separate "lockout shading starts at" setting** | A second copy of the gate's position, which did nothing once the gate moved itself, and drifted from the truth. The Monitor tab asks the geometry. |

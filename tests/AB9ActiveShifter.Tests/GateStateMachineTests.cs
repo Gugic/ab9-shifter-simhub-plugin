@@ -172,22 +172,31 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void StoppingHalfwayThroughTheLockoutSelectsNothing()
+        public void StoppingShortOfTheGatesCrestCannotReachTheLockedColumn()
         {
             GateStateMachine sm = NewMachine();
+            GateGeometry geo = Config.BuildGeometry();
 
-            // Past the lockout boundary (48000) but short of the C4 band (62935).
-            const int halfway = 55000;
-            Sweep(sm, C3, Center, halfway, Center);
-            Sweep(sm, halfway, Center, halfway, 0);
-            Hold(sm, halfway, 0);
+            // Inside the gate's band and short of its crest: the toll is not paid, so this is
+            // still 5/6's territory however hard the lever is pushed forward. It selects 5 - not
+            // nothing, which is what it used to do and what made a full push land silently, and
+            // emphatically not 7.
+            int shortOfCrest = geo.LockoutCentre - geo.LockoutHalfWidth + 100;
+            Sweep(sm, C3, Center, shortOfCrest, Center);
+            Sweep(sm, shortOfCrest, Center, shortOfCrest, 0);
+            Hold(sm, shortOfCrest, 0);
 
-            Assert.Equal(0, sm.CurrentGear);
-            Assert.Equal(GateState.Neutral, sm.State);
+            Assert.Equal(5, sm.CurrentGear);
 
-            // Springing back left must leave nothing latched.
-            Sweep(sm, halfway, 0, C3, Center);
-            Assert.Equal(0, sm.CurrentGear);
+            // And nowhere short of the crest can reach 7/R at all - the property the gate exists
+            // for. Ownership hands the locked column over at the gap's midpoint, and the geometry
+            // keeps the crest on the main section's side of it.
+            Assert.True(geo.LockoutCentre < (C3 + C4) / 2);
+
+            for (int x = C3; x <= geo.LockoutCentre; x += 100)
+            {
+                Assert.NotEqual((Column)3, geo.ColumnAt(x));
+            }
         }
 
         [Fact]
@@ -289,17 +298,70 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void LeavingTheChannelBetweenColumnsSelectsNothing()
+        public void LeavingTheChannelBetweenColumnsStillSelectsAGear()
         {
+            // The fore/aft wall is what should stop this, and it is at full strength here - but
+            // full strength is 12 Nm and a hand beats 12 Nm. Measured on the rig: two pushes to
+            // full deflection, held for the best part of a second each, roughly 2400 counts off
+            // the column, and the game was told nothing at all. Ownership means a push that gets
+            // through always lands somewhere, and the somewhere is the column it is nearest.
             GateStateMachine sm = NewMachine();
 
-            // Midway between C2 and C3 the Y wall should be resisting; nothing to select.
             const int between = 32767;
             Sweep(sm, between, Center, between, 0);
             Hold(sm, between, 0);
 
-            Assert.Equal(0, sm.CurrentGear);
-            Assert.Equal(GateState.Neutral, sm.State);
+            Assert.Equal(GateState.Engaged, sm.State);
+            Assert.Equal(3, sm.CurrentGear);
+
+            // A count either side of the boundary picks the column that side of it, and nothing
+            // in between is ever left without an owner.
+            GateGeometry geo = Config.BuildGeometry();
+            for (int x = 0; x <= Max; x += 97)
+            {
+                Assert.NotEqual(Column.None, geo.ColumnAt(x));
+            }
+        }
+
+        [Fact]
+        public void APushAllTheWayHomeAlwaysSelectsAGear()
+        {
+            // A silent non-shift is the worst answer this gate can give, and it was giving it.
+            // Trace-20260807-053318, two episodes: lever at FULL deflection, out of the channel,
+            // held 896 ms and 616 ms, state Neutral, gear 0. The lever was about 2400 counts right
+            // of 5/6 - past the old +-1200 selection band, resting on the lockout gate's entry
+            // face, in a strip that belonged to nothing. Every position must select something.
+            GateGeometry geo = Config.BuildGeometry();
+
+            foreach (int slot in new[] { 0, Max })
+            {
+                for (int x = 0; x <= Max; x += 251)
+                {
+                    GateStateMachine sm = NewMachine();
+                    Sweep(sm, x, Center, x, slot);
+                    Hold(sm, x, slot);
+
+                    int expected = geo.GearFor(geo.ColumnAt(x), geo.DirectionOf(slot));
+
+                    Assert.Equal(GateState.Engaged, sm.State);
+                    Assert.Equal(expected, sm.CurrentGear);
+                }
+            }
+        }
+
+        [Fact]
+        public void TheMeasuredNonShiftNowLandsInSixth()
+        {
+            // The two positions the lever actually sat at in that trace, to the count: 2371 and
+            // 3243 right of the 5/6 column, pushed fully back. Both used to give nothing.
+            foreach (int offset in new[] { 2371, 3243 })
+            {
+                GateStateMachine sm = NewMachine();
+                Sweep(sm, C3 + offset, Center, C3 + offset, Max);
+                Hold(sm, C3 + offset, Max);
+
+                Assert.Equal(6, sm.CurrentGear);
+            }
         }
 
         [Fact]

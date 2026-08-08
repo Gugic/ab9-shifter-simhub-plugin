@@ -1077,22 +1077,24 @@ namespace AB9ActiveShifter.Tests
 
             for (int x = 0; x <= Max; x += 250)
             {
-                Column nearest = geo.NearestColumn(x, Column.None);
+                Column owner = geo.ColumnAt(x);
 
                 // Skip a column's own width and the wall's face, which are meant to be soft.
-                int free = geo.ColumnFreeHalfWidth(nearest);
+                int free = geo.ColumnFreeHalfWidth(owner);
                 int face = Math.Min(cfg.WallRamp, Math.Max(200, (geo.ColumnSpacing / 2) - free));
-                if (Math.Abs(x - geo.ColumnTarget(nearest)) <= free + face) continue;
+                if (Math.Abs(x - geo.ColumnTarget(owner)) <= free + face) continue;
 
-                // Skip the handover windows and their flanks. The field is zero there by design, so
-                // that a change of guide column can never hand the lever a step - the fault this
-                // whole shape exists to remove. OnlyTheLockoutGapLosesItsWallToTheHandoverWindow
-                // is what stops those windows growing.
-                if (geo.HandoverClearance(x) <= face) continue;
-
-                int force = Math.Abs(Neutral(c, x, deep).ConstantX);
+                // Nothing else is skipped. The handover windows used to be, because the field was
+                // faded to zero across them at every depth - which is exactly the hole this test
+                // was meant to be looking for. A fresh composer each time, so the pick is the cold
+                // answer at this x rather than one carried along the sweep.
+                int force = Math.Abs(Neutral(Composer(cfg), x, deep).ConstantX);
                 Assert.True(force >= 5000, "the gate is free at x=" + x + ", force " + force);
             }
+
+            // Unused now that nothing is skipped for it, but keep the read: if HandoverClearance
+            // ever stops being a tunnel-only concern this loop is what should start failing.
+            Assert.True(geo.HandoverClearance(geo.BarrierCentre(0)) == 0);
         }
 
         [Fact]
@@ -1111,14 +1113,125 @@ namespace AB9ActiveShifter.Tests
                 int target = geo.ColumnTarget(column);
                 foreach (int offset in new[] { -6000, -3000, 3000, 6000 })
                 {
-                    // Inside a handover window there is deliberately no force at all, so there is no
-                    // direction to check. Everywhere else the wall must point home.
-                    if (geo.HandoverClearance(target + offset) == 0) continue;
+                    // Every offset is checked. There used to be an exemption here for the handover
+                    // windows, where the field was deliberately zero at every depth; at gear depth
+                    // it no longer is, and the wall must point home wherever the lever is put.
 
                     // A fresh composer each time, so no earlier position biases the choice.
                     int force = Neutral(Composer(cfg), target + offset, deep).ConstantX;
                     Assert.True(Math.Sign(force) == -Math.Sign(offset),
                         column + " at " + offset + " should be pushed back, got " + force);
+                }
+            }
+        }
+
+        [Fact]
+        public void TheWallAndTheStateMachineAgreeAboutWhoseSlotThisIs()
+        {
+            // The two used to be written from different numbers: the wall opens over the column's
+            // free width and blends shut across WallBlend, while capture wanted the lever inside a
+            // band of ColumnInnerHalfEnter. Between them lay an annulus where the gate was passable
+            // and there was nothing to select, and beyond it a wall of only 12 Nm, which a hand
+            // beats. Both now ask the same question - which column is x nearest - so they cannot
+            // drift apart, and no dial can be typed to separate them.
+            EngineConfig cfg = FullGainConfig();
+            GateGeometry geo = cfg.BuildGeometry();
+
+            for (int x = 0; x <= Max; x += 37)
+            {
+                // The wall's own pick, spelled out rather than borrowed.
+                Column nearest = Column.C1;
+                int best = int.MaxValue;
+                for (int i = 0; i < geo.ColumnCount; i++)
+                {
+                    int d = Math.Abs(x - geo.ColumnTarget((Column)i));
+                    if (d < best) { best = d; nearest = (Column)i; }
+                }
+
+                Assert.Equal(nearest, geo.ColumnAt(x));
+
+                // And wherever the wall is not fully closed, the column it opened for is the one
+                // that captures - so an invitation to push is never an invitation to nothing.
+                foreach (ShiftDir dir in new[] { ShiftDir.Fwd, ShiftDir.Back })
+                {
+                    if (geo.ChannelBlockFactor(x, cfg.WallBlend, dir) >= 1.0) continue;
+
+                    Assert.True(geo.SlotExists(geo.ColumnAt(x), dir),
+                        "the wall opened at x=" + x + " for a slot that does not exist");
+                }
+            }
+        }
+
+        [Fact]
+        public void ALatchedGearKeepsItsWallAcrossTheWholeGate()
+        {
+            // Replays the manoeuvre from trace-20260807-053305: latched in fifth, lever held at
+            // full forward deflection, dragged the entire width of the gate and back. The latch is
+            // absolute, so the only thing that can enforce it is the wall - and the wall had three
+            // holes in it, one per gap, because the handover relief was applied at every depth.
+            // Measured in that trace at exactly 0 DI around x=10900 and x=52000, and under 500 DI
+            // for nearly two seconds around each: the hand finds them and settles, and they read
+            // as extra half-slots that do not change gear.
+            EngineConfig cfg = FullGainConfig();
+            GateGeometry geo = cfg.BuildGeometry();
+            int plateau = (int)Math.Round(GateGeometry.ForceMax * cfg.ColumnPinForcePct / 100.0);
+
+            foreach (Column latched in new[] { Column.C1, Column.C2, Column.C3, Column.C4 })
+            {
+                int target = geo.ColumnTarget(latched);
+                int corridor = Math.Min(cfg.SlotHalfWidth, geo.ColumnFreeHalfWidth(latched) - 100);
+                ForceComposer c = Composer(cfg);
+
+                for (int x = 0; x <= Max; x += 53)
+                {
+                    int force = c.Compose(GateState.Engaged, latched, ShiftDir.Fwd, x, 0).ConstantX;
+                    int offset = x - target;
+
+                    if (Math.Abs(offset) <= corridor + cfg.WallRamp) continue;
+
+                    Assert.Equal(plateau, Math.Abs(force));
+                    Assert.Equal(-Math.Sign(offset), Math.Sign(force));
+                }
+            }
+        }
+
+        [Fact]
+        public void TheHandoverWindowIsSpentByTheTimeTheTunnelIsLeft()
+        {
+            // Why the fade is sound at all: the window pays for a change of guide column, and the
+            // guide only changes hands in the tunnel. By the channel's exit band the pick is frozen
+            // and there is nothing left to pay for, so the window must be fully gone - and it must
+            // be at full strength through every depth the pick is still live at, or a handover
+            // would arrive part-priced.
+            // The humps and the gate are turned off so this reads the guide alone: the lockout is
+            // at full strength at its own crest, which would otherwise mask what the window did.
+            // Their crests do not move - the gate is placed by the pattern, not by its force.
+            EngineConfig cfg = FullGainConfig();
+            cfg.BarrierForcePct = 0;
+            cfg.LockoutForcePct = 0;
+            GateGeometry geo = cfg.BuildGeometry();
+
+            foreach (int gap in new[] { 0, 1, 2 })
+            {
+                int crest = geo.BarrierCentre(gap);
+
+                // Live pick: anywhere in the tunnel's enter band, the window is whole.
+                foreach (int depth in new[] { 0, 500, geo.ChannelHalfEnter })
+                {
+                    Assert.Equal(0, Neutral(Composer(cfg), crest, Center - depth).ConstantX);
+                }
+
+                // Frozen pick: by the exit band the wall is back, and it stays back all the way
+                // down. Latched, because that is what a lever at this depth actually is. These are
+                // y values, not depths - EngageDepth is measured from the end of travel.
+                foreach (int y in new[] { Center - geo.ChannelHalfExit, 12000, cfg.EngageDepth - 500, 0 })
+                {
+                    int force = Composer(cfg)
+                        .Compose(GateState.Engaged, Column.C1, ShiftDir.Fwd, crest, y).ConstantX;
+
+                    Assert.Equal(
+                        (int)Math.Round(GateGeometry.ForceMax * cfg.ColumnPinForcePct / 100.0),
+                        Math.Abs(force));
                 }
             }
         }
@@ -1185,11 +1298,12 @@ namespace AB9ActiveShifter.Tests
                 "the inverted pair repaired to a span of "
                 + (geo.ChannelHalfExit - geo.ChannelHalfEnter));
 
-            // Full scale spread over the narrowest span the repair will produce, plus the same
-            // quantisation term the sibling depth-step test carries: GuideFace is an integer, so
-            // a face that grows with the plateau shifts where the lever sits on it by up to a
-            // count. Worth single digits, against the 10000 the unrepaired cliff produced.
-            int bound = (int)Math.Ceiling(GateGeometry.ForceMax / (double)GateGeometry.MinBandSpan)
+            // Full scale spread over the narrowest span the repair will produce - twice, because
+            // the relief window's fade rides that same span alongside the plateau's rise - plus the
+            // same quantisation term the sibling depth-step test carries: GuideFace is an integer,
+            // so a face that grows with the plateau shifts where the lever sits on it by up to a
+            // count. Worth double digits, against the 10000 the unrepaired cliff produced.
+            int bound = (2 * (int)Math.Ceiling(GateGeometry.ForceMax / (double)GateGeometry.MinBandSpan))
                         + (int)Math.Ceiling(GateGeometry.ForceMax * cfg.ColumnPinForcePct / 100.0
                                             / Math.Max(1, cfg.WallRamp))
                         + 2;
@@ -1224,19 +1338,26 @@ namespace AB9ActiveShifter.Tests
             // matters at least as much as the other one.
             EngineConfig cfg = FullGainConfig();
 
-            // Two terms, and only two. The plateau's own depth ramp, which is the one transition the
-            // field is allowed to have; and one count of the wall's stiffness, because GuideFace is
-            // an integer, so a face that grows with the plateau shifts where the lever sits on it by
-            // up to a count. The second term is quantisation, not shape - it is worth a handful of DI
-            // in practice, against the 2403 a depth-keyed relief window was measured to produce.
+            // Three terms, and only three. The plateau's own depth ramp; the relief window's fade,
+            // which is the second transition the field is allowed to have and rides the same band on
+            // purpose, so widening one cannot silently outrun the other; and one count of the wall's
+            // stiffness, because GuideFace is an integer, so a face that grows with the plateau
+            // shifts where the lever sits on it by up to a count. The last is quantisation, not
+            // shape - worth a handful of DI in practice, against the 2403 a depth-KEYED relief
+            // window was measured to produce. Keyed and faded are different things: this bound is
+            // what makes them different, because a keyed window cannot fit inside it.
             int rampPerCount = (int)Math.Ceiling(
                 GateGeometry.ForceMax * (cfg.ColumnPinForcePct - cfg.ColumnDetentForcePct) / 100.0
+                / (double)Math.Max(1, cfg.ChannelHalfExit - cfg.ChannelHalfEnter));
+
+            int reliefPerCount = (int)Math.Ceiling(
+                GateGeometry.ForceMax * cfg.ColumnPinForcePct / 100.0
                 / (double)Math.Max(1, cfg.ChannelHalfExit - cfg.ChannelHalfEnter));
 
             int quantisation = (int)Math.Ceiling(
                 GateGeometry.ForceMax * cfg.ColumnPinForcePct / 100.0 / (double)Math.Max(1, cfg.WallRamp));
 
-            int bound = rampPerCount + quantisation + 2;
+            int bound = rampPerCount + reliefPerCount + quantisation + 2;
 
             for (int x = 0; x <= Max; x += 37)   // prime-ish stride, so no landmark is skipped twice
             {
@@ -1293,42 +1414,39 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void OnlyTheLockoutGapLosesItsWallToTheHandoverWindow()
+        public void TheHandoverWindowIsExactlyTheOneRuleThatCanStillFlip()
         {
-            // The price of the relief window, pinned so it cannot quietly grow. At an ordinary gap
-            // the two boundary rules agree, so the window is only the hysteresis either side and a
-            // slot keeps its wall almost to the boundary. At the lockout gap the crest and the
-            // midpoint are thousands of counts apart and the window spans both, which is why
-            // dragging out of 5/6 toward 7/R at gear depth goes slack across the gate's doorway.
+            // The price of the relief window, pinned so it cannot quietly grow. One rule changes
+            // hands now - the barrier crests, in the tunnel - and Pick biases each crest by the
+            // hysteresis toward whichever column is held, so the window is that band and nothing
+            // more. Every gap costs the same, the lockout gap included.
+            //
+            // It used to span the hull of the crest AND the gap's plain midpoint, because the pick
+            // was live below the tunnel too and used midpoints down there. At the lockout gap those
+            // are thousands of counts apart, so the window swallowed the gate's whole doorway.
             EngineConfig cfg = FullGainConfig();
             GateGeometry geo = cfg.BuildGeometry();
 
             for (int gap = 0; gap < geo.ColumnCount - 1; gap++)
             {
                 int crest = geo.BarrierCentre(gap);
-                int mid = (geo.ColumnTarget((Column)gap) + geo.ColumnTarget((Column)(gap + 1))) / 2;
-
-                // Both rules' flip positions are covered, whichever rule is in force at this depth.
                 Assert.Equal(0, geo.HandoverClearance(crest));
-                Assert.Equal(0, geo.HandoverClearance(mid));
 
-                int expected = Math.Abs(crest - mid) + (2 * cfg.DetentHysteresis) + 1;
                 int width = 0;
-                for (int x = Math.Min(crest, mid) - (2 * cfg.DetentHysteresis);
-                         x <= Math.Max(crest, mid) + (2 * cfg.DetentHysteresis); x++)
+                for (int x = crest - (4 * cfg.DetentHysteresis);
+                         x <= crest + (4 * cfg.DetentHysteresis); x++)
                 {
                     if (geo.HandoverClearance(x) == 0) width++;
                 }
 
-                Assert.Equal(expected, width);
-
-                if (gap != geo.LockoutGapIndex)
-                {
-                    // An ordinary gap's two rules agree, so its dead strip is only the hysteresis.
-                    Assert.Equal(crest, mid);
-                    Assert.Equal((2 * cfg.DetentHysteresis) + 1, width);
-                }
+                Assert.Equal((2 * cfg.DetentHysteresis) + 1, width);
             }
+
+            // And the gap's midpoint, which the window used to have to reach at the lockout, is
+            // now plainly outside it - that span is the wall a latched 5/6 gets back.
+            int lockoutMid = (geo.ColumnTarget((Column)geo.LockoutGapIndex)
+                              + geo.ColumnTarget((Column)(geo.LockoutGapIndex + 1))) / 2;
+            Assert.True(geo.HandoverClearance(lockoutMid) > 0);
         }
 
         [Fact]
@@ -1952,9 +2070,7 @@ namespace AB9ActiveShifter.Tests
         public void ASlotWallStillCannotBleedIntoTheNextColumn()
         {
             // The one bound left on the face: whatever the bite is set to, the wall must be at
-            // full strength before the neighbouring column's territory begins. "Begins" is now the
-            // edge of the handover window rather than the midpoint itself, because the field is
-            // faded to zero across the window on purpose - see GateGeometry.HandoverClearance.
+            // full strength before the neighbouring column's territory begins.
             EngineConfig cfg = FullGainConfig();
             cfg.WallRamp = 40000;   // absurd on purpose
             ForceComposer c = Composer(cfg);
@@ -1971,8 +2087,10 @@ namespace AB9ActiveShifter.Tests
 
             Assert.Equal(9000, peak);
 
-            // And zero at the boundary itself, which is the whole point of the window.
-            Assert.Equal(0, c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, atMidpoint, 2000).ConstantX);
+            // And at full strength AT the boundary too, at gear depth. The handover window used
+            // to zero it there in every state, which is how a latched gear ended up with holes in
+            // its wall at each gap; the window is a tunnel-only concern now.
+            Assert.Equal(-9000, c.Compose(GateState.Engaged, Column.C2, ShiftDir.Fwd, atMidpoint, 2000).ConstantX);
         }
 
         // ---------------------------------------------------------------- time shaping
@@ -2482,6 +2600,19 @@ namespace AB9ActiveShifter.Tests
             sm.Update(C4, 2000);
             Assert.Equal(0, sm.CurrentGear);
             Assert.Equal(GateState.Neutral, sm.State);
+
+            // And nowhere in that column's territory, not just on its centre line. Ownership means
+            // a column claims everything up to the midpoint, so a missing slot has to refuse across
+            // all of it or the hole would only be as wide as the old selection band.
+            for (int x = ((geo.ColumnTarget(Column.C3) + C4) / 2) + 1; x <= C4; x += 251)
+            {
+                var edge = new GateStateMachine(geo, cfg.MinEngageTicks);
+                edge.Update(x, Center);
+                for (int i = 0; i < 4; i++) edge.Update(x, 0);
+
+                Assert.Equal(0, edge.CurrentGear);
+                Assert.Equal(GateState.Neutral, edge.State);
+            }
 
             sm.Update(C4, Center);
             sm.Update(C4, GateGeometry.AxisMax - 2000);

@@ -234,15 +234,35 @@ runners cannot load, so anything worth testing must not touch it.
   MULTIPLIER on position alone.** A nearest-column field reverses at every column boundary, so a flat
   plateau held up to the boundary makes the reversal a step of twice the plateau — measured at 20000 DI,
   a clamped ±12 Nm, from 100 counts of drift, and felt as the notches kicking while sliding the tunnel.
-  `GateGeometry.HandoverClearance` is the window; it spans the **hull of both boundary rules** (crest in
-  the tunnel, midpoint below), because keying it on the rule in force at the current depth moves the
-  same reversal onto the depth axis — 2403 DI from one single axis count of fore/aft. Do not reimplement
-  it as a limit on the guide's *reach*: a reach belongs to whichever column owns the field, so the
-  latched and position-picked branches then disagree by the full pin force exactly where a flat plateau
-  had made them identical (10000 DI of invented history dependence, measured). A shared scalar cannot,
-  because the field is `F_old(history) × Relief(x)`. Three tests pin this:
-  `NoSingleCountOfDriftEverStepsTheLateralField`, `NoSingleCountOfDepthEverStepsTheLateralField`,
-  `TheReliefWindowCannotInventHistoryDependence`.
+  `GateGeometry.HandoverClearance` is the window: the barrier crests, ± the hysteresis `Pick` biases
+  them by. Do not reimplement it as a limit on the guide's *reach*: a reach belongs to whichever column
+  owns the field, so the latched and position-picked branches then disagree by the full pin force
+  exactly where a flat plateau had made them identical (10000 DI of invented history dependence,
+  measured). A shared scalar cannot, because the field is `F_old(history) × Relief(position)`. Three
+  tests pin this: `NoSingleCountOfDriftEverStepsTheLateralField`,
+  `NoSingleCountOfDepthEverStepsTheLateralField`, `TheReliefWindowCannotInventHistoryDependence`.
+- **The guide column changes hands only in the tunnel, and the window is faded out with depth.** The
+  window pays for a handover; applied at every depth it also holes the slot walls, and a latched gear's
+  wall is the whole enforcement of the absolute lock. Measured: a gear held at full deflection had
+  **exactly 0 DI** of lateral wall at each gap, and under 500 DI for 1.8 s at one of them — felt on the
+  rig as extra half-slots that do not change gear. `GuideColumn` therefore returns the column already
+  held whenever the lever is out of the tunnel, and `Relief` rides `SlotConfinementFactor`, so the
+  window is whole through every depth a flip can still happen at and gone through every depth a wall
+  has to hold. Do not make the fade discontinuous in depth and do not make the pick live again below
+  the tunnel: the first moves the old reversal onto the depth axis (2403 DI from one axis count), the
+  second needs a second boundary rule and brings the holes back. Freezing also closes the lockout
+  bypass that the crest/midpoint split existed for. `TheHandoverWindowIsSpentByTheTimeTheTunnelIsLeft`
+  and `ALatchedGearKeepsItsWallAcrossTheWholeGate` pin it.
+- **Every position in the gate belongs to a column, and it is the one the wall opened for.**
+  `ColumnAt` is the nearest column, boundaries at the gap midpoints, never `None` — the same ownership
+  `ChannelBlockFactor` measures the wall's mouth from. A narrower capture band leaves an annulus where
+  the gate is passable and there is no gear to select, and past it the wall is only 12 Nm, which a hand
+  beats: measured as two pushes to **full deflection**, 896 ms and 616 ms, ~2400 counts off the column,
+  state `Neutral`, gear 0 — the lever shoved fully home and the game told nothing. A silent non-shift is
+  the worst answer this gate can give. What a slot *holds* is still a fact of the gear map alone, so a
+  missing slot refuses across the whole of its column's territory. `PlaceLockout` clamps the gate's
+  crest to the main section's side of its gap midpoint for the same reason — otherwise ownership could
+  hand a lever 7/R short of the gate, with the toll unpaid.
 - **The lateral field must not read the state machine.** It is one function of position and the
   guide column, called by both branches; `TheLateralFieldDoesNotDependOnTheLatch` sweeps every
   column, direction, position and depth and demands exact equality. Computing it per-branch produced
@@ -256,9 +276,11 @@ runners cannot load, so anything worth testing must not touch it.
   outward, which is why they cannot self-excite. `TheMouthOnlyEverRemovesForce` sweeps the gate and
   demands the shaped force is never larger nor opposite in sign to the square one. `MouthSlopeMax`
   bounds every flank at half the wall face and is not a user dial.
-- **The guide's column boundaries are crests in the tunnel and midpoints below it.** Crests at depth
-  turn the lockout's own wall into a conveyor toward 7/R and the toll is never paid. Positional, not
-  historical, so a cold start resolves identically.
+- **The guide's column boundaries are the barrier crests, and they are only consulted in the tunnel.**
+  A live pick at depth turns the lockout's own wall into a conveyor toward 7/R and the toll is never
+  paid — which is why the boundaries used to be midpoints below the tunnel, and why they no longer need
+  to be. Out of the tunnel the pick is simply the one already held; the fallback for a pick that does
+  not exist yet is `ColumnAt`, so a cold start is pushed toward the column that is about to claim it.
 - Barriers fade out with depth as the slot walls fade in, and they are applied in **both** branches —
   anything indexed on the state machine puts the step back.
 - **The lockout gate positions itself** against the last main-section column

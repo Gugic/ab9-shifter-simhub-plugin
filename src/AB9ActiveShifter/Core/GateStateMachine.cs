@@ -86,13 +86,11 @@ namespace AB9ActiveShifter.Core
         {
             if (!_geo.OutOfChannel(y)) return;
 
+            // Whichever column owns this position - there is always one. A push out of the tunnel
+            // between two columns used to select nothing at all, and a hand beats 12 Nm, so what
+            // that produced was a lever shoved fully home with the game told nothing. See
+            // GateGeometry.ColumnAt for the measurement.
             Column c = _geo.ColumnAt(x);
-            if (c == Column.None)
-            {
-                // Pressing against the channel wall between columns. Not an error: the Y wall
-                // is what should be resisting here, so there is nothing to select.
-                return;
-            }
 
             ShiftDir dir = _geo.DirectionOf(y);
             if (!_geo.SlotExists(c, dir))
@@ -164,7 +162,7 @@ namespace AB9ActiveShifter.Core
             }
 
             Column c = _geo.ColumnAt(x);
-            if (c == Column.None || !_geo.SlotExists(c, _geo.DirectionOf(y)))
+            if (!_geo.SlotExists(c, _geo.DirectionOf(y)))
             {
                 EnterNeutral();
                 return;
