@@ -738,6 +738,14 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="8">
 
+                    <styles:SHSection Title="THE GATE THESE DIALS MAKE" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <local:GateVisualizer x:Name="GeometryGate" Height="340" HorizontalAlignment="Left" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
+                                       Text="The same live gate the Monitor tab draws, here so a slider below and its effect are on screen together. The shaded area is the free space the geometry actually leaves; the blue marks are where the plugin decides a gear has engaged or released, how wide each column's doorway opens, and where one column hands the lever to the next. Move a dial and watch which one changes." />
+                        </StackPanel>
+                    </styles:SHSection>
+
                     <styles:SHSection Title="FORCE SHAPING" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <ui:TitledSlider Title="Gate wall fade width, across a column (axis counts)" Minimum="200" Maximum="6000"
@@ -853,9 +861,11 @@
                 <StackPanel Margin="8">
                     <styles:SHSection Title="LIVE GATE" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
-                            <local:GateVisualizer x:Name="Visualizer" Height="300" HorizontalAlignment="Left" />
+                            <local:GateVisualizer x:Name="Visualizer" Height="340" HorizontalAlignment="Left" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
-                                       Text="The dot is the stick. The shaded band on the right is the lockout: in the neutral channel it pushes back toward the main gears until you push through into 7/R." />
+                                       Text="The dot is the stick, and the shaded area is the gate's free space - drawn at the size the geometry actually makes it, so every dial on the Geometry tab moves something here. The orange band is the lockout: in the neutral channel it pushes back toward the main gears until you push through into 7/R." />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
+                                       Text="Blue marks are what the plugin measures rather than what the hand feels: the solid lines across each slot are the engage depth, where the gear registers, and the dashed ones the release depth, where it lets go. The blue brackets on the tunnel edge are how wide each column's doorway opens, and the dashed blue pairs in the tunnel are the column handover width. The faint dashed verticals are the ownership boundaries - past one of those, a push that beats the wall lands in the next column's slot." />
                         </StackPanel>
                     </styles:SHSection>
 

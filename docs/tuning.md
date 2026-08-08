@@ -30,6 +30,31 @@ questions that used to need a trip to the rig:
   is the more portable view, because column spacing changes with the pattern — a slot width tuned
   on 7+R is a different fraction of the room on 5+R, which has three columns instead of four.
 
+## What the Geometry tab shows you while you turn a dial
+
+The same live gate the Monitor tab draws sits at the top of the Geometry tab, under **THE GATE
+THESE DIALS MAKE**, so a slider and its effect are on screen together. It is a plan view drawn at
+the size the geometry actually makes it — every dial below moves something in it — and the slot
+outlines are sampled from the force code rather than redrawn, so the corridor you see is the
+corridor the lever gets.
+
+| What you see | Which dial moves it |
+| --- | --- |
+| The shaded area | The gate's free space: where nothing pushes you sideways |
+| Depth of the horizontal band | *Neutral tunnel half-depth (enter)* |
+| Grey dashed lines above and below it | *Neutral tunnel half-depth (leave)* |
+| Width of each slot, and its funnel at the mouth | *Slot width, free corridor*, *mouth reach* and *mouth opening* on Feel |
+| Blue brackets on the tunnel edge | *Outer* / *Inner column half-width* — how wide each doorway opens |
+| Solid blue line across each slot | *Engage depth* — where the gear registers |
+| Dashed blue line across each slot | *Release depth* — where it lets go |
+| Dashed blue pairs inside the tunnel | *Column handover width* |
+| Faint dashed verticals, full height | The ownership boundaries: past one, a push that beats the wall lands in the next column's slot |
+| Orange band | The lockout gate, at the width and position the geometry gives it. It reaches only as deep as the tunnel because barriers fade out with depth |
+
+The blue marks are all things the plugin *measures* rather than things the hand feels, which is
+why they are a different colour from the gate itself. In sequential the same two marks show where
+a shift fires and how far back the lever must come before it can fire again.
+
 ## Start here
 
 | Dial | Default | What it does |
@@ -409,9 +434,9 @@ at about 1.5× the wall face, so it is the one to widen if corners still feel ha
 no longer has a ramp of its own: every sideways force rises at the wall's stiffness, so a gentler
 force gets a shorter face instead of a steeper one. The enter/exit pairs are hysteresis bands — the
 exit value must always be the looser one. The lockout gate has no position dial: it places
-itself against the last main-section column, and the Monitor tab draws the band where it actually
-is. *FFB loop rate* should stay at 1000; see [hardware.md](hardware.md) for
-why higher buys nothing.
+itself against the last main-section column, and both the plan view at the top of the tab and the
+Monitor tab draw the band where it actually is. *FFB loop rate* should stay at 1000; see
+[hardware.md](hardware.md) for why higher buys nothing.
 
 ## Resets
 

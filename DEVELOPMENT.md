@@ -157,9 +157,9 @@ src/AB9ActiveShifter/
   Device/                  DirectInput and Win32
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
   Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the Setup tab's picker (query-only)
-  UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor),
-                           GateVisualizer, and the Feel tab's force-curve graphs on
-                           ForceGraphVisualizerBase - each sampling ForceComposer itself
+  UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor), the
+                           GateVisualizer plan view and the Feel tab's force-curve graphs, all
+                           on ForceGraphVisualizerBase and each sampling ForceComposer itself
 tests/AB9ActiveShifter.Tests/
 build/refs/                Reference-only stubs of SimHub's assemblies
 tools/Verify-StubBuild.ps1 Proves a stub-built DLL binds against the real SimHub
