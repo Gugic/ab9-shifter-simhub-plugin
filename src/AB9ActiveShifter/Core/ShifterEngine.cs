@@ -1195,9 +1195,13 @@ namespace AB9ActiveShifter.Core
             _nextHealthPollMs = nowMs + HealthPollMs;
 
             FfbDevice device = _device;
+            EffectSet effects = _effects;
             if (device == null) return;
 
-            ForceOutputHealth now = device.ReadForceOutputHealth();
+            // The device's own Empty flag is not taken at face value - this base sets it while
+            // producing force perfectly. The effects themselves are the corroborating witness.
+            ForceOutputHealth now = device.ReadForceOutputHealth(
+                effects != null && effects.AnyStillDownloaded());
 
             if (now == _health || now == ForceOutputHealth.Unknown) return;
 
@@ -1209,15 +1213,48 @@ namespace AB9ActiveShifter.Core
                 Log.Warn("Force output: " + ForceFeedbackHealth.Describe(now));
                 _status = ForceFeedbackHealth.Describe(now);
 
-                // One nudge, then let the next poll say whether it took. Recreating the effects
-                // is the reopen path's job, not this one - it owns the device lock.
-                if (ForceFeedbackHealth.WorthRecovering(now)) device.TryWakeForceFeedback();
+                // One attempt each, then let the next poll say whether it took. Which attempt
+                // depends on the fault: switching the actuators back on cannot re-download an
+                // effect, and re-downloading effects does nothing for actuators that are off.
+                if (now == ForceOutputHealth.ActuatorsOff) device.TryWakeForceFeedback();
+                if (now == ForceOutputHealth.EffectsGone) RebuildEffects();
             }
             else if (wasFault)
             {
                 // Only worth a line as a recovery. Saying "producing" every time the lever leaves
                 // a wall would bury the one message that matters.
+                //
+                // The status has to be put back too, and forgetting that was its own bug: the
+                // fault sentence is the last thing written to a field the Monitor tab reads
+                // forever, so it outlived the fault it described and hid every status after it.
                 Log.Info("Force output: recovered, the base is producing force again.");
+                if (_activeConfig != null) _status = BuildReadyStatus(_activeConfig);
+            }
+        }
+
+        /// <summary>
+        /// Re-creates the gate's effects on the device handle we already hold, for the one fault
+        /// where that is the repair: the base has thrown our effects away without dropping the
+        /// handle, so there is nothing wrong with the connection and a full reopen would be a
+        /// heavier interruption than the fault.
+        ///
+        /// Deliberately does not touch the gear buttons. The lever has not moved and the game's
+        /// idea of which gear is engaged is still correct; force is what is missing, and clearing
+        /// the gear would turn a silent loss of feel into a silent loss of drive.
+        /// </summary>
+        private void RebuildEffects()
+        {
+            lock (_deviceLock)
+            {
+                if (_device == null) return;
+
+                DisposeEffects();
+
+                string error;
+                _effects = _device.CreateEffects(_composer.DamperCoefficient, out error);
+
+                if (_effects == null) Log.Warn("Force output: could not rebuild the effects - " + error);
+                else Log.Info("Force output: effects rebuilt on the open device.");
             }
         }
 

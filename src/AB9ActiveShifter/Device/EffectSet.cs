@@ -377,6 +377,49 @@ namespace AB9ActiveShifter.Device
             }
         }
 
+        /// <summary>
+        /// Whether the device still holds these effects, asked of the effects themselves rather
+        /// than of the device's summary flags.
+        ///
+        /// It exists to corroborate <c>DIGFFS_EMPTY</c> before anyone acts on it. That flag is the
+        /// device's own claim to be holding no effects, and on this base it is not trustworthy:
+        /// the same driver reports <c>DIGFFS_STOPPED</c> as its ordinary resting state, which is
+        /// why <see cref="ForceOutputHealth.Idle"/> exists at all. Measured on the rig: the base
+        /// set Empty and held it for forty minutes, with no other fault flag, while producing
+        /// force perfectly - so a recovery keyed on the flag alone would have torn down working
+        /// effects once a second for as long as the base felt like saying it.
+        ///
+        /// Querying an effect's status is the direct question, because DirectInput answers
+        /// <c>DIERR_NOTDOWNLOADED</c> for an effect the device is no longer holding. Anything else
+        /// going wrong is read as "still there": the cost of believing a false alarm is force
+        /// dropping out under a hand that had it, and the cost of missing a real one is a message
+        /// nobody gets for a fault they can already feel.
+        /// </summary>
+        public bool AnyStillDownloaded()
+        {
+            return IsDownloaded(_springX) || IsDownloaded(_springY) || IsDownloaded(_constantX)
+                   || IsDownloaded(_constantY) || IsDownloaded(_damper);
+        }
+
+        private static bool IsDownloaded(Effect effect)
+        {
+            if (effect == null) return false;
+
+            try
+            {
+                EffectStatus ignored = effect.Status;
+                return true;
+            }
+            catch (SharpDXException ex)
+            {
+                return ex.ResultCode != ResultCode.NotDownloaded;
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+        }
+
         public void StopAll()
         {
             StopEffect(_springX);

@@ -53,6 +53,18 @@ The springs exist but the gate does not use them (see [force-model.md](force-mod
 pins that. Retry logic: one retry without `NoRestart`, then three strikes fault the set and the
 engine reopens the device.
 
+**A second failure mode is invisible to that path**, because it produces no write errors at all:
+the base can throw the effects away while keeping the handle valid and accepting every write. A
+once-a-second poll of `GetForceFeedbackState` watches for it (`ShifterEngine.WatchForceOutput`),
+and on a confirmed `EffectsGone` recreates the effects on the handle already held —
+`RebuildEffects`, one attempt, no reopen and deliberately **no change to the gear buttons**: the
+lever has not moved and the game's idea of the current gear is still right, so clearing it would
+turn a loss of feel into a loss of drive. *Confirmed* is load-bearing: this base sets the Empty
+flag while producing force, so the flag is only believed when `EffectSet.AnyStillDownloaded()`
+agrees with it. See [hardware.md](hardware.md) for the measurement. Recovery restores the status
+line as well as logging — a fault sentence left in that field outlives the fault and hides every
+status after it.
+
 **Write scheduling is the interesting part.** A write costs 1.0 ms on the USB frame clock, so:
 
 - At most **one** constant-force write per `Apply`.

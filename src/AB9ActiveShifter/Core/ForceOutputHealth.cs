@@ -19,6 +19,12 @@ namespace AB9ActiveShifter.Core
         /// The device is holding no effects. Ours were discarded behind our back - the signature
         /// of the base resetting its force feedback engine while the handle stayed valid. This is
         /// the one worth trying to recover from, because recreating the effects may be enough.
+        ///
+        /// Only ever reached when the device's Empty flag and the effects themselves agree. The
+        /// flag alone is not evidence on this base: measured, it was set and held for forty
+        /// minutes with no other fault flag while the gate produced force perfectly, so a repair
+        /// keyed on the flag alone would have thrown away working effects once a second. See
+        /// <c>EffectSet.AnyStillDownloaded</c>, which is the other half of this answer.
         /// </summary>
         EffectsGone,
 
@@ -59,16 +65,26 @@ namespace AB9ActiveShifter.Core
         /// Order matters: the most specific and most actionable answer wins. A device that is
         /// both lost and empty is lost, and a device that is empty and otherwise healthy is the
         /// case worth recovering rather than merely reporting.
+        /// <para>
+        /// <paramref name="deviceSaysEmpty"/> and <paramref name="effectsStillHeld"/> are two
+        /// answers to the same question from two sources, and it takes both to convict. The first
+        /// is the device's own flag; the second is whether the effects we created are still
+        /// downloaded, asked of the effects themselves. They are separate arguments rather than
+        /// one because on this base the flag lies: measured on the rig it was set and held for
+        /// forty minutes with no other fault flag while the gate produced force perfectly, and
+        /// <see cref="ForceOutputHealth.EffectsGone"/> now triggers a rebuild - so believing the
+        /// flag alone would throw away working effects under a hand that had them.
+        /// </para>
         /// </summary>
         public static ForceOutputHealth Classify(
             bool deviceLost, bool powerOff, bool safetyCutout,
-            bool actuatorsOff, bool stoppedOrPaused, bool empty)
+            bool actuatorsOff, bool stoppedOrPaused, bool deviceSaysEmpty, bool effectsStillHeld)
         {
             if (deviceLost) return ForceOutputHealth.Lost;
             if (powerOff) return ForceOutputHealth.PowerOff;
             if (safetyCutout) return ForceOutputHealth.SafetyCutout;
             if (actuatorsOff) return ForceOutputHealth.ActuatorsOff;
-            if (empty) return ForceOutputHealth.EffectsGone;
+            if (deviceSaysEmpty && !effectsStillHeld) return ForceOutputHealth.EffectsGone;
             if (stoppedOrPaused) return ForceOutputHealth.Idle;
             return ForceOutputHealth.Producing;
         }
@@ -108,7 +124,8 @@ namespace AB9ActiveShifter.Core
 
                 case ForceOutputHealth.EffectsGone:
                     return "The base has discarded the gate's effects - it reset its force feedback " +
-                           "engine. Rebuilding them; if force does not come back, power-cycle the base.";
+                           "engine while staying connected. Rebuilding them once; if force does not " +
+                           "come back, power-cycle the base.";
 
                 case ForceOutputHealth.ActuatorsOff:
                     return "The base has switched its actuators off, so it is producing no force " +
