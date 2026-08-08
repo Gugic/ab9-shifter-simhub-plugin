@@ -235,8 +235,13 @@ namespace AB9ActiveShifter.Device
         /// a base that has stopped producing torque while still accepting everything sent to it.
         /// Returns <see cref="ForceOutputHealth.Unknown"/> rather than throwing if the device
         /// will not answer; a driver that dislikes the query must not take the loop down.
+        ///
+        /// <paramref name="effectsStillHeld"/> is the caller's own answer to the one question the
+        /// device is unreliable about - see <c>EffectSet.AnyStillDownloaded</c>. Both facts go to
+        /// <see cref="ForceFeedbackHealth.Classify"/>, which owns the rule that it takes both to
+        /// convict; this method only reads flags off a device.
         /// </summary>
-        public ForceOutputHealth ReadForceOutputHealth()
+        public ForceOutputHealth ReadForceOutputHealth(bool effectsStillHeld)
         {
             if (_joystick == null || !_acquired) return ForceOutputHealth.Unknown;
 
@@ -252,7 +257,8 @@ namespace AB9ActiveShifter.Device
                     actuatorsOff: (s & ForceFeedbackState.ActuatorsOff) != 0,
                     stoppedOrPaused: (s & ForceFeedbackState.Stopped) != 0
                                      || (s & ForceFeedbackState.Paused) != 0,
-                    empty: (s & ForceFeedbackState.Empty) != 0);
+                    deviceSaysEmpty: (s & ForceFeedbackState.Empty) != 0,
+                    effectsStillHeld: effectsStillHeld);
             }
             catch (Exception)
             {

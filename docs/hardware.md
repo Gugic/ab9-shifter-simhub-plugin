@@ -269,6 +269,27 @@ The two useful discriminators, since this will be diagnosed again:
   fine in Pit House gearbox mode" is not evidence that the base is healthy — that mode never
   touches the interface the plugin uses, nor the DirectInput force feedback path at all.
 
+## `GetForceFeedbackState` is not a witness on this base
+
+Two of DirectInput's status flags are set by this base as a matter of course, so neither is
+evidence of anything on its own. Both were believed once and both produced a false alarm.
+
+| Flag | What DirectInput says it means | What this base does |
+| --- | --- | --- |
+| `DIGFFS_STOPPED` | No effect is playing | Set whenever the gate is demanding nothing, which in neutral is most of the time. Treating it as a fault put a warning in the log **96 ms after every startup**. |
+| `DIGFFS_EMPTY` | The device holds no effects | Measured 2026-08-07: set at 18:21:55 and **held for over forty minutes**, no other fault flag, while the base produced force perfectly and the effects were demonstrably still downloaded. |
+
+`Stopped` is classified as `ForceOutputHealth.Idle`, which is deliberately not a fault. `Empty` is
+only believed when the effects themselves agree — `EffectSet.AnyStillDownloaded` queries each
+effect and reads `DIERR_NOTDOWNLOADED` (`0x80040203`) as the only proof, because that is the
+question DirectInput answers directly rather than in a summary. This matters more than it looks:
+the repair for a genuinely emptied device is to throw the effects away and rebuild them, so a
+detector keyed on the flag alone would have destroyed working force once a second for as long as
+the base felt like setting it.
+
+The rule generalises: **do not act on this driver's summary flags without a second source.** Ask
+the object whose state you actually care about.
+
 One coding hazard worth remembering because it produced a completely silent failure: the constant
 force rate limiter once seeded its "last write" timestamp to `long.MinValue`, so `now - last`
 overflowed negative, the first write never fired, and **every constant force in the gate was

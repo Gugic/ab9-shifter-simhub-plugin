@@ -326,6 +326,15 @@ runners cannot load, so anything worth testing must not touch it.
   that order, always. A gear must never stay stuck down.
 - The watchdog (500 ms timer, 1 s staleness) calls `EmergencyStop`. `StopForces` is the only
   device method callable off the engine thread, and it swallows everything.
+- **A repair keyed on this base's status flags needs a second source, and never touches the gear.**
+  The base sets `DIGFFS_EMPTY` while producing force — measured, held over forty minutes with no
+  other fault flag — and `DIGFFS_STOPPED` at rest, which is why `Idle` is not a fault. Since
+  `EffectsGone` now *rebuilds* the effects, a detector believing the flag alone would destroy
+  working force once a second; `Classify` therefore takes the device's claim and
+  `EffectSet.AnyStillDownloaded()` as separate arguments and needs both. `RebuildEffects` leaves
+  the held gear alone: the lever has not moved, so dropping the button would turn a loss of feel
+  into a loss of drive. And a fault must **put the status back on recovery** — writing only the
+  fault sentence left it outliving the fault and hiding every status after it.
 - **A picture of the gate samples `ForceComposer`, never a copy of its arithmetic.** The Feel tab's
   curves and the gate plan view both exist to answer "what will this dial actually do", so a
   drawing that re-derives the shape is the one place it can quietly stop matching the gate — and it
