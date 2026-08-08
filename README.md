@@ -217,13 +217,20 @@ Four, selectable per **profile** on the Setup tab:
 | **Sequential** | A sprung fore/aft lever: one shift per stroke, with a click you can tune |
 
 A profile stores every dial together with its pattern, so each pattern keeps its own tuning and
-switching between them is one dropdown.
+switching between them is one dropdown. *Next profile* and *Previous profile* are bindable actions
+if you would rather not use the dropdown.
+
+**A profile can also claim cars.** Under *Vehicle models (optional)* on the Setup tab, list the ids
+your game reports for the cars that should bring that profile up — a five-speed car gets the 5+R
+profile without your touching anything. **Add last used vehicle** fills in whatever the running game
+last reported, which saves guessing at the exact string. Empty means the profile never
+auto-activates, which is how every shipped profile starts.
 
 **Profiles can be exported and imported**, so a tune can be shared as a file. What travels is the
-tuning only: your measured polarity, your device and vJoy numbers and your loop rate stay as they
-are on your machine. An import always *adds* a profile, numbering the name if it is taken, so
-someone else's file can never land on top of yours — and it always arrives with forces off, with
-every value range-checked on the way in.
+tuning only: your measured polarity, your device and vJoy numbers, your loop rate and your car
+mappings stay as they are on your machine. An import always *adds* a profile, numbering the name if
+it is taken, so someone else's file can never land on top of yours — and it always arrives with
+forces off, with every value range-checked on the way in.
 
 ## Game effects
 

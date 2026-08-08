@@ -33,6 +33,20 @@ namespace AB9ActiveShifter
         private volatile string _lastCarModel;
 
         /// <summary>
+        /// Whether the settings page is open. Only <see cref="DataUpdate"/> reads it, to decide
+        /// whether to look up the current car for a user who has not listed any yet - see the
+        /// gate there. Set from the UI thread, read from the data thread, one writer each way,
+        /// and a tick either side of the truth costs nothing.
+        /// </summary>
+        private volatile bool _watchingCarModel;
+
+        /// <summary>Told by the settings page when it appears and disappears.</summary>
+        public void WatchCarModel(bool watching)
+        {
+            _watchingCarModel = watching;
+        }
+
+        /// <summary>
         /// The most recent car-model value seen, for the Setup tab's "add last used vehicle"
         /// convenience button. Written from <see cref="DataUpdate"/> (SimHub's data thread), read
         /// from the UI thread - a single writer and a plain reference read/write needs no lock,
@@ -187,17 +201,29 @@ namespace AB9ActiveShifter
 
             StatusDataBase d = data.NewData;
 
-            // Cheap on every tick by construction: a string compare, and the actual match/switch
-            // only runs on a genuine change, marshalled off this thread. DataUpdate is SimHub's
-            // critical path - no locks, no file I/O, no touching the settings UI from here.
+            // Gated, because the read below is a property-system lookup and a feature nobody has
+            // configured must not cost anything on SimHub's critical path - the custom-property
+            // effect further down is gated on its own enable flag for the same reason. Two ways
+            // through: some profile actually lists a car, or the settings page is open and its
+            // "add last used vehicle" button needs something to offer. The second matters because
+            // that button is how the first list gets populated, so gating on the list alone would
+            // leave a user who has none with no way to learn what their game calls the car.
+            //
+            // Past the gate this is a string compare, and the match and switch only run on a
+            // genuine change, marshalled off this thread. No locks, no file I/O, no touching the
+            // settings UI from here.
+            ProfileStore store = Store;
             try
             {
-                object rawCar = pluginManager.GetPropertyValue("DataCorePlugin.GameData.CarModel");
-                string carModel = rawCar == null ? null : Convert.ToString(rawCar, System.Globalization.CultureInfo.InvariantCulture);
-                if (!string.IsNullOrEmpty(carModel) && carModel != _lastCarModel)
+                if (store != null && (store.AnyCarModels || _watchingCarModel))
                 {
-                    _lastCarModel = carModel;
-                    OnUiThread(() => TryAutoSwitchProfile(carModel));
+                    object rawCar = pluginManager.GetPropertyValue("DataCorePlugin.GameData.CarModel");
+                    string carModel = rawCar == null ? null : Convert.ToString(rawCar, System.Globalization.CultureInfo.InvariantCulture);
+                    if (!string.IsNullOrEmpty(carModel) && carModel != _lastCarModel)
+                    {
+                        _lastCarModel = carModel;
+                        if (store.AnyCarModels) OnUiThread(() => TryAutoSwitchProfile(carModel));
+                    }
                 }
             }
             catch

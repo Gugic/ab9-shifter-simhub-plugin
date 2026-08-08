@@ -158,6 +158,31 @@ namespace AB9ActiveShifter
         }
 
         /// <summary>
+        /// Whether any profile has opted into car-model auto-switching at all.
+        ///
+        /// Exists to keep the feature off the telemetry path for everyone who does not use it.
+        /// <c>DataUpdate</c> runs on SimHub's critical path and the car-model read is a property
+        /// system lookup; this is a walk over three or four profiles whose lists are empty, which
+        /// short-circuits on the first count. The custom-property effect right beside it is gated
+        /// the same way, on its own enable flag - a feature nobody has configured should cost
+        /// nothing per tick.
+        /// </summary>
+        public bool AnyCarModels
+        {
+            get
+            {
+                if (Profiles == null) return false;
+
+                foreach (ShifterProfile p in Profiles)
+                {
+                    if (p != null && p.CarModels != null && p.CarModels.Count > 0) return true;
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>
         /// The first profile whose vehicle list names this car, or null if none claims it. Order
         /// follows <see cref="Profiles"/>, so if more than one profile lists the same car, the
         /// earlier one wins - deliberately simple, since resolving a genuine conflict is the

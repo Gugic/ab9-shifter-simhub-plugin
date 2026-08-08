@@ -134,6 +134,9 @@ tests/AB9ActiveShifter.Tests/
   AxisCaptureTests.cs      A pedal wired backwards, one that rests at full scale, a silent device
   ClutchModeTests.cs       Threshold mode is byte-identical to what shipped; the bite-point pulse
   ProfileCycleTests.cs     What a bound Next/Previous hotkey walks through, incl. stale names
+  ProfileStoreTests.cs     Car-model matching, and the gate that keeps it off the telemetry path
+  ProfileSwitchTransitionTests.cs  Easing the new gate in, and the confirmation thump's count
+  ForceOutputHealthTests.cs  What the base's status flags mean, and what it takes to convict
   VJoyDeviceInfoTests.cs   What the device picker says, including the too-few-buttons trap
 build/refs/                Reference-only stubs of SimHub's assemblies, so the plugin builds
                            on a machine with no SimHub. Read build/refs/README.md before

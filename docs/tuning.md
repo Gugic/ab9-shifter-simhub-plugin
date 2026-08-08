@@ -109,6 +109,25 @@ none and they walk through all of them. Switching releases any held gear and cle
 pulse in flight before the new gate is applied, so it is safe to press while driving — which is
 the point, if you keep an H profile and a sequential one for different cars.
 
+**Switching by car.** *Vehicle models (optional)* on the Setup tab takes one vehicle id per line —
+whatever the game's own telemetry reports for the current car. When the running car matches a line,
+that profile activates on its own. Leave the box empty to keep a profile out of it entirely, which
+is the default and what a fresh install does.
+
+- **Add last used vehicle** fills in whatever the running game most recently reported, which is the
+  easy way to learn the exact string: start the game, sit in the car, come back and press it. It
+  shows the raw telemetry value rather than a tidy name, because that is all a plugin can see. The
+  plugin only looks the car up while this page is open or some profile already lists one, so the
+  button reads *(none seen yet)* until a game is actually running.
+- **+ Add manually** opens a blank line to type an id into. The box commits when you click away
+  from it.
+- If two profiles claim the same car, the one **earlier in the list** wins. That is deliberate
+  rather than clever: a genuine clash is yours to resolve.
+- It only fires when the car itself changes, so picking a profile by hand is never overridden until
+  you change car again. Because the switch goes through the same path as the hotkey, changing car
+  re-seats the gear the same way — which is nothing while you are in the pits, and the reason not to
+  map two profiles to cars you swap between mid-session.
+
 ## Telemetry effects (the Effects tab)
 
 Vibration driven by the game, on top of the gate: all off by default, all silenced within half a

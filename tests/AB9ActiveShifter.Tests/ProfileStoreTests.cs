@@ -74,6 +74,33 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void AnyCarModelsIsFalseUntilSomeoneOptsIn()
+        {
+            // The gate that keeps the car-model lookup off SimHub's telemetry path for everyone
+            // who does not use the feature. A shipped install has three profiles and no lists, so
+            // this is the answer on almost every rig and it has to be the cheap one.
+            ProfileStore none = StoreWith(
+                new ShifterProfile { Name = "7+R", Settings = new ShifterSettings() },
+                new ShifterProfile { Name = "6+R", Settings = new ShifterSettings(), CarModels = new List<string>() },
+                new ShifterProfile { Name = "5+R", Settings = new ShifterSettings(), CarModels = null });
+
+            Assert.False(none.AnyCarModels);
+
+            ProfileStore some = StoreWith(
+                new ShifterProfile { Name = "7+R", Settings = new ShifterSettings() },
+                new ShifterProfile { Name = "5+R", Settings = new ShifterSettings(), CarModels = new List<string> { "ks_toyota_ae86_drift" } });
+
+            Assert.True(some.AnyCarModels);
+        }
+
+        [Fact]
+        public void AnyCarModelsSurvivesAnEmptyStore()
+        {
+            Assert.False(new ProfileStore().AnyCarModels);
+            Assert.False(StoreWith().AnyCarModels);
+        }
+
+        [Fact]
         public void NewProfileStartsWithNoVehicleModels()
         {
             // So a freshly duplicated or default profile never accidentally auto-switches.

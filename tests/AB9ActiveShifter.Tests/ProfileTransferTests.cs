@@ -35,6 +35,25 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void AVehicleListNeverTravelsInAProfileFile()
+        {
+            // CarModels lives on ShifterProfile, and Export reflects only over ShifterSettings,
+            // so there is no path for it - but that is true by the shape of Export rather than by
+            // anything stopping it, and the failure would be silent: a shared tune quietly
+            // rebinding which car activates which profile on someone else's rig. Pinned here so
+            // that anyone reworking Export to serialise the whole profile has to see this first.
+            ShifterProfile original = Sample();
+            original.CarModels = new System.Collections.Generic.List<string> { "ks_toyota_ae86_drift" };
+
+            string json = ProfileTransfer.Export(original);
+            Assert.DoesNotContain("ae86", json, System.StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("CarModels", json, System.StringComparison.OrdinalIgnoreCase);
+
+            ProfileImportResult imported = ProfileTransfer.Import(json, new ShifterSettings());
+            Assert.Empty(imported.Profile.CarModels);
+        }
+
+        [Fact]
         public void ATuneSurvivesTheRoundTrip()
         {
             ShifterProfile original = Sample();
