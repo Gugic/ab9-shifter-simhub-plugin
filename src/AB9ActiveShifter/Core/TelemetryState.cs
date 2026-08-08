@@ -44,5 +44,31 @@ namespace AB9ActiveShifter.Core
 
         /// <summary>Environment.TickCount when this snapshot was built.</summary>
         public int CapturedAtTick;
+
+        /// <summary>
+        /// Overwrites this instance with another's fields, substituting the clutch. Exists so the
+        /// engine can swap in a directly-read pedal without allocating: the engine owns one
+        /// scratch instance and refills it, rather than building a fresh snapshot every
+        /// millisecond. Only ever called on the engine thread, and only on an instance the data
+        /// thread has never seen - copying INTO a published snapshot would tear it under the
+        /// reader that is meant to see whole frames.
+        /// </summary>
+        public void CopyFromWithClutch(TelemetryState source, double clutchPct)
+        {
+            if (source == null) return;
+
+            GameRunning = source.GameRunning;
+            Rpms = source.Rpms;
+            MaxRpm = source.MaxRpm;
+            SpeedKmh = source.SpeedKmh;
+            Gear = source.Gear;
+            AbsActive = source.AbsActive;
+            TcActive = source.TcActive;
+            HeaveG = source.HeaveG;
+            CustomValue = source.CustomValue;
+            CapturedAtTick = source.CapturedAtTick;
+
+            Clutch = clutchPct;
+        }
     }
 }

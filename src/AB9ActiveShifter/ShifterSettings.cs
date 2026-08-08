@@ -85,6 +85,20 @@ namespace AB9ActiveShifter
         private int _grindClutchThresholdPct = 25;
         private int _grindMinSpeedKmh;
         private bool _grindRejectsGear = true;
+        private GrindClutchMode _grindClutchMode = GrindClutchMode.Threshold;
+        private int _clutchBitePointPct = 25;
+        private bool _fxBiteEnabled;
+        private int _fxBiteGainPct = 35;
+        private int _fxBiteFreqHz = 50;
+        private int _fxBiteDurationMs = 60;
+        private ClutchSource _clutchSource = ClutchSource.GameTelemetry;
+        private string _pedalDeviceId = "";
+        private int _pedalAxisIndex = -1;
+        private int _pedalRawMin;
+        private int _pedalRawMax;
+        private int _pedalDeadzoneLow;
+        private int _pedalDeadzoneHigh = AxisCalibration.ScaledMax;
+        private bool _pedalInvert;
         private int _dampingPct = 25;
         private int _wallFrictionPct = 15;
         private int _wallYieldPct = 45;
@@ -377,6 +391,100 @@ namespace AB9ActiveShifter
         /// <summary>Whether a grinding shift is balked: no registration until the clutch goes down.</summary>
         public bool GrindRejectsGear { get { return _grindRejectsGear; } set { Set(ref _grindRejectsGear, value); } }
 
+        /// <summary>Whether the grind is one line or a fade across the pedal's travel.</summary>
+        public GrindClutchMode GrindClutchMode
+        {
+            get { return _grindClutchMode; }
+            set { Set(ref _grindClutchMode, value); OnChanged("GrindClutchModeIndex"); }
+        }
+
+        /// <summary>The combo box's view of the mode, because WPF binds an index more happily.</summary>
+        public int GrindClutchModeIndex
+        {
+            get { return (int)_grindClutchMode; }
+            set { GrindClutchMode = (GrindClutchMode)value; }
+        }
+
+        /// <summary>
+        /// Where the clutch starts to bite, as a percentage of travel. A property of the car, not
+        /// of the pedals, so it is set rather than measured - and deliberately not owned by the
+        /// grind, because it is the one point on a clutch's travel that means anything.
+        /// </summary>
+        public int ClutchBitePointPct { get { return _clutchBitePointPct; } set { Set(ref _clutchBitePointPct, value); } }
+
+        /// <summary>A pulse through the lever as the clutch crosses its bite point.</summary>
+        public bool FxBiteEnabled { get { return _fxBiteEnabled; } set { Set(ref _fxBiteEnabled, value); } }
+        public int FxBiteGainPct { get { return _fxBiteGainPct; } set { Set(ref _fxBiteGainPct, value); } }
+        public int FxBiteFreqHz { get { return _fxBiteFreqHz; } set { Set(ref _fxBiteFreqHz, value); } }
+        public int FxBiteDurationMs { get { return _fxBiteDurationMs; } set { Set(ref _fxBiteDurationMs, value); } }
+
+        /// <summary>Whether the clutch comes from the game or straight off the pedal's axis.</summary>
+        public ClutchSource ClutchSource
+        {
+            get { return _clutchSource; }
+            set { Set(ref _clutchSource, value); OnChanged("ClutchSourceIndex"); }
+        }
+
+        public int ClutchSourceIndex
+        {
+            get { return (int)_clutchSource; }
+            set { ClutchSource = (ClutchSource)value; }
+        }
+
+        // The pedal binding. Machine facts, all of them: they describe this rig's hardware, so
+        // they are excluded from a shared profile exactly like the measured polarity and the
+        // device ids. Stored flat rather than as a nested object so the settings file stays a
+        // flat map and a renamed field degrades to "lost that one value" instead of "lost the
+        // whole calibration".
+        public string PedalDeviceId { get { return _pedalDeviceId; } set { Set(ref _pedalDeviceId, value); } }
+        public int PedalAxisIndex { get { return _pedalAxisIndex; } set { Set(ref _pedalAxisIndex, value); } }
+        public int PedalRawMin { get { return _pedalRawMin; } set { Set(ref _pedalRawMin, value); } }
+        public int PedalRawMax { get { return _pedalRawMax; } set { Set(ref _pedalRawMax, value); } }
+        public int PedalDeadzoneLow { get { return _pedalDeadzoneLow; } set { Set(ref _pedalDeadzoneLow, value); } }
+        public int PedalDeadzoneHigh { get { return _pedalDeadzoneHigh; } set { Set(ref _pedalDeadzoneHigh, value); } }
+        public bool PedalInvert { get { return _pedalInvert; } set { Set(ref _pedalInvert, value); } }
+
+        /// <summary>
+        /// Applies the session's live switches to this profile as it becomes active.
+        /// <para>
+        /// <see cref="Enabled"/> and <see cref="FreeStick"/> are the odd pair among the settings:
+        /// they say whether the shifter is running <em>right now</em>, which is a fact about the
+        /// session rather than about this gate. Everything else here is tuning, and switching
+        /// profile is supposed to change the tuning and nothing else. The authority for these two
+        /// is <see cref="ProfileStore.SessionEnabled"/>; the copy here exists only because the UI
+        /// binds it and <see cref="ToEngineConfig"/> reads it.
+        /// </para>
+        /// <para>
+        /// The direction matters and was got wrong once: taking the value from the profile being
+        /// <em>left</em> makes an arbitrary profile the authority and writes its answer onto the
+        /// one being opened, which destroys a stored flag the moment you start on a disabled
+        /// profile. Pulling from the store instead means an activation can never decide anything.
+        /// </para>
+        /// </summary>
+        public void ApplyLiveSwitches(bool? enabled, bool? freeStick)
+        {
+            if (enabled.HasValue) Enabled = enabled.Value;
+            if (freeStick.HasValue) FreeStick = freeStick.Value;
+        }
+
+        /// <summary>True once a pedal has actually been captured; the source is unusable before.</summary>
+        public bool PedalCalibrated { get { return _pedalAxisIndex >= 0 && _pedalRawMax > _pedalRawMin; } }
+
+        /// <summary>Stores what a capture measured, as the flat fields the settings file holds.</summary>
+        public void ApplyPedalCapture(string deviceId, int axisIndex, AxisCalibration calibration)
+        {
+            if (calibration == null) return;
+
+            PedalDeviceId = deviceId ?? "";
+            PedalAxisIndex = axisIndex;
+            PedalRawMin = calibration.RawMin;
+            PedalRawMax = calibration.RawMax;
+            PedalDeadzoneLow = calibration.DeadzoneLow;
+            PedalDeadzoneHigh = calibration.DeadzoneHigh;
+            PedalInvert = calibration.Invert;
+            OnChanged("PedalCalibrated");
+        }
+
         /// <summary>Velocity damping. This, not the device damper, is what settles a stiff wall.</summary>
         public int DampingPct { get { return _dampingPct; } set { Set(ref _dampingPct, value); } }
 
@@ -595,6 +703,25 @@ namespace AB9ActiveShifter
                 GrindClutchThresholdPct = GrindClutchThresholdPct,
                 GrindMinSpeedKmh = GrindMinSpeedKmh,
                 GrindRejectsGear = GrindRejectsGear,
+                GrindClutchMode = GrindClutchMode,
+                ClutchBitePointPct = ClutchBitePointPct,
+                FxBiteEnabled = FxBiteEnabled,
+                FxBiteGainPct = FxBiteGainPct,
+                FxBiteFreqHz = FxBiteFreqHz,
+                FxBiteDurationMs = FxBiteDurationMs,
+                ClutchSource = ClutchSource,
+                PedalDeviceId = PedalDeviceId,
+                PedalAxisIndex = PedalAxisIndex,
+                PedalCalibration = PedalCalibrated
+                    ? new AxisCalibration
+                    {
+                        RawMin = PedalRawMin,
+                        RawMax = PedalRawMax,
+                        DeadzoneLow = PedalDeadzoneLow,
+                        DeadzoneHigh = PedalDeadzoneHigh,
+                        Invert = PedalInvert
+                    }
+                    : null,
                 DamperCoeff = DamperCoeff,
                 DetentResistPct = DetentResistPct,
                 DetentPullPct = DetentPullPct,
@@ -710,6 +837,12 @@ namespace AB9ActiveShifter
                 GrindClutchThresholdPct = d.GrindClutchThresholdPct;
                 GrindMinSpeedKmh = d.GrindMinSpeedKmh;
                 GrindRejectsGear = d.GrindRejectsGear;
+                GrindClutchMode = d.GrindClutchMode;
+                ClutchBitePointPct = d.ClutchBitePointPct;
+                FxBiteEnabled = d.FxBiteEnabled;
+                FxBiteGainPct = d.FxBiteGainPct;
+                FxBiteFreqHz = d.FxBiteFreqHz;
+                FxBiteDurationMs = d.FxBiteDurationMs;
             }
 
             if (scope == ResetScope.Calibration || scope == ResetScope.Everything)

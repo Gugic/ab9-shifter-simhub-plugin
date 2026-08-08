@@ -159,6 +159,66 @@ namespace AB9ActiveShifter.Core
         /// <summary>Whether a grinding shift is also balked: no registration, resist-only detent.</summary>
         public bool GrindRejectsGear = true;
 
+        /// <summary>
+        /// How the clutch decides the grind. <see cref="GrindClutchMode.Threshold"/> is the
+        /// original behaviour and the default: one line, grinding on the up side of it. It has
+        /// the virtue of being unambiguous, and the vice of a real clutch not working that way.
+        /// <see cref="GrindClutchMode.Progressive"/> instead scales the grind across the pedal's
+        /// travel from the bite point upward, so feathering it out feathers the grind out.
+        /// </summary>
+        public GrindClutchMode GrindClutchMode = GrindClutchMode.Threshold;
+
+        /// <summary>
+        /// Where the clutch starts to bite, as a percentage of pedal travel. A property of the
+        /// car rather than of the pedals, so it cannot be measured from the hardware the way
+        /// travel and direction can - it is set, not calibrated.
+        /// <para>
+        /// Deliberately not grind-specific despite the grind being its first consumer: it is the
+        /// one point on a clutch's travel that means anything mechanically, so anything else that
+        /// wants to know where the drivetrain starts to connect asks this and not a second dial.
+        /// </para>
+        /// </summary>
+        public int ClutchBitePointPct = 25;
+
+        /// <summary>
+        /// A short pulse as the clutch passes its bite point, in either direction, so the lever
+        /// tells the hand where the engagement point is. Off by default like every carrier.
+        /// </summary>
+        public bool FxBiteEnabled;
+        public int FxBiteGainPct = 35;
+        public int FxBiteFreqHz = 50;
+        public int FxBiteDurationMs = 60;
+
+        /// <summary>
+        /// How many times to thump the lever after a profile switch, so the hand can count which
+        /// profile arrived without looking at a screen. Set by the plugin to the profile's own
+        /// position in the store - one for the first, two for the second - and zero to say nothing.
+        /// Not a dial anyone types: the count IS the answer.
+        /// </summary>
+        public int ProfileConfirmPulses;
+
+        /// <summary>
+        /// Where the clutch reading comes from. The game's own telemetry by default - it needs no
+        /// setup and no second device handle.
+        /// </summary>
+        public ClutchSource ClutchSource = ClutchSource.GameTelemetry;
+
+        /// <summary>
+        /// The controller the clutch pedal lives on, as a DirectInput instance id. A machine
+        /// fact, like the base's own ids and the measured polarity: it describes this rig and
+        /// never travels in a shared profile.
+        /// </summary>
+        public string PedalDeviceId;
+
+        /// <summary>Index into the fixed axis order of <c>PedalDevice</c>; -1 when unbound.</summary>
+        public int PedalAxisIndex = -1;
+
+        /// <summary>
+        /// The pedal's measured travel, direction and slack. Machine fact, as above. Null until
+        /// something has been captured, which is what makes the pedal source unusable until then.
+        /// </summary>
+        public AxisCalibration PedalCalibration;
+
         // Firmware effect polarity, measured per axis. The AB9 does not treat the axes alike -
         // this unit inverts constant force on X and not on Y - so these are two independent
         // facts, not one flag.

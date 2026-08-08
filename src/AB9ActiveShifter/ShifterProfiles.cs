@@ -22,6 +22,115 @@ namespace AB9ActiveShifter
         public List<ShifterProfile> Profiles { get; set; }
         public string ActiveProfile { get; set; }
 
+        /// <summary>
+        /// Whether the shifter is running, and whether the stick is free. These are the only two
+        /// switches that describe the <em>session</em> rather than a gate, and they live here
+        /// rather than in a profile for a reason learned the hard way.
+        /// <para>
+        /// They used to be per-profile like everything else, so switching profiles handed the
+        /// decision to whichever one you landed on: every shipped profile starts disabled, so
+        /// moving off the one you had enabled stopped the base. The first attempt at a fix copied
+        /// the switch from the outgoing profile onto the incoming one, which is worse - it makes
+        /// the profile you happen to be leaving the authority, and it <em>writes</em> that onto
+        /// the profile you arrive at. Starting on a disabled profile and switching away therefore
+        /// destroyed the enabled flag on the profile you switched to, permanently, because the
+        /// store is saved on every activation. Measured on the rig within a minute of deploying it.
+        /// </para>
+        /// <para>
+        /// Nullable so that a settings file written before this existed can be told apart from one
+        /// that genuinely says "off": null means migrate from whichever profile is active.
+        /// </para>
+        /// </summary>
+        public bool? SessionEnabled { get; set; }
+
+        public bool? SessionFreeStick { get; set; }
+
+        /// <summary>
+        /// Whether a profile switch thumps the lever once per profile number, so which one
+        /// arrived can be counted by hand rather than read off a screen. On by default: the whole
+        /// reason profile switching moved onto a hotkey was to stop needing to look at the screen.
+        /// </summary>
+        public bool ConfirmProfileSwitch { get; set; } = true;
+
+        /// <summary>
+        /// Where the active profile sits in the list, zero-based, or -1 if there is no match. The
+        /// confirmation count is built from this, so it follows the order shown in the dropdown -
+        /// the same order a user would count in their head.
+        /// </summary>
+        public int IndexOfActive()
+        {
+            if (Profiles == null) return -1;
+
+            for (int i = 0; i < Profiles.Count; i++)
+            {
+                ShifterProfile p = Profiles[i];
+                if (p != null && p.Name == ActiveProfile) return i;
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// The profiles a bound Next/Previous hotkey walks through, in order. Empty means every
+        /// profile, which is what a user who never opens the list gets and is the obvious reading
+        /// of "cycle profiles".
+        /// <para>
+        /// It lives on the store rather than in <see cref="ShifterSettings"/> deliberately: a
+        /// per-profile list would be a different list in every profile, so cycling would change
+        /// the very thing defining the cycle and the second press would go somewhere the first
+        /// press did not promise.
+        /// </para>
+        /// </summary>
+        public List<string> CycleProfiles { get; set; }
+
+        /// <summary>
+        /// The profile a hotkey press should activate, walking <paramref name="direction"/> (+1 or
+        /// -1) around the cycle. Returns null when there is nowhere to go.
+        /// <para>
+        /// Names in the cycle that no longer exist are skipped rather than treated as an error -
+        /// a profile can be renamed or deleted while the list still mentions it, and a hotkey that
+        /// silently did nothing would be blamed on the binding rather than on the stale entry.
+        /// </para>
+        /// </summary>
+        public string NextInCycle(string current, int direction)
+        {
+            List<string> ring = CycleOrder();
+            if (ring.Count == 0) return null;
+
+            int index = ring.IndexOf(current ?? "");
+
+            // Not in the ring at all - a hotkey press should still land somewhere sensible, so
+            // going forward starts at the beginning and going back starts at the end.
+            if (index < 0) return direction >= 0 ? ring[0] : ring[ring.Count - 1];
+
+            if (ring.Count == 1) return null;
+
+            int step = direction >= 0 ? 1 : -1;
+            int next = ((index + step) % ring.Count + ring.Count) % ring.Count;
+            return ring[next];
+        }
+
+        /// <summary>The cycle as it actually stands: chosen names that still exist, else all.</summary>
+        public List<string> CycleOrder()
+        {
+            var order = new List<string>();
+            if (Profiles == null) return order;
+
+            if (CycleProfiles != null && CycleProfiles.Count > 0)
+            {
+                foreach (string name in CycleProfiles)
+                {
+                    if (name != null && NameTaken(name) && !order.Contains(name)) order.Add(name);
+                }
+                if (order.Count > 0) return order;
+            }
+
+            foreach (ShifterProfile p in Profiles)
+            {
+                if (p != null && p.Name != null && p.Settings != null) order.Add(p.Name);
+            }
+            return order;
+        }
+
         public ShifterProfile FindActive()
         {
             if (Profiles == null || Profiles.Count == 0) return null;

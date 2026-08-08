@@ -100,6 +100,15 @@ namespace AB9ActiveShifter
             Store.ActiveProfile = active.Name;
             Settings = active.Settings;
 
+            // The live switches belong to the session, not to a profile. A settings file written
+            // before that was true has no value here, so adopt whatever the profile that happens
+            // to be active says - which is exactly what used to decide it - and from then on the
+            // store is the authority and activating a profile can never change it.
+            if (!Store.SessionEnabled.HasValue) Store.SessionEnabled = Settings.Enabled;
+            if (!Store.SessionFreeStick.HasValue) Store.SessionFreeStick = Settings.FreeStick;
+
+            Settings.ApplyLiveSwitches(Store.SessionEnabled, Store.SessionFreeStick);
+
             if (firstStart)
             {
                 // Write them out now rather than waiting for shutdown, so the file exists from
@@ -127,6 +136,9 @@ namespace AB9ActiveShifter
 
             _engine.CalibrationFinished -= OnCalibrationFinished;
             _engine.CalibrationFinished += OnCalibrationFinished;
+
+            _engine.PedalCaptureCompleted -= OnPedalCaptureCompleted;
+            _engine.PedalCaptureCompleted += OnPedalCaptureCompleted;
 
             Settings.PropertyChanged -= OnSettingsChanged;
             Settings.PropertyChanged += OnSettingsChanged;
@@ -230,6 +242,7 @@ namespace AB9ActiveShifter
                 engine.GearChanged -= OnGearChanged;
                 engine.CalibrationCompleted -= OnCalibrationCompleted;
                 engine.CalibrationFinished -= OnCalibrationFinished;
+                engine.PedalCaptureCompleted -= OnPedalCaptureCompleted;
                 engine.Dispose();
             }
 
@@ -262,7 +275,13 @@ namespace AB9ActiveShifter
             }
             if (target == null || target.Settings == Settings) return;
 
+            // The session's switches, not the outgoing profile's: an activation must never be the
+            // thing that decides whether the shifter is running. Applied before the swap so the
+            // engine sees one coherent config rather than the new gate with the old switch.
+            target.Settings.ApplyLiveSwitches(Store.SessionEnabled, Store.SessionFreeStick);
+
             if (Settings != null) Settings.PropertyChanged -= OnSettingsChanged;
+
             Settings = target.Settings;
             Settings.PropertyChanged += OnSettingsChanged;
             Store.ActiveProfile = target.Name;
@@ -271,6 +290,31 @@ namespace AB9ActiveShifter
             SaveStore();
             RaiseProfileChanged();
             Log.Info("Profile '" + target.Name + "' activated.");
+        }
+
+        /// <summary>
+        /// Moves one step around the profile cycle. Called from a bound hotkey, so it can arrive
+        /// at any moment - mid-corner, mid-shift, with a gear held - and everything that makes
+        /// that safe is already in the config swap: rebuilding the gate releases the held gear
+        /// button and clears any sequential pulse in flight before the new forces are applied.
+        /// </summary>
+        public void CycleProfile(int direction)
+        {
+            try
+            {
+                if (Store == null) return;
+
+                string next = Store.NextInCycle(Store.ActiveProfile, direction);
+                if (string.IsNullOrEmpty(next)) return;
+
+                ActivateProfile(next);
+            }
+            catch (Exception ex)
+            {
+                // An action runs on SimHub's thread; letting this escape would take a keypress
+                // handler down with it rather than just failing to switch.
+                Log.ErrorThrottled("cycle-profile", "Could not switch profile", ex);
+            }
         }
 
         /// <summary>Adds a copy of the current profile under the given name and makes it live.</summary>
@@ -334,7 +378,12 @@ namespace AB9ActiveShifter
             RaiseProfileChanged();
         }
 
-        private void SaveStore()
+        /// <summary>
+        /// Writes the profile store out. Internal rather than private because the settings page
+        /// edits the store directly for things that are not per-profile settings - which profiles
+        /// a hotkey cycles through being the only one so far.
+        /// </summary>
+        internal void SaveStore()
         {
             try { this.SaveCommonSettings(SettingsKey, Store); }
             catch (Exception ex) { Log.Error("Could not save profiles", ex); }
@@ -354,7 +403,16 @@ namespace AB9ActiveShifter
             ShifterEngine engine = _engine;
             if (engine == null || Settings == null) return;
 
-            engine.ApplyConfig(Settings.ToEngineConfig());
+            EngineConfig cfg = Settings.ToEngineConfig();
+
+            // How many times the lever thumps after a switch, so the profile can be counted by
+            // hand. The count is the profile's own place in the store, which is a fact only the
+            // plugin knows - ShifterSettings has no idea it lives in a list.
+            cfg.ProfileConfirmPulses = Store != null && Store.ConfirmProfileSwitch
+                ? Store.IndexOfActive() + 1
+                : 0;
+
+            engine.ApplyConfig(cfg);
 
             if (Settings.Enabled && !engine.IsRunning) engine.Start();
             else if (!Settings.Enabled && engine.IsRunning) engine.Stop(TimeSpan.FromSeconds(2));
@@ -362,6 +420,21 @@ namespace AB9ActiveShifter
 
         private void OnSettingsChanged(object sender, PropertyChangedEventArgs e)
         {
+            // Ticking Enabled or FreeStick is a decision about the session, so it is recorded
+            // where the session lives. Without this the store would keep whatever was migrated at
+            // startup and the switch would spring back on the next profile activation.
+            if (Store != null && Settings != null)
+            {
+                if (e == null || e.PropertyName == null || e.PropertyName == "Enabled")
+                {
+                    Store.SessionEnabled = Settings.Enabled;
+                }
+                if (e == null || e.PropertyName == null || e.PropertyName == "FreeStick")
+                {
+                    Store.SessionFreeStick = Settings.FreeStick;
+                }
+            }
+
             PushSettingsToEngine();
             ScheduleSave();
         }
@@ -416,6 +489,30 @@ namespace AB9ActiveShifter
             {
                 Log.ErrorThrottled("trigger-event", "Could not raise gear event", ex);
             }
+        }
+
+        /// <summary>
+        /// Stores a captured clutch pedal. Raised on the engine thread, so like the polarity
+        /// result it is marshalled before touching settings WPF is bound to.
+        /// <para>
+        /// A capture that did not commit - cancelled, or nothing moved - deliberately leaves the
+        /// existing binding alone. Clearing it would mean an accidental press of the button loses
+        /// a working calibration and the clutch silently reverts to reading zero.
+        /// </para>
+        /// </summary>
+        private void OnPedalCaptureCompleted(AxisCapture capture)
+        {
+            if (capture == null || capture.Phase != CapturePhase.Committed || capture.Result == null)
+            {
+                return;
+            }
+
+            OnUiThread(() =>
+            {
+                Settings.ApplyPedalCapture(capture.DeviceId, capture.AxisIndex, capture.Result);
+                PushSettingsToEngine();
+                SaveStore();
+            });
         }
 
         /// <summary>
@@ -565,6 +662,12 @@ namespace AB9ActiveShifter
                 ShifterEngine engine = _engine;
                 if (engine != null) engine.EmergencyStop("manual release requested");
             });
+
+            // Bindable to a wheel button or a key in SimHub's own Controls page, which is the
+            // point: switching between an H gate and a sequential lever is a thing done between
+            // sessions, or between cars, without reaching for a mouse.
+            this.AddAction("NextProfile", (a, b) => CycleProfile(1));
+            this.AddAction("PreviousProfile", (a, b) => CycleProfile(-1));
         }
 
         private static EngineSnapshot Snapshot()

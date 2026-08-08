@@ -16,6 +16,15 @@ namespace AB9ActiveShifter.Core
 
         /// <summary>The slot detent renders entry resistance only - no snick, no hold.</summary>
         public bool MuteDetent;
+
+        /// <summary>
+        /// How hard the teeth are disagreeing, 0..1. Always 1 while grinding in
+        /// <see cref="GrindClutchMode.Threshold"/>, which is what makes that mode exactly the
+        /// behaviour that shipped before the mode existed. Reported for the Monitor tab and for
+        /// tests; the balk wall deliberately does NOT scale by it, because a border that softens
+        /// as the clutch lifts would let a determined shove through the moment it mattered most.
+        /// </summary>
+        public double GrindStrength;
     }
 
     /// <summary>
@@ -76,6 +85,7 @@ namespace AB9ActiveShifter.Core
         private double _shiftPhase;
         private double _customPhase;
         private double _grindPhase;
+        private double _bitePhase;
 
         // Curb detection state: the slow-heave baseline and the strike envelope.
         private bool _heaveSeeded;
@@ -84,6 +94,13 @@ namespace AB9ActiveShifter.Core
 
         private double _shiftPulseLeftMs;
         private string _lastGear;
+
+        // The bite point crossing. Nullable-by-flag rather than a bare bool, because "we have
+        // not seen the clutch yet" must not read as "the clutch was below the bite point" - that
+        // would fire a pulse the first time a released pedal is reported, on every game start.
+        private bool _biteSeeded;
+        private bool _biteWasEngaged;
+        private double _bitePulseLeftMs;
 
         // The grind's tooth-depth jitter. A plain square wave reads as a buzzer; giving each
         // half-cycle a fresh pseudo-random depth reads as teeth skipping. Deterministic - a
@@ -115,6 +132,8 @@ namespace AB9ActiveShifter.Core
                 _lastGear = null;
                 _curbEnv = 0;
                 _heaveSeeded = false;
+                _bitePulseLeftMs = 0;
+                _biteSeeded = false;
                 return output;
             }
 
@@ -202,6 +221,25 @@ namespace AB9ActiveShifter.Core
                             Amp(cfg.FxShiftGainPct, gain, VibFullScale));
             }
 
+            // The bite point, felt through the lever. Fires on the crossing in either direction,
+            // because the useful moment is the same one going down as coming up - it is where
+            // the drivetrain connects. Edge-triggered off a seeded state so adopting the first
+            // reading is silent; a pulse on every game start would train the hand to ignore it.
+            bool engaged = t.Clutch < GateGeometry.Clamp(cfg.ClutchBitePointPct, 0, 100);
+            if (_biteSeeded && engaged != _biteWasEngaged && cfg.FxBiteEnabled)
+            {
+                _bitePulseLeftMs = Math.Max(20, cfg.FxBiteDurationMs);
+            }
+            _biteWasEngaged = engaged;
+            _biteSeeded = true;
+
+            if (_bitePulseLeftMs > 0)
+            {
+                if (dtMs > 0) _bitePulseLeftMs -= dtMs;
+                vib += Sine(ref _bitePhase, cfg.FxBiteFreqHz, dtMs,
+                            Amp(cfg.FxBiteGainPct, gain, VibFullScale));
+            }
+
             // Custom property: any SimHub property scaled 0..100 drives the volume, which puts
             // ShakeIt's whole effects engine - road rumble, wheel lock, impacts - at the
             // lever's disposal through an exported effect-group property.
@@ -216,25 +254,62 @@ namespace AB9ActiveShifter.Core
             }
 
             // The grind. Every condition at once: enabled, an H lever pushing into a slot,
-            // the clutch up, the car moving at least the floor speed, the engine turning.
-            // Louder the deeper the lever is forced - the teeth are being pressed together
-            // harder - never fully silent while active, so the mouth still warns.
+            // the clutch engaged enough to fight, the car moving at least the floor speed, the
+            // engine turning. Louder the deeper the lever is forced - the teeth are being
+            // pressed together harder - never fully silent while active, so the mouth still warns.
+            double engagement = ClutchEngagement(cfg, t.Clutch);
             if (cfg.GrindEnabled && approachingSlot
-                && t.Clutch < cfg.GrindClutchThresholdPct
+                && engagement > 0
                 && t.SpeedKmh >= cfg.GrindMinSpeedKmh
                 && t.Rpms > MinEngineRpm)
             {
                 output.GrindActive = true;
                 output.BlockEngage = cfg.GrindRejectsGear;
                 output.MuteDetent = cfg.GrindRejectsGear;
+                output.GrindStrength = engagement;
 
                 double press = 0.4 + 0.6 * GateGeometry.Clamp(slotDepth, 0.0, 1.0);
-                int amp = (int)Math.Round(Amp(cfg.GrindGainPct, gain, GrindFullScale) * press);
+                int amp = (int)Math.Round(
+                    Amp(cfg.GrindGainPct, gain, GrindFullScale) * press * engagement);
                 vib += Square(ref _grindPhase, cfg.GrindFreqHz, dtMs, amp);
             }
 
             output.VibY = GateGeometry.Clamp(vib, -VibTotalMax, VibTotalMax);
             return output;
+        }
+
+        /// <summary>
+        /// How hard the dog teeth are being asked to meet, 0 (clutch fully down, nothing to
+        /// grind) to 1 (clutch fully up, full disagreement).
+        /// <para>
+        /// In <see cref="GrindClutchMode.Threshold"/> this is deliberately a step and nothing
+        /// else, so the mode is the original behaviour rather than an approximation of it: one
+        /// line, full strength on the up side, silence on the down side.
+        /// </para>
+        /// <para>
+        /// In <see cref="GrindClutchMode.Progressive"/> it ramps from the bite point - where the
+        /// drivetrain starts to connect and there is first something to disagree with - to fully
+        /// released. A clutch held below its bite point is disengaged, so it is silent whatever
+        /// the threshold says; the threshold is a Threshold-mode dial and is not consulted here.
+        /// </para>
+        /// </summary>
+        public static double ClutchEngagement(EngineConfig cfg, double clutchPct)
+        {
+            double clutch = GateGeometry.Clamp(clutchPct, 0.0, 100.0);
+
+            if (cfg.GrindClutchMode == GrindClutchMode.Threshold)
+            {
+                return clutch < cfg.GrindClutchThresholdPct ? 1.0 : 0.0;
+            }
+
+            double bite = GateGeometry.Clamp(cfg.ClutchBitePointPct, 0, 100);
+            if (clutch >= bite) return 0.0;
+            if (bite <= 0) return 1.0;
+
+            // Linear from the bite point up to fully released. Nothing subtler is warranted:
+            // the real curve is a property of a car's clutch that no game reports, and a shape
+            // invented here would be a guess dressed as a model.
+            return GateGeometry.Clamp((bite - clutch) / bite, 0.0, 1.0);
         }
 
         private static int Amp(int pct, double gain, int fullScale)

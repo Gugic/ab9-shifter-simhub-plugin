@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using AB9ActiveShifter.Core;
+using AB9ActiveShifter.Device;
 using AB9ActiveShifter.Output;
 using SimHub.Plugins.UI;
 
@@ -459,6 +460,8 @@ namespace AB9ActiveShifter.UI
             RefreshChannelFreeDepthSummary();
             RefreshProfiles();
             RefreshVJoyDevices();
+            RefreshPedalDevices();
+            RefreshCycleList();
             UpdateCalibrationSection();
             _timer.Start();
         }
@@ -495,6 +498,10 @@ namespace AB9ActiveShifter.UI
             {
                 _refreshingProfiles = false;
             }
+
+            // The cycle list names profiles, so it has to follow every add, rename and delete -
+            // otherwise a renamed profile silently drops out of a bound hotkey's walk.
+            RefreshCycleList();
         }
 
         /// <summary>
@@ -629,6 +636,261 @@ namespace AB9ActiveShifter.UI
             // vJoy, and it should not need a SimHub restart to be believed.
             VJoyDeviceProbe.Forget();
             RefreshVJoyDevices();
+        }
+
+        // ---------- the clutch pedal ----------
+
+        private bool _refreshingPedals;
+
+        /// <summary>
+        /// Offers every attached controller. Enumeration opens each device briefly and lets it
+        /// go, so this is safe to run with the engine holding the base - the one device it will
+        /// not offer is that base, which cannot hold a clutch and would only be picked by mistake.
+        /// </summary>
+        private void RefreshPedalDevices()
+        {
+            if (PedalCombo == null || _boundSettings == null) return;
+
+            _refreshingPedals = true;
+            try
+            {
+                string selected = _boundSettings.PedalDeviceId ?? "";
+                PedalCombo.Items.Clear();
+
+                List<PedalDeviceInfo> devices =
+                    PedalDevice.Enumerate(_boundSettings.VendorId, _boundSettings.ProductId);
+
+                bool matched = false;
+                foreach (PedalDeviceInfo info in devices)
+                {
+                    var item = new ComboBoxItem { Content = info.Describe(), Tag = info.Id };
+                    item.IsEnabled = info.Usable;
+                    PedalCombo.Items.Add(item);
+
+                    if (info.Id == selected)
+                    {
+                        PedalCombo.SelectedItem = item;
+                        matched = true;
+                    }
+                }
+
+                if (devices.Count == 0)
+                {
+                    PedalCombo.Items.Add(new ComboBoxItem
+                    {
+                        Content = "No game controllers found",
+                        IsEnabled = false
+                    });
+                }
+                else if (!matched && !string.IsNullOrEmpty(selected))
+                {
+                    // The bound pedals are not attached right now. Say so rather than silently
+                    // selecting something else, which would rebind the clutch to another device.
+                    var missing = new ComboBoxItem
+                    {
+                        Content = "Bound pedals not connected",
+                        Tag = selected
+                    };
+                    PedalCombo.Items.Insert(0, missing);
+                    PedalCombo.SelectedItem = missing;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("Could not list pedal devices: " + ex.Message);
+            }
+            finally
+            {
+                _refreshingPedals = false;
+            }
+        }
+
+        private void OnPedalDeviceSelected(object sender, SelectionChangedEventArgs e)
+        {
+            if (_refreshingPedals || _boundSettings == null) return;
+
+            ComboBoxItem item = PedalCombo.SelectedItem as ComboBoxItem;
+            string id = item != null ? item.Tag as string : null;
+            if (string.IsNullOrEmpty(id) || id == _boundSettings.PedalDeviceId) return;
+
+            // Changing device invalidates the axis: index 3 on one pedal set is not index 3 on
+            // another. Clearing it forces a fresh capture rather than leaving a binding that
+            // silently reads the brake.
+            _boundSettings.PedalDeviceId = id;
+            _boundSettings.PedalAxisIndex = -1;
+            _boundSettings.PedalRawMin = 0;
+            _boundSettings.PedalRawMax = 0;
+        }
+
+        private void OnRefreshPedalDevices(object sender, RoutedEventArgs e)
+        {
+            RefreshPedalDevices();
+        }
+
+        private void OnCapturePedal(object sender, RoutedEventArgs e)
+        {
+            ShifterEngine engine = AB9ShifterPlugin.Engine;
+            if (engine == null || !engine.IsRunning)
+            {
+                PedalCaptureHint.Text = "Enable the shifter first - the pedal is read by the same loop.";
+                return;
+            }
+
+            if (engine.PedalCaptureHint != null) engine.CancelPedalCapture();
+            else engine.RequestPedalCapture();
+        }
+
+        /// <summary>
+        /// The pedal section's live parts, driven by the same 200 ms poll as the rest of the
+        /// status. Kept to plain text rather than a bar: what a user needs while binding is
+        /// "is this the pedal I am pressing", and a number answers that at a glance.
+        /// </summary>
+        /// <summary>
+        /// Hides whichever clutch dial the current grind mode does not read.
+        /// <para>
+        /// The threshold and the bite point never both decide - Threshold mode reads the
+        /// threshold and ignores the bite point, fading reads the bite point and ignores the
+        /// threshold, and a test pins that. Showing both regardless made it look as though they
+        /// competed, which was the first question asked about the feature.
+        /// </para>
+        /// </summary>
+        private void RefreshGrindModeVisibility()
+        {
+            if (GrindThresholdSlider == null || _boundSettings == null) return;
+
+            bool usesThreshold = _boundSettings.GrindClutchMode == GrindClutchMode.Threshold;
+
+            GrindThresholdSlider.Visibility = usesThreshold ? Visibility.Visible : Visibility.Collapsed;
+            if (GrindBitePointNote != null)
+            {
+                GrindBitePointNote.Visibility = usesThreshold ? Visibility.Collapsed : Visibility.Visible;
+            }
+        }
+
+        private void RefreshPedalStatus()
+        {
+            RefreshGrindModeVisibility();
+
+            if (PedalPanel == null || _boundSettings == null) return;
+
+            PedalPanel.Visibility = _boundSettings.ClutchSource == ClutchSource.Pedal
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+
+            if (PedalPanel.Visibility != Visibility.Visible) return;
+
+            ShifterEngine engine = AB9ShifterPlugin.Engine;
+            string hint = engine != null ? engine.PedalCaptureHint : null;
+
+            if (hint != null)
+            {
+                PedalCaptureHint.Text = hint;
+                PedalCaptureButton.Content = "Cancel";
+            }
+            else
+            {
+                PedalCaptureButton.Content = _boundSettings.PedalCalibrated
+                    ? "Bind it again"
+                    : "Press the clutch to bind it";
+                if (PedalCaptureHint.Text == "Listening…") PedalCaptureHint.Text = "";
+            }
+
+            if (!_boundSettings.PedalCalibrated)
+            {
+                PedalReading.Text = "No pedal bound yet.";
+                return;
+            }
+
+            PedalReading.Text = engine != null
+                ? string.Format("Axis {0}{1} - reading {2:0}% (raw {3})",
+                                _boundSettings.PedalAxisIndex,
+                                _boundSettings.PedalInvert ? ", inverted" : "",
+                                engine.PedalPercent, engine.PedalRaw)
+                : "Axis " + _boundSettings.PedalAxisIndex + " bound.";
+        }
+
+        // ---------- which profiles a hotkey walks through ----------
+
+        /// <summary>One profile's membership of the cycle, for the checkbox list.</summary>
+        private sealed class CycleEntry : INotifyPropertyChanged
+        {
+            private readonly SettingsControl _owner;
+            private bool _inCycle;
+
+            public CycleEntry(SettingsControl owner, string name, bool inCycle)
+            {
+                _owner = owner;
+                Name = name;
+                _inCycle = inCycle;
+            }
+
+            public string Name { get; private set; }
+
+            public bool InCycle
+            {
+                get { return _inCycle; }
+                set
+                {
+                    if (_inCycle == value) return;
+                    _inCycle = value;
+                    _owner.SaveCycleMembership();
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("InCycle"));
+                }
+            }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+        }
+
+        private readonly List<CycleEntry> _cycleEntries = new List<CycleEntry>();
+
+        private void OnConfirmProfileSwitchChanged(object sender, RoutedEventArgs e)
+        {
+            if (Plugin == null || Plugin.Store == null || ConfirmSwitchCheck == null) return;
+
+            Plugin.Store.ConfirmProfileSwitch = ConfirmSwitchCheck.IsChecked == true;
+            Plugin.SaveStore();
+
+            // The count reaches the engine through the config, so it needs a push to take effect
+            // on the next switch rather than the one after.
+            Plugin.PushSettingsToEngine();
+        }
+
+        private void RefreshCycleList()
+        {
+            if (CycleList == null || Plugin == null || Plugin.Store == null) return;
+
+            if (ConfirmSwitchCheck != null)
+            {
+                ConfirmSwitchCheck.IsChecked = Plugin.Store.ConfirmProfileSwitch;
+            }
+
+            _cycleEntries.Clear();
+
+            List<string> chosen = Plugin.Store.CycleProfiles ?? new List<string>();
+            foreach (ShifterProfile p in Plugin.Store.Profiles ?? new List<ShifterProfile>())
+            {
+                if (p == null || p.Name == null) continue;
+                _cycleEntries.Add(new CycleEntry(this, p.Name, chosen.Contains(p.Name)));
+            }
+
+            CycleList.ItemsSource = null;
+            CycleList.ItemsSource = _cycleEntries;
+        }
+
+        private void SaveCycleMembership()
+        {
+            if (Plugin == null || Plugin.Store == null) return;
+
+            var chosen = new List<string>();
+            foreach (CycleEntry entry in _cycleEntries)
+            {
+                if (entry.InCycle) chosen.Add(entry.Name);
+            }
+
+            // An all-ticked list is the same walk as none ticked, and storing nothing keeps a
+            // later-added profile automatically included rather than silently left out.
+            Plugin.Store.CycleProfiles = chosen.Count == _cycleEntries.Count ? null : chosen;
+            Plugin.SaveStore();
         }
 
         /// <summary>
@@ -877,6 +1139,7 @@ namespace AB9ActiveShifter.UI
             CancelCalibrationButton.IsEnabled = calibrating;
 
             RefreshCalibrationResults();
+            RefreshPedalStatus();
 
             // Another program can take the vJoy device while this page is open, so the gate has
             // to keep asking - but only every couple of seconds, and only about the one device

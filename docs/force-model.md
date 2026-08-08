@@ -587,6 +587,39 @@ shipped Sequential profile runs a 500-count release gap on purpose. The general 
 behind: **before clamping a band to "just enough to be ordered", check whether a force ramps across
 it.** Ordering is a state-machine property; a ramp needs a width.
 
+## Switching gates without a bang
+
+Applying a new gate on the tick the profile changes puts its full force on the lever wherever
+the lever happens to be. Switch pattern while sitting in first — hard forward, hard left — and a
+sequential lever wants that stick at centre, so the whole force arrives as a step through the
+3–4 ms round trip. Reported from the rig as a *vile oscillation*, and it is the textbook version
+of the one problem this project keeps having.
+
+**The fix is deliberately not a centring force.** A restoring force about an interior equilibrium
+is an oscillator — the rule the whole gate is shaped around — so curing an oscillation by adding
+one would be self-defeating. Three stages instead:
+
+| Stage | Force | Why |
+| --- | --- | --- |
+| Settle | **zero** | The base self-centres in firmware at ~90% of available force at full deflection ([hardware.md](hardware.md)). It needs no help getting the lever home, and anything we applied would be fighting it. |
+| Ramp | 0 → 1 over **350 ms** | Time shaping, the one tool that acts on force change regardless of which spatial gradient produced it. The new gate winds in instead of switching on. |
+| Confirm | full, plus a pulse train | One thump per profile number, so which profile arrived can be counted by hand. |
+
+The settle has an **800 ms timeout, and that is the common case rather than a fallback**: a hand
+resting on the lever holds it out of the band indefinitely, and waiting for it would mean a
+profile switch that silently never took effect. Arriving firm beats not arriving.
+
+Only a change of *geometry* starts this. Dragging a force slider does not come through the
+rebuild path, so live dials stay live — which is the whole point of having them.
+
+The scale multiplies the finished frame's constant forces only. Springs are untouched because
+every frame ships them `Off`, and the damper is untouched because it opposes motion by
+construction: winding a stabiliser in alongside the force it stabilises is backwards, and would
+leave the ramp least damped exactly where it is changing fastest.
+
+`ProfileSwitchTransitionTests` pins the shape — zero throughout the settle, monotonic ramp, the
+timeout, the pulse count, and that pulses never play while the ramp is still winding.
+
 ## The vibration channel and the grind
 
 The telemetry effects (`Core/EffectComposer.cs`) are the one family of force that is neither a
