@@ -69,6 +69,12 @@ namespace AB9ActiveShifter.UI
                 return;
             }
 
+            if (geo.Pattern == GatePattern.Prnd)
+            {
+                DrawPrnd(dc, cfg, snap, left, right, top, bottom);
+                return;
+            }
+
             var composer = new ForceComposer(geo, cfg);
 
             // Bottom to top: territory, then the gate itself, then what the state machine keys on.
@@ -439,6 +445,47 @@ namespace AB9ActiveShifter.UI
 
             DrawGearLabel(dc, "+", cx, top - 17, snap.GearLabel == "+");
             DrawGearLabel(dc, "-", cx, bottom + 4, snap.GearLabel == "-");
+
+            DrawStick(dc, snap, left, right, top, bottom);
+        }
+
+        /// <summary>
+        /// The selector lane: one line with four positions on it, the one currently held lit, and
+        /// a dashed mark at each crest where the button changes hands. Everything comes from the
+        /// same <see cref="PrndLane"/> the forces and the state machine are built from, so the
+        /// picture cannot place a position anywhere the lever will not find one.
+        /// </summary>
+        private void DrawPrnd(DrawingContext dc, EngineConfig cfg, EngineSnapshot snap,
+                              double left, double right, double top, double bottom)
+        {
+            PrndLane lane = cfg.BuildPrndLane();
+            double cx = (left + right) / 2;
+
+            dc.DrawLine(MakePen(GateBrush, 10, false),
+                        new Point(cx, MapY(AxisCenter - lane.HalfLength, top, bottom)),
+                        new Point(cx, MapY(AxisCenter + lane.HalfLength, top, bottom)));
+
+            for (int gap = 0; gap < PrndLane.PositionCount - 1; gap++)
+            {
+                double sy = MapY(lane.CrestY(gap), top, bottom);
+                dc.DrawLine(MarkDashPen, new Point(cx - 14, sy), new Point(cx + 14, sy));
+            }
+
+            for (int i = 0; i < PrndLane.PositionCount; i++)
+            {
+                double sy = MapY(lane.PositionY(i), top, bottom);
+                string label = lane.LabelFor(i);
+                bool lit = snap.DeviceConnected && snap.GearLabel == label;
+
+                dc.DrawLine(MarkPen, new Point(cx - 26, sy), new Point(cx + 26, sy));
+
+                FormattedText text = Text(label, 15, lit ? ActiveBrush : LabelBrush, lit);
+                dc.DrawText(text, new Point(cx + 32, sy - (text.Height / 2)));
+            }
+
+            DrawLabel(dc, "positions", cx - 32 - 54, MapY(lane.PositionY(0), top, bottom) - 6, TextAlign.Left);
+            DrawLabel(dc, "button changes here", cx + 62,
+                      MapY(lane.CrestY(0), top, bottom) - 6, TextAlign.Left);
 
             DrawStick(dc, snap, left, right, top, bottom);
         }

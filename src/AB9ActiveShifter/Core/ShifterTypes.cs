@@ -4,8 +4,9 @@ namespace AB9ActiveShifter.Core
 {
     /// <summary>
     /// The shift pattern the gate renders. The H patterns share one geometry engine - they
-    /// differ only in column count and which slots hold a gear - while Sequential bypasses the
-    /// gate entirely for a sprung fore/aft lever with pulsed up/down buttons.
+    /// differ only in column count and which slots hold a gear - while Sequential and Prnd
+    /// bypass the gate entirely: one for a sprung fore/aft lever with pulsed up/down buttons,
+    /// the other for a detented lane of four fixed positions with a button held at each.
     /// </summary>
     public enum GatePattern
     {
@@ -19,7 +20,14 @@ namespace AB9ActiveShifter.Core
         H5R = 2,
 
         /// <summary>Fore/aft lever sprung to centre; push fires an up/down button pulse.</summary>
-        Sequential = 3
+        Sequential = 3,
+
+        /// <summary>
+        /// An automatic's selector: one lane, four detented positions, a button held at each.
+        /// Not a gate with one column - there is no neutral to come back through and no gear to
+        /// engage, only a position the lever is always in. See <see cref="PrndLane"/>.
+        /// </summary>
+        Prnd = 4
     }
 
     /// <summary>Gate columns, left to right. The last column of the pattern holds reverse.</summary>

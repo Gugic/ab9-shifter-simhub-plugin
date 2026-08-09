@@ -12,10 +12,17 @@ namespace AB9ActiveShifter.Output
     /// previous one is released before the new one is set so a game never sees two gears.
     /// All calls come from the engine thread except <see cref="ReleaseAll"/>, which the
     /// watchdog may invoke to clear a stuck gear.
+    ///
+    /// PRND rides the same path with its position buttons 11-14, because "exactly one held, the
+    /// old one released first" is precisely what a selector needs too - and doing it here means
+    /// the shutdown ordering, the watchdog's clear and the profile switch all cover it without
+    /// knowing the pattern. That is the reason <see cref="GearCount"/> reaches past the gears:
+    /// it bounds what this may press, not what a gear is.
     /// </summary>
     public sealed class VJoyGearOutput : IGearOutput
     {
-        public const int GearCount = 8;
+        /// <summary>Highest button <see cref="SetGear"/> will hold: 8 gears, then PRND's 11-14.</summary>
+        public const int GearCount = 14;
 
         private readonly vJoy _vjoy = new vJoy();
         private readonly uint _deviceId;
@@ -78,10 +85,11 @@ namespace AB9ActiveShifter.Output
                     {
                         // Not fatal: whatever buttons exist still work, so run and tell the
                         // user what is missing. Gears use 1..8; the sequential up/down pulses
-                        // use 9/10, kept above the gear range so no binding means two things.
+                        // use 9/10 and PRND's positions 11-14, each kept above the last so no
+                        // binding means two things.
                         LastError = "vJoy device " + _deviceId + " exposes only " + buttons +
-                                    " buttons; gears use 1-8 and sequential up/down use 9-10. " +
-                                    "Raise the button count in vJoyConf.";
+                                    " buttons; gears use 1-8, sequential up/down use 9-10 and " +
+                                    "PRND uses 11-14. Raise the button count in vJoyConf.";
                         Log.Warn(LastError);
                     }
                     else

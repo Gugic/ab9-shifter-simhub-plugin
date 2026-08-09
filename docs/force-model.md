@@ -459,6 +459,39 @@ frame (`SeqThrow` on the Feel tab: counts from centre to the firing line, the sa
 because shortening only the firing line would eventually let a lever resting on the threshold
 machine-gun shifts.
 
+**The PRND selector** replaces the gate with a single lane: four fixed positions, evenly spaced,
+`PrndLaneHalfLength` either side of centre, with a vJoy button held at whichever one the lever is
+in (P 11, R 12, N 13, D 14 — above the gears and above the sequential pulses, and following the
+*label* so `MirrorSlots` turns the lane round without costing a rebind). Laterally it is the
+sequential rail. Fore and aft it is three things:
+
+| Where | Force |
+| --- | --- |
+| within `PrndNotchHalfWidth` of a position | **nothing** |
+| between the notch and the crest beside it | a raised cosine hump, zero at both ends |
+| past either end of the lane | a wall, rising over the wall bite, back down the lane |
+
+Both of the hump's zeros are load-bearing, and one of them is the whole reason it is shaped this
+way. The force is measured from the **nearest** position, and every nearest-anything field flips at
+the midpoint — on the lateral axis that flip is a step of twice the plateau, and paying for it took
+the entire handover-window mechanism above. Here it costs nothing, because the force is already at
+zero where the flip happens. A pull toward the nearest position, which is the obvious way to write
+a detent, would put that reversal straight back at full detent strength, three times along the
+lane. The zero at the notch edge is the ordinary corridor rule: a selected position has to be a
+region the lever rests in, not a point it is pulled to.
+
+Raised cosine rather than a half sine because a sine leaves at full slope where it meets free
+space, so both the notch edge and the crest would be corners — the two places a hand actually
+dwells. The cost is peaking at π/2 times its average, which is what `PrndNotchHalfWidthCeiling`
+sizes the span for: the hump is never given less than π wall bites to rise in, so its steepest
+point is exactly the stiffness of a wall face. That is the rounded slot mouth's 2/π factor, arrived
+at from the other end.
+
+There is no neutral, no travelling and no engage debounce. A selector lever is always in exactly
+one position, so `PrndStateMachine` holds an index and only ever hands it to another; the chatter
+protection is the crest hysteresis, which — unlike a tick count — works for a hand resting on a
+boundary indefinitely, the case that actually happens.
+
 ## The four stabilising mechanisms
 
 A stiff wall rendered through a 3–4 ms delay is unstable — the delayed force acts as *negative*

@@ -70,6 +70,54 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int SeqClickPct = 60;
 
+        /// <summary>
+        /// Distance from centre to each end of the PRND lane, in axis counts: P and D sit there
+        /// and the other two positions divide the rest evenly.
+        /// <para>
+        /// Deliberately its own dial rather than a reuse of <see cref="EngageDepth"/>, which every
+        /// other pattern measures its stroke with. They are not the same fact - a selector lane is
+        /// a fraction of the length an H throw wants - so sharing one would mean switching a
+        /// profile's pattern silently retuned the other, and it would drag
+        /// <see cref="ReleaseDepth"/> along with it, which means nothing here: a selector has no
+        /// threshold to re-arm past.
+        /// </para>
+        /// </summary>
+        public int PrndLaneHalfLength = 12000;
+
+        /// <summary>
+        /// How hard it is to move between PRND positions, as a percentage of full scale.
+        ///
+        /// Rendered as a half sine between each pair of positions: zero at each position, zero
+        /// again at the crest between them, one smooth hump either side. That shape is chosen for
+        /// the same reason everything else in this gate is - it is continuous everywhere, and it
+        /// has no plateau held up to a boundary that a handover could turn into a step. Pulling
+        /// toward the nearest position instead would reverse at every crest, which is precisely
+        /// the discontinuity <see cref="GateGeometry.HandoverClearance"/> exists to pay for on the
+        /// lateral axis; here it is avoided by construction rather than relieved.
+        /// </summary>
+        public int PrndDetentForcePct = 45;
+
+        /// <summary>
+        /// Free half-width of the notch at each PRND position, in axis counts. Inside it there is
+        /// no fore/aft force at all, so a selected position is a place the lever rests rather than
+        /// a point it is pulled to - the fore/aft twin of <see cref="SlotHalfWidth"/>, and zero is
+        /// a supported setting like it is there.
+        /// <para>
+        /// Clamped so the hump either side of it keeps at least the wall's own stiffness: a notch
+        /// widened until the detent has a couple of hundred counts left to rise in would be a step
+        /// with a sine drawn on it. The clamp is reported rather than applied silently - see
+        /// ForceComposer.PrndNotchHalfWidthCeiling.
+        /// </para>
+        /// </summary>
+        public int PrndNotchHalfWidth = 600;
+
+        /// <summary>
+        /// The wall past each end of the PRND lane, as a percentage of full scale. Rises over the
+        /// wall bite and always points back down the lane, so there is nothing past P or D to be
+        /// held in - it is a wall, never a pocket, the same rule the sequential end-stop follows.
+        /// </summary>
+        public int PrndStopForcePct = 90;
+
         // Telemetry-driven effects: vibration carriers summed onto the composed forces, and
         // the clutch grind. All off by default - they are additions to the gate, not part of
         // it - and every one dies when telemetry goes stale. Volumes are shares of the fixed
@@ -613,6 +661,16 @@ namespace AB9ActiveShifter.Core
 
         /// <summary>All forces off, for checking the stick moves freely.</summary>
         public bool FreeStick;
+
+        /// <summary>
+        /// The PRND lane this configuration describes. Built alongside the gate geometry rather
+        /// than instead of it: the sequential and PRND patterns still need the geometry for the
+        /// throw and the mirror flags, so both always exist and neither needs a null check.
+        /// </summary>
+        public PrndLane BuildPrndLane()
+        {
+            return new PrndLane(PrndLaneHalfLength, DetentHysteresis, MirrorSlots);
+        }
 
         public GateGeometry BuildGeometry()
         {

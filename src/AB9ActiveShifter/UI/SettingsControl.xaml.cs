@@ -130,6 +130,7 @@ namespace AB9ActiveShifter.UI
                 GateWallCurve.Attach(_boundSettings);
                 SlidingAcrossGateCurve.Attach(_boundSettings);
                 SlotMouthCurve.Attach(_boundSettings);
+                PrndLaneCurve.Attach(_boundSettings);
             }
 
             // A fresh baseline for "modified since I opened this profile" - not since the last
@@ -436,6 +437,7 @@ namespace AB9ActiveShifter.UI
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
             RefreshSlotThrowSummary();
+            RefreshPrndLaneSummary();
 
             // The device number is stored per profile, so switching profile can change it.
             RefreshVJoyDevices();
@@ -462,6 +464,7 @@ namespace AB9ActiveShifter.UI
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
             RefreshSlotThrowSummary();
+            RefreshPrndLaneSummary();
             RefreshProfiles();
             RefreshCarModels();
             RefreshVJoyDevices();
@@ -744,9 +747,9 @@ namespace AB9ActiveShifter.UI
 
                 default:
                     return chosen.Buttons >= VJoyDeviceInfo.ButtonsNeeded
-                        ? "Ready. Bind gears 1-7 and reverse to buttons 1-8, and the sequential up/down to 9 and 10."
-                        : "Device " + selected + " has only " + chosen.Buttons + " buttons. Gears need 1-8 and " +
-                          "sequential needs 9-10, so raise the count in vJoyConf.";
+                        ? "Ready. Bind gears 1-7 and reverse to buttons 1-8, the sequential up/down to 9 and 10, and PRND's P, R, N and D to 11-14."
+                        : "Device " + selected + " has only " + chosen.Buttons + " buttons. Gears need 1-8, " +
+                          "sequential needs 9-10 and PRND needs 11-14, so raise the count in vJoyConf.";
             }
         }
 
@@ -1251,6 +1254,7 @@ namespace AB9ActiveShifter.UI
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
             RefreshSlotThrowSummary();
+            RefreshPrndLaneSummary();
             if (e != null) RefreshDirtyMarker(e.PropertyName);
 
             // Calibration writes the flag from the engine thread; this is how the gate and the
@@ -1436,6 +1440,44 @@ namespace AB9ActiveShifter.UI
             SlotThrowSummary.Text = text;
         }
 
+        /// <summary>
+        /// Where the four PRND positions actually land, and the same clamp-visibility treatment as
+        /// the two summaries above for the notch: it is bounded by the room the hump beside it
+        /// needs, which is a fact about the lane length and the wall bite rather than about the
+        /// notch slider.
+        /// </summary>
+        private void RefreshPrndLaneSummary()
+        {
+            if (PrndLaneSummary == null || Plugin == null || Plugin.Settings == null) return;
+
+            ShifterSettings s = Plugin.Settings;
+            if (!s.IsPrnd) return;
+
+            EngineConfig cfg = s.ToEngineConfig();
+            ForceComposer composer = new ForceComposer(cfg.BuildGeometry(), cfg);
+            PrndLane lane = cfg.BuildPrndLane();
+
+            string text = string.Format(
+                "{0} counts between positions: {1} at {2}, {3} at {4}, {5} at {6}, {7} at {8}.",
+                lane.Spacing,
+                lane.LabelFor(0), lane.PositionY(0),
+                lane.LabelFor(1), lane.PositionY(1),
+                lane.LabelFor(2), lane.PositionY(2),
+                lane.LabelFor(3), lane.PositionY(3));
+
+            int ceiling = composer.PrndNotchHalfWidthCeiling;
+            if (ceiling < s.PrndNotchHalfWidth)
+            {
+                text += ceiling > 0
+                    ? string.Format(
+                        " Effective notch: {0} counts, capped down from {1} - the hump beside it needs room to rise at no more than the wall's own stiffness. Lengthen the lane, or shorten Wall bite distance, to allow more.",
+                        ceiling, s.PrndNotchHalfWidth)
+                    : " Effective notch: 0 counts - the lane is short enough that the detent has less room than one wall bite to rise in, so it will feel abrupt however the notch is set. Lengthen the lane.";
+            }
+
+            PrndLaneSummary.Text = text;
+        }
+
         private void OnCalibrate(object sender, RoutedEventArgs e)
         {
             ShifterEngine engine = AB9ShifterPlugin.Engine;
@@ -1583,6 +1625,7 @@ namespace AB9ActiveShifter.UI
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
             RefreshSlotThrowSummary();
+            RefreshPrndLaneSummary();
         }
 
         private static Brush ResultBrush(CalibrationOutcome outcome)

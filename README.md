@@ -43,7 +43,8 @@ meant to feel that way.
 - A **MOZA AB9** base on firmware **1.1.3.4 or newer** — developed and tested against **1.1.5.2**
 - **MOZA Pit House** and **MOZA Cockpit**, for the one-time base configuration below
 - [**vJoy**](https://sourceforge.net/projects/vjoystick/) with a device exposing at least
-  **10 buttons** — 1–8 carry the H patterns, 9 and 10 the sequential up/down. The Setup tab lists
+  **14 buttons** — 1–8 carry the H patterns, 9 and 10 the sequential up/down, 11–14 the automatic's
+  P, R, N and D. Fewer still works for whatever fits. The Setup tab lists
   the devices vJoy reports with their button counts, so you can check this without guessing; the
   gate itself works without vJoy, you just get no gear output
 - .NET Framework 4.8, already present if SimHub runs
@@ -164,11 +165,12 @@ Raise the overall gain slowly from there. This is a 12 Nm base.
 
 ### 7. Bind the gears in your game
 
-Bind gears **1–7 and reverse to vJoy buttons 1–8**, and the sequential up/down to **9 and 10**.
-Do **not** bind the AB9's own axes in the game — the plugin is what reads them.
+Bind gears **1–7 and reverse to vJoy buttons 1–8**, the sequential up/down to **9 and 10**, and the
+automatic's **P, R, N and D to 11–14**. Do **not** bind the AB9's own axes in the game — the plugin
+is what reads them.
 
-Reverse is always button 8 whatever the pattern, and the sequential buttons sit above every gear
-button, so one set of bindings covers all four patterns and no binding can ever mean two things.
+Reverse is always button 8 whatever the pattern, and each later range sits above the last, so one
+set of bindings covers all five patterns and no binding can ever mean two things.
 
 ## The gate
 
@@ -207,7 +209,7 @@ the way a real H lever rests at the 3/4 gate.
 
 ## Patterns
 
-Four, selectable per **profile** on the Setup tab:
+Five, selectable per **profile** on the Setup tab:
 
 | Pattern | |
 | --- | --- |
@@ -215,6 +217,7 @@ Four, selectable per **profile** on the Setup tab:
 | **6+R** | The slot where 7 would sit genuinely does not exist — the wall over it never opens, so the lever cannot enter it at all. The stock firmware's 6+R leaves the seven-gear gate rendered with that slot merely inert, which is no guard against the misshift that choosing six gears is meant to prevent |
 | **5+R** | Three wider columns, no lockout |
 | **Sequential** | A sprung fore/aft lever: one shift per stroke, with a click you can tune |
+| **Automatic (P R N D)** | A selector lane: four fixed positions in a line, a button held at whichever one the lever is in. No neutral to come back through and no gear to engage — the lever is always somewhere |
 
 A profile stores every dial together with its pattern, so each pattern keeps its own tuning and
 switching between them is one dropdown. *Next profile* and *Previous profile* are bindable actions

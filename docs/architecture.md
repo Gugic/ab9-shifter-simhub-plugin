@@ -160,6 +160,22 @@ a button that is still down releases it and delays the next press by 20 ms, beca
 inside one tick reads to a game's input poll as one continuous press. Pattern switches clear any
 pulse in flight along with the held gear.
 
+PRND bypasses the gate too, and further: there is no neutral, no travelling and no engage debounce,
+because a selector lever is always in exactly one position. `PrndLane` owns where the four sit and
+which button each holds — its own class rather than a `GateGeometry` with one column, because that
+would have meant a channel that means nothing, a lockout that cannot exist and a gear map with no
+reverse in it, four special cases in the middle of the gate to save forty lines. `PrndStateMachine`
+holds an index and hands it on at the crests with the same hysteresis bias `GateGeometry.Pick`
+uses; `ForceComposer.ComposePrnd` renders the sequential rail laterally and the lane's detents fore
+and aft, through the same pipeline and the same single polarity application.
+
+Its buttons (11–14) go out through `VJoyGearOutput.SetGear` rather than `SetButton`, which is what
+gives a position the same release-before-press, the same watchdog clear and the same shutdown
+ordering a gear gets — `GearCount` therefore bounds what that method may press, not what a gear is.
+The one thing the engine must ask per pattern is what should currently be held, and `ShifterEngine`
+has exactly one answer for it (`CurrentHeldButton`), used by all three places that push the truth
+back to vJoy: a rebuilt gate, a finished calibration, and a profile switch.
+
 ## Telemetry effects and the grind
 
 `EffectComposer` lives on the engine thread and keeps the carrier phases; `TelemetryState` is

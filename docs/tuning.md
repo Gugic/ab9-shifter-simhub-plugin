@@ -56,7 +56,9 @@ corridor the lever gets.
 
 The blue marks are all things the plugin *measures* rather than things the hand feels, which is
 why they are a different colour from the gate itself. In sequential the same two marks show where
-a shift fires and how far back the lever must come before it can fire again.
+a shift fires and how far back the lever must come before it can fire again; in the automatic they
+show the four positions, with the one currently held lit, and a dashed mark at each point the
+button changes hands.
 
 ## Start here
 
@@ -81,11 +83,12 @@ a shift fires and how far back the lever must come before it can fire again.
 ## Patterns
 
 The **pattern** lives on the Setup tab, per profile: 7+R (lockout), 6+R (no 7th slot — its divider
-just continues across), 5+R (three wider columns, no lockout), or Sequential. Forward gears map to
-vJoy buttons 1..N and **reverse is always button 8**, whatever the pattern — so one set of game
-bindings covers every pattern and switching profiles never needs a rebind. (Reverse used to be the
-highest gear of the pattern, which put 5+R's R on button 6 — read by a game bound for 7+R as sixth
-gear, at speed.)
+just continues across), 5+R (three wider columns, no lockout), Sequential, or Automatic (P R N D).
+Forward gears map to vJoy buttons 1..N and **reverse is always button 8**, whatever the pattern —
+so one set of game bindings covers every pattern and switching profiles never needs a rebind.
+(Reverse used to be the highest gear of the pattern, which put 5+R's R on button 6 — read by a game
+bound for 7+R as sixth gear, at speed.) Everything else stacks above the gears: sequential up/down
+on 9 and 10, the automatic's P, R, N and D on 11 to 14.
 
 **Sequential** turns the fore/aft axis into a sprung lever: push past the engage threshold and it
 fires one press of button 9 (up) or 10 (down) — above every gear button, so a game still carrying
@@ -126,6 +129,30 @@ Set the throw first, then raise the end-stop until the bottom feels solid. Both 
 *stop* bar on the gate plan view — move together as you shorten the throw. This only behaves
 because the base is not self-centring: **MOZA Cockpit's Spring must be at 0**, which it has to be
 anyway. On a base still centring in firmware, leave the end-stop off.
+
+**Automatic (P R N D)** turns the fore/aft axis into a selector lane: four fixed positions, a vJoy
+button held at whichever one the lever is in, and nothing else. There is no neutral to come back
+through and no gear to engage — the lever is always somewhere, which is why the Monitor tab reads
+*Engaged* the whole time. Its own section, **PRND LANE** on the Feel tab, owns all of it:
+
+- ***Lane half-length from centre*** puts P and D that far either side of centre, the other two
+  dividing the rest evenly. It is the lane's own dial rather than the throw the H and sequential
+  patterns share — a selector lane is a fraction of the length a gear lever wants, and sharing one
+  would retune the other every time the pattern changed.
+- ***Detent between positions*** is how hard it is to move between them. The shape is a smooth
+  hump — nothing at a position, nothing again at the halfway point, one rise either side — so
+  leaving a position resists and arriving at the next one is assisted, the way a real detent works.
+- ***Free notch at each position*** is the room the lever has at a position with no force at all,
+  so a selection is a place it rests rather than a point it is pulled to. Zero turns each position
+  into a line, which is stable only at moderate detent force, exactly like the rail gate. It is
+  clamped by the room the hump beside it needs; the line under the sliders prints the effective
+  value and where all four positions landed.
+- ***End-stop wall past P and D*** is the wall at either end of the lane. Always back down the
+  lane, never a pocket.
+
+Sideways the lever is railed to the middle by **slot wall / lateral rail**, as in sequential.
+**MirrorSlots** (gear layout) turns the lane round so P is nearest you; the buttons follow the
+labels, so R stays on button 12 either way.
 
 Keep one **profile** per pattern you actually use — every dial, the pattern included, is stored
 per profile, so switching is one dropdown.
