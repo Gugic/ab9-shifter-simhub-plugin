@@ -58,6 +58,7 @@ namespace AB9ActiveShifter.Core
         private readonly int _detentPullMax;
         private readonly int _detentHold;
         private readonly int _grindWallForce;
+        private readonly int _slotStopForce;
         private readonly int _seqStopForce;
         private readonly int _seqClickForce;
         private readonly int _damperCoeff;
@@ -183,6 +184,7 @@ namespace AB9ActiveShifter.Core
             _detentPullMax = Force(config.DetentPullPct, gain);
             _detentHold = Force(config.DetentHoldPct, gain);
             _grindWallForce = Force(config.GrindWallPct, gain);
+            _slotStopForce = Force(config.SlotStopForcePct, gain);
             _seqStopForce = Force(config.SeqStopForcePct, gain);
             _seqClickForce = Force(config.SeqClickPct, gain);
             _damperCoeff = Scale(config.DamperCoeff, gain);
@@ -360,14 +362,19 @@ namespace AB9ActiveShifter.Core
             // the exception - it is a wall the lever gets banged against, so it takes the walls'
             // full absorption. The click is a drop and passes the time shaping instantly; the
             // build-up on the way out is slewed like any other wall.
-            int stopStart = SequentialThreshold() + Math.Max(0, _cfg.SeqOvertravel);
+            int stopStart = ThrowThreshold() + Math.Max(0, _cfg.SeqOvertravel);
             double floorY = Math.Abs(y - GateGeometry.AxisCenter) >= stopStart ? _yieldFloor : _snickFloor;
 
             return Bound(frame, vx, vy, dtMs, floorY, shapeY: true, vibY: Combine(vibY, click));
         }
 
-        /// <summary>Distance from centre to the sequential firing line, in axis counts.</summary>
-        private int SequentialThreshold()
+        /// <summary>
+        /// The throw: distance from centre to the line a push registers at, in axis counts. One
+        /// number for both patterns because it is one stored fact - <see cref="EngineConfig.EngageDepth"/>
+        /// measures the same line from the end of travel instead. The sequential lever fires here;
+        /// an H slot seats here.
+        /// </summary>
+        private int ThrowThreshold()
         {
             return Math.Max(1, GateGeometry.AxisCenter - _geo.EngageDepth);
         }
@@ -386,7 +393,7 @@ namespace AB9ActiveShifter.Core
         {
             ShiftDir dir = _geo.DirectionOf(y);
             int depth = Math.Abs(y - GateGeometry.AxisCenter);
-            int threshold = SequentialThreshold();
+            int threshold = ThrowThreshold();
 
             double magnitude;
             if (depth < threshold)
@@ -925,9 +932,117 @@ namespace AB9ActiveShifter.Core
             // the slot detent replaces the tunnel's gate wall, which is what makes a gear a place
             // the lever can go rather than a wall it bounces off.
             f.ConstantX = Combine(LateralGuide(x, y, _guideColumn), BarrierForceIn(x, y));
-            f.ConstantY = DetentMagnitude(direction, _geo.EngageFraction(direction, y), muteDetent);
+            f.ConstantY = SlotForceAt(direction, y, muteDetent);
 
             return f;
+        }
+
+        /// <summary>
+        /// The whole fore/aft force inside a slot: the detent's approach shape, and - once the
+        /// slot has been given a bottom - the seat and the end-stop wall past it.
+        ///
+        /// With <see cref="EngineConfig.SlotStopForcePct"/> at zero this is exactly
+        /// <see cref="DetentMagnitude"/> and the gate is what it has always been: past the engage
+        /// line the seated hold keeps pulling, so the lever runs on to the base's own mechanical
+        /// stop. That is why shortening <see cref="EngineConfig.EngageDepth"/> on its own only
+        /// makes a gear <em>register</em> earlier - a seated gear still ends up at full deflection,
+        /// and there is no such thing as a short throw. The sequential lever has had a bottom since
+        /// it shipped (<see cref="EngineConfig.SeqOvertravel"/> and SeqStopForcePct); the H slots
+        /// simply never got one.
+        ///
+        /// Given a bottom, the shape past the engage line is a corridor, not a pull toward a point:
+        /// the hold fades out over one wall bite, the landing beyond it carries no fore/aft force at
+        /// all, and then the wall rises toward neutral. That is deliberate and it is the same rule
+        /// <see cref="EngineConfig.SlotHalfWidth"/> and <see cref="EngineConfig.ChannelFreeDepth"/>
+        /// follow - a restoring force about an interior equilibrium is an oscillator, and a free
+        /// region makes the equilibrium a place rather than a point. It only works because the base
+        /// does not self-centre once MOZA Cockpit's Spring is at 0 (see docs/hardware.md): nothing
+        /// pushes the lever back out of the landing, so nothing has to hold it in.
+        ///
+        /// The fade is never shorter than the wall bite, whatever the landing is set to. At a
+        /// landing of zero the hold would otherwise have to reach nothing within a count or two of
+        /// the engage line, which is a full-strength step rather than a face - the failure the
+        /// tunnel band's <see cref="GateGeometry.MinBandSpan"/> exists to prevent, in the other axis.
+        /// Where that clamp bites, <see cref="SlotStopDepth"/> says so.
+        ///
+        /// Public because the Feel tab's detent curve plots this rather than a copy of it.
+        /// </summary>
+        public int SlotForceAt(ShiftDir direction, int y, bool muted)
+        {
+            int detent = DetentMagnitude(direction, _geo.EngageFraction(direction, y), muted);
+
+            // A balked shift has no seat to reach: the grind's own wall is what stops the lever,
+            // a third of the way in, and stacking a second wall behind it would say nothing.
+            if (_slotStopForce <= 0 || muted) return detent;
+
+            int depth = Math.Abs(y - GateGeometry.AxisCenter);
+            int seat = ThrowThreshold();
+            if (depth <= seat) return detent;
+
+            int face = Math.Max(1, _cfg.WallRamp);
+            int landing = SlotLanding();
+
+            double keep = 1.0 - GateGeometry.Clamp((depth - seat) / (double)face, 0.0, 1.0);
+            int held = (int)Math.Round(detent * keep);
+
+            int into = depth - (seat + landing);
+            if (into <= 0) return held;
+
+            double t = GateGeometry.Clamp(into / (double)face, 0.0, 1.0);
+            int stop = (int)Math.Round(_slotStopForce * t);
+
+            return Combine(held, direction == ShiftDir.Fwd ? stop : -stop);
+        }
+
+        /// <summary>Landing past the engage line, never shorter than the fade that precedes it.</summary>
+        private int SlotLanding()
+        {
+            return Math.Max(Math.Max(1, _cfg.WallRamp), Math.Max(0, _cfg.SlotOvertravel));
+        }
+
+        /// <summary>
+        /// The fore/aft force one stroke renders at this depth, whichever pattern is configured -
+        /// the slot for an H gate, the sprung lever for a sequential one.
+        ///
+        /// Public, and a dispatcher rather than two call sites, because the Feel tab's detent
+        /// curve plots it: that graph exists to answer "what will this dial actually do", and it
+        /// used to draw <see cref="DetentMagnitude"/> on every pattern - which is the right answer
+        /// for an H slot and the wrong function entirely for a sequential lever, whose stroke is
+        /// <see cref="SequentialSpring"/> and shares none of the H crossover geometry.
+        /// </summary>
+        public int StrokeForceAt(ShiftDir direction, int y, bool muted)
+        {
+            return _cfg.Pattern == GatePattern.Sequential
+                ? SequentialSpring(y)
+                : SlotForceAt(direction, y, muted);
+        }
+
+        /// <summary>
+        /// Where a gear seats, or a sequential shift fires, as a distance from centre: the throw,
+        /// in one word.
+        /// </summary>
+        public int StrokeSeatDepth { get { return ThrowThreshold(); } }
+
+        /// <summary>
+        /// Where the stroke meets its end-stop wall, as a distance from centre - and
+        /// <see cref="GateGeometry.AxisCenter"/> itself, meaning the end of travel, when it has no
+        /// bottom to meet. The Feel tab prints this beside the throw slider, because the two
+        /// numbers a hand actually cares about are where the gear seats and where the lever stops,
+        /// and neither is the number on any one dial: the landing carries its own floor, and a wall
+        /// asked for past the end of travel is simply never met.
+        /// </summary>
+        public int StrokeStopDepth
+        {
+            get
+            {
+                bool sequential = _cfg.Pattern == GatePattern.Sequential;
+
+                int force = sequential ? _seqStopForce : _slotStopForce;
+                if (force <= 0) return GateGeometry.AxisCenter;
+
+                int landing = sequential ? Math.Max(0, _cfg.SeqOvertravel) : SlotLanding();
+                return Math.Min(GateGeometry.AxisCenter, ThrowThreshold() + landing);
+            }
         }
 
         /// <summary>

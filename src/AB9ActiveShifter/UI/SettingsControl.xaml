@@ -444,12 +444,32 @@
                         </StackPanel>
                     </styles:SHSection>
 
+                    <styles:SHSection Title="THROW AND SLOT END-STOP" ShowSeparator="True"
+                                      Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Margin="0,4,0,8">
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                       Text="How far the lever travels from neutral to a seated gear, and whether it has anywhere to stop. These two questions are the whole of a short-throw box, and they are separate: the throw below sets where a gear registers, but with the end-stop at zero the seated hold keeps pulling past that line and the lever runs on to the base's own mechanical stop, exactly as it always has. Shortening the throw on its own therefore only makes the gear register earlier - the travel is unchanged. Raise the end-stop wall and the slot gets a bottom of its own, which is what actually shortens the throw." />
+                            <ui:TitledSlider Title="Throw from centre to a seated gear (axis counts)" Minimum="6000" Maximum="30000"
+                                             TickFrequency="500" ShowResetButton="True" ResetValue="28767"
+                                             Value="{Binding ThrowFromCentre, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Free landing past the seat (axis counts)" Minimum="0" Maximum="12000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="4000"
+                                             Value="{Binding SlotOvertravel, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Slot end-stop wall (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="0"
+                                             Value="{Binding SlotStopForcePct, Mode=TwoWay}" />
+                            <TextBlock x:Name="SlotThrowSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="The slot in order, once it has a bottom: centre to the seat (the throw - it moves the release line with it, so the hysteresis gap survives), then the seated hold fading out over one wall bite, then a free landing carrying no fore/aft force at all, then the wall. The landing is deliberately free rather than held, so the gear's resting place is a region and not a point - a force pulling toward a single spot is an oscillator, which is the same reason the slot corridor and the tunnel are free spaces rather than centre lines. That only works because the base is not self-centring: with Spring at 0 in MOZA Cockpit nothing pushes the lever back out of the landing, so nothing has to hold it in. The landing never runs shorter than the wall bite, whichever way the two are set, or the hold would have to vanish in a couple of counts and arrive as a bang rather than a face." />
+                        </StackPanel>
+                    </styles:SHSection>
+
                     <styles:SHSection Title="SEQUENTIAL STROKE" ShowSeparator="True"
                                       Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}">
                         <StackPanel Margin="0,4,0,8">
                             <ui:TitledSlider Title="Actuation throw from centre (axis counts)" Minimum="4000" Maximum="30000"
                                              TickFrequency="500" ShowResetButton="True" ResetValue="28767"
-                                             Value="{Binding SeqThrow, Mode=TwoWay}" />
+                                             Value="{Binding ThrowFromCentre, Mode=TwoWay}" />
                             <ui:TitledSlider Title="Shift click kick (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="60"
                                              Value="{Binding SeqClickPct, Mode=TwoWay}" />
@@ -538,7 +558,7 @@
                     <styles:SHSection Title="SLOT DETENT" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
-                                       Text="This is what makes a gear feel like it clicks into place, the way a real gearbox does - not just friction holding the lever, but a shaped force that changes three times on the way in. Push toward a gear and it resists at first, like pushing into a spring. Keep pushing past that resistance and the lever gets pulled the rest of the way in on its own - the snick, the same moment a synchro drops into place in a real box. Once seated, a steady hold keeps the gear from slipping back out, even against a base that is still trying to nudge the stick back to centre. The white dot on the graph below tracks exactly where in that sequence the stick currently is." />
+                                       Text="This is what makes a gear feel like it clicks into place, the way a real gearbox does - not just friction holding the lever, but a shaped force that changes three times on the way in. Push toward a gear and it resists at first, like pushing into a spring. Keep pushing past that resistance and the lever gets pulled the rest of the way in on its own - the snick, the same moment a synchro drops into place in a real box. Once seated, a steady hold keeps the gear from slipping back out, even against a base that is still trying to nudge the stick back to centre. The graph is the whole stroke in axis counts from centre, so it gets shorter as the throw does, and the white dot tracks exactly where in that sequence the stick currently is." />
                             <local:DetentCurveVisualizer x:Name="DetentCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" />
                             <ui:TitledSlider Title="Resistance entering the slot (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="22"

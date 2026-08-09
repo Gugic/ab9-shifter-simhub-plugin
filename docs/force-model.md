@@ -307,6 +307,48 @@ own width. Once in a column this gives way to the **slot detent**: resist on the
 centre to pull the stick home (the snick), then settle to a seated hold strong enough to beat the
 base's own centring (~90% of full force at full deflection — hence `DetentHoldPct` = 55).
 
+### The bottom of a slot, and what a short throw actually is
+
+The slot detent above has no end. Past the engage line `DetentMagnitude` returns `-DetentHoldPct`
+and keeps returning it, so the lever is pulled deeper until it meets the base's **mechanical**
+stop. That is why, for a long time, there was no such thing as a short throw here: `EngageDepth`
+moves the line a gear *registers* at, and nothing else. Raise it and the gear clicks in early and
+the lever is then dragged the remaining travel anyway. A seated gear always sat at full
+deflection. The sequential lever has had a bottom since it shipped — `SeqOvertravel` then
+`SeqStopForcePct` — and the H slots simply never got one.
+
+`SlotStopForcePct` gives them one, and the shape past the engage line is a **corridor, not a pull
+toward a point**:
+
+| Depth from centre | Force |
+| --- | --- |
+| up to the seat | the detent as before — resist, crossover, snick, hold |
+| seat → seat + one wall bite | the seated hold fading linearly to zero |
+| … → seat + landing | **nothing at all** |
+| beyond | the end-stop wall, rising over the wall bite, toward neutral |
+
+The free landing is the whole stability argument and it is the same rule `SlotHalfWidth` and
+`ChannelFreeDepth` follow. A hold pulling in against a wall pushing out is a restoring force about
+an interior equilibrium, and this project has paid for that lesson twice — it is why slots are
+corridors and not centre lines. With a free landing the gear's resting place is a *stretch of
+travel*, so there is no gradient at rest for the loop's delay to pump. It is only sound because
+**the base does not self-centre** once MOZA Cockpit's Spring is at 0 ([hardware.md](hardware.md)):
+nothing pushes the lever back out of the landing, so nothing has to hold it in. On a base still
+centring in firmware this shape would let the gear crawl back out, and the old
+pull-to-the-mechanical-stop is the right answer there — which is what `SlotStopForcePct` = 0, the
+default, still is.
+
+The fade is never shorter than the wall bite whatever the landing is set to. Zero landing would
+ask a full-strength hold to reach nothing within a count or two of the seat, which is a bang and
+not a face — the fore/aft twin of the tunnel-band cliff `MinBandSpan` exists to prevent. The floor
+is *visible* rather than silent: `StrokeStopDepth` reports where the wall really begins, the Feel
+tab prints it beside the throw, and the gate plan view draws it.
+
+Everything is measured from the seat, exactly like the sequential stroke, so shortening the throw
+moves the whole slot together rather than changing its shape. And at the shipped geometry the
+landing already reaches the end of travel, so turning the stop on at a default throw cannot
+conjure a wall — it only stops pressing the gear home.
+
 ## The rail gate
 
 Trying MOZA's native shifter mode on the same base produced one load-bearing observation: **the

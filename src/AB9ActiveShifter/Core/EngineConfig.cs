@@ -564,6 +564,42 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int DetentHoldPct = 55;
 
+        /// <summary>
+        /// The wall at the bottom of an H slot, as a percentage of full scale - the fore/aft twin
+        /// of the sequential lever's <see cref="SeqStopForcePct"/>, and the whole of what makes a
+        /// short throw possible.
+        /// <para>
+        /// Zero - the default - is the gate as it has always been: past the engage line the seated
+        /// hold simply keeps pulling, so the lever runs on to the base's own mechanical stop and a
+        /// seated gear always sits at full deflection whatever <see cref="EngageDepth"/> says.
+        /// Shortening the throw with that dial alone therefore only makes the gear <em>register</em>
+        /// earlier; the travel is unchanged. Above zero the slot gets a bottom of its own and the
+        /// throw becomes the number it claims to be.
+        /// </para>
+        /// </summary>
+        public int SlotStopForcePct;
+
+        /// <summary>
+        /// How much stroke remains past the engage line before that end-stop begins, in axis
+        /// counts. Measured from the engage line, exactly like <see cref="SeqOvertravel"/>, so
+        /// shortening the throw moves the whole slot together: centre to the engage line, this
+        /// much landing, then the wall.
+        /// <para>
+        /// It is a free landing rather than a held one. The seated hold fades out over one wall
+        /// bite past the engage line and the rest of this span carries no fore/aft force at all,
+        /// which is what keeps the seat a <em>region</em> instead of a point - the same reason
+        /// <see cref="SlotHalfWidth"/> and <see cref="ChannelFreeDepth"/> are corridors and not
+        /// pulls toward a centre line. A lever left anywhere in that landing stays there, because
+        /// the base does not self-centre once MOZA Cockpit's Spring is at 0 (see docs/hardware.md).
+        /// </para>
+        /// <para>
+        /// The default is the room a default-throw gate has past its engage line, so at the shipped
+        /// geometry the wall would begin exactly at the end of travel and can never be met. Nothing
+        /// about the stop is felt until both this and the force above are set deliberately.
+        /// </para>
+        /// </summary>
+        public int SlotOvertravel = 4000;
+
         /// <summary>The gain actually applied, after the unconfirmed-polarity safety cap.</summary>
         public double EffectiveGain
         {

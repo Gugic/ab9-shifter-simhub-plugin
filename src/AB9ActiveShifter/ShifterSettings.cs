@@ -106,6 +106,8 @@ namespace AB9ActiveShifter
         private int _detentResistPct = 22;
         private int _detentPullPct = 35;
         private int _detentHoldPct = 55;
+        private int _slotStopForcePct;
+        private int _slotOvertravel = 4000;
 
         private int _channelHalfEnter = 2600;
         private int _channelHalfExit = 5200;
@@ -309,15 +311,21 @@ namespace AB9ActiveShifter
         public int SeqClickPct { get { return _seqClickPct; } set { Set(ref _seqClickPct, value); } }
 
         /// <summary>
-        /// The sequential lever's actuation throw: axis counts from centre to the firing line.
-        /// The same stored fact as <see cref="EngageDepth"/>, which measures from the end of
-        /// travel - re-expressed the way a sequential hand thinks, so a longer number is a
-        /// longer pull. Writing it moves the re-arm line (<see cref="ReleaseDepth"/>) by the
-        /// same amount, keeping the hysteresis gap: moving only the firing line would shrink
-        /// the gap and, shortened far enough, let a lever resting on the threshold
-        /// machine-gun shifts.
+        /// The throw: axis counts from centre to the line a push registers at. The same stored
+        /// fact as <see cref="EngageDepth"/>, which measures from the end of travel instead -
+        /// re-expressed the way a hand thinks about a lever, so a longer number is a longer pull.
+        /// Writing it moves the release line (<see cref="ReleaseDepth"/>) by the same amount,
+        /// keeping the hysteresis gap: moving only the firing line would shrink the gap and,
+        /// shortened far enough, let a lever resting on the threshold machine-gun shifts.
+        /// <para>
+        /// Both patterns want this number and it means the same thing in each - the sequential
+        /// lever fires there, an H gear seats there. On an H pattern it is only half a short
+        /// throw, though: without <see cref="SlotStopForcePct"/> the seated hold keeps pulling
+        /// past that line, so the lever still ends up at the base's own mechanical stop and only
+        /// the <em>registration</em> moved. See ForceComposer.SlotForceAt.
+        /// </para>
         /// </summary>
-        public int SeqThrow
+        public int ThrowFromCentre
         {
             get { return GateGeometry.AxisCenter - _engageDepth; }
             set
@@ -329,7 +337,7 @@ namespace AB9ActiveShifter
                 _engageDepth = depth;
                 _releaseDepth = Math.Max(_releaseDepth + delta, depth + 500);
 
-                OnChanged("SeqThrow");
+                OnChanged("ThrowFromCentre");
                 OnChanged("EngageDepth");
                 OnChanged("ReleaseDepth");
             }
@@ -502,6 +510,16 @@ namespace AB9ActiveShifter
         public int DetentPullPct { get { return _detentPullPct; } set { Set(ref _detentPullPct, value); } }
         public int DetentHoldPct { get { return _detentHoldPct; } set { Set(ref _detentHoldPct, value); } }
 
+        /// <summary>
+        /// The wall at the bottom of an H slot. Zero - the default - gives the slot no bottom of
+        /// its own, which is the gate as it has always been and the reason a short throw is not
+        /// simply a matter of shortening <see cref="ThrowFromCentre"/>.
+        /// </summary>
+        public int SlotStopForcePct { get { return _slotStopForcePct; } set { Set(ref _slotStopForcePct, value); } }
+
+        /// <summary>Free landing between where a gear seats and where the lever meets that wall.</summary>
+        public int SlotOvertravel { get { return _slotOvertravel; } set { Set(ref _slotOvertravel, value); } }
+
         public int ChannelHalfEnter { get { return _channelHalfEnter; } set { Set(ref _channelHalfEnter, value); } }
         public int ChannelHalfExit { get { return _channelHalfExit; } set { Set(ref _channelHalfExit, value); } }
         public int ColumnEdgeEnter { get { return _columnEdgeEnter; } set { Set(ref _columnEdgeEnter, value); OnChanged("ColumnEdgeEnterPercent"); } }
@@ -510,7 +528,7 @@ namespace AB9ActiveShifter
         public int EngageDepth
         {
             get { return _engageDepth; }
-            set { Set(ref _engageDepth, value); OnChanged("SeqThrow"); }
+            set { Set(ref _engageDepth, value); OnChanged("ThrowFromCentre"); }
         }
 
         public int ReleaseDepth { get { return _releaseDepth; } set { Set(ref _releaseDepth, value); } }
@@ -726,6 +744,8 @@ namespace AB9ActiveShifter
                 DetentResistPct = DetentResistPct,
                 DetentPullPct = DetentPullPct,
                 DetentHoldPct = DetentHoldPct,
+                SlotStopForcePct = SlotStopForcePct,
+                SlotOvertravel = SlotOvertravel,
                 DampingPct = DampingPct,
                 WallFrictionPct = WallFrictionPct,
                 WallYieldPct = WallYieldPct,
@@ -784,6 +804,8 @@ namespace AB9ActiveShifter
                 DetentResistPct = d.DetentResistPct;
                 DetentPullPct = d.DetentPullPct;
                 DetentHoldPct = d.DetentHoldPct;
+                SlotStopForcePct = d.SlotStopForcePct;
+                SlotOvertravel = d.SlotOvertravel;
                 DampingPct = d.DampingPct;
                 WallFrictionPct = d.WallFrictionPct;
                 WallYieldPct = d.WallYieldPct;

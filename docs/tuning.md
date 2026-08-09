@@ -15,15 +15,17 @@ guide describes a tab you cannot see, that is why.
 Four things worth knowing before working through the rest of this guide, because they answer
 questions that used to need a trip to the rig:
 
-- **Force curves.** Each section draws the shape its dials produce — the slot detent against push
-  depth, the tunnel's fore/aft wall, the lateral field across the whole gate, and the corridor a
-  slot mouth opens. Each is sampled from the force code itself, not redrawn, so what you see is
-  what the gate renders. A dot tracks your actual stick position on the curve when the base is
-  connected.
-- **Effective values.** Two dials are silently bounded by the geometry rather than by their
-  slider: *wall bite distance* (the room between columns) and *tunnel free depth* (the state
-  band). Both now print what the gate will actually use, and say so when the slider is asking for
-  more than it can have. See the bite symptom below — that gap is what it feels like.
+- **Force curves.** Each section draws the shape its dials produce — the whole stroke into a gear,
+  the tunnel's fore/aft wall, the lateral field across the whole gate, and the corridor a slot
+  mouth opens. Each is sampled from the force code itself, not redrawn, so what you see is what
+  the gate renders. A dot tracks your actual stick position on the curve when the base is
+  connected. The slot detent curve is drawn in axis counts from centre, so it simply gets shorter
+  as the throw is shortened, and it shows the whole stroke — the landing and the end-stop included.
+- **Effective values.** Some dials are silently bounded by the geometry rather than by their
+  slider: *wall bite distance* (the room between columns), *tunnel free depth* (the state band),
+  and the *free landing* past a gear's seat (the wall bite). All print what the gate will actually
+  use, and say so when the slider is asking for more than it can have. See the bite symptom below —
+  that gap is what it feels like.
 - **Undo per slider**, and a marker on every dial changed since the profile was opened, so an
   experiment can be walked back one dial at a time instead of by resetting the tab.
 - **Raw counts or percent of column spacing.** The lateral dials can be read either way. Percent
@@ -47,6 +49,7 @@ corridor the lever gets.
 | Blue brackets on the tunnel edge | *Outer* / *Inner column half-width* — how wide each doorway opens |
 | Solid blue line across each slot | *Engage depth* — where the gear registers |
 | Dashed blue line across each slot | *Release depth* — where it lets go |
+| Thick grey bar across each slot | The slot's own bottom, when *Slot end-stop wall* has given it one. Grey, not blue: a wall the hand meets, not a line anything is decided at. Absent at the shipped geometry |
 | Dashed blue pairs inside the tunnel | *Column handover width* |
 | Faint dashed verticals, full height | The ownership boundaries: past one, a push that beats the wall lands in the next column's slot |
 | Orange band | The lockout gate, at the width and position the geometry gives it. It reaches only as deep as the tunnel because barriers fade out with depth |
@@ -71,6 +74,9 @@ a shift fires and how far back the lever must come before it can fire again.
 | Neutral tunnel depth | 2600 counts | The state band: where "in the tunnel" ends and the lateral field's rise lives. Must exceed your fore/aft slop while sliding sideways, or you spend your time in the transition band instead. Measured on real hands: p50 1848, p90 3215. |
 | Tunnel depth, free corridor | 2600 counts | Where the tunnel's fore/aft centring force begins. Ships equal to the state band, so the tunnel is simply free; dial to zero for the rail gate. Capped at the state band. |
 | Seated hold | 55% | What keeps a gear engaged against the base's own centring. |
+| Throw from centre to a seated gear | 28767 counts | How far the lever travels to a gear. On its own it only moves where the gear *registers* — see *Short throw* below. |
+| Slot end-stop wall | 0% (off) | Gives the slot a bottom of its own instead of running on to the base's mechanical stop. This, not the throw, is what shortens the travel. |
+| Free landing past the seat | 4000 counts | Room between the seat and that wall, carrying no fore/aft force, so a seated gear rests in a stretch of travel rather than on a point. |
 
 ## Patterns
 
@@ -98,6 +104,28 @@ wall** for a harder landing, and use detent resist/hold for the lean of the stro
 The spring reaches full resistance exactly at the threshold and the click moves with it, so a
 short throw stays progressive rather than becoming a wall. The landing past the click and the
 end-stop are both measured from the firing point, so the whole stroke shortens as one thing.
+
+**Short throw (H patterns).** The *Throw and slot end-stop* section on the Feel tab. Two dials, and
+the order matters because only one of them shortens anything:
+
+- ***Throw from centre to a seated gear*** moves the line a gear registers at, and it moves the
+  release line with it so the hysteresis gap survives. It is the same stored fact as the Geometry
+  tab's *engage depth*, which measures from the end of travel instead, and the same dial the
+  sequential stroke calls *actuation throw*.
+- ***Slot end-stop wall*** is what actually shortens the travel. At 0% — the default, and how the
+  gate has always worked — the seated hold keeps pulling past the seat and the lever runs on to the
+  base's own mechanical stop, so a shorter throw gets you an *earlier click on the same long
+  travel*. Above 0% the slot gets a bottom.
+- ***Free landing past the seat*** is the room between the two. It carries no fore/aft force at all,
+  deliberately: a gear's resting place has to be a stretch of travel and not a point, for the same
+  reason a slot is a corridor rather than a centre line. Anything shorter than the wall bite is
+  raised to it, and the line under the sliders tells you where the gear seats and where the lever
+  stops, so nothing is clamped silently.
+
+Set the throw first, then raise the end-stop until the bottom feels solid. Both marks — and the
+*stop* bar on the gate plan view — move together as you shorten the throw. This only behaves
+because the base is not self-centring: **MOZA Cockpit's Spring must be at 0**, which it has to be
+anyway. On a base still centring in firmware, leave the end-stop off.
 
 Keep one **profile** per pattern you actually use — every dial, the pattern included, is stored
 per profile, so switching is one dropdown.
@@ -391,6 +419,18 @@ returns less energy than the last. Turning it *down* makes oscillation slower an
 **The gear falls back out on its own.**
 Raise **seated hold**. At full deflection the base drags the stick home with ~90% of its available
 force, and a light hold simply loses.
+
+**The throw is too long — I want a short-throw box.**
+Feel → THROW AND SLOT END-STOP. Shorten **throw from centre to a seated gear** *and* raise **slot
+end-stop wall** above zero. The throw alone is not enough and this is the part that surprises
+people: with no end-stop the seated hold keeps pulling past the seat, so the lever still runs on to
+the base's mechanical stop and all you moved was where the gear registers. The line under the
+sliders spells out where the gear seats and where the lever stops.
+
+**I shortened the throw and the travel did not change.**
+The same thing, from the other end: **slot end-stop wall** is still at 0%, so the slot has no bottom
+of its own. Raise it. If it is already up and nothing changed, the *free landing* is long enough to
+reach the end of travel anyway — shorten the landing, or the throw.
 
 **I can flick through the lockout too easily.**
 The toll is **lockout force × lockout gate half-width** — widen the band or raise the force. Check

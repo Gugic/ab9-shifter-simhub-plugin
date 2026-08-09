@@ -86,7 +86,7 @@ namespace AB9ActiveShifter
             "Enabled", "FreeStick",
 
             // Adapters the XAML binds, each fully derived from a dial that is written.
-            "PatternIndex", "MouthShapeIndex", "SeqThrow", "ClutchSourceIndex",
+            "PatternIndex", "MouthShapeIndex", "ThrowFromCentre", "ClutchSourceIndex",
             "GrindClutchModeIndex",
 
             // The Feel tab's percent-of-column-spacing display toggle: each is fully derived
