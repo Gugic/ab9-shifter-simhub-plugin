@@ -393,7 +393,12 @@
                             <ui:TitledSlider Title="Slot wall / lateral rail (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="90"
                                              Value="{Binding ColumnPinForcePct, Mode=TwoWay}" />
-                            <StackPanel Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                            <!-- Shown on every pattern. It is the free corridor of whatever the
+                                 lateral force above is holding the lever in: a slot on the H
+                                 patterns, the rail on sequential and PRND. It was hidden on the
+                                 latter two while their rail had no corridor at all, which is
+                                 exactly what made the rail oscillate. -->
+                            <StackPanel>
                                 <ui:TitledSlider Title="Slot width, free corridor (axis counts)" Minimum="0" Maximum="2400"
                                                  TickFrequency="100" ShowResetButton="True" ResetValue="1100"
                                                  Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
@@ -403,7 +408,7 @@
                                                  Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
                                                  Value="{Binding SlotHalfWidthPercent, Mode=TwoWay}" />
                                 <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
-                                           Text="A slot is a corridor with walls, not a pull toward its centre line. If a middle gear shakes while seated, widen this: a narrow corridor leaves the stick balanced on a point it can hunt around. The outer gears never shake because their wall only pushes one way, against the end of travel. Zero is the rail gate: the lever pulled straight onto the column line, like the native shifter mode - stable only with a moderate slot wall, so if a railed gear trembles, lower the wall force first." />
+                                           Text="A slot is a corridor with walls, not a pull toward its centre line. If a middle gear shakes while seated, widen this: a narrow corridor leaves the stick balanced on a point it can hunt around. The outer gears never shake because their wall only pushes one way, against the end of travel. Zero is the rail gate: the lever pulled straight onto the column line, like the native shifter mode - stable only with a moderate slot wall, so if a railed gear trembles, lower the wall force first. On sequential and the automatic, where there are no columns, this is the free width of the lateral rail itself, and the same rule decides it: at zero the lever is pulled onto a line and pushed sideways at full strength the moment it leaves it, which is how a rail is made to oscillate." />
                             </StackPanel>
                             <ui:TitledSlider Title="Tunnel depth, free corridor (axis counts)" Minimum="0" Maximum="4000"
                                              TickFrequency="100" ShowResetButton="True" ResetValue="2600"

@@ -380,6 +380,16 @@ same reason, and the state machine refuses to latch it, so map, wall and logic a
 none of this — it is simply three columns spread over the full axis, with no lockout and every
 barrier crest at its gap's midpoint.
 
+**The lateral rail.** What holds the lever on the centre line in the patterns with no columns —
+sequential and PRND — is a **corridor**, free across `SlotHalfWidth` either side, at the wall's own
+stiffness. Same dial, same rule a slot follows, and it arrived late: the rail shipped with a
+deadband of zero, which made it the only lateral force here without a free region. Past its short
+face the force is a flat plateau whose sign inverts at the centre line, and that is a *relay*
+rather than a spring — the lever is accelerated toward centre at full strength, arrives with the
+energy that bought, overshoots, and is thrown back just as hard. The trace is in the rejected
+table. Zero still means what it always did — the rail gate, the native shifter-mode topology,
+stable only at moderate pin force — it is simply no longer the only option.
+
 **Sequential.** No gate at all: the lever is railed to the lateral centre and sprung home
 fore/aft. The "spring" is not a DirectInput spring — those cannot hold a lever on this base (see
 the effect-strength section) — but the usual saturating constant-force profile, made deliberately
@@ -743,6 +753,7 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | --- | --- |
 | **Spring effects for the gate walls** | Walls felt like nothing. Root cause is arithmetic, not tuning: ~0.3 DI/count ceiling. Whole gate rebuilt on constant forces. |
 | **Pull toward a slot's centre line** | Middle columns shook violently when seated; outer columns fine. Interior equilibrium = oscillator. Replaced by corridors. |
+| **A lateral rail with no free corridor** (sequential and PRND, deadband 0) | The same mistake, surviving in the one lateral force that never got a corridor — and it is a *relay*, not a spring, because past its short face the plateau is flat and its sign inverts at the centre line. Measured from a PRND trace at 80% pin force and full gain: a sustained **9.8 Hz** limit cycle in 700 ms bursts, **±16 484 counts** of lateral swing (half the axis), peak speed 972 000 counts/s, force saturated at ±9400 DI (±12 Nm) for **79%** of the cycle. Felt as the lever wobbling side to side after a nudge off centre. The rail now uses `SlotHalfWidth` as its corridor, which is the shape every other lateral force here already had. |
 | **A guide plateau held flat up to the column boundary** | The boundary reverses the force, so a flat plateau makes the reversal a step of 2 × plateau in one tick - measured at 20000 DI, a clamped ±12 Nm, from 100 counts of drift, and felt as the notches kicking while sliding the tunnel. Replaced by the handover window. |
 | **A guide reach measured from the guide column** | The natural fix, and it invents history dependence: the reach belongs to *which* column owns the field, so the latched branch and the position-picked branch disagree by the full pin force wherever both columns lie on the same side of the lever - exactly where a flat plateau had made them identical. Measured 10000 DI at one position selected by whether the lever once dipped into the tunnel, plus no push-back over 75% of the axis at gear depth. Use a positional multiplier, which both branches share. |
 | **A handover window keyed on `InChannel(y)`** | Moves the same reversal onto the depth axis. With the pick live at every depth and using a different rule down there, keying the window on `InChannel(y)` leaves the other rule's flip window on a live part of the field: **2403 DI from one single axis count of fore/aft movement**, where the fore/aft wall's deadband leaves the lever freest. Not to be confused with the fade that replaced it: that is continuous in depth, and it is only safe because freezing the pick outside the tunnel means there is no other rule and no flip left to price. |

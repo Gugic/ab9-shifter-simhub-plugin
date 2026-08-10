@@ -39,7 +39,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-197 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+313 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
@@ -128,6 +128,8 @@ tests/AB9ActiveShifter.Tests/
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
   VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
   SequentialTests.cs       One-shift-per-stroke, re-arm, mirror, spring shape, click kick
+  LateralRailTests.cs      The rail sequential and PRND are held on: free inside its corridor,
+                           one-sided outside, and unable to invert across the centre line
   SettingsMappingTests.cs  ShifterSettings' derived dials (SeqThrow moves both threshold lines)
   DefaultProfilesTests.cs  The shipped profiles: forces off, cap on, store coherent
   ProfileTransferTests.cs  Round trip, machine facts kept, every clamp on the import path
@@ -300,7 +302,14 @@ runners cannot load, so anything worth testing must not touch it.
   setting** — the rail gate, the native shifter-mode topology, one axis guided everywhere (see
   docs/force-model.md). Closing a corridor brings the interior equilibrium back, so rails are
   only stable at moderate strengths with the full stabiliser stack; a railed column that trembles
-  wants its force lowered, never damping raised. `ChannelFreeDepth` is clamped to
+  wants its force lowered, never damping raised. **This covers the lateral rail too** — the
+  centring force sequential and PRND use in place of columns is `SlotHalfWidth` wide and free
+  inside, not a pull toward a line. It shipped with a deadband of zero and was therefore the one
+  lateral force still breaking this rule, and it is a *relay* rather than a spring: past its short
+  face the plateau is flat and its sign inverts at the centre line. Measured from a PRND trace at
+  80% pin force and full gain — a sustained **9.8 Hz** limit cycle, **±16484 counts** of swing,
+  972000 counts/s, saturated at ±12 Nm for 79% of the cycle. Pinned by
+  `TheRailCannotInvertItsForceAcrossTheCentreLine`. `ChannelFreeDepth` is clamped to
   `ChannelHalfEnter` from above — a force deadband wider than the state band would be walls the
   state machine believes exist and the hand never meets. The one sanctioned pull-toward-a-place
   is the **home spring** (`HomeSpringPct`, default 0): dead across the home column's width so

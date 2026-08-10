@@ -61,7 +61,8 @@ a shift fires and how far back the lever must come before it can fire again.
 | --- | --- | --- |
 | Overall gain | 25% | Master scale. This is a 12 Nm base; raise it slowly. |
 | Gate wall, between columns | 90% | The fore/aft wall that stops you entering a gear you are not lined up with. |
-| Slot wall, once in a gear | 90% | The sideways walls of a slot. |
+| Slot wall, once in a gear | 90% | The sideways walls of a slot, and the lateral rail on sequential and the automatic. |
+| Slot width, free corridor | 1100 counts | The free space inside those walls. Applies to every pattern: a slot's corridor on the H gate, the rail's on sequential and the automatic. Zero is the rail gate, and only stable at moderate wall force. |
 | Lockout gate, guarding 7/R | 70% | The push-through toll before 7 and R. Sits against the 5/6 column; width sets the toll with it. |
 | Neutral spring toward 3/4 | 0% (off) | The home spring: pulls the lever along the channel toward the 3/4 column, where a real H lever rests. Around 25–30% a released lever walks home past the humps; fades out with depth so a held gear feels nothing. Follows the mirror flags. |
 | Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
@@ -387,6 +388,15 @@ happen, that is a fault being reported, and worth telling me about.
 **A bounce off a wall builds instead of dying.**
 Raise **rebound absorption**. Full force while you lean, less on the throw-out, so each bounce
 returns less energy than the last. Turning it *down* makes oscillation slower and stronger.
+
+**In sequential or the automatic, the lever wobbles side to side after I nudge it off centre.**
+The lateral rail had no free corridor: past its short face the force was a flat plateau that
+inverted at the centre line, which is a relay and behaves like one. Measured on the rig at 80% rail
+force and full gain: a sustained 9.8 Hz swing of ±16 484 counts — half the axis — at ±12 Nm. The
+rail is a corridor now, so **slot width, free corridor** applies to it too and is the first dial to
+reach for; the *slot wall / lateral rail* force is the second, because a rail has a hunt ceiling
+like every other pull toward a place. **Rebound absorption** is the dissipation that stops each
+bounce returning as much energy as the last — if the rail was tuned with it near zero, raise it.
 
 **The gear falls back out on its own.**
 Raise **seated hold**. At full deflection the base drags the stick home with ~90% of its available

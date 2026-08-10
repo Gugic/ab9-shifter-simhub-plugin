@@ -348,11 +348,7 @@ namespace AB9ActiveShifter.Core
                 SpringY = SpringPreset.Off
             };
 
-            // The lateral rail, at the wall's own stiffness: face derived from the plateau so
-            // the one-stiffness rule holds here too.
-            int face = GuideFace(_columnPinForce, 0);
-            frame.ConstantX = Saturating(x - GateGeometry.AxisCenter, _columnPinForce, face, 0);
-
+            frame.ConstantX = LateralRail(x);
             frame.ConstantY = SequentialSpring(y);
 
             // The return spring keeps the snick's floor: pulling the lever home is its job, so
@@ -364,6 +360,42 @@ namespace AB9ActiveShifter.Core
             double floorY = Math.Abs(y - GateGeometry.AxisCenter) >= stopStart ? _yieldFloor : _snickFloor;
 
             return Bound(frame, vx, vy, dtMs, floorY, shapeY: true, vibY: Combine(vibY, click));
+        }
+
+        /// <summary>
+        /// The lateral rail: what holds the lever on the centre line in the patterns that have no
+        /// columns to be held on. At the wall's own stiffness, with the face derived from the
+        /// plateau so the one-stiffness rule holds here too.
+        ///
+        /// It is a **corridor**, free across <see cref="EngineConfig.SlotHalfWidth"/> either side,
+        /// and that is a fix rather than a preference. It used to have a deadband of zero - a pull
+        /// toward a line - which made it the only lateral force in the gate without a free region,
+        /// and the one place the invariant that a restoring force about an interior equilibrium is
+        /// an oscillator was still being broken. Past its face the force is a flat plateau whose
+        /// sign inverts at the centre line, which is a relay: the lever is accelerated toward
+        /// centre at full strength, arrives with the energy that acceleration bought, overshoots,
+        /// and is thrown back just as hard.
+        ///
+        /// Measured on the rig from a PRND trace, at a pin force of 80% and full gain: a sustained
+        /// **9.8 Hz** limit cycle, +-16484 counts of lateral swing - half the axis - peak speed
+        /// 972000 counts/s, force saturated at +-9400 DI (+-12 Nm) for 79% of the cycle, running in
+        /// 700 ms bursts. The H patterns never showed it because a slot's lateral force has had a
+        /// corridor all along. Giving the rail one makes it the same shape as every other lateral
+        /// force here, and inherits their stability record with it.
+        ///
+        /// Zero is still supported and still means what it always did - the rail gate, the native
+        /// shifter-mode topology, stable only at moderate pin force. What changed is that it is no
+        /// longer the only option.
+        /// </summary>
+        private int LateralRail(int x)
+        {
+            int corridor = Math.Max(0, _cfg.SlotHalfWidth);
+
+            return Saturating(
+                x - GateGeometry.AxisCenter,
+                _columnPinForce,
+                GuideFace(_columnPinForce, corridor),
+                corridor);
         }
 
         /// <summary>Distance from centre to the sequential firing line, in axis counts.</summary>
