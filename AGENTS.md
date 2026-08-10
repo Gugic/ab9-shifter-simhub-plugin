@@ -1,10 +1,10 @@
 # AB9 Active Shifter — working notes for agents
 
 A SimHub plugin that turns a **MOZA AB9 flight base** into an **H-pattern shifter** (7+R with a
-push-through lockout, 6+R with no 7th slot, 5+R) or a **sequential lever**, selectable per named
-profile. It renders the gate with DirectInput force feedback, detects the slotted gear from stick
-position, and holds a vJoy button per gear (or pulses up/down buttons in sequential) so any game
-sees a normal shifter.
+push-through lockout, 6+R with no 7th slot, 5+R), a **sequential lever**, or an **automatic's PRND
+selector**, selectable per named profile. It renders the gate with DirectInput force feedback,
+detects the slotted gear from stick position, and holds a vJoy button per gear (or pulses up/down
+buttons in sequential, or holds one per PRND position) so any game sees a normal shifter.
 
 It is unofficial and unaffiliated — see *Naming, and the disclaimers* under Conventions before
 writing anything user-facing.
@@ -39,7 +39,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-317 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+333 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
@@ -89,6 +89,10 @@ src/AB9ActiveShifter/
     GateGeometry.cs        Column targets, hysteresis bands, gear map, unit conversions
     GateStateMachine.cs    Neutral / Traveling / Engaged with hysteresis and resync
     SequentialStateMachine.cs One shift per stroke, engage/release hysteresis, resync
+    PrndLane.cs            Where an automatic's four positions are, what they are called, and
+                           which button each holds. Not GateGeometry with one column - see its
+                           header for why that was refused
+    PrndStateMachine.cs    Which position is held. No neutral, no travelling, no debounce
     ForceComposer.cs       The gate itself: position+velocity -> forces. The heart.
     EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
     TelemetryState.cs      Immutable game-telemetry snapshot, data thread -> engine thread
@@ -122,6 +126,7 @@ src/AB9ActiveShifter/
     GateWallCurveVisualizer.cs    The neutral tunnel's fore/aft wall against depth
     SlidingAcrossGateVisualizer.cs Lateral field across the whole gate width
     SlotMouthVisualizer.cs        The corridor a mouth opens as the slot is approached
+    PrndLaneVisualizer.cs         The selector lane's force across the whole of travel
     InverseBooleanToVisibilityConverter.cs  The negation the raw/percent toggle needs
 tests/AB9ActiveShifter.Tests/
   ForceComposerTests.cs    Force shape, stability properties, polarity, clamps
@@ -130,6 +135,8 @@ tests/AB9ActiveShifter.Tests/
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
   VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
   SequentialTests.cs       One-shift-per-stroke, re-arm, mirror, spring shape, click kick
+  PrndTests.cs             The selector: always in exactly one position, buttons above every
+                           other range, and no axis count anywhere that steps the lane's force
   SettingsMappingTests.cs  ShifterSettings' derived dials (ThrowFromCentre moves both threshold
                            lines)
   SlotEndStopTests.cs      The bottom of an H slot: the default changes nothing, the landing is
@@ -326,6 +333,25 @@ runners cannot load, so anything worth testing must not touch it.
   across one axis count is a bang, not a face. The floor is reported by `StrokeStopDepth` rather
   than applied silently. Pinned by `TheLandingIsFreeSoASeatedGearRestsInARegionNotOnAPoint`,
   `TheLandingCanNeverBeShorterThanTheWallBite` and `NoSingleCountOfDepthEverStepsTheSlotForce`.
+- **A PRND detent is zero at its position AND zero at the crest beside it.** The lane's force is
+  measured from the *nearest* position, and every nearest-anything field flips at the midpoint —
+  which on the lateral axis was a step of twice the plateau and cost `HandoverClearance` to pay
+  for. Here it is free instead of relieved, because the raised cosine is already at nothing where
+  the flip happens. Do not replace it with a pull toward the nearest position, however much
+  simpler that reads: it puts the reversal straight back, at full detent strength, three times
+  along the lane. The notch either side is the same free-region rule slots follow, and
+  `PrndNotchHalfWidthCeiling` keeps the hump beside it at least π wall bites wide so its steepest
+  point is the wall's own stiffness (a raised cosine peaks at π/2 times its average — the rounded
+  mouth's 2/π factor, from the other end). Pinned by `NoSingleCountOfTheLaneEverStepsTheForce`,
+  `TheDetentIsNothingAtEveryPositionAndNothingAtEveryCrest` and `TheNotchCannotBeWidenedIntoAStep`.
+- **A selector is always in exactly one position, and its buttons live above every other range.**
+  There is no neutral to fall into: `PrndStateMachine` holds an index from the first reading and
+  only ever hands it to another, so a game can never see a moment with nothing selected. P/R/N/D
+  take buttons 11–14, above the gears (1–8) and the sequential pulses (9–10), and the button
+  follows the **label** rather than the slot, so `MirrorSlots` turns the lane round without costing
+  a rebind — the same rule that pins reverse to button 8 in every H pattern. `VJoyGearOutput`
+  carries them on the ordinary `SetGear` path deliberately: that is what gives a position the same
+  release-before-press, the same watchdog clear and the same shutdown ordering a gear gets.
 - **A band a force ramps across gets a width, not just an ordering.** `GateGeometry` repairs
   inverted enter/exit pairs, and for a pure state band `enter + 1` is the right repair. The neutral
   tunnel pair is not a pure state band — `GuidePlateau` and `SlotConfinementFactor` ramp force

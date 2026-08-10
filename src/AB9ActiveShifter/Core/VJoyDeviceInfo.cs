@@ -33,11 +33,13 @@ namespace AB9ActiveShifter.Core
     public sealed class VJoyDeviceInfo
     {
         /// <summary>
-        /// Gears take buttons 1-8 and the sequential up/down take 9 and 10, kept above the gear
-        /// range so no game binding can ever mean two things. A device with fewer still works for
-        /// whatever fits, which is why this is a warning everywhere and never a refusal.
+        /// Gears take buttons 1-8, the sequential up/down take 9 and 10, and PRND's four positions
+        /// take 11-14 - each range kept above the last so no game binding can ever mean two
+        /// things. A device with fewer still works for whatever fits, which is why this is a
+        /// warning everywhere and never a refusal, and why it deliberately does not gate the
+        /// tuning tabs.
         /// </summary>
-        public const int ButtonsNeeded = 10;
+        public const int ButtonsNeeded = 14;
 
         public uint Id { get; set; }
         public VJoyDeviceState State { get; set; }

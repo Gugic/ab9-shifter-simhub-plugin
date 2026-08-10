@@ -11,7 +11,8 @@ error in this code drives a 12 Nm base the wrong way.
 
 - **.NET SDK 8** — it builds a `net48` target, so no separate targeting pack is required
 - **SimHub**, to run it. Not needed to build (see [Building without SimHub](#building-without-simhub))
-- **vJoy** with a device of at least 10 buttons, to see gears come out
+- **vJoy** with a device of at least 14 buttons, to see gears come out (1-8 gears, 9-10 sequential
+  up/down, 11-14 the PRND positions)
 - An **AB9**, to feel anything. The tests need none of the above
 
 ## Build and test
@@ -148,6 +149,8 @@ src/AB9ActiveShifter/
     GateGeometry.cs        Column targets, hysteresis bands, gear map, unit conversions
     GateStateMachine.cs    Neutral / Traveling / Engaged
     SequentialStateMachine.cs One shift per stroke
+    PrndLane.cs            Where an automatic's four positions are, and which button each holds
+    PrndStateMachine.cs    Which position is held. Always exactly one
     ForceComposer.cs       Position + velocity -> forces. The heart
     EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap

@@ -77,6 +77,7 @@
                                     <ComboBoxItem Content="H pattern, 6 gears + R (no 7th slot)" />
                                     <ComboBoxItem Content="H pattern, 5 gears + R" />
                                     <ComboBoxItem Content="Sequential (+ / -)" />
+                                    <ComboBoxItem Content="Automatic (P R N D)" />
                                 </ComboBox>
                             </StackPanel>
                             <ui:TitledSlider Title="Sequential pulse length (ms)" Minimum="20" Maximum="400"
@@ -315,9 +316,10 @@
                             <styles:SHExpander Header="Gear layout">
                                 <StackPanel Margin="0,8,0,0">
                                     <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
-                                               Text="Pure preference: which end of the gate is first gear. Flip these if the gears come out mirrored from where your hand expects them." />
+                                               Text="Pure preference: which end of the gate is first gear. Flip these if the gears come out mirrored from where your hand expects them. In sequential the second one swaps up and down; in the automatic it turns the lane round, so P is nearest you instead of furthest away. The buttons follow the labels either way, so mirroring never costs a rebind." />
                                     <styles:SHToggleCheckbox IsChecked="{Binding MirrorColumns, Mode=TwoWay}"
-                                                             Content="First gear on the right instead of the left" Margin="0,2" />
+                                                             Content="First gear on the right instead of the left" Margin="0,2"
+                                                             Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" />
                                     <styles:SHToggleCheckbox IsChecked="{Binding MirrorSlots, Mode=TwoWay}"
                                                              Content="Odd gears toward me instead of away" Margin="0,2" />
                                 </StackPanel>
@@ -484,6 +486,30 @@
                         </StackPanel>
                     </styles:SHSection>
 
+                    <styles:SHSection Title="PRND LANE" ShowSeparator="True"
+                                      Visibility="{Binding IsPrnd, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Margin="0,4,0,8">
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                       Text="An automatic's selector: one lane with four fixed positions in it, and a vJoy button held at whichever one the lever is in - P on button 11, R on 12, N on 13, D on 14. Above the gears and above the sequential up/down, so nothing a game already has bound can mean two things. There is no neutral to come back through and no gear to engage: the lever is always somewhere, and moving between positions is all there is." />
+                            <local:PrndLaneVisualizer x:Name="PrndLaneCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" />
+                            <ui:TitledSlider Title="Lane half-length from centre (axis counts)" Minimum="2000" Maximum="30000"
+                                             TickFrequency="500" ShowResetButton="True" ResetValue="12000"
+                                             Value="{Binding PrndLaneHalfLength, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Detent between positions (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="45"
+                                             Value="{Binding PrndDetentForcePct, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="Free notch at each position (axis counts)" Minimum="0" Maximum="6000"
+                                             TickFrequency="100" ShowResetButton="True" ResetValue="600"
+                                             Value="{Binding PrndNotchHalfWidth, Mode=TwoWay}" />
+                            <ui:TitledSlider Title="End-stop wall past P and D (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="90"
+                                             Value="{Binding PrndStopForcePct, Mode=TwoWay}" />
+                            <TextBlock x:Name="PrndLaneSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
+                                       Text="The lane half-length puts P and D that far either side of centre, with the other two dividing the rest evenly - it is the lane's own dial, not the throw the H and sequential patterns share, because a selector lane is a fraction of the length a gear lever wants and sharing one would retune the other every time the pattern changed. The detent between positions is a smooth hump: nothing at a position, nothing again at the halfway point, one rise either side. That is deliberate rather than decorative - a force pulling toward the nearest position would reverse at every halfway point, and a reversal between two saturated forces is the worst step this hardware can produce. The free notch is what makes a selected position a place the lever rests rather than a point it is pulled to; zero turns each position into a line, which is stable only at moderate detent force, like the rail gate. Sideways the lever is railed to the middle at the slot wall strength." />
+                        </StackPanel>
+                    </styles:SHSection>
+
                     <styles:SHSection Title="SLOT MOUTHS" ShowSeparator="True"
                                       Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                         <StackPanel Margin="0,4,0,8">
@@ -555,7 +581,10 @@
                         </StackPanel>
                     </styles:SHSection>
 
-                    <styles:SHSection Title="SLOT DETENT" ShowSeparator="True">
+                    <!-- Hidden on PRND: there is no slot to enter and no gear to seat, and the
+                         lane's own detent has its own section above. -->
+                    <styles:SHSection Title="SLOT DETENT" ShowSeparator="True"
+                                      Visibility="{Binding IsPrnd, Converter={StaticResource InverseBoolToVis}}">
                         <StackPanel Margin="0,4,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
                                        Text="This is what makes a gear feel like it clicks into place, the way a real gearbox does - not just friction holding the lever, but a shaped force that changes three times on the way in. Push toward a gear and it resists at first, like pushing into a spring. Keep pushing past that resistance and the lever gets pulled the rest of the way in on its own - the snick, the same moment a synchro drops into place in a real box. Once seated, a steady hold keeps the gear from slipping back out, even against a base that is still trying to nudge the stick back to centre. The graph is the whole stroke in axis counts from centre, so it gets shorter as the throw does, and the white dot tracks exactly where in that sequence the stick currently is." />

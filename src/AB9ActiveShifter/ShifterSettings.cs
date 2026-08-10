@@ -51,6 +51,10 @@ namespace AB9ActiveShifter
         private int _seqOvertravel = 2500;
         private int _seqStopForcePct = 90;
         private int _seqClickPct = 60;
+        private int _prndLaneHalfLength = 12000;
+        private int _prndDetentForcePct = 45;
+        private int _prndNotchHalfWidth = 600;
+        private int _prndStopForcePct = 90;
 
         // Telemetry effects, all off by default: they are additions to the gate, not part of it.
         private bool _fxEngineEnabled;
@@ -266,6 +270,7 @@ namespace AB9ActiveShifter
                 // Derived facts the UI keys section visibility on.
                 OnChanged("IsHPattern");
                 OnChanged("IsSequential");
+                OnChanged("IsPrnd");
                 OnChanged("HasLockout");
 
                 // ColumnSpacing depends on pattern, so every percent-of-spacing view changes
@@ -282,11 +287,27 @@ namespace AB9ActiveShifter
             }
         }
 
-        /// <summary>Whether the gate machinery (mouths, humps, walls) applies at all.</summary>
-        public bool IsHPattern { get { return _pattern != GatePattern.Sequential; } }
+        /// <summary>
+        /// Whether the gate machinery (mouths, humps, walls) applies at all. Named for what it
+        /// gates rather than for the enum, and listed positively rather than as "not sequential":
+        /// that is how it was written, and adding PRND would silently have handed every H-only
+        /// control to a pattern with no columns in it.
+        /// </summary>
+        public bool IsHPattern
+        {
+            get
+            {
+                return _pattern == GatePattern.H7R
+                    || _pattern == GatePattern.H6R
+                    || _pattern == GatePattern.H5R;
+            }
+        }
 
-        /// <summary>The inverse, for the sequential-only controls.</summary>
+        /// <summary>For the sequential-only controls.</summary>
         public bool IsSequential { get { return _pattern == GatePattern.Sequential; } }
+
+        /// <summary>For the PRND-only controls, and for hiding the slot detent that has no slot.</summary>
+        public bool IsPrnd { get { return _pattern == GatePattern.Prnd; } }
 
         /// <summary>Whether this pattern has a lockout gate for its sliders to mean anything.</summary>
         public bool HasLockout { get { return _pattern == GatePattern.H7R || _pattern == GatePattern.H6R; } }
@@ -309,6 +330,18 @@ namespace AB9ActiveShifter
 
         /// <summary>The click's kick: a 25 ms burst in the stroke's direction when a shift fires.</summary>
         public int SeqClickPct { get { return _seqClickPct; } set { Set(ref _seqClickPct, value); } }
+
+        /// <summary>Distance from centre to each end of the PRND lane. Its own dial, not the throw.</summary>
+        public int PrndLaneHalfLength { get { return _prndLaneHalfLength; } set { Set(ref _prndLaneHalfLength, value); } }
+
+        /// <summary>How hard it is to move between PRND positions.</summary>
+        public int PrndDetentForcePct { get { return _prndDetentForcePct; } set { Set(ref _prndDetentForcePct, value); } }
+
+        /// <summary>Free half-width of the notch at each PRND position. Zero pulls to a line.</summary>
+        public int PrndNotchHalfWidth { get { return _prndNotchHalfWidth; } set { Set(ref _prndNotchHalfWidth, value); } }
+
+        /// <summary>The wall past either end of the PRND lane.</summary>
+        public int PrndStopForcePct { get { return _prndStopForcePct; } set { Set(ref _prndStopForcePct, value); } }
 
         /// <summary>
         /// The throw: axis counts from centre to the line a push registers at. The same stored
@@ -689,6 +722,10 @@ namespace AB9ActiveShifter
                 SeqOvertravel = SeqOvertravel,
                 SeqStopForcePct = SeqStopForcePct,
                 SeqClickPct = SeqClickPct,
+                PrndLaneHalfLength = PrndLaneHalfLength,
+                PrndDetentForcePct = PrndDetentForcePct,
+                PrndNotchHalfWidth = PrndNotchHalfWidth,
+                PrndStopForcePct = PrndStopForcePct,
 
                 FxEngineEnabled = FxEngineEnabled,
                 FxEngineGainPct = FxEngineGainPct,
@@ -800,6 +837,10 @@ namespace AB9ActiveShifter
                 SeqOvertravel = d.SeqOvertravel;
                 SeqStopForcePct = d.SeqStopForcePct;
                 SeqClickPct = d.SeqClickPct;
+                PrndLaneHalfLength = d.PrndLaneHalfLength;
+                PrndDetentForcePct = d.PrndDetentForcePct;
+                PrndNotchHalfWidth = d.PrndNotchHalfWidth;
+                PrndStopForcePct = d.PrndStopForcePct;
                 DamperCoeff = d.DamperCoeff;
                 DetentResistPct = d.DetentResistPct;
                 DetentPullPct = d.DetentPullPct;

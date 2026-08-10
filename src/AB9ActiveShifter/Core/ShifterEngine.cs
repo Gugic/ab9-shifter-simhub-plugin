@@ -38,6 +38,7 @@ namespace AB9ActiveShifter.Core
         private GateGeometry _geometry;
         private GateStateMachine _stateMachine;
         private SequentialStateMachine _seqMachine;
+        private PrndStateMachine _prndMachine;
         private ForceComposer _composer;
 
         // Sequential pulse bookkeeping, engine thread only. A pending press exists so that
@@ -529,6 +530,37 @@ namespace AB9ActiveShifter.Core
                     traceDir = st.Pushed;
                     traceGear = 0;
                 }
+                else if (cfg.Pattern == GatePattern.Prnd)
+                {
+                    // No grind: there is no clutch and no synchro to balk on a selector, and
+                    // nothing here that a refused engagement would even mean.
+                    EffectOutput fx = _gameEffects.Step(cfg, telemetry, telemetryAge, dtMs, false);
+
+                    StateTransition t = _prndMachine.Update(y);
+                    gearChanged = t.GearChanged;
+
+                    if (t.GearChanged)
+                    {
+                        // Buttons before forces, as everywhere. SetGear carries the position
+                        // buttons too, so the release-before-press that stops a game seeing two
+                        // positions at once is the same code that stops it seeing two gears.
+                        if (_output != null) _output.SetGear(t.Gear);
+
+                        Action<int, int> handler = GearChanged;
+                        if (handler != null)
+                        {
+                            try { handler(t.Gear, t.PreviousGear); }
+                            catch (Exception ex) { Log.ErrorThrottled("gear-event", "Gear change handler threw", ex); }
+                        }
+                    }
+
+                    frame = _composer.ComposePrnd(x, y, _velocity.X, _velocity.Y, dtMs, fx.VibY);
+
+                    traceState = t.State;
+                    traceColumn = Column.None;
+                    traceDir = ShiftDir.None;
+                    traceGear = t.Gear;
+                }
                 else
                 {
                     // The grind wants to know whether the lever is pushing into a slot, which
@@ -790,6 +822,7 @@ namespace AB9ActiveShifter.Core
                 _pulsePending = 0;
                 _stateMachine.Resync(x, y);
                 _seqMachine.Resync(y);
+                _prndMachine.Resync(y);
 
                 Log.Info("Polarity calibration requested (probe force " + cfg.CalibrationForcePct + "%).");
             }
@@ -823,15 +856,14 @@ namespace AB9ActiveShifter.Core
                 if (_calibrationQueue.Count == 0)
                 {
                     // Back to a known state before the gate takes over again. In sequential
-                    // the resync arms without firing, and no gear button is ever held.
+                    // the resync arms without firing, and no gear button is ever held; in PRND
+                    // the lever is always somewhere, so the adopted position goes straight back.
                     _effects.Apply(ForceComposer.FreeFrame(), nowMs);
 
                     _stateMachine.Resync(x, y);
                     _seqMachine.Resync(y);
-                    if (_output != null && cfg.Pattern != GatePattern.Sequential)
-                    {
-                        _output.SetGear(_stateMachine.CurrentGear);
-                    }
+                    _prndMachine.Resync(y);
+                    if (_output != null) _output.SetGear(CurrentHeldButton(cfg));
 
                     RaiseCalibrationFinished();
                 }
@@ -921,6 +953,7 @@ namespace AB9ActiveShifter.Core
                 {
                     _stateMachine.Resync(x, y);
                     _seqMachine.Resync(y);
+                    _prndMachine.Resync(y);
                 }
 
                 Log.ResetThrottle("device-open");
@@ -972,6 +1005,7 @@ namespace AB9ActiveShifter.Core
             {
                 _stateMachine = new GateStateMachine(_geometry, cfg.MinEngageTicks);
                 _seqMachine = new SequentialStateMachine(_geometry, cfg.MinEngageTicks);
+                _prndMachine = new PrndStateMachine(cfg.BuildPrndLane());
 
                 int x, y;
                 string error;
@@ -979,6 +1013,7 @@ namespace AB9ActiveShifter.Core
                 {
                     _stateMachine.Resync(x, y);
                     _seqMachine.Resync(y);
+                    _prndMachine.Resync(y);
                 }
 
                 // The rebuilt machine may disagree with what is currently held - new geometry
@@ -989,7 +1024,7 @@ namespace AB9ActiveShifter.Core
                 if (_output != null)
                 {
                     if (_pulseButton != 0) _output.SetButton(_pulseButton, false);
-                    _output.SetGear(cfg.Pattern == GatePattern.Sequential ? 0 : _stateMachine.CurrentGear);
+                    _output.SetGear(CurrentHeldButton(cfg));
                 }
 
                 _pulseButton = 0;
@@ -1093,20 +1128,48 @@ namespace AB9ActiveShifter.Core
                 && a.DetentHysteresis == b.DetentHysteresis
                 && a.MinEngageTicks == b.MinEngageTicks
                 && a.MirrorColumns == b.MirrorColumns
-                && a.MirrorSlots == b.MirrorSlots;
+                && a.MirrorSlots == b.MirrorSlots
+
+                // Moves the PRND positions, so it moves where a button changes hands - geometry
+                // by the only definition that matters here, even though it sits among the forces
+                // in the UI.
+                && a.PrndLaneHalfLength == b.PrndLaneHalfLength;
+        }
+
+        /// <summary>
+        /// What vJoy should be holding right now, for whichever pattern is configured. Sequential
+        /// holds nothing - its shifts are timed pulses on their own buttons - the H gate holds its
+        /// gear, and PRND holds its position. One answer, so the three places that have to push
+        /// the truth back to vJoy (a rebuilt gate, a finished calibration, a profile switch)
+        /// cannot each get a different pattern's version of it wrong.
+        /// </summary>
+        private int CurrentHeldButton(EngineConfig cfg)
+        {
+            if (cfg == null) return 0;
+            if (cfg.Pattern == GatePattern.Sequential) return 0;
+            if (cfg.Pattern == GatePattern.Prnd) return _prndMachine != null ? _prndMachine.CurrentButton : 0;
+            return _stateMachine != null ? _stateMachine.CurrentGear : 0;
         }
 
         private void PublishSnapshot(int x, int y, double loopHz)
         {
             GateStateMachine sm = _stateMachine;
+            PrndStateMachine prnd = _prndMachine;
             GateGeometry geo = _geometry;
             EngineConfig cfg = _activeConfig;
+
             bool sequential = cfg != null && cfg.Pattern == GatePattern.Sequential;
+            bool selector = cfg != null && cfg.Pattern == GatePattern.Prnd;
+            bool gate = !sequential && !selector;
 
             string label;
             if (sequential)
             {
                 label = _seqPushed == ShiftDir.Fwd ? "+" : (_seqPushed == ShiftDir.Back ? "-" : "N");
+            }
+            else if (selector)
+            {
+                label = prnd != null ? prnd.CurrentLabel : "-";
             }
             else
             {
@@ -1123,9 +1186,15 @@ namespace AB9ActiveShifter.Core
                 RawY = y,
                 X = x,
                 Y = y,
-                State = !sequential && sm != null ? sm.State : GateState.Neutral,
-                Column = !sequential && sm != null ? sm.Column : Column.None,
-                Gear = !sequential && sm != null ? sm.CurrentGear : 0,
+
+                // A selector is always in a position, so it is always Engaged and its button is
+                // always held - which is what the Monitor tab should say, and what makes the gear
+                // label light up the way a held gear does.
+                State = selector ? GateState.Engaged : (gate && sm != null ? sm.State : GateState.Neutral),
+                Column = gate && sm != null ? sm.Column : Column.None,
+                Gear = selector
+                    ? (prnd != null ? prnd.CurrentButton : 0)
+                    : (gate && sm != null ? sm.CurrentGear : 0),
                 GearLabel = label,
                 LoopHz = loopHz,
                 StatusMessage = _status,

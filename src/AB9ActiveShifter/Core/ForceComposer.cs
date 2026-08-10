@@ -61,7 +61,17 @@ namespace AB9ActiveShifter.Core
         private readonly int _slotStopForce;
         private readonly int _seqStopForce;
         private readonly int _seqClickForce;
+        private readonly int _prndDetentForce;
+        private readonly int _prndStopForce;
         private readonly int _damperCoeff;
+
+        /// <summary>
+        /// Where the PRND positions are. Built from the same config the state machine builds its
+        /// own from, so the detent the hand feels and the position the button reports cannot drift
+        /// apart - the fore/aft twin of the rule that the lateral field and ColumnAt share one
+        /// ownership answer.
+        /// </summary>
+        private readonly PrndLane _lane;
 
         /// <summary>How long the sequential click's kick lasts, in milliseconds.</summary>
         private const double SeqClickMs = 25.0;
@@ -187,6 +197,9 @@ namespace AB9ActiveShifter.Core
             _slotStopForce = Force(config.SlotStopForcePct, gain);
             _seqStopForce = Force(config.SeqStopForcePct, gain);
             _seqClickForce = Force(config.SeqClickPct, gain);
+            _prndDetentForce = Force(config.PrndDetentForcePct, gain);
+            _prndStopForce = Force(config.PrndStopForcePct, gain);
+            _lane = config.BuildPrndLane();
             _damperCoeff = Scale(config.DamperCoeff, gain);
 
             _dampingForce = Force(config.DampingPct, gain);
@@ -369,10 +382,144 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
+        /// Forces for one PRND tick: the lever railed to the lateral centre, and a lane of four
+        /// detented positions fore and aft. No gate, no columns, no gear - but the same stabiliser
+        /// pipeline and the same single place the measured polarity signs are applied.
+        /// </summary>
+        public ForceFrame ComposePrnd(int x, int y, int vx = 0, int vy = 0, double dtMs = 0, int vibY = 0)
+        {
+            if (_freeStick)
+            {
+                _shapedX = 0;
+                _shapedY = 0;
+                _yieldScaleX = 1.0;
+                _yieldScaleY = 1.0;
+                _guideColumn = Column.None;
+                return FreeFrame();
+            }
+
+            ForceFrame frame = new ForceFrame
+            {
+                SpringX = SpringPreset.Off,
+                SpringY = SpringPreset.Off
+            };
+
+            // The same lateral rail the sequential lever gets, at the wall's own stiffness.
+            int face = GuideFace(_columnPinForce, 0);
+            frame.ConstantX = Saturating(x - GateGeometry.AxisCenter, _columnPinForce, face, 0);
+
+            frame.ConstantY = PrndLaneForce(y);
+
+            return Bound(frame, vx, vy, dtMs, _yieldFloor, shapeY: true, vibY: vibY);
+        }
+
+        /// <summary>
+        /// The PRND lane's fore/aft force: a free notch at each position, a smooth hump between
+        /// each pair, and a wall past either end.
+        ///
+        /// The hump is a raised cosine across the room between the notches - zero at the notch's
+        /// edge, zero again at the crest, peaking halfway. Both zeros are load-bearing. The one at
+        /// the notch edge is what keeps a selected position a REGION rather than a point, the same
+        /// rule that makes slots corridors. The one at the crest is what makes the handover free:
+        /// this function picks the nearest position, and a nearest-anything field flips at the
+        /// midpoint - which on the lateral axis is a step of twice the plateau and cost a whole
+        /// relief window to pay for. Here the force is already nothing where the flip happens, so
+        /// there is nothing to pay. Pinned by <c>NoSingleCountOfTheLaneEverStepsTheForce</c>.
+        ///
+        /// Raised cosine rather than a half sine for the same reason the rounded slot mouth is one:
+        /// a sine leaves at full slope where it meets the free space, so the notch edge and the
+        /// crest would both be corners - the two places a hand dwells. This leaves at zero slope at
+        /// both ends and pays for it by peaking at pi/2 times its average, which is exactly what
+        /// <see cref="PrndNotchHalfWidthCeiling"/>'s span floor is sized for.
+        ///
+        /// The notch is clamped so the hump keeps at least the wall's own stiffness - see
+        /// <see cref="PrndNotchHalfWidthCeiling"/>, which the Feel tab prints rather than clamping
+        /// silently. Public because the Feel tab's stroke curve plots this rather than a copy.
+        /// </summary>
+        public int PrndLaneForce(int y)
+        {
+            int fromCentre = y - GateGeometry.AxisCenter;
+
+            // Past either end of the lane: a wall home, never a pocket.
+            int overshoot = Math.Abs(fromCentre) - _lane.HalfLength;
+            if (overshoot > 0)
+            {
+                double climb = GateGeometry.Clamp(
+                    overshoot / (double)Math.Max(1, _cfg.WallRamp), 0.0, 1.0);
+                int wall = (int)Math.Round(_prndStopForce * climb);
+                return fromCentre > 0 ? -wall : wall;
+            }
+
+            if (_prndDetentForce <= 0) return 0;
+
+            int offset = y - _lane.PositionY(NearestPrndPosition(y));
+
+            int free = GateGeometry.Clamp(_cfg.PrndNotchHalfWidth, 0, PrndNotchHalfWidthCeiling);
+            int span = Math.Max(1, (_lane.Spacing / 2) - free);
+
+            int into = Math.Abs(offset) - free;
+            if (into <= 0) return 0;
+
+            double u = GateGeometry.Clamp(into / (double)span, 0.0, 1.0);
+            double profile = 0.5 * (1.0 - Math.Cos(2.0 * Math.PI * u));
+
+            int force = (int)Math.Round(_prndDetentForce * profile);
+            return offset > 0 ? -force : force;
+        }
+
+        /// <summary>
+        /// Nearest by distance, and deliberately not the state machine's answer. The force has to
+        /// be a function of position alone - the same rule the lateral field follows, and for the
+        /// same reason: a force that consulted the held position would give two different answers
+        /// at one place depending how the lever arrived there.
+        /// </summary>
+        private int NearestPrndPosition(int y)
+        {
+            int best = 0;
+            int bestDistance = int.MaxValue;
+
+            for (int i = 0; i < PrndLane.PositionCount; i++)
+            {
+                int distance = Math.Abs(y - _lane.PositionY(i));
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = i;
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>
+        /// The widest PRND notch that still leaves the hump beside it room to rise at no more than
+        /// the wall's own stiffness.
+        ///
+        /// A raised cosine's steepest point is pi/2 times its average, so a hump spanning pi wall
+        /// bites has exactly the gradient a wall face of one bite would - the same correction the
+        /// rounded slot mouth applies with its 2/pi factor, arrived at from the other end. Zero when the
+        /// lane is so short that even a notchless detent cannot have that much room, which is
+        /// honest rather than helpful: at that point the lane itself is the thing to lengthen, and
+        /// the Feel tab says so.
+        ///
+        /// Exposed for the same reason WallRampCeiling and ChannelFreeDepthCeiling are - a dial
+        /// bounded by geometry rather than by its slider has to say so on screen.
+        /// </summary>
+        public int PrndNotchHalfWidthCeiling
+        {
+            get
+            {
+                int floor = (int)Math.Round(Math.PI * Math.Max(1, _cfg.WallRamp));
+                return Math.Max(0, (_lane.Spacing / 2) - floor);
+            }
+        }
+
+        /// <summary>
         /// The throw: distance from centre to the line a push registers at, in axis counts. One
         /// number for both patterns because it is one stored fact - <see cref="EngineConfig.EngageDepth"/>
         /// measures the same line from the end of travel instead. The sequential lever fires here;
-        /// an H slot seats here.
+        /// an H slot seats here. The PRND lane does not use it: its length is its own dial, because
+        /// a selector lane is a fraction of the length a gear lever wants.
         /// </summary>
         private int ThrowThreshold()
         {
@@ -1012,9 +1159,9 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int StrokeForceAt(ShiftDir direction, int y, bool muted)
         {
-            return _cfg.Pattern == GatePattern.Sequential
-                ? SequentialSpring(y)
-                : SlotForceAt(direction, y, muted);
+            if (_cfg.Pattern == GatePattern.Sequential) return SequentialSpring(y);
+            if (_cfg.Pattern == GatePattern.Prnd) return PrndLaneForce(y);
+            return SlotForceAt(direction, y, muted);
         }
 
         /// <summary>

@@ -29,7 +29,7 @@ namespace AB9ActiveShifter.Tests
             // drops sequential, which a user discovers as "up/downshift does nothing in game".
             VJoyDeviceInfo small = Device(2, VJoyDeviceState.Free, 8);
 
-            Assert.Equal("Device 2 - 8 buttons, free (needs 10)", small.Describe());
+            Assert.Equal("Device 2 - 8 buttons, free (needs 14)", small.Describe());
             Assert.False(small.Usable);
         }
 
