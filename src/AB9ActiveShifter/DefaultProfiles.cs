@@ -4,7 +4,7 @@ using AB9ActiveShifter.Core;
 namespace AB9ActiveShifter
 {
     /// <summary>
-    /// What a machine with no saved settings starts with: three working profiles rather than bare
+    /// What a machine with no saved settings starts with: four working profiles rather than bare
     /// defaults, written out to disk on that first start so they are ordinary settings from then
     /// on - editable, resettable, and never re-applied over anything a user has tuned.
     /// <para>
@@ -51,7 +51,8 @@ namespace AB9ActiveShifter
                 {
                     new ShifterProfile { Name = "Sequential", Settings = Sequential() },
                     new ShifterProfile { Name = ActiveName, Settings = sevenR },
-                    new ShifterProfile { Name = "5+R", Settings = fiveR }
+                    new ShifterProfile { Name = "5+R", Settings = fiveR },
+                    new ShifterProfile { Name = "Automatic (PRND)", Settings = Automatic() }
                 }
             };
         }
@@ -196,7 +197,110 @@ namespace AB9ActiveShifter
             return s;
         }
 
-        /// <summary>The telemetry effects both profiles switch on, at their common settings.</summary>
+        /// <summary>
+        /// The automatic's selector, as tuned on the rig. It began life as a copy of the 7+R gate
+        /// with the pattern switched, which is why so much of what follows is gate tuning that a
+        /// selector never renders - the lockout, the mouths, the neutral tunnel, the slot detent.
+        /// It is kept rather than stripped for the same reason the sequential profile keeps its
+        /// own: those dials persist with the profile, so leaving them tuned means switching this
+        /// profile's pattern lands somewhere sane instead of on bare defaults.
+        /// <para>
+        /// Two things about it are knowingly imperfect and are shipped as they were measured
+        /// rather than tidied, because a shipped profile that does not match the rig it came from
+        /// is worse than an honest one:
+        /// </para>
+        /// <para>
+        /// The notch is clamped away. <c>PrndNotchHalfWidth</c> asks for 6000 against a wall bite
+        /// of 6000, and the ceiling is half the position spacing less pi wall bites - 10000 less
+        /// 18850, so zero. Each position therefore has no free width at all and its detent has
+        /// less room to rise in than one wall bite, which is the abrupt case
+        /// ForceComposer.PrndNotchHalfWidthCeiling exists to report. Lengthening the lane or
+        /// shortening the bite is what buys it back.
+        /// </para>
+        /// <para>
+        /// The lever wobbles side to side when pushed off centre and released - a hand-driven
+        /// oscillation the gate has too little dissipation to outpace, measured at 9.8 Hz and
+        /// plus/minus half the axis. Rebound absorption above 50% stops it and buzzes on the walls
+        /// instead, because that one dial spans a wall touch at ~30000 counts/s and a fling at
+        /// 800000 with a blend that saturates by 22000. It sits at 15 here, which is the wobble
+        /// end of that trade.
+        /// </para>
+        /// </summary>
+        private static ShifterSettings Automatic()
+        {
+            ShifterSettings s = new ShifterSettings();
+            s.Pattern = GatePattern.Prnd;
+
+            s.OverallGainPct = 100;
+
+            // The lane: nearly the full travel, a firm detent between positions, and a hard stop
+            // past P and D.
+            s.PrndLaneHalfLength = 30000;
+            s.PrndDetentForcePct = 70;
+            s.PrndNotchHalfWidth = 6000;
+            s.PrndStopForcePct = 100;
+
+            // The lateral rail and the stabilisers around it.
+            s.ColumnPinForcePct = 80;
+            s.WallRamp = 6000;
+            s.WallBlend = 1559;
+            s.WallAttackMs = 15;
+            s.WallYieldPct = 15;
+            s.WallFrictionPct = 7;
+
+            // Gate dials that render nothing in PRND but persist with the profile. The tunnel
+            // pair is deliberately left as measured: enter and leave are equal, which
+            // GateGeometry repairs to a MinBandSpan gap the moment this profile is switched to an
+            // H pattern. Inert here, and a thing to fix on the rig rather than in the paste.
+            s.ChannelHalfEnter = 5000;
+            s.ChannelHalfExit = 5000;
+            s.ChannelFreeDepth = 2165;
+            s.ChannelGuideForcePct = 20;
+            s.ChannelWallForcePct = 100;
+            s.ColumnDetentForcePct = 0;
+            s.ColumnInnerHalfEnter = 2286;
+            s.ColumnInnerHalfExit = 300;
+            s.DetentHysteresis = 905;
+            s.BarrierForcePct = 0;
+            s.BarrierWidth = 400;
+            s.LockoutForcePct = 90;
+            s.LockoutHalfWidth = 6000;
+            s.MouthShape = SlotMouthShape.Angled;
+            s.MouthDepth = 12000;
+            s.SlotHalfWidth = 2400;
+            s.SlotStopForcePct = 100;
+            s.DetentResistPct = 0;
+            s.DetentPullPct = 0;
+            s.DetentHoldPct = 20;
+            s.EngageDepth = 20553;
+            s.ReleaseDepth = 21535;
+            s.SeqOvertravel = 500;
+            s.SeqStopForcePct = 100;
+            s.SeqPulseMs = 400;
+
+            // Measured on this unit: constant force is inverted left/right and not fore/aft.
+            s.InvertConstantX = true;
+
+            ApplyEffects(s);
+
+            s.FxCurbsFullAtG = 1.9434039659804043;
+            s.FxShiftGainPct = 72;
+            s.FxShiftFreqHz = 37;
+            s.FxShiftDurationMs = 107;
+
+            // The grind does nothing on a selector - there is no synchro to balk - but it travels
+            // with the profile the same way the gate dials above do.
+            s.GrindEnabled = true;
+            s.GrindGainPct = 100;
+            s.GrindFreqHz = 15;
+            s.GrindWallPct = 42;
+            s.GrindMinSpeedKmh = 11;
+            s.GrindClutchMode = GrindClutchMode.Progressive;
+
+            return s;
+        }
+
+        /// <summary>The telemetry effects the profiles switch on, at their common settings.</summary>
         private static void ApplyEffects(ShifterSettings s)
         {
             s.FxEngineEnabled = true;
