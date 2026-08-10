@@ -13,7 +13,7 @@
     reads the saved settings JSON, and prints the differences per profile in C# assignment form.
 
     Comparison is by the property's own type, so an enum stored as 0 does not read as different
-    from H7R. Derived adapters (PatternIndex, MouthShapeIndex, SeqThrow) are skipped: they are
+    from H7R. Derived adapters (PatternIndex, MouthShapeIndex, ThrowFromCentre) are skipped: they are
     written by the dials they derive from, and assigning both invites an ordering bug.
 
     SimHub rewrites its settings file on exit, so stop SimHub before reading it.
@@ -38,7 +38,7 @@ if (-not (Test-Path $Dll)) { throw "Plugin DLL not found: $Dll. Run dotnet build
 if (-not (Test-Path $Settings)) { throw "Settings file not found: $Settings" }
 
 # Derived from the dials they follow; assigning them as well would depend on ordering.
-$derived = 'PatternIndex', 'MouthShapeIndex', 'SeqThrow'
+$derived = 'PatternIndex', 'MouthShapeIndex', 'ThrowFromCentre'
 
 $asm = [System.Reflection.Assembly]::LoadFrom((Resolve-Path $Dll))
 $type = $asm.GetType('AB9ActiveShifter.ShifterSettings')

@@ -115,7 +115,7 @@ namespace AB9ActiveShifter
 
             // Sequential dials still persist in an H profile; these are the values carried on the
             // rig, kept so switching pattern on this profile lands somewhere sane.
-            s.SeqThrow = 11915;
+            s.ThrowFromCentre = 11915;
             s.SeqOvertravel = 500;
             s.SeqStopForcePct = 100;
             s.SeqPulseMs = 400;
@@ -151,7 +151,7 @@ namespace AB9ActiveShifter
 
             // The stroke: shorter throw than default, a firm end stop, and a quick pulse. The
             // click's kick is raised - it is the whole feedback of a sequential shift.
-            s.SeqThrow = 20530;
+            s.ThrowFromCentre = 20530;
             s.SeqOvertravel = 2010;
             s.SeqStopForcePct = 100;
             s.SeqPulseMs = 100;

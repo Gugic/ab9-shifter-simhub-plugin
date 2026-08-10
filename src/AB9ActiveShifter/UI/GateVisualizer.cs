@@ -51,6 +51,10 @@ namespace AB9ActiveShifter.UI
         private static readonly Pen MarkDashPen = MakePen(MarkBrush, 1.4, true);
         private static readonly Pen OwnershipPen = MakePen(GateBrush, 1, true);
 
+        /// <summary>The slot's own bottom. Drawn in the gate's colour, not the state machine's
+        /// blue: it is a wall the hand meets, not a line anything is decided at.</summary>
+        private static readonly Pen StopPen = MakePen(GateBrush, 4, false);
+
         protected override double GraphHeight { get { return 340; } }
 
         protected override void DrawGraph(DrawingContext dc, double left, double right, double top, double bottom)
@@ -74,6 +78,7 @@ namespace AB9ActiveShifter.UI
             DrawTunnelExitEdges(dc, geo, left, right, top, bottom);
             DrawColumns(dc, geo, snap, left, right, top, bottom);
             DrawEngageNotches(dc, geo, composer, left, right, top, bottom);
+            DrawSlotStops(dc, geo, composer, left, right, top, bottom);
             DrawHandoverWindows(dc, geo, left, right, top, bottom);
 
             DrawStick(dc, snap, left, right, top, bottom);
@@ -251,6 +256,50 @@ namespace AB9ActiveShifter.UI
                                   MapY(engageY, top, bottom) - 6, TextAlign.Left);
                         DrawLabel(dc, "release", x + NotchReach(geo, composer, col, releaseY, left, right) + 5,
                                   MapY(releaseY, top, bottom) - 6, TextAlign.Left);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// The bottom of each slot, once one has been asked for - where the lever runs out of
+        /// travel of its own rather than at the base's mechanical stop. Drawn from the composer's
+        /// own answer, which already carries the landing's floor and the fact that a wall asked
+        /// for past the end of travel is never met; at the shipped geometry there is nothing here
+        /// to draw at all.
+        ///
+        /// This is what makes a short throw visible: the stop and both notches move together as
+        /// the throw is shortened, so the slots simply get shorter.
+        /// </summary>
+        private void DrawSlotStops(DrawingContext dc, GateGeometry geo, ForceComposer composer,
+                                   double left, double right, double top, double bottom)
+        {
+            int depth = composer.StrokeStopDepth;
+            if (depth >= AxisCenter) return;
+
+            bool labelled = false;
+
+            for (int i = 0; i < geo.ColumnCount; i++)
+            {
+                Column col = (Column)i;
+
+                foreach (ShiftDir dir in new[] { ShiftDir.Fwd, ShiftDir.Back })
+                {
+                    if (!geo.SlotExists(col, dir)) continue;
+
+                    int y = dir == ShiftDir.Fwd ? AxisCenter - depth : AxisCenter + depth;
+                    DrawNotch(dc, geo, composer, col, y, StopPen, left, right, top, bottom);
+
+                    if (!labelled && dir == ShiftDir.Fwd)
+                    {
+                        // On the far side of the slot from the engage and release labels. The
+                        // stop sits a landing's width from the engage notch, which at a short
+                        // throw is a few pixels, so sharing a side stacks the two on top of
+                        // each other exactly when the drawing is most worth reading.
+                        labelled = true;
+                        double x = MapX(geo.ColumnTarget(col), left, right);
+                        DrawLabel(dc, "stop", x - NotchReach(geo, composer, col, y, left, right) - 5,
+                                  MapY(y, top, bottom) - 6, TextAlign.Right);
                     }
                 }
             }

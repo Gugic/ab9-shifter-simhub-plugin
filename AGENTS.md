@@ -39,7 +39,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-197 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+317 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
@@ -116,7 +116,9 @@ src/AB9ActiveShifter/
                            and the engage/release notches, so every geometry dial moves something
     ForceGraphVisualizerBase.cs Shared scaffolding for every visualization: axes, labels, the
                            33 ms snapshot poll, and the redraw-only-if-moved gate
-    DetentCurveVisualizer.cs      Slot detent force against engage fraction
+    DetentCurveVisualizer.cs      The whole stroke into a gear against depth from centre, the
+                                  landing and the end-stop included; the sequential lever's own
+                                  spring when that is the pattern
     GateWallCurveVisualizer.cs    The neutral tunnel's fore/aft wall against depth
     SlidingAcrossGateVisualizer.cs Lateral field across the whole gate width
     SlotMouthVisualizer.cs        The corridor a mouth opens as the slot is approached
@@ -128,7 +130,10 @@ tests/AB9ActiveShifter.Tests/
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
   VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
   SequentialTests.cs       One-shift-per-stroke, re-arm, mirror, spring shape, click kick
-  SettingsMappingTests.cs  ShifterSettings' derived dials (SeqThrow moves both threshold lines)
+  SettingsMappingTests.cs  ShifterSettings' derived dials (ThrowFromCentre moves both threshold
+                           lines)
+  SlotEndStopTests.cs      The bottom of an H slot: the default changes nothing, the landing is
+                           free, the wall only pushes home, and no axis count steps the stroke
   DefaultProfilesTests.cs  The shipped profiles: forces off, cap on, store coherent
   ProfileTransferTests.cs  Round trip, machine facts kept, every clamp on the import path
   AxisCaptureTests.cs      A pedal wired backwards, one that rests at full scale, a silent device
@@ -308,6 +313,19 @@ runners cannot load, so anything worth testing must not touch it.
   stronger than the pin gets a longer face, never a steeper one), flat plateau beyond, faded
   with depth like the humps, anchored to the map's gear-column 1 so mirroring moves it. It has
   the rail's hunt ceiling: a lever trembling at home wants the spring lowered, never damping.
+- **A slot's bottom is a corridor too, and the same rule applies fore/aft.** `SlotStopForcePct`
+  gives an H slot an end of its own instead of running on to the base's mechanical stop — which is
+  the whole of what a short throw is, because `EngageDepth` alone only moves where a gear
+  *registers* and the seated hold then drags the lever the rest of the way anyway. Past the seat
+  the hold fades out over one wall bite, the landing carries **no fore/aft force at all**, and only
+  then does the wall rise. Do not "simplify" that into a hold pressing the lever against the stop:
+  that is a restoring force about an interior equilibrium, the thing corridors exist to avoid. It
+  is only sound because the base does not self-centre with Cockpit's Spring at 0, so nothing pushes
+  the lever out of the landing — which is also why the default is off. The landing is floored at
+  the wall bite for the same reason the tunnel pair has `MinBandSpan`: a full-strength hold removed
+  across one axis count is a bang, not a face. The floor is reported by `StrokeStopDepth` rather
+  than applied silently. Pinned by `TheLandingIsFreeSoASeatedGearRestsInARegionNotOnAPoint`,
+  `TheLandingCanNeverBeShorterThanTheWallBite` and `NoSingleCountOfDepthEverStepsTheSlotForce`.
 - **A band a force ramps across gets a width, not just an ordering.** `GateGeometry` repairs
   inverted enter/exit pairs, and for a pure state band `enter + 1` is the right repair. The neutral
   tunnel pair is not a pure state band — `GuidePlateau` and `SlotConfinementFactor` ramp force

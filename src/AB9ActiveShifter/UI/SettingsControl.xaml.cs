@@ -435,6 +435,7 @@ namespace AB9ActiveShifter.UI
             RefreshLockoutSummary();
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
+            RefreshSlotThrowSummary();
 
             // The device number is stored per profile, so switching profile can change it.
             RefreshVJoyDevices();
@@ -460,6 +461,7 @@ namespace AB9ActiveShifter.UI
             RefreshLockoutSummary();
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
+            RefreshSlotThrowSummary();
             RefreshProfiles();
             RefreshCarModels();
             RefreshVJoyDevices();
@@ -1248,6 +1250,7 @@ namespace AB9ActiveShifter.UI
             RefreshLockoutSummary();
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
+            RefreshSlotThrowSummary();
             if (e != null) RefreshDirtyMarker(e.PropertyName);
 
             // Calibration writes the flag from the engine thread; this is how the gate and the
@@ -1375,6 +1378,62 @@ namespace AB9ActiveShifter.UI
                     "Effective depth: {0} counts, capped down from {1} - the neutral channel's own enter band leaves no more free room at the current geometry. Raising Neutral tunnel half-depth (enter) (ChannelHalfEnter), under Advanced gate geometry, would allow more.",
                     ceiling, s.ChannelFreeDepth)
                 : string.Format("Effective depth: {0} counts.", s.ChannelFreeDepth);
+        }
+
+        /// <summary>
+        /// The two numbers a hand actually cares about on a short-throw gate - where the gear
+        /// seats and where the lever stops - and neither is the number on any one slider. The
+        /// landing carries its own floor, a wall asked for past the end of travel is simply never
+        /// met, and with the stop at zero there is no bottom at all. Same clamp-visibility
+        /// treatment as the two summaries above, and the same reason: a user should see a value
+        /// being overridden immediately rather than discover it by feel.
+        /// </summary>
+        private void RefreshSlotThrowSummary()
+        {
+            if (SlotThrowSummary == null || Plugin == null || Plugin.Settings == null) return;
+
+            ShifterSettings s = Plugin.Settings;
+            if (!s.IsHPattern) return;
+
+            EngineConfig cfg = s.ToEngineConfig();
+            ForceComposer composer = new ForceComposer(cfg.BuildGeometry(), cfg);
+
+            int seat = composer.StrokeSeatDepth;
+            int stop = composer.StrokeStopDepth;
+
+            string text;
+            if (s.SlotStopForcePct <= 0)
+            {
+                text = string.Format(
+                    "A gear seats {0} counts from centre, and then the lever carries on to the base's own mechanical stop {1} counts further, because the slot has no bottom. Raise the end-stop wall above zero to give it one.",
+                    seat, GateGeometry.AxisCenter - seat);
+            }
+            else if (stop >= GateGeometry.AxisCenter)
+            {
+                text = string.Format(
+                    "A gear seats {0} counts from centre and the landing already reaches the end of the base's travel, so the wall begins past it and is never met - the base's own stop is still the bottom. The seated hold does now fade out over the first {1} counts past the seat, so the gear rests freely instead of being pressed home. Shorten the throw, or the landing, for a wall you can feel.",
+                    seat, s.WallRamp);
+            }
+            else
+            {
+                text = string.Format(
+                    "A gear seats {0} counts from centre and the lever meets the wall at {1}, leaving {2} counts of the base's travel unused. That is the throw.",
+                    seat, stop, GateGeometry.AxisCenter - stop);
+            }
+
+            if (s.SlotOvertravel < s.WallRamp)
+            {
+                text += string.Format(
+                    " Landing raised to {0} counts from {1}: it can never be shorter than the wall bite, or the seated hold would have to vanish in a couple of counts and would arrive as a bang.",
+                    s.WallRamp, s.SlotOvertravel);
+            }
+
+            if (seat <= s.ChannelHalfExit)
+            {
+                text += " The seat is inside the neutral tunnel, so a gear registers before the lever has finished leaving neutral. Lengthen the throw, or narrow the tunnel under Advanced gate geometry.";
+            }
+
+            SlotThrowSummary.Text = text;
         }
 
         private void OnCalibrate(object sender, RoutedEventArgs e)
@@ -1523,6 +1582,7 @@ namespace AB9ActiveShifter.UI
             RefreshLockoutSummary();
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
+            RefreshSlotThrowSummary();
         }
 
         private static Brush ResultBrush(CalibrationOutcome outcome)
