@@ -104,6 +104,7 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(GatePattern.Sequential, Find(store, "Sequential").Pattern);
             Assert.Equal(GatePattern.H7R, Find(store, "7+R lockout").Pattern);
             Assert.Equal(GatePattern.H5R, Find(store, "5+R").Pattern);
+            Assert.Equal(GatePattern.Prnd, Find(store, "Automatic (PRND)").Pattern);
         }
 
         [Fact]

@@ -13,8 +13,14 @@
     reads the saved settings JSON, and prints the differences per profile in C# assignment form.
 
     Comparison is by the property's own type, so an enum stored as 0 does not read as different
-    from H7R. Derived adapters (PatternIndex, MouthShapeIndex, ThrowFromCentre) are skipped: they are
-    written by the dials they derive from, and assigning both invites an ordering bug.
+    from H7R. Two families are skipped. Derived adapters - PatternIndex, MouthShapeIndex,
+    ThrowFromCentre, the *Index enum adapters and every *Percent view - are written by the dials
+    they derive from, and assigning both invites an ordering bug. The clutch pedal binding is
+    skipped because it describes this rig's hardware rather than a tuning, and the profiles every
+    install starts from must not carry one machine's device id.
+
+    Enabled and PolarityConfirmed are printed and must NOT be pasted; see the note the script
+    prints at the end.
 
     SimHub rewrites its settings file on exit, so stop SimHub before reading it.
 
@@ -37,8 +43,18 @@ if (-not $Dll) { $Dll = Join-Path $root 'src\AB9ActiveShifter\bin\Debug\AB9Activ
 if (-not (Test-Path $Dll)) { throw "Plugin DLL not found: $Dll. Run dotnet build first." }
 if (-not (Test-Path $Settings)) { throw "Settings file not found: $Settings" }
 
-# Derived from the dials they follow; assigning them as well would depend on ordering.
-$derived = 'PatternIndex', 'MouthShapeIndex', 'ThrowFromCentre'
+# Derived from the dials they follow; assigning them as well would depend on ordering. The
+# percent-of-column-spacing views share a backing field with their raw dial, and the *Index
+# adapters exist only because the XAML binds an int more happily than an enum.
+$derived = 'PatternIndex', 'MouthShapeIndex', 'ThrowFromCentre',
+           'ClutchSourceIndex', 'GrindClutchModeIndex'
+
+# This machine's hardware, not a tuning. Pasting a pedal binding measured on one rig into the
+# profiles every install starts from would point a stranger's clutch at a device id that means
+# nothing to them - and ClutchSource goes with the binding, because Pedal against no calibration
+# reads the clutch as permanently released. Same list ProfileTransfer refuses on import.
+$machine = 'ClutchSource', 'PedalDeviceId', 'PedalAxisIndex', 'PedalRawMin', 'PedalRawMax',
+           'PedalDeadzoneLow', 'PedalDeadzoneHigh', 'PedalInvert'
 
 $asm = [System.Reflection.Assembly]::LoadFrom((Resolve-Path $Dll))
 $type = $asm.GetType('AB9ActiveShifter.ShifterSettings')
@@ -58,6 +74,8 @@ foreach ($profile in $json.Profiles) {
     $count = 0
     foreach ($p in $props) {
         if ($derived -contains $p.Name) { continue }
+        if ($machine -contains $p.Name) { continue }
+        if ($p.Name -like '*Percent') { continue }
         if ($savedNames -notcontains $p.Name) { continue }
 
         $def = $p.GetValue($defaults, $null)
