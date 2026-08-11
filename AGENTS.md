@@ -39,7 +39,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-333 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+339 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
@@ -102,6 +102,8 @@ src/AB9ActiveShifter/
     PedalDeviceInfo.cs     One controller as the pedal picker shows it
     PolarityCalibrator.cs  Measures effect polarity on hardware
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
+    RetryBackoff.cs        "Do not try that again yet" - the gate on I/O the tick can attempt
+                           and fail. A throttled log is not one; see its header
     VelocityEstimator.cs   Position -> speed across a 4 ms window; per-tick differences alias
     TraceRecorder.cs       Per-tick ring buffer -> CSV, so a feel complaint can be replayed
     VJoyDeviceInfo.cs      One vJoy device as the picker shows it, and the sentence describing it
@@ -133,6 +135,7 @@ tests/AB9ActiveShifter.Tests/
   EffectComposerTests.cs   Carrier amplitudes and gain cap, staleness cut, grind conditions
   GateStateMachineTests.cs Transitions, hysteresis, lockout traces
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
+  RetryBackoffTests.cs     A failing device open cannot be attempted once per tick, counted
   VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
   SequentialTests.cs       One-shift-per-stroke, re-arm, mirror, spring shape, click kick
   PrndTests.cs             The selector: always in exactly one position, buttons above every
@@ -409,6 +412,16 @@ runners cannot load, so anything worth testing must not touch it.
   from whatever is being driven. `PedalDevice` never creates an effect and never writes — it is a
   reader. The same rule covers the picker: `PedalDevice.Enumerate` opens each device briefly,
   sets no cooperative level, and disposes it.
+- **Any I/O the tick can attempt and fail needs a `RetryBackoff`, and a throttled log is not one.**
+  Opening a DirectInput device that is not there costs milliseconds — measured at roughly 12 of
+  them — and the tick has one. The clutch pedal's open ran unguarded on every tick while the device
+  was missing, which is what an unplugged pedal set or a saved binding for hardware this machine no
+  longer has looks like. Measured: **81 Hz against the 990 the same rig runs otherwise**, and every
+  stability argument in this project is made from that loop rate. Its log line *was* throttled, to
+  thirty seconds, and that is precisely what hid it — the cost was paid a thousand times a second
+  and mentioned once in thirty thousand. The poll beside it had been rate-limited from the start
+  (`PedalPollEveryTicks`) with a comment saying why; the open never was. When adding anything the
+  tick can retry, gate the attempt, not the message.
 - **The clutch enters the system at exactly one place, and it is a number, not a source.**
   `TelemetryState.Clutch` is written once per tick and read once, by `EffectComposer`. A directly
   read pedal is substituted into a scratch snapshot the engine owns (`CopyFromWithClutch`) — never

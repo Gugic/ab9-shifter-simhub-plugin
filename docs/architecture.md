@@ -195,6 +195,25 @@ full-absorbed like the wall it has become. Geometry is never touched at runtime,
 else — buttons before forces, the release path, the watchdog — is unchanged. Both flags are
 plumbed per tick, so a settings change or telemetry loss reverts on the next millisecond.
 
+### The clutch pedal, and what a failing open costs
+
+Reading the clutch off its own device puts a second DirectInput handle on the engine thread, held
+non-exclusively because the game is reading those pedals too. Two things about it are paced rather
+than done every tick, and only one of them was paced from the start.
+
+The **poll** runs once every `PedalPollEveryTicks` (10) — an ankle does not need a kilohertz, and
+every poll is time the gate is not getting.
+
+The **open** is now gated by a `RetryBackoff` on the same 1/2/5 s schedule the base's own reconnect
+uses. It was not, and the cost was not small: opening a DirectInput device that is not there fails
+after roughly **12 ms**, so while the bound pedals were missing — unplugged, or a saved binding for
+hardware the machine no longer has — the loop ran at **81 Hz instead of 990**. Every stability
+argument in this project is made from that loop rate. What made it hard to see is that the *log*
+had been throttled to thirty seconds from the beginning: the failure was paid for a thousand times
+a second and mentioned once in thirty thousand, so the only symptom was the number on the Monitor
+tab. `ClosePedals` resets the backoff, because closing is always a deliberate transition and the
+next attempt should be immediate; picking a different device in the picker resets it too.
+
 ## Profiles
 
 The settings file now holds a `ProfileStore` — a list of named `ShifterSettings` plus which one is

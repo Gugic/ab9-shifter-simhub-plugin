@@ -87,6 +87,17 @@ namespace AB9ActiveShifter.Core
         private bool _pedalsOpen;
         private string _pedalDeviceOpened;
 
+        /// <summary>
+        /// How often a failing pedal open may be retried. The same schedule the base's own
+        /// reconnect uses, and for the same reason: a device that is not there costs milliseconds
+        /// to fail to open, and this runs on the force loop. Without it, an unplugged pedal set
+        /// paced the whole gate - 81 Hz against 990.
+        /// </summary>
+        private readonly RetryBackoff _pedalOpenRetry = new RetryBackoff(BackoffMs);
+
+        /// <summary>Which device id the backoff above is holding off on.</summary>
+        private string _pedalOpenFor;
+
         /// <summary>Last raw reading of the bound axis, for the calibration bar in the UI.</summary>
         private volatile int _pedalRaw;
 
@@ -673,12 +684,32 @@ namespace AB9ActiveShifter.Core
 
             if (!_pedalsOpen)
             {
+                // Picking a different device in the picker is a fresh situation, so it is tried
+                // at once rather than serving out the previous device's backoff.
+                if (_pedalOpenFor != cfg.PedalDeviceId)
+                {
+                    _pedalOpenFor = cfg.PedalDeviceId;
+                    _pedalOpenRetry.Reset();
+                }
+
+                // Opening a DirectInput device that is not there costs milliseconds, and this is
+                // the 1 kHz loop. Unthrottled it was the whole tick: a pedal set unplugged
+                // mid-session - or a saved binding for pedals this machine no longer has - took
+                // the loop from 990 Hz to 81, measured on the rig, which is 12 ms of a budget
+                // the gate needs all of. The log line was throttled to thirty seconds from the
+                // start, and that is exactly what hid it: every retry cost a tick and only one
+                // in thirty thousand said so.
+                if (!_pedalOpenRetry.Due(nowMs)) return telemetry;
+
                 string error;
                 if (!_pedals.Open(cfg.PedalDeviceId, WindowHandleProvider.Get(), out error))
                 {
+                    _pedalOpenRetry.Failed(nowMs);
                     Log.WarnThrottled("pedal-open", "Clutch pedal unavailable: " + error, 30);
                     return telemetry;
                 }
+
+                _pedalOpenRetry.Succeeded();
                 _pedalsOpen = true;
                 _pedalDeviceOpened = cfg.PedalDeviceId;
             }
@@ -798,6 +829,12 @@ namespace AB9ActiveShifter.Core
             _pedalDeviceOpened = null;
             _pedalRaw = 0;
             _pedalPercent = 0;
+
+            // Closing is always a deliberate transition - the source was switched, the device was
+            // changed, or a poll failed on a device that was working a moment ago - so the next
+            // open is tried immediately rather than inheriting a stale backoff. A device that
+            // opens and then fails to poll costs one attempt per poll interval, not one per tick.
+            _pedalOpenRetry.Reset();
         }
 
         private bool HandleCalibration(EngineConfig cfg, long nowMs, int x, int y, double loopHz)
