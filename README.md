@@ -108,8 +108,9 @@ while it runs, so the copy fails if you skip that.
 
 Start SimHub and enable **AB9 Active Shifter** under *Settings → Plugins*.
 
-That is the whole install. The first start writes out four working profiles — **7+R lockout**,
-**5+R**, **Sequential** and **Automatic (PRND)**, each holding its own complete tuning — so you
+That is the whole install. The first start writes out five working profiles — **7+R lockout**,
+**7+R lockout (short throw, loose)**, **5+R**, **Sequential** and **Automatic (PRND)**, each
+holding its own complete tuning — so you
 begin from a gate that was tuned on real hardware rather than from bare defaults. They are ordinary settings from then on:
 edit them, delete them, add your own. Forces are off and the force cap is on, as they should be on
 a base nobody has measured yet.
