@@ -108,12 +108,17 @@ while it runs, so the copy fails if you skip that.
 
 Start SimHub and enable **AB9 Active Shifter** under *Settings → Plugins*.
 
-That is the whole install. The first start writes out five working profiles — **7+R lockout**,
-**7+R lockout (short throw, loose)**, **5+R**, **Sequential** and **Automatic (PRND)**, each
-holding its own complete tuning — so you
-begin from a gate that was tuned on real hardware rather than from bare defaults. They are ordinary settings from then on:
-edit them, delete them, add your own. Forces are off and the force cap is on, as they should be on
-a base nobody has measured yet.
+That is the whole install. You start with five ready-made **presets** — **7+R lockout**, **7+R
+lockout (short throw, loose)**, **5+R**, **Sequential** and **Automatic (PRND)** — each holding
+its own complete tuning, so you begin from gates that were tuned on real hardware rather than from
+bare defaults. Forces are off and the force cap is on, as they should be on a base nobody has
+measured yet.
+
+Presets are marked `(Preset)`, sit at the end of the profile list, and never change: they are
+there to be a fixed starting point you can always come back to. Turn any dial while one is
+selected and the edit quietly moves to a profile of your own with the same name — `7+R lockout`,
+then `7+R lockout 2` for the next attempt — leaving the preset exactly as it was. Your own
+profiles rename, delete and export like anything else.
 
 Building it yourself instead, and the `install.ps1` script that does all of the above in one step:
 [DEVELOPMENT.md](DEVELOPMENT.md).

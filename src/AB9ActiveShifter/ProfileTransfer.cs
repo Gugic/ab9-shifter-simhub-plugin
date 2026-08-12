@@ -98,6 +98,22 @@ namespace AB9ActiveShifter
             "ColumnInnerHalfEnterPercent", "ColumnInnerHalfExitPercent", "DetentHysteresisPercent"
         };
 
+        /// <summary>
+        /// Whether this property is part of a tune rather than a fact about this machine or this
+        /// session. The same question a shared file asks, so there is one answer and one list.
+        /// <para>
+        /// Used by the preset fork as well as by export: editing a dial while a preset is active
+        /// moves the edit onto a local profile, and the things this returns false for must not
+        /// trigger that. Running polarity calibration, binding the clutch pedal, picking a vJoy
+        /// device or arming the shifter are not tuning decisions, and none of them should silently
+        /// spawn a copy of the preset you were about to drive.
+        /// </para>
+        /// </summary>
+        public static bool IsTuning(string propertyName)
+        {
+            return !string.IsNullOrEmpty(propertyName) && !NotShared.Contains(propertyName);
+        }
+
         /// <summary>The dials a profile file carries, in a stable order.</summary>
         private static IEnumerable<PropertyInfo> SharedProperties()
         {

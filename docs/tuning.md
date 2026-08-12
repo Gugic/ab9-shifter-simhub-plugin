@@ -524,6 +524,25 @@ itself against the last main-section column, and both the plan view at the top o
 Monitor tab draw the band where it actually is. *FFB loop rate* should stay at 1000; see
 [hardware.md](hardware.md) for why higher buys nothing.
 
+## Presets, and why your profile just renamed itself
+
+The five shipped tunes are marked `(Preset)` and sit at the end of the profile list. They never
+change and they cannot be renamed or deleted — the Rename and Delete buttons grey out while one is
+selected. They exist so there is always a known-good gate to come back to when a tuning session has
+wandered.
+
+Turning any dial while a preset is selected therefore does not edit it. The edit moves to a profile
+of your own, carrying the preset's name without the marker — `(Preset) 7+R lockout` becomes
+`7+R lockout`, or `7+R lockout 2` if you already have one — and the preset goes back untouched.
+Nothing is lost and nothing is interrupted: you carry on turning the same dial, and the change you
+just made is already in the new profile. The only visible sign is the name in the box.
+
+What does *not* fork: arming the shifter, freeing the stick, running polarity calibration, picking a
+vJoy device and binding the clutch pedal. Those describe your machine rather than a tune, so they
+apply to the preset in place — a copy of the gate is not what you wanted when you pressed Calibrate.
+
+**Duplicate** is the deliberate way to start from a preset without touching a dial first.
+
 ## Resets
 
 The Geometry tab has scoped resets: **Forces**, **Geometry**, **Calibration**, **Everything**.

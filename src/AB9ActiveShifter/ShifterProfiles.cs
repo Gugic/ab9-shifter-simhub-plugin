@@ -214,10 +214,15 @@ namespace AB9ActiveShifter
             return false;
         }
 
-        /// <summary>A name not yet in the store, built from the requested one.</summary>
+        /// <summary>
+        /// A name not yet in the store, built from the requested one. Every path that lets a user
+        /// name a profile - add, rename, import - comes through here, which is why the reserved
+        /// preset prefix is stripped at this one point rather than at each of them.
+        /// </summary>
         public string UniqueName(string requested)
         {
-            string baseName = string.IsNullOrWhiteSpace(requested) ? "Profile" : requested.Trim();
+            string stripped = DefaultProfiles.StripReservedPrefix(requested);
+            string baseName = string.IsNullOrWhiteSpace(stripped) ? "Profile" : stripped.Trim();
             if (!NameTaken(baseName)) return baseName;
 
             for (int i = 2; ; i++)
@@ -225,6 +230,93 @@ namespace AB9ActiveShifter
                 string candidate = baseName + " " + i;
                 if (!NameTaken(candidate)) return candidate;
             }
+        }
+
+        /// <summary>
+        /// Where the preset block starts - the index a new local profile belongs at. Presets are
+        /// kept together at the end by <see cref="EnsurePresets"/>, so this is one scan for the
+        /// first prefixed name.
+        /// </summary>
+        public int FirstPresetIndex()
+        {
+            if (Profiles == null) return 0;
+
+            for (int i = 0; i < Profiles.Count; i++)
+            {
+                if (Profiles[i] != null && DefaultProfiles.IsPreset(Profiles[i].Name)) return i;
+            }
+            return Profiles.Count;
+        }
+
+        /// <summary>
+        /// Makes the shipped presets present, current, and last in the list, without touching
+        /// anything a user tuned.
+        /// <para>
+        /// Presets carry a reserved prefix, so they cannot collide with a local profile and there
+        /// is nothing to migrate: an install that predates them keeps every profile it had and
+        /// simply gains the preset block underneath. Whatever currently sits under a preset name
+        /// is replaced rather than kept, because a preset is immutable - anything found there is
+        /// either identical to what is being written or a stale copy from an older build, and the
+        /// factory's answer is the right one either way.
+        /// </para>
+        /// <para>
+        /// A prefixed name this build does not recognise is left alone, not deleted: it belongs to
+        /// a preset some future build ships, and a downgrade must not eat it.
+        /// </para>
+        /// </summary>
+        public void EnsurePresets(List<ShifterProfile> presets)
+        {
+            if (Profiles == null) Profiles = new List<ShifterProfile>();
+            if (presets == null || presets.Count == 0) return;
+
+            Profiles.RemoveAll(p => p == null || DefaultProfiles.IsPreset(p.Name));
+            Profiles.AddRange(presets);
+
+            if (FindActive() == null) ActiveProfile = presets[0].Name;
+        }
+
+        /// <summary>
+        /// Turns the profile living under a preset's name into an ordinary local one and puts a
+        /// freshly built preset back in its place. Returns the local name, or null if that was
+        /// not a preset.
+        /// <para>
+        /// The live <see cref="ShifterSettings"/> object is deliberately kept and merely renamed,
+        /// rather than cloned into a new profile. The settings page binds its DataContext to that
+        /// object, and a fork fires from the first change of a dial - which is very often the
+        /// first pixel of a slider drag. Swapping the object underneath would leave the rest of
+        /// that drag writing into a profile no longer in the list. Renaming changes nothing the
+        /// bindings can see.
+        /// </para>
+        /// <para>
+        /// The replacement is built by the factory rather than copied from what was there, because
+        /// by the time this runs the change has already been applied to the live object - there is
+        /// no pristine copy left in memory to take.
+        /// </para>
+        /// </summary>
+        public string ForkPreset(string presetName, ShifterProfile freshPreset)
+        {
+            if (Profiles == null || freshPreset == null) return null;
+
+            string bare = DefaultProfiles.BareOf(presetName);
+            if (bare == null) return null;
+
+            int index = -1;
+            for (int i = 0; i < Profiles.Count; i++)
+            {
+                if (Profiles[i] != null && Profiles[i].Name == presetName) { index = i; break; }
+            }
+            if (index < 0) return null;
+
+            ShifterProfile live = Profiles[index];
+
+            // The preset goes back first, so the name it vacates is free for UniqueName to hand
+            // to the fork - "7+R lockout" if nothing local claims it, "7+R lockout 2" if one does.
+            Profiles[index] = freshPreset;
+            live.Name = UniqueName(bare);
+
+            Profiles.Insert(FirstPresetIndex(), live);
+            ActiveProfile = live.Name;
+            return live.Name;
         }
     }
 

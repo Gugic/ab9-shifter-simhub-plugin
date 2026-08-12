@@ -65,11 +65,14 @@
                                 <ComboBox x:Name="ProfileCombo" Width="220" Margin="0,0,8,0" IsEditable="True"
                                           SelectionChanged="OnProfileSelected" />
                                 <styles:SHButtonSecondary Click="OnAddProfile" Content="Duplicate" Padding="10,3" Margin="0,0,6,0" />
-                                <styles:SHButtonSecondary Click="OnRenameProfile" Content="Rename" Padding="10,3" Margin="0,0,6,0" />
-                                <styles:SHButtonSecondary Click="OnDeleteProfile" Content="Delete" Padding="10,3" Margin="0,0,16,0" />
+                                <styles:SHButtonSecondary x:Name="RenameProfileButton" Click="OnRenameProfile" Content="Rename" Padding="10,3" Margin="0,0,6,0" />
+                                <styles:SHButtonSecondary x:Name="DeleteProfileButton" Click="OnDeleteProfile" Content="Delete" Padding="10,3" Margin="0,0,16,0" />
                                 <styles:SHButtonSecondary Click="OnExportProfile" Content="Export..." Padding="10,3" Margin="0,0,6,0" />
                                 <styles:SHButtonSecondary Click="OnImportProfile" Content="Import..." Padding="10,3" />
                             </StackPanel>
+                            <TextBlock x:Name="PresetNote" TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,6"
+                                       Visibility="Collapsed"
+                                       Text="This is a shipped preset, so it cannot be renamed, deleted or changed - it is here to stay a fixed starting point you can always come back to. Turn any dial and the edit moves to a profile of your own with the same name, leaving the preset as it was. Presets are the ones marked (Preset) and they sit at the end of the list." />
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                 <TextBlock Text="Pattern" VerticalAlignment="Center" Margin="0,0,8,0" />
                                 <ComboBox Width="220" SelectedIndex="{Binding PatternIndex, Mode=TwoWay}">
