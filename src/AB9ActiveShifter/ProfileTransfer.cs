@@ -99,6 +99,57 @@ namespace AB9ActiveShifter
         };
 
         /// <summary>
+        /// The facts that describe this rig rather than a tune: what the base measured, which
+        /// devices are bound, and how fast the loop runs. A subset of <see cref="NotShared"/> -
+        /// everything in that list except the two live switches, which belong to the session and
+        /// are carried by <see cref="ProfileStore.SessionEnabled"/>, and the derived views, which
+        /// are written by the properties they follow.
+        /// <para>
+        /// These are stored on <see cref="ProfileStore"/> and stamped onto whichever profile is
+        /// activated, for the same reason the live switches are: they are true of the machine, so
+        /// letting each profile carry its own answer means switching profiles changes the answer.
+        /// A preset makes that unmissable - it ships with polarity unmeasured, by design, so
+        /// selecting one used to re-arm the 10% force cap and drop the clutch binding.
+        /// </para>
+        /// </summary>
+        private static readonly HashSet<string> MachineFacts = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "PolarityConfirmed", "InvertConstantX", "InvertConstantY", "CalibrationForcePct",
+            "VendorId", "ProductId", "VJoyDeviceId", "TickHz",
+            "PedalDeviceId", "PedalAxisIndex", "PedalRawMin", "PedalRawMax",
+            "PedalDeadzoneLow", "PedalDeadzoneHigh", "PedalInvert", "ClutchSource"
+        };
+
+        /// <summary>Whether this property describes the machine rather than a tune.</summary>
+        public static bool IsMachineFact(string propertyName)
+        {
+            return !string.IsNullOrEmpty(propertyName) && MachineFacts.Contains(propertyName);
+        }
+
+        /// <summary>
+        /// Copies every machine fact from one settings object to another, leaving every tuned dial
+        /// alone. Used both ways: onto a profile as it is activated, and back onto the store when
+        /// calibration or a device picker writes one.
+        /// <para>
+        /// The hex views of the vendor and product ids are deliberately not in the set. They share
+        /// a backing field with the numeric ids, so copying both would write the same fact twice
+        /// under two names and let reflection order decide which won.
+        /// </para>
+        /// </summary>
+        public static void CopyMachineFacts(ShifterSettings from, ShifterSettings to)
+        {
+            if (from == null || to == null) return;
+
+            foreach (PropertyInfo p in typeof(ShifterSettings).GetProperties(
+                         BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (!p.CanRead || !p.CanWrite) continue;
+                if (!MachineFacts.Contains(p.Name)) continue;
+                p.SetValue(to, p.GetValue(from, null), null);
+            }
+        }
+
+        /// <summary>
         /// Whether this property is part of a tune rather than a fact about this machine or this
         /// session. The same question a shared file asks, so there is one answer and one list.
         /// <para>

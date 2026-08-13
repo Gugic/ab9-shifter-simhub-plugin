@@ -39,7 +39,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-351 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+359 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
@@ -79,7 +79,8 @@ src/AB9ActiveShifter/
                            properties, events, actions, profile management, settings load/save,
                            DataUpdate -> TelemetryState for the effects
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
-  ShifterProfiles.cs       ProfileStore (named settings + active), legacy migration, cloning
+  ShifterProfiles.cs       ProfileStore (named settings + active + the rig's own facts), legacy
+                           migration, cloning, the preset fork
   DefaultProfiles.cs       The five presets every install carries, as deltas from bare defaults,
                            plus the reserved name prefix that marks them (see "Shipped
                            profiles" below)
@@ -153,6 +154,8 @@ tests/AB9ActiveShifter.Tests/
   ProfileStoreTests.cs     Car-model matching, and the gate that keeps it off the telemetry path
   PresetProfileTests.cs    The reserved prefix holding on every path a name arrives by, and the
                            fork that keeps the settings object a slider is mid-drag on
+  MachineFactsTests.cs     That switching profiles cannot change what the rig measured, and that
+                           moving those facts leaves every tuned dial alone
   ProfileSwitchTransitionTests.cs  Easing the new gate in, and the confirmation thump's count
   ForceOutputHealthTests.cs  What the base's status flags mean, and what it takes to convict
   VJoyDeviceInfoTests.cs   What the device picker says, including the too-few-buttons trap
@@ -436,6 +439,18 @@ runners cannot load, so anything worth testing must not touch it.
   from a press — nothing in the pedal's motion marks it. It is deliberately not owned by the
   grind: it is the one point on a clutch's travel that means anything mechanically, so a second
   effect that wants it asks `ClutchBitePointPct` rather than growing its own dial.
+- **A fact about the rig is stored once, on the store — never per profile.** Measured polarity and
+  the invert flags, the device and vJoy ids, `TickHz`, and the whole clutch pedal binding live in
+  `ProfileStore.Machine` and are stamped onto whichever profile is activated
+  (`ProfileTransfer.CopyMachineFacts`), exactly as `SessionEnabled`/`SessionFreeStick` are. The
+  properties still sit on `ShifterSettings` so the XAML bindings and `ToEngineConfig` are unchanged;
+  the *authority* is the store. This is the second time this shape of bug has been fixed here — the
+  first was the live switches, where switching profiles decided whether the base was running. The
+  second was polarity: presets ship with `PolarityConfirmed` false by design, so selecting one
+  silently re-armed the 10% cap on a measured base and unbound the clutch. A change to one of these
+  is written back to the store from `OnSettingsChanged`, or the next activation stamps the stale
+  answer back over it. **`IsMachineFact` and `IsTuning` must partition**: a property that answered
+  yes to both would be recorded as the rig's answer *and* fork the preset.
 - **Settings that arrive from outside are data, not settings.** A profile file is downloaded from
   a stranger, so `ProfileTransfer.Import` treats it as hostile: every value is range-checked (any
   `*Pct` to 0–100, positions to the 16-bit axis, the rest to their own envelope), an unreadable

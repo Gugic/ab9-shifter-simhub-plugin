@@ -538,8 +538,14 @@ Nothing is lost and nothing is interrupted: you carry on turning the same dial, 
 just made is already in the new profile. The only visible sign is the name in the box.
 
 What does *not* fork: arming the shifter, freeing the stick, running polarity calibration, picking a
-vJoy device and binding the clutch pedal. Those describe your machine rather than a tune, so they
-apply to the preset in place — a copy of the gate is not what you wanted when you pressed Calibrate.
+vJoy device and binding the clutch pedal. Those describe your machine rather than a tune — a copy of
+the gate is not what you wanted when you pressed Calibrate.
+
+They are also not stored in the profile at all. Measured polarity, the device and vJoy ids, the loop
+rate and the clutch binding belong to the rig, so they are held once and stamped onto whichever
+profile you switch to. That is why selecting a preset does not throw away your calibration and drop
+you back to the 10% force cap, and why calibrating while a preset is selected is not lost when the
+preset is rebuilt at the next start. Calibrate once, on any profile, and every profile has it.
 
 **Duplicate** is the deliberate way to start from a preset without touching a dial first.
 
