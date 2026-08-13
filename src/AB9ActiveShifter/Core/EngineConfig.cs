@@ -394,20 +394,76 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int HomeSpringPct = 0;
 
-        /// <summary>The lockout gate before 7/R: a flat one-way fight at this force, all the way across.</summary>
+        /// <summary>The lockout gate: a flat fight at this force, all the way across its band.</summary>
         public int LockoutForcePct = 70;
 
         /// <summary>
         /// Half-width of the lockout gate. The lockout is a dot on the neutral channel, not a
         /// zone: the walls own the rest of the box, so it only needs to guard the crossing into
-        /// the 7/R column. Flat one-way force across the band, free travel beyond. The width is
+        /// the guarded column. Flat force across the band, free travel beyond. The width is
         /// also the gate's energy budget - force times band is the toll a flick must pay to get
         /// through - so if fast slams still sneak past, widen this or raise the force.
         ///
-        /// Geometry, not just feel: the gate is positioned against the last main-section column
-        /// and the width decides how far past it the band reaches. See GateGeometry.LockoutCentre.
+        /// Geometry, not just feel: the gate is positioned against the approach-side column of
+        /// whichever gap it guards and the width decides how far past it the band reaches. See
+        /// GateGeometry.LockoutCentre.
         /// </summary>
         public int LockoutHalfWidth = 2200;
+
+        /// <summary>
+        /// Where the lockout lives. The default reproduces what every pattern has always
+        /// shipped - 7+R and 6+R guard their last gap, the rest have none - so a saved
+        /// configuration that predates the dial behaves exactly as it always did.
+        /// </summary>
+        public LockoutPlacement LockoutPlacement = LockoutPlacement.PatternDefault;
+
+        /// <summary>
+        /// Which crossing of a gap lockout pays. TowardHigh is the gate 7+R has always had;
+        /// Both needs the composer's edge-flip latch, because a toll both ways cannot be a
+        /// function of position alone (a position-only field refunds one direction whatever it
+        /// charges the other - see docs/force-model.md).
+        /// </summary>
+        public LockoutGapDirection LockoutGapDirection = LockoutGapDirection.TowardHigh;
+
+        /// <summary>
+        /// The gear a Slot placement guards, 1..8 with 8 = R. A gear the pattern does not hold
+        /// repairs the placement to Off, reported by the geometry rather than applied silently.
+        /// </summary>
+        public int LockoutSlotGear = 8;
+
+        /// <summary>Which way through a Slot placement pays the toll.</summary>
+        public LockoutSlotDirection LockoutSlotDirection = LockoutSlotDirection.Entry;
+
+        /// <summary>
+        /// How the lockout is defeated. The hard modes pin the gate to 100% of the effective
+        /// gain - through the polarity cap like every other force, never around it - and hand
+        /// the key to the ToggleLockout/ReleaseLockout actions.
+        /// </summary>
+        public LockoutMode LockoutMode = LockoutMode.PushThrough;
+
+        /// <summary>Which pair of selector positions a PRND lockout sits between. Off by default.</summary>
+        public PrndLockoutGap PrndLockoutGap = PrndLockoutGap.Off;
+
+        /// <summary>Which way along the lane the PRND lockout charges.</summary>
+        public PrndLockoutDirection PrndLockoutDirection = PrndLockoutDirection.TowardD;
+
+        /// <summary>
+        /// How the PRND lockout is defeated. Force-only in every mode: the selector state
+        /// machine is never blocked, because a selector must always be in exactly one position
+        /// and its buttons follow the lever.
+        /// </summary>
+        public LockoutMode PrndLockoutMode = LockoutMode.PushThrough;
+
+        /// <summary>The PRND lockout band's force, as a share of the overall gain.</summary>
+        public int PrndLockoutForcePct = 70;
+
+        /// <summary>
+        /// Half-width of the PRND lockout band, fore/aft counts. Clamped so the band stays
+        /// zero at both neighbouring positions' notch edges - a position must remain a free
+        /// region - and floored so its faces never exceed the wall's own stiffness. The
+        /// effective value is reported by the composer, never applied silently.
+        /// </summary>
+        public int PrndLockoutHalfWidth = 1200;
 
         /// <summary>
         /// Shape of the slot mouths. Square is the rectangular notch the gate has always had, and
@@ -686,7 +742,10 @@ namespace AB9ActiveShifter.Core
                 DetentHysteresis,
                 MirrorColumns,
                 MirrorSlots,
-                Pattern);
+                Pattern,
+                LockoutPlacement,
+                LockoutGapDirection,
+                LockoutSlotGear);
         }
     }
 }

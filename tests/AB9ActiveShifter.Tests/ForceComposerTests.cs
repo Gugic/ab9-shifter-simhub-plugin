@@ -2529,6 +2529,15 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(8, h5r.GearFor(Column.C3, ShiftDir.Back));
             Assert.Equal("R", h5r.LabelFor(8));
             Assert.False(h5r.HasLockout);
+
+            // Truck 6: the 5+R gate with the reverse branch gone - six plain slots on buttons
+            // 1..6, nothing anywhere returning 8, no gate unless one is configured.
+            GateGeometry h6 = new EngineConfig { Pattern = GatePattern.H6 }.BuildGeometry();
+            Assert.Equal(3, h6.ColumnCount);
+            Assert.Equal(6, h6.GearFor(Column.C3, ShiftDir.Back));
+            Assert.Equal("6", h6.LabelFor(6));
+            Assert.True(h6.SlotExists(Column.C3, ShiftDir.Back));
+            Assert.False(h6.HasLockout);
         }
 
         [Fact]

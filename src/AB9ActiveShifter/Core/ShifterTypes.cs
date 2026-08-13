@@ -27,7 +27,121 @@ namespace AB9ActiveShifter.Core
         /// Not a gate with one column - there is no neutral to come back through and no gear to
         /// engage, only a position the lever is always in. See <see cref="PrndLane"/>.
         /// </summary>
-        Prnd = 4
+        Prnd = 4,
+
+        /// <summary>
+        /// Three columns, two rows, six plain slots on buttons 1-6 and no reverse anywhere in
+        /// the map - the sixth slot is just button 6, and the game decides what it means. The
+        /// truck layout: issue-style Eaton-Fuller boxes are this pattern with a lockout
+        /// configured between the first two columns. Appended last - the pattern is stored as
+        /// an int in saved settings, so the existing values must never be renumbered.
+        /// </summary>
+        H6 = 5
+    }
+
+    /// <summary>
+    /// Where the lockout lives, if anywhere. Gap numbers are gear-map-relative - Gap1 is the
+    /// crossing between the columns holding 1/2 and 3/4 - so <c>MirrorColumns</c> relocates
+    /// the gate together with the gears, the same rule that moves 6+R's missing slot.
+    /// </summary>
+    public enum LockoutPlacement
+    {
+        /// <summary>What the pattern has always shipped with: 7+R and 6+R guard their last gap, the rest have none.</summary>
+        PatternDefault = 0,
+
+        /// <summary>No lockout anywhere, whatever the pattern.</summary>
+        Off = 1,
+
+        /// <summary>Between the first and second gear columns.</summary>
+        Gap1 = 2,
+
+        /// <summary>Between the second and third gear columns.</summary>
+        Gap2 = 3,
+
+        /// <summary>Between the third and fourth gear columns. Repaired to the last gap on a three-column pattern.</summary>
+        Gap3 = 4,
+
+        /// <summary>On a single slot's mouth - extra resistance into or out of one gear.</summary>
+        Slot = 5
+    }
+
+    /// <summary>
+    /// Which crossing of a gap lockout pays the toll, in gear-map terms. Names the crossing,
+    /// not the force: the force always pushes back toward the side the paying crossing comes
+    /// from. TowardHigh is the gate the 7+R pattern has always had.
+    /// </summary>
+    public enum LockoutGapDirection
+    {
+        /// <summary>Crossing toward the higher gears pays; coming back is assisted out.</summary>
+        TowardHigh = 0,
+
+        /// <summary>Crossing toward the lower gears pays; coming back is assisted out.</summary>
+        TowardLow = 1,
+
+        /// <summary>Both crossings pay. Rendered with an edge-flip latch - see ForceComposer.</summary>
+        Both = 2
+    }
+
+    /// <summary>Which way through a slot lockout pays the toll.</summary>
+    public enum LockoutSlotDirection
+    {
+        /// <summary>Going into the gear pays; pulling out is the ordinary detent.</summary>
+        Entry = 0,
+
+        /// <summary>Coming out of the gear pays; going in is the ordinary snick.</summary>
+        Exit = 1,
+
+        /// <summary>Both ways pay.</summary>
+        Both = 2
+    }
+
+    /// <summary>
+    /// How the lockout is defeated. Push-through is a toll the hand pays; the two hard modes
+    /// pin the force to 100% of the effective gain and hand the key to a SimHub action instead,
+    /// differing only in whether the gate re-arms itself.
+    /// </summary>
+    public enum LockoutMode
+    {
+        /// <summary>A toll at the configured force; push through it. The default, and today's gate.</summary>
+        PushThrough = 0,
+
+        /// <summary>Full force until the release action fires; stays released until engaged again.</summary>
+        HotkeyToggle = 1,
+
+        /// <summary>Full force until the release action fires; re-arms itself once the crossing completes.</summary>
+        HotkeyAutoRearm = 2
+    }
+
+    /// <summary>
+    /// Which pair of adjacent selector positions a PRND lockout sits between. Label-relative,
+    /// so mirroring the lane moves the lockout with P, R, N and D - the same rule that keeps
+    /// each position's button on its label.
+    /// </summary>
+    public enum PrndLockoutGap
+    {
+        Off = 0,
+
+        /// <summary>Between P and R - the out-of-park gate.</summary>
+        PR = 1,
+
+        /// <summary>Between R and N - the reverse guard.</summary>
+        RN = 2,
+
+        /// <summary>Between N and D.</summary>
+        ND = 3
+    }
+
+    /// <summary>Which way along the lane a PRND lockout charges, named by the labels.</summary>
+    public enum PrndLockoutDirection
+    {
+        /// <summary>Moving toward D's end of the lane pays.</summary>
+        TowardD = 0,
+
+        /// <summary>Moving toward P's end of the lane pays.</summary>
+        TowardP = 1,
+
+        /// <summary>Both ways pay.</summary>
+        Both = 2
     }
 
     /// <summary>Gate columns, left to right. The last column of the pattern holds reverse.</summary>
@@ -216,5 +330,11 @@ namespace AB9ActiveShifter.Core
         public double LoopHz;
         public string StatusMessage = "Stopped";
         public string DeviceName = "";
+
+        /// <summary>
+        /// Whether a hard-mode lockout is currently armed. True whenever no hard mode is
+        /// configured - the gate is then never "released" - so dashboards can key on it alone.
+        /// </summary>
+        public bool LockoutEngaged = true;
     }
 }
