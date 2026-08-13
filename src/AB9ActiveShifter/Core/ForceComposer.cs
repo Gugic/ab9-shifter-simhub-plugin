@@ -65,6 +65,18 @@ namespace AB9ActiveShifter.Core
         private readonly int _prndStopForce;
         private readonly int _damperCoeff;
 
+        // The PRND lockout band, resolved once: which device gap it owns (-1 for none), where
+        // its crest is, and its clamped width. Everything label-relative comes in through the
+        // resolution so MirrorSlots moves the band with P, R, N and D.
+        private readonly int _prndLockoutForce;
+        private readonly int _prndLockoutGapIndex = -1;
+        private readonly int _prndLockoutCentre;
+        private readonly int _prndLockoutHalfWidth;
+        private readonly int _prndLockoutBlockSign;
+
+        /// <summary>The lane band's own side latch, the fore/aft twin of <see cref="_lockoutSide"/>.</summary>
+        private int _prndSide;
+
         /// <summary>
         /// Where the PRND positions are. Built from the same config the state machine builds its
         /// own from, so the detent the hand feels and the position the button reports cannot drift
@@ -245,6 +257,46 @@ namespace AB9ActiveShifter.Core
             _prndDetentForce = Force(config.PrndDetentForcePct, gain);
             _prndStopForce = Force(config.PrndStopForcePct, gain);
             _lane = config.BuildPrndLane();
+
+            // The lane's lockout, resolved like the gate's: label gap to device gap through the
+            // mirror, strength pinned to full scale in the hard modes (through the gain and the
+            // polarity cap, like everything), and the width clamped so the band is zero at both
+            // neighbouring positions' notch edges - a position must stay a free region - and
+            // floored so its faces never exceed the wall's own stiffness.
+            _prndLockoutForce = Force(
+                config.PrndLockoutMode == LockoutMode.PushThrough ? config.PrndLockoutForcePct : 100, gain);
+
+            if (config.PrndLockoutGap != PrndLockoutGap.Off)
+            {
+                int labelGap = (int)config.PrndLockoutGap - 1;
+                int deviceGap = config.MirrorSlots ? PrndLane.PositionCount - 2 - labelGap : labelGap;
+
+                int notch = GateGeometry.Clamp(config.PrndNotchHalfWidth, 0, PrndNotchHalfWidthCeiling);
+                int ceiling = (_lane.Spacing / 2) - notch;
+
+                if (ceiling > 0 && _prndLockoutForce > 0)
+                {
+                    _prndLockoutGapIndex = deviceGap;
+                    _prndLockoutCentre = _lane.CrestY(deviceGap);
+                    _prndLockoutHalfWidth = GateGeometry.Clamp(
+                        config.PrndLockoutHalfWidth,
+                        Math.Min(2 * Math.Max(1, config.WallRamp), ceiling),
+                        ceiling);
+
+                    // Which device direction the paying crossing moves in: D sits at high y
+                    // unmirrored and low y mirrored, and Both leaves the sign to the latch.
+                    if (config.PrndLockoutDirection == PrndLockoutDirection.Both)
+                    {
+                        _prndLockoutBlockSign = 0;
+                    }
+                    else
+                    {
+                        bool towardD = config.PrndLockoutDirection == PrndLockoutDirection.TowardD;
+                        _prndLockoutBlockSign = towardD == !config.MirrorSlots ? 1 : -1;
+                    }
+                }
+            }
+
             _damperCoeff = Scale(config.DamperCoeff, gain);
 
             _dampingForce = Force(config.DampingPct, gain);
@@ -439,7 +491,8 @@ namespace AB9ActiveShifter.Core
         /// detented positions fore and aft. No gate, no columns, no gear - but the same stabiliser
         /// pipeline and the same single place the measured polarity signs are applied.
         /// </summary>
-        public ForceFrame ComposePrnd(int x, int y, int vx = 0, int vy = 0, double dtMs = 0, int vibY = 0)
+        public ForceFrame ComposePrnd(int x, int y, int vx = 0, int vy = 0, double dtMs = 0, int vibY = 0,
+                                      bool lockoutReleased = false)
         {
             if (_freeStick)
             {
@@ -448,8 +501,14 @@ namespace AB9ActiveShifter.Core
                 _yieldScaleX = 1.0;
                 _yieldScaleY = 1.0;
                 _guideColumn = Column.None;
+                _prndSide = 0;
+                _lockoutHoldFire = false;
+                _lockoutSeen = false;
+                _lockoutPermittedSide = 0;
                 return FreeFrame();
             }
+
+            StepPrndLockout(y, lockoutReleased);
 
             ForceFrame frame = new ForceFrame
             {
@@ -491,6 +550,16 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int PrndLaneForce(int y)
         {
+            return PrndLaneForce(y, _prndSide);
+        }
+
+        /// <summary>
+        /// The same force with the band's side latch supplied, so a graph can sweep a
+        /// Both-direction band from either approach without touching live state - the lane's
+        /// twin of the <see cref="BarrierForceIn(int, int, int)"/> overload.
+        /// </summary>
+        public int PrndLaneForce(int y, int lockoutSide)
+        {
             int fromCentre = y - GateGeometry.AxisCenter;
 
             // Past either end of the lane: a wall home, never a pocket.
@@ -503,9 +572,27 @@ namespace AB9ActiveShifter.Core
                 return fromCentre > 0 ? -wall : wall;
             }
 
-            if (_prndDetentForce <= 0) return 0;
+            int nearest = NearestPrndPosition(y);
+            int offset = y - _lane.PositionY(nearest);
 
-            int offset = y - _lane.PositionY(NearestPrndPosition(y));
+            // The gap this point lies in. In the locked one the cosine hump is REPLACED by the
+            // gate band - the exact precedent of the H gate's own dispatch - centred on the
+            // crest, zero before both neighbouring notches by the width clamp, so a position
+            // stays a free region. The crest deliberately carries the band's flat core: that IS
+            // the toll, and the nearest-position flip there is free for the band because the
+            // band is one continuous function of the crest offset, not a nearest-field. A hard
+            // band that is released or holding fire leaves the gap simply free.
+            int gapIndex = offset > 0 ? nearest : nearest - 1;
+            if (gapIndex == _prndLockoutGapIndex)
+            {
+                if (_lockoutQuiet) return 0;
+
+                int pushSign = _prndLockoutBlockSign != 0 ? -_prndLockoutBlockSign : lockoutSide;
+                return LockoutGate(y - _prndLockoutCentre, _prndLockoutForce,
+                    _prndLockoutHalfWidth, _cfg.WallRamp, pushSign);
+            }
+
+            if (_prndDetentForce <= 0) return 0;
 
             int free = GateGeometry.Clamp(_cfg.PrndNotchHalfWidth, 0, PrndNotchHalfWidthCeiling);
             int span = Math.Max(1, (_lane.Spacing / 2) - free);
@@ -519,6 +606,50 @@ namespace AB9ActiveShifter.Core
             int force = (int)Math.Round(_prndDetentForce * profile);
             return offset > 0 ? -force : force;
         }
+
+        /// <summary>
+        /// Per-tick state for the lane's band: the fore/aft side latch and the hard modes'
+        /// arming, the exact machinery the gap band runs on the other axis. The lane's lockout
+        /// never touches the selector's state machine - a selector is always in exactly one
+        /// position and its buttons follow the lever - so everything here is force only.
+        /// </summary>
+        private void StepPrndLockout(int y, bool released)
+        {
+            if (_prndLockoutGapIndex < 0)
+            {
+                _lockoutQuiet = false;
+                return;
+            }
+
+            bool insideBand = Math.Abs(y - _prndLockoutCentre) < _prndLockoutHalfWidth;
+
+            if (_prndSide == 0 || !insideBand)
+            {
+                _prndSide = y >= _prndLockoutCentre ? 1 : -1;
+            }
+
+            StepArming(_cfg.PrndLockoutMode, released, !insideBand);
+        }
+
+        /// <summary>The lane band's side latch, for the engine's auto re-arm - the fore/aft twin of <see cref="LockoutSideLatch"/>.</summary>
+        public int PrndLockoutSideLatch { get { return _prndSide; } }
+
+        /// <summary>
+        /// The widest the lane's lockout band can be: to the notch edges of the two positions
+        /// bounding its gap, never into them. Zero means the lane has no room for a band at
+        /// all - the lane itself is the thing to lengthen, and the Feel tab says so.
+        /// </summary>
+        public int PrndLockoutHalfWidthCeiling
+        {
+            get
+            {
+                int notch = GateGeometry.Clamp(_cfg.PrndNotchHalfWidth, 0, PrndNotchHalfWidthCeiling);
+                return Math.Max(0, (_lane.Spacing / 2) - notch);
+            }
+        }
+
+        /// <summary>The band half-width actually in force after the clamps, 0 when there is no band.</summary>
+        public int PrndLockoutEffectiveHalfWidth { get { return _prndLockoutHalfWidth; } }
 
         /// <summary>
         /// Nearest by distance, and deliberately not the state machine's answer. The force has to
@@ -1050,7 +1181,7 @@ namespace AB9ActiveShifter.Core
         {
             if (_geo.LockoutIsSlot)
             {
-                StepArming(released, SlotLockoutClearAt(x, y));
+                StepArming(_cfg.LockoutMode, released, SlotLockoutClearAt(x, y));
                 return;
             }
 
@@ -1071,7 +1202,7 @@ namespace AB9ActiveShifter.Core
                 _lockoutSide = x >= _geo.LockoutCentre ? 1 : -1;
             }
 
-            StepArming(released, !insideBand);
+            StepArming(_cfg.LockoutMode, released, !insideBand);
         }
 
         /// <summary>
@@ -1082,9 +1213,9 @@ namespace AB9ActiveShifter.Core
         /// default, so nothing else would soften it). "Clear" always means a position where the
         /// lockout's own shape is zero, so the moment of firing is force-free by construction.
         /// </summary>
-        private void StepArming(bool released, bool clear)
+        private void StepArming(LockoutMode mode, bool released, bool clear)
         {
-            if (_cfg.LockoutMode == LockoutMode.PushThrough)
+            if (mode == LockoutMode.PushThrough)
             {
                 _lockoutQuiet = false;
                 _lockoutSeen = true;

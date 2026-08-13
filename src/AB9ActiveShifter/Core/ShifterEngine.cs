@@ -617,7 +617,27 @@ namespace AB9ActiveShifter.Core
                         }
                     }
 
-                    frame = _composer.ComposePrnd(x, y, _velocity.X, _velocity.Y, dtMs, fx.VibY);
+                    // The lane's lockout is force only, so the state update above never sees it;
+                    // the released flag reaches the band, and the auto re-arm watches the band's
+                    // own side latch - a completed crossing is the latch landing opposite where
+                    // the release was granted.
+                    bool prndReleased = _lockoutReleased;
+                    frame = _composer.ComposePrnd(x, y, _velocity.X, _velocity.Y, dtMs, fx.VibY,
+                                                  prndReleased);
+
+                    if (cfg.PrndLockoutMode == LockoutMode.HotkeyAutoRearm && prndReleased)
+                    {
+                        int side = _composer.PrndLockoutSideLatch;
+                        if (side != 0)
+                        {
+                            if (_lockoutReleaseSide == 0) _lockoutReleaseSide = side;
+                            else if (side == -_lockoutReleaseSide) SetLockoutReleased(false);
+                        }
+                    }
+                    else if (!prndReleased)
+                    {
+                        _lockoutReleaseSide = 0;
+                    }
 
                     traceState = t.State;
                     traceColumn = Column.None;
