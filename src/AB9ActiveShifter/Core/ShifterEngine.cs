@@ -58,6 +58,18 @@ namespace AB9ActiveShifter.Core
         private long _pulseOnAtMs;
         private ShiftDir _seqPushed = ShiftDir.None;
 
+        // The hard lockout's released flag: a level set from SimHub's action thread and read
+        // once per tick, the _running/_freeStick shape rather than an Interlocked request.
+        // Deliberately runtime state and not a setting - persisting it would fork a preset on
+        // a keypress, churn the debounced save on every press, and stamp a stale answer back
+        // on the next profile activation. It defaults to engaged and re-engages on every
+        // start and every gate-moving config change.
+        private volatile bool _lockoutReleased;
+
+        // Auto re-arm bookkeeping, engine thread only: which side of the gate the lever held
+        // when the release was granted, captured from the composer's side latch.
+        private int _lockoutReleaseSide;
+
         private FfbDevice _device;
         private EffectSet _effects;
         private VJoyGearOutput _output;
@@ -141,6 +153,42 @@ namespace AB9ActiveShifter.Core
         /// <summary>Raised on the engine thread when the selected gear changes (new, previous).</summary>
         public event Action<int, int> GearChanged;
 
+        /// <summary>
+        /// Raised whenever the hard lockout's engaged state flips (true = engaged), from
+        /// whichever thread flipped it - an action, the auto re-arm, or a config change.
+        /// </summary>
+        public event Action<bool> LockoutEngagedChanged;
+
+        /// <summary>
+        /// Whether a hard-mode lockout is currently armed. True whenever no hard mode is
+        /// configured, so a dashboard can key on this alone.
+        /// </summary>
+        public bool LockoutEngaged { get { return !_lockoutReleased; } }
+
+        /// <summary>
+        /// Opens or closes a hard-mode lockout. Safe from any thread; a no-op when the state
+        /// already matches, so a two-position switch bound to the explicit actions cannot
+        /// double-fire the event.
+        /// </summary>
+        public void SetLockoutReleased(bool released)
+        {
+            if (_lockoutReleased == released) return;
+            _lockoutReleased = released;
+
+            Action<bool> handler = LockoutEngagedChanged;
+            if (handler != null)
+            {
+                try { handler(!released); }
+                catch (Exception ex) { Log.ErrorThrottled("lockout-event", "Lockout state handler threw", ex); }
+            }
+        }
+
+        /// <summary>Flips the hard lockout's state - the one-key binding.</summary>
+        public void ToggleLockoutRelease()
+        {
+            SetLockoutReleased(!_lockoutReleased);
+        }
+
         /// <summary>Raised on the engine thread as each calibration target finishes.</summary>
         public event Action<CalibrationResult> CalibrationCompleted;
 
@@ -205,6 +253,10 @@ namespace AB9ActiveShifter.Core
                 _running = true;
                 _phase = EnginePhase.SearchDevice;
                 _status = "Starting";
+
+                // A hard gate arrives locked on every start; the hotkey is the only key.
+                SetLockoutReleased(false);
+                _lockoutReleaseSide = 0;
 
                 _lastTickStamp = Stopwatch.GetTimestamp();
                 _watchdog = new Timer(WatchdogTick, null, WatchdogPeriodMs, WatchdogPeriodMs);
@@ -586,7 +638,14 @@ namespace AB9ActiveShifter.Core
                     EffectOutput fx = _gameEffects.Step(
                         cfg, telemetry, telemetryAge, dtMs, approaching, slotDepth);
 
-                    StateTransition t = _stateMachine.Update(x, y, !fx.BlockEngage);
+                    // The hard lockout's refusal rides the same allowEngage the grind uses, and
+                    // reads the machine BEFORE this tick's update - last tick's target, the
+                    // grind's own one-millisecond-stale pattern. It can only ever block a new
+                    // latch; a gear already held stays held whatever the gate does.
+                    bool lockoutReleased = _lockoutReleased;
+                    bool refused = _composer.LockoutRefusesEngage(_stateMachine.Column, _stateMachine.Direction);
+
+                    StateTransition t = _stateMachine.Update(x, y, !(fx.BlockEngage || refused));
                     gearChanged = t.GearChanged;
 
                     if (t.GearChanged)
@@ -605,7 +664,16 @@ namespace AB9ActiveShifter.Core
 
                     frame = _composer.Compose(
                         t.State, t.Column, t.Direction, x, y, _velocity.X, _velocity.Y, dtMs,
-                        fx.VibY, fx.MuteDetent);
+                        fx.VibY, fx.MuteDetent, lockoutReleased);
+
+                    if (cfg.LockoutMode == LockoutMode.HotkeyAutoRearm && lockoutReleased)
+                    {
+                        StepAutoRearm(cfg, t);
+                    }
+                    else if (!lockoutReleased)
+                    {
+                        _lockoutReleaseSide = 0;
+                    }
 
                     traceState = t.State;
                     traceColumn = t.Column;
@@ -1035,10 +1103,22 @@ namespace AB9ActiveShifter.Core
             _geometry = cfg.BuildGeometry();
             _composer = new ForceComposer(_geometry, cfg);
 
+            // A profile that ships a hard gate arrives locked, and a gate that moved or
+            // changed its mode re-arms: the release is a session grant against one specific
+            // gate, not a standing exemption that survives the gate being rebuilt under it.
+            bool rebuild = _stateMachine == null || !GeometryUnchanged(previous, cfg);
+            if (rebuild || previous == null
+                || previous.LockoutMode != cfg.LockoutMode
+                || previous.PrndLockoutMode != cfg.PrndLockoutMode)
+            {
+                SetLockoutReleased(false);
+                _lockoutReleaseSide = 0;
+            }
+
             // Force changes are picked up by rebuilding the composer alone. Only rebuild the
             // state machine when the gate itself moved, so dragging a force slider cannot
             // disturb a gear that is currently held.
-            if (_stateMachine == null || !GeometryUnchanged(previous, cfg))
+            if (rebuild)
             {
                 _stateMachine = new GateStateMachine(_geometry, cfg.MinEngageTicks);
                 _seqMachine = new SequentialStateMachine(_geometry, cfg.MinEngageTicks);
@@ -1097,6 +1177,52 @@ namespace AB9ActiveShifter.Core
                 DisposeEffects();
                 DisposeDevice();
                 _phase = EnginePhase.SearchDevice;
+            }
+        }
+
+        /// <summary>
+        /// The self-re-arming hard mode: the gate closes itself the moment the released
+        /// crossing completes, and not before - a granted pass keeps until it is spent. For a
+        /// gap the completion is the composer's side latch landing opposite where the release
+        /// was granted, which it can only do by fully exiting the band on the far side. For a
+        /// slot it is the guarded gear latching (entry) or letting go (exit) - the collar
+        /// seating again behind the shift. Re-engaging goes through SetLockoutReleased so the
+        /// event fires, and the composer's next tick sees an ordinary arming edge: the lever
+        /// is at a zero-force position at every one of these moments by construction.
+        /// </summary>
+        private void StepAutoRearm(EngineConfig cfg, StateTransition t)
+        {
+            if (_geometry == null || _composer == null) return;
+
+            if (_geometry.LockoutIsSlot)
+            {
+                if (!t.GearChanged) return;
+
+                int guarded = _geometry.GearFor(_geometry.LockoutSlotColumn, _geometry.LockoutSlotDir);
+                bool entryCovered = cfg.LockoutSlotDirection != LockoutSlotDirection.Exit;
+                bool exitCovered = cfg.LockoutSlotDirection != LockoutSlotDirection.Entry;
+
+                if ((entryCovered && t.Gear == guarded)
+                    || (exitCovered && t.PreviousGear == guarded && t.Gear != guarded))
+                {
+                    SetLockoutReleased(false);
+                }
+
+                return;
+            }
+
+            if (!_geometry.HasLockout) return;
+
+            int side = _composer.LockoutSideLatch;
+            if (side == 0) return;
+
+            if (_lockoutReleaseSide == 0)
+            {
+                _lockoutReleaseSide = side;
+            }
+            else if (side == -_lockoutReleaseSide)
+            {
+                SetLockoutReleased(false);
             }
         }
 
@@ -1162,6 +1288,15 @@ namespace AB9ActiveShifter.Core
                 && a.EngageDepth == b.EngageDepth
                 && a.ReleaseDepth == b.ReleaseDepth
                 && a.LockoutHalfWidth == b.LockoutHalfWidth
+
+                // Placement and gap direction both move LockoutCentre, which is a barrier
+                // crest, which is a guide-column ownership boundary - geometry, exactly like
+                // the width above. The slot gear, the modes, the slot direction and the PRND
+                // lockout dials are deliberately NOT here: they move force only, and listing
+                // one would make dragging its dial drop a held gear and fire the switch
+                // transition.
+                && a.LockoutPlacement == b.LockoutPlacement
+                && a.LockoutGapDirection == b.LockoutGapDirection
                 && a.DetentHysteresis == b.DetentHysteresis
                 && a.MinEngageTicks == b.MinEngageTicks
                 && a.MirrorColumns == b.MirrorColumns
@@ -1235,7 +1370,8 @@ namespace AB9ActiveShifter.Core
                 GearLabel = label,
                 LoopHz = loopHz,
                 StatusMessage = _status,
-                DeviceName = _device != null ? (_device.ProductName ?? "") : ""
+                DeviceName = _device != null ? (_device.ProductName ?? "") : "",
+                LockoutEngaged = !_lockoutReleased
             };
 
             _snapshot = snapshot;

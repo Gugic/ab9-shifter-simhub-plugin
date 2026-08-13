@@ -198,6 +198,15 @@ namespace AB9ActiveShifter.Core
         /// <summary>True while a hard-mode gate exerts nothing: released by the hotkey, or armed but holding fire.</summary>
         private bool _lockoutQuiet;
 
+        /// <summary>
+        /// The side a hard Both gate does NOT refuse: captured from the side latch at each
+        /// arming edge, changed only by the next one. Deliberately not the live latch - an
+        /// overpowered crossing flips the latch when the band is exited, and refusal keyed on
+        /// the latch would lift the moment the fight was won. Locked means locked until the
+        /// key turns; the crossed-to side becomes home only when the gate is re-engaged.
+        /// </summary>
+        private int _lockoutPermittedSide;
+
         public ForceComposer(GateGeometry geometry, EngineConfig config)
         {
             _geo = geometry;
@@ -314,10 +323,11 @@ namespace AB9ActiveShifter.Core
                 _lockoutSide = 0;
                 _lockoutHoldFire = false;
                 _lockoutSeen = false;
+                _lockoutPermittedSide = 0;
                 return FreeFrame();
             }
 
-            StepLockout(x, lockoutReleased);
+            StepLockout(x, y, lockoutReleased);
 
             // A latched gear owns the lateral field: the wall points at the gear the lever is in,
             // so dragging sideways is pushed back to it rather than held in whichever slot the lever
@@ -1036,8 +1046,14 @@ namespace AB9ActiveShifter.Core
         /// force at zero, so surfacing on the far side owes the return toll instead of being
         /// assisted back across.
         /// </summary>
-        private void StepLockout(int x, bool released)
+        private void StepLockout(int x, int y, bool released)
         {
+            if (_geo.LockoutIsSlot)
+            {
+                StepArming(released, SlotLockoutClearAt(x, y));
+                return;
+            }
+
             if (!_geo.HasLockout)
             {
                 _lockoutQuiet = false;
@@ -1055,6 +1071,19 @@ namespace AB9ActiveShifter.Core
                 _lockoutSide = x >= _geo.LockoutCentre ? 1 : -1;
             }
 
+            StepArming(released, !insideBand);
+        }
+
+        /// <summary>
+        /// The hard modes' arming, shared by the gap band and the slot lockout. An arming edge -
+        /// the hotkey re-engaging, a fresh composer after a config swap, the first tick after
+        /// free stick - over a lever inside the guarded region holds fire until the lever is
+        /// clear, so full force can never materialise under the hand (the attack is off by
+        /// default, so nothing else would soften it). "Clear" always means a position where the
+        /// lockout's own shape is zero, so the moment of firing is force-free by construction.
+        /// </summary>
+        private void StepArming(bool released, bool clear)
+        {
             if (_cfg.LockoutMode == LockoutMode.PushThrough)
             {
                 _lockoutQuiet = false;
@@ -1062,20 +1091,86 @@ namespace AB9ActiveShifter.Core
                 return;
             }
 
-            // Arming edge: the hotkey re-engaging, a fresh composer after a config swap, the
-            // first tick after free stick - any moment the gate goes from not-exerting to
-            // armed. Over a lever inside the band it holds fire until the lever is clear, so
-            // full force can never materialise under the hand (the attack is off by default,
-            // so nothing else would soften it).
             bool engaged = !released;
             bool wasEngaged = _lockoutSeen && !_lastLockoutReleased;
 
-            if (engaged && !wasEngaged) _lockoutHoldFire = insideBand;
-            if (_lockoutHoldFire && !insideBand) _lockoutHoldFire = false;
+            if (engaged && !wasEngaged)
+            {
+                _lockoutHoldFire = !clear;
+
+                // The refusal's home side is set when the key turns, not by the fight: an
+                // overpowered crossing must stay refused until the next release.
+                _lockoutPermittedSide = _lockoutSide;
+            }
+
+            if (_lockoutHoldFire && clear) _lockoutHoldFire = false;
 
             _lastLockoutReleased = released;
             _lockoutSeen = true;
             _lockoutQuiet = released || _lockoutHoldFire;
+        }
+
+        /// <summary>
+        /// Whether a slot lockout's shapes are all zero here: the channel, another column, the
+        /// other direction - and for an exit toll, the seat above its band and the mouth below
+        /// it. The entry balk rises from the mouth itself, so with entry covered only leaving
+        /// the slot's territory counts as clear.
+        /// </summary>
+        private bool SlotLockoutClearAt(int x, int y)
+        {
+            if (_geo.InChannel(y)) return true;
+            if (_geo.ColumnAt(x) != _geo.LockoutSlotColumn) return true;
+
+            ShiftDir dir = _geo.DirectionOf(y);
+            if (dir != _geo.LockoutSlotDir) return true;
+
+            if (_cfg.LockoutSlotDirection == LockoutSlotDirection.Exit)
+            {
+                double d = _geo.EngageFraction(dir, y);
+                return d <= SlotExitBandFoot || d >= SlotExitBandTop;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// The side latch, for the engine's auto re-arm: it lands opposite the permitted side
+        /// exactly when a crossing has fully completed, band exited and all.
+        /// </summary>
+        public int LockoutSideLatch { get { return _lockoutSide; } }
+
+        /// <summary>The permitted side as captured at the last arming edge, 0 before any.</summary>
+        public int LockoutPermittedSide { get { return _lockoutPermittedSide; } }
+
+        /// <summary>
+        /// Whether a hard lockout refuses to let this slot latch. Feeds the state machine's
+        /// allowEngage beside the grind's rejection, and ONLY that: refusal can block a new
+        /// latch, never drop a gear already held - the lever has not moved, and a release goes
+        /// through the neutral channel absolutely, so an armed gate must not turn a held gear
+        /// into a phantom. Exit tolls never refuse either: refusing a release would hold a
+        /// button down while the lever physically leaves, and the buttons follow truth.
+        /// </summary>
+        public bool LockoutRefusesEngage(Column column, ShiftDir direction)
+        {
+            if (_cfg.LockoutMode == LockoutMode.PushThrough) return false;
+            if (_lockoutQuiet) return false;
+            if (column == Column.None || direction == ShiftDir.None) return false;
+
+            if (_geo.LockoutIsSlot)
+            {
+                return column == _geo.LockoutSlotColumn
+                    && direction == _geo.LockoutSlotDir
+                    && _cfg.LockoutSlotDirection != LockoutSlotDirection.Exit;
+            }
+
+            if (!_geo.HasLockout) return false;
+
+            // One-way: the refused side is fixed by the direction dial, whatever the lever
+            // does - the accidental-gear guarantee. Both: the side opposite the captured home.
+            int columnSide = _geo.ColumnTarget(column) >= _geo.LockoutCentre ? 1 : -1;
+            int refusedSide = _geo.LockoutBlockSign != 0 ? _geo.LockoutBlockSign : -_lockoutPermittedSide;
+
+            return refusedSide != 0 && columnSide == refusedSide;
         }
 
         /// <summary>
@@ -1182,7 +1277,7 @@ namespace AB9ActiveShifter.Core
             // the slot detent replaces the tunnel's gate wall, which is what makes a gear a place
             // the lever can go rather than a wall it bounces off.
             f.ConstantX = Combine(LateralGuide(x, y, _guideColumn), BarrierForceIn(x, y));
-            f.ConstantY = SlotForceAt(direction, y, muteDetent);
+            f.ConstantY = SlotForceAt(direction, y, muteDetent, column);
 
             return f;
         }
@@ -1217,13 +1312,29 @@ namespace AB9ActiveShifter.Core
         ///
         /// Public because the Feel tab's detent curve plots this rather than a copy of it.
         /// </summary>
-        public int SlotForceAt(ShiftDir direction, int y, bool muted)
+        public int SlotForceAt(ShiftDir direction, int y, bool muted, Column column = Column.None)
         {
-            int detent = DetentMagnitude(direction, _geo.EngageFraction(direction, y), muted);
+            double d = _geo.EngageFraction(direction, y);
 
-            // A balked shift has no seat to reach: the grind's own wall is what stops the lever,
+            // A hard entry lockout renders exactly as the grind's balk: the detent becomes a
+            // border. When both are active at once the taller wall wins - max, not sum,
+            // because a border is not taller for having two reasons, and one wall means one
+            // attack and one yield floor.
+            bool hardBalk = SlotHardEntryLive(column, direction);
+            bool border = muted || hardBalk;
+            int wall = Math.Max(muted ? _grindWallForce : 0, hardBalk ? _lockoutForce : 0);
+
+            int detent = DetentMagnitude(direction, d, border, wall);
+
+            if (!border)
+            {
+                detent = GateGeometry.Clamp(detent + SlotLockoutBoost(column, direction, d),
+                    -GateGeometry.ForceMax, GateGeometry.ForceMax);
+            }
+
+            // A balked shift has no seat to reach: the balk wall is what stops the lever,
             // a third of the way in, and stacking a second wall behind it would say nothing.
-            if (_slotStopForce <= 0 || muted) return detent;
+            if (_slotStopForce <= 0 || border) return detent;
 
             int depth = Math.Abs(y - GateGeometry.AxisCenter);
             int seat = ThrowThreshold();
@@ -1251,6 +1362,101 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
+        /// Where the exit toll's band lives, in engage fraction. The foot sits at the start of
+        /// the detent's crossover so the toll ends exactly where the ordinary fight begins; the
+        /// top stops short of the seat so a seated gear rests untouched - the seat stays a free
+        /// region, an arming edge over a seated lever has nothing to step, and the gear does not
+        /// spend all day pressed harder into its stop.
+        /// </summary>
+        private const double SlotExitBandFoot = 0.55;
+        private const double SlotExitBandRise = 0.65;
+        private const double SlotExitBandFall = 0.90;
+        private const double SlotExitBandTop = 0.95;
+
+        /// <summary>Entry toll shape: spent entirely before the crossover so the snick arrives whole.</summary>
+        private const double SlotEntryBandRise = 0.30;
+        private const double SlotEntryBandFall = 0.45;
+        private const double SlotEntryBandEnd = 0.55;
+
+        /// <summary>Whether a hard entry lockout is armed, fired, and aimed at this slot.</summary>
+        private bool SlotHardEntryLive(Column column, ShiftDir direction)
+        {
+            return _geo.LockoutIsSlot
+                && _cfg.LockoutMode != LockoutMode.PushThrough
+                && !_lockoutQuiet
+                && column == _geo.LockoutSlotColumn
+                && direction == _geo.LockoutSlotDir
+                && _cfg.LockoutSlotDirection != LockoutSlotDirection.Exit;
+        }
+
+        /// <summary>
+        /// The slot lockout's push-through shapes, added onto the ordinary detent for the one
+        /// guarded slot. Both are bands, and both of their edges land where the detent is doing
+        /// nothing unusual, so no single count of depth ever steps the stroke.
+        ///
+        /// Entry: extra fight on the way in, spent entirely before the crossover begins - the
+        /// snick must arrive whole, and the crossover point must not move, because that is
+        /// where a gear starts to feel taken. Exit: a band of into-slot force between the
+        /// crossover and the seat. Leaving the gear crosses it and pays; entering crosses it
+        /// too and is assisted - the one-way toll's own character, "entering is assisted,
+        /// leaving costs", the same trade the gap gate makes at its faces. The seat itself is
+        /// deliberately outside the band: a seated gear rests in a free region, not under a
+        /// permanent extra load pressing it into the stop.
+        ///
+        /// In the hard modes the strength is already pinned to full scale by the ctor, and the
+        /// entry half never reaches here - a hard entry balks instead. A hard exit stays
+        /// force-only: refusing a release would hold a button while the lever leaves.
+        /// </summary>
+        private int SlotLockoutBoost(Column column, ShiftDir direction, double d)
+        {
+            if (!_geo.LockoutIsSlot || _lockoutForce <= 0) return 0;
+            if (column != _geo.LockoutSlotColumn || direction != _geo.LockoutSlotDir) return 0;
+            if (_cfg.LockoutMode != LockoutMode.PushThrough && _lockoutQuiet) return 0;
+
+            bool coversEntry = _cfg.LockoutSlotDirection != LockoutSlotDirection.Exit;
+            bool coversExit = _cfg.LockoutSlotDirection != LockoutSlotDirection.Entry;
+            bool hard = _cfg.LockoutMode != LockoutMode.PushThrough;
+
+            // Positive is toward the neutral channel, matching DetentMagnitude's convention.
+            double restoring = 0;
+
+            if (coversEntry && !hard)
+            {
+                if (d < SlotEntryBandRise)
+                {
+                    restoring += _lockoutForce * (d / SlotEntryBandRise);
+                }
+                else if (d < SlotEntryBandFall)
+                {
+                    restoring += _lockoutForce;
+                }
+                else if (d < SlotEntryBandEnd)
+                {
+                    restoring += _lockoutForce * (1.0 - (d - SlotEntryBandFall) / (SlotEntryBandEnd - SlotEntryBandFall));
+                }
+            }
+
+            if (coversExit)
+            {
+                if (d >= SlotExitBandRise && d < SlotExitBandFall)
+                {
+                    restoring -= _lockoutForce;
+                }
+                else if (d >= SlotExitBandFoot && d < SlotExitBandRise)
+                {
+                    restoring -= _lockoutForce * ((d - SlotExitBandFoot) / (SlotExitBandRise - SlotExitBandFoot));
+                }
+                else if (d >= SlotExitBandFall && d < SlotExitBandTop)
+                {
+                    restoring -= _lockoutForce * (1.0 - (d - SlotExitBandFall) / (SlotExitBandTop - SlotExitBandFall));
+                }
+            }
+
+            double signed = direction == ShiftDir.Fwd ? restoring : -restoring;
+            return (int)Math.Round(signed);
+        }
+
+        /// <summary>
         /// The fore/aft force one stroke renders at this depth, whichever pattern is configured -
         /// the slot for an H gate, the sprung lever for a sequential one.
         ///
@@ -1260,11 +1466,11 @@ namespace AB9ActiveShifter.Core
         /// for an H slot and the wrong function entirely for a sequential lever, whose stroke is
         /// <see cref="SequentialSpring"/> and shares none of the H crossover geometry.
         /// </summary>
-        public int StrokeForceAt(ShiftDir direction, int y, bool muted)
+        public int StrokeForceAt(ShiftDir direction, int y, bool muted, Column column = Column.None)
         {
             if (_cfg.Pattern == GatePattern.Sequential) return SequentialSpring(y);
             if (_cfg.Pattern == GatePattern.Prnd) return PrndLaneForce(y);
-            return SlotForceAt(direction, y, muted);
+            return SlotForceAt(direction, y, muted, column);
         }
 
         /// <summary>
@@ -1502,12 +1708,22 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int DetentMagnitude(ShiftDir direction, double engageFraction, bool muted)
         {
+            return DetentMagnitude(direction, engageFraction, muted, muted ? _grindWallForce : 0);
+        }
+
+        /// <summary>
+        /// The same curve with the balk wall's strength supplied, because two things can turn
+        /// the detent into a border now - the grind, and a hard slot lockout - and when both
+        /// are live the taller wall wins rather than the two stacking.
+        /// </summary>
+        private int DetentMagnitude(ShiftDir direction, double engageFraction, bool muted, int wallForce)
+        {
             double d = engageFraction;
 
             double restoring;
             if (muted)
             {
-                restoring = (_detentResistMax + _grindWallForce) * Math.Min(1.0, d / 0.55);
+                restoring = (_detentResistMax + wallForce) * Math.Min(1.0, d / 0.55);
             }
             else if (d < 0.55)
             {
