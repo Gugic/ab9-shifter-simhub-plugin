@@ -434,6 +434,7 @@ namespace AB9ActiveShifter.UI
             RefreshProfiles();
             RefreshCarModels();
             RefreshLockoutSummary();
+            RefreshLockoutPlacementSummary();
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
             RefreshSlotThrowSummary();
@@ -461,6 +462,7 @@ namespace AB9ActiveShifter.UI
             BindActiveProfile();
             RefreshStatus();
             RefreshLockoutSummary();
+            RefreshLockoutPlacementSummary();
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
             RefreshSlotThrowSummary();
@@ -1265,6 +1267,7 @@ namespace AB9ActiveShifter.UI
         private void OnSettingsChanged(object sender, PropertyChangedEventArgs e)
         {
             RefreshLockoutSummary();
+            RefreshLockoutPlacementSummary();
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
             RefreshSlotThrowSummary();
@@ -1398,6 +1401,47 @@ namespace AB9ActiveShifter.UI
             int fwd = geo.GearFor(c, ShiftDir.Fwd);
             int back = geo.GearFor(c, ShiftDir.Back);
             return (fwd > 0 ? geo.LabelFor(fwd) : "-") + "/" + (back > 0 ? geo.LabelFor(back) : "-");
+        }
+
+        /// <summary>
+        /// The line under the lockout dials: where the gate actually landed, in the gears'
+        /// own labels, with any repair spelled out. Asks a freshly built geometry - the
+        /// effective answer lives there, never re-derived here.
+        /// </summary>
+        private void RefreshLockoutPlacementSummary()
+        {
+            if (LockoutPlacementSummary == null || Plugin == null || Plugin.Settings == null) return;
+
+            ShifterSettings s = Plugin.Settings;
+            if (!s.IsHPattern) return;
+
+            GateGeometry geo = s.ToEngineConfig().BuildGeometry();
+
+            string text;
+            if (geo.LockoutIsSlot)
+            {
+                int gear = geo.GearFor(geo.LockoutSlotColumn, geo.LockoutSlotDir);
+                text = string.Format("The lockout guards the {0} slot.", geo.LabelFor(gear));
+            }
+            else if (geo.HasLockout)
+            {
+                text = string.Format("The lockout guards the crossing between {0} and {1}.",
+                    ColumnGears(geo, (Column)geo.LockoutGapIndex),
+                    ColumnGears(geo, (Column)(geo.LockoutGapIndex + 1)));
+            }
+            else
+            {
+                text = "No lockout on this pattern.";
+            }
+
+            if (geo.LockoutPlacementRepaired)
+            {
+                text += geo.EffectiveLockoutPlacement == LockoutPlacement.Off
+                    ? " The chosen slot holds no gear in this pattern, so the lockout is off."
+                    : " This pattern has no such gap, so the gate guards its last one.";
+            }
+
+            LockoutPlacementSummary.Text = text;
         }
 
         /// <summary>
@@ -1535,6 +1579,25 @@ namespace AB9ActiveShifter.UI
                         " Effective notch: {0} counts, capped down from {1} - the hump beside it needs room to rise at no more than the wall's own stiffness. Lengthen the lane, or shorten Wall bite distance, to allow more.",
                         ceiling, s.PrndNotchHalfWidth)
                     : " Effective notch: 0 counts - the lane is short enough that the detent has less room than one wall bite to rise in, so it will feel abrupt however the notch is set. Lengthen the lane.";
+            }
+
+            if (s.HasPrndLockout)
+            {
+                int band = composer.PrndLockoutEffectiveHalfWidth;
+                if (band <= 0)
+                {
+                    text += " The lockout band has no room at all between the notches - lengthen the lane or narrow the notch.";
+                }
+                else if (band != s.PrndLockoutHalfWidth)
+                {
+                    text += string.Format(
+                        " Effective lockout half-width: {0} counts (asked {1}) - the band ends before both neighbouring notches, and its faces never exceed the wall's own stiffness.",
+                        band, s.PrndLockoutHalfWidth);
+                }
+                else
+                {
+                    text += string.Format(" Lockout band half-width: {0} counts.", band);
+                }
             }
 
             PrndLaneSummary.Text = text;
@@ -1684,6 +1747,7 @@ namespace AB9ActiveShifter.UI
 
             Plugin.Settings.ResetToDefaults(scope);
             RefreshLockoutSummary();
+            RefreshLockoutPlacementSummary();
             RefreshWallRampSummary();
             RefreshChannelFreeDepthSummary();
             RefreshSlotThrowSummary();

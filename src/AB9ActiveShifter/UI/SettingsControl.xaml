@@ -81,6 +81,7 @@
                                     <ComboBoxItem Content="H pattern, 5 gears + R" />
                                     <ComboBoxItem Content="Sequential (+ / -)" />
                                     <ComboBoxItem Content="Automatic (P R N D)" />
+                                    <ComboBoxItem Content="H pattern, 6 gears, no reverse (truck)" />
                                 </ComboBox>
                             </StackPanel>
                             <ui:TitledSlider Title="Sequential pulse length (ms)" Minimum="20" Maximum="400"
@@ -88,7 +89,7 @@
                                              Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding SeqPulseMs, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0"
-                                       Text="A profile holds every dial on every tab, the pattern included, so each pattern can carry its own tuning. Duplicate makes a copy of the current profile to experiment in; to rename, type the new name in the box and click Rename. Gears map to vJoy buttons 1..N with reverse as the highest; sequential pulses button 9 for upshift and button 10 for downshift - above every gear button, so no game binding can mean two things - and its push resistance and click are the detent dials on the Feel tab." />
+                                       Text="A profile holds every dial on every tab, the pattern included, so each pattern can carry its own tuning. Duplicate makes a copy of the current profile to experiment in; to rename, type the new name in the box and click Rename. Gears map to vJoy buttons 1..N, and reverse - where the pattern has one - is always button 8; the 6-gear truck pattern has no reverse and uses buttons 1-6 only. Sequential pulses button 9 for upshift and button 10 for downshift - above every gear button, so no game binding can mean two things - and its push resistance and click are the detent dials on the Feel tab." />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0"
                                        Text="Export writes the current profile to a file you can share. Import always adds a new profile, numbering the name if it is taken, so someone else's tune can never land on top of yours. What travels is the tuning only: your measured polarity, your device and vJoy numbers and your loop rate stay as they are, values are range-checked on the way in, and an imported profile always arrives with forces off." />
 
@@ -143,6 +144,21 @@
                                                FriendlyName="Turn the shifter's forces on or off" />
                             <ui:ControlsEditor ActionName="AB9ShifterPlugin.ReleaseAllGears"
                                                FriendlyName="Release everything (panic)" />
+
+                            <styles:SHSectionSeparator Margin="0,10,0,8" />
+
+                            <TextBlock TextWrapping="Wrap" Margin="0,0,0,6" Opacity="0.75"
+                                       Text="The lockout key. Only does anything while a lockout is in a hard mode - set on the Feel tab, or in the PRND lane section for the automatic. The lockout re-engages by itself on every start and every profile switch." />
+                            <ui:ControlsEditor ActionName="AB9ShifterPlugin.ToggleLockout"
+                                               FriendlyName="Release or re-engage the lockout (hard mode)" />
+                            <styles:SHExpander Header="Separate engage / release keys (for a two-position switch)" Margin="0,6,0,0">
+                                <StackPanel Margin="0,8,0,0">
+                                    <ui:ControlsEditor ActionName="AB9ShifterPlugin.EngageLockout"
+                                                       FriendlyName="Engage the lockout" />
+                                    <ui:ControlsEditor ActionName="AB9ShifterPlugin.ReleaseLockout"
+                                                       FriendlyName="Release the lockout" />
+                                </StackPanel>
+                            </styles:SHExpander>
                         </StackPanel>
                     </styles:SHSection>
 
@@ -389,7 +405,7 @@
                                       Margin="0,0,0,4"
                                       Checked="OnGeometryPercentToggleChanged" Unchecked="OnGeometryPercentToggleChanged" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.6" Margin="0,0,0,8"
-                                       Text="Column spacing genuinely differs by pattern - about 21845 counts on the four-column H6R/H7R, 32767 on the three-column H5R - so the same raw axis count is a different fraction of the room between columns depending which pattern a profile was tuned on. This only changes how the affected dials are displayed and edited here; it does not touch any stored value or rescale anything when the pattern is switched." />
+                                       Text="Column spacing genuinely differs by pattern - about 21845 counts on the four-column H6R/H7R, 32767 on the three-column H5R and the truck 6 - so the same raw axis count is a different fraction of the room between columns depending which pattern a profile was tuned on. This only changes how the affected dials are displayed and edited here; it does not touch any stored value or rescale anything when the pattern is switched." />
 
                             <ui:TitledSlider Title="Gate wall, between columns (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="90"
@@ -507,6 +523,47 @@
                             <ui:TitledSlider Title="End-stop wall past P and D (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="90"
                                              Value="{Binding PrndStopForcePct, Mode=TwoWay}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                <TextBlock Text="Lockout between positions" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox MinWidth="220" HorizontalAlignment="Left"
+                                          SelectedIndex="{Binding PrndLockoutGapIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="Off" />
+                                    <ComboBoxItem Content="Between P and R" />
+                                    <ComboBoxItem Content="Between R and N" />
+                                    <ComboBoxItem Content="Between N and D" />
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Visibility="{Binding HasPrndLockout, Converter={StaticResource BoolToVis}}">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="Direction" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <ComboBox MinWidth="300" HorizontalAlignment="Left"
+                                              SelectedIndex="{Binding PrndLockoutDirectionIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="One-way - moving toward D pays" />
+                                        <ComboBoxItem Content="One-way - moving toward P pays" />
+                                        <ComboBoxItem Content="Both ways pay" />
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="Lockout mode" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <ComboBox MinWidth="300" HorizontalAlignment="Left"
+                                              SelectedIndex="{Binding PrndLockoutModeIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="Push through - a toll your hand can beat" />
+                                        <ComboBoxItem Content="Hard - full force until released by hotkey" />
+                                        <ComboBoxItem Content="Hard - re-arms itself after each crossing" />
+                                    </ComboBox>
+                                </StackPanel>
+                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,6"
+                                           Visibility="{Binding IsPrndLockoutHardMode, Converter={StaticResource BoolToVis}}"
+                                           Text="Force only, always: the selector still registers whichever position the lever physically reaches - a selector is never allowed a moment with nothing selected. Bind the release key on the Setup tab, under Enable; the gate re-engages on every start and every profile switch." />
+                                <ui:TitledSlider Title="PRND lockout force (%)" Minimum="0" Maximum="100"
+                                                 TickFrequency="5" ShowResetButton="True" ResetValue="70"
+                                                 Value="{Binding PrndLockoutForcePct, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="PRND lockout half-width (axis counts)" Minimum="200" Maximum="6000"
+                                                 TickFrequency="100" ShowResetButton="True" ResetValue="1200"
+                                                 Value="{Binding PrndLockoutHalfWidth, Mode=TwoWay}" />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,6"
+                                           Text="The lockout names the labels, so turning the lane round with the mirror option moves it with P, R, N and D. Its band replaces that gap's detent hump and is clamped to end before both neighbouring notches - the line below says what is actually in force." />
+                            </StackPanel>
                             <TextBlock x:Name="PrndLaneSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0"
                                        Text="The lane half-length puts P and D that far either side of centre, with the other two dividing the rest evenly - it is the lane's own dial, not the throw the H and sequential patterns share, because a selector lane is a fraction of the length a gear lever wants and sharing one would retune the other every time the pattern changed. The detent between positions is a smooth hump: nothing at a position, nothing again at the halfway point, one rise either side. That is deliberate rather than decorative - a force pulling toward the nearest position would reverse at every halfway point, and a reversal between two saturated forces is the worst step this hardware can produce. The free notch is what makes a selected position a place the lever rests rather than a point it is pulled to; zero turns each position into a line, which is stable only at moderate detent force, like the rail gate. Sideways the lever is railed to the middle at the slot wall strength." />
@@ -543,14 +600,73 @@
                                       Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                         <StackPanel Margin="0,4,0,8">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
-                                       Text="What the hand feels moving along the neutral channel: a light pull into each column, a hump to climb between the ordinary columns, and the lockout gate before 7/R - a one-way fight, flat toward the main gears across a compact band, so a fast flick pays the same price as a slow push. Leaving 7/R is assisted, like a real range gate. Its width times its force is the toll: if slams still get through, widen or strengthen it. The graph below shows this across the whole width of the gate, coloured band and all; the white dot tracks where the stick actually is while sliding." />
+                                       Text="What the hand feels moving along the neutral channel: a light pull into each column, a hump to climb between the ordinary columns, and - where one is configured - the lockout gate: a fight flat across a compact band, so a fast flick pays the same price as a slow push, and free travel beyond. Where it lives, which crossings pay and how it is defeated are the dials below; its width times its force is the toll, so if slams still get through, widen or strengthen it. The graph shows this across the whole width of the gate, coloured band and all; the white dot tracks where the stick actually is while sliding." />
                             <local:SlidingAcrossGateVisualizer x:Name="SlidingAcrossGateCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" />
 
-                            <ui:TitledSlider Title="Lockout gate, guarding the R column (%)" Minimum="0" Maximum="100"
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="Lockout position" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox MinWidth="300" HorizontalAlignment="Left"
+                                          SelectedIndex="{Binding LockoutPlacementIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="Pattern default (7+R and 6+R guard 7/R; others none)" />
+                                    <ComboBoxItem Content="Off" />
+                                    <ComboBoxItem Content="Between columns 1 and 2" />
+                                    <ComboBoxItem Content="Between columns 2 and 3" />
+                                    <ComboBoxItem Content="Between columns 3 and 4 (four-column patterns)" />
+                                    <ComboBoxItem Content="On one slot (pick the gear below)" />
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4"
+                                        Visibility="{Binding IsLockoutOnSlot, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="Locked slot" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox Width="90" SelectedIndex="{Binding LockoutSlotGearIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="1" />
+                                    <ComboBoxItem Content="2" />
+                                    <ComboBoxItem Content="3" />
+                                    <ComboBoxItem Content="4" />
+                                    <ComboBoxItem Content="5" />
+                                    <ComboBoxItem Content="6" />
+                                    <ComboBoxItem Content="7" />
+                                    <ComboBoxItem Content="R" />
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4"
+                                        Visibility="{Binding IsLockoutOnGap, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="Direction" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox MinWidth="300" HorizontalAlignment="Left"
+                                          SelectedIndex="{Binding LockoutGapDirectionIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="One-way - entering the higher column pays" />
+                                    <ComboBoxItem Content="One-way - entering the lower column pays" />
+                                    <ComboBoxItem Content="Both directions pay" />
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4"
+                                        Visibility="{Binding IsLockoutOnSlot, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="Direction" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox MinWidth="300" HorizontalAlignment="Left"
+                                          SelectedIndex="{Binding LockoutSlotDirectionIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="One-way - going into the slot pays" />
+                                    <ComboBoxItem Content="One-way - coming out of the slot pays" />
+                                    <ComboBoxItem Content="Both ways pay" />
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4"
+                                        Visibility="{Binding ShowsLockoutDials, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="Lockout mode" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox MinWidth="300" HorizontalAlignment="Left"
+                                          SelectedIndex="{Binding LockoutModeIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="Push through - a toll your hand can beat" />
+                                    <ComboBoxItem Content="Hard - full force until released by hotkey" />
+                                    <ComboBoxItem Content="Hard - re-arms itself after each crossing" />
+                                </ComboBox>
+                            </StackPanel>
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,6"
+                                       Visibility="{Binding IsLockoutHardMode, Converter={StaticResource BoolToVis}}"
+                                       Text="Hard means the gate runs at 100% - the force dial below is idle - and locked gears do not register at all until the bound key releases the gate (bind it on the Setup tab, under Enable). It is still a force: a determined shove can beat 12 Nm, but the gear stays refused until the key turns. The gate re-engages on every start and every profile switch." />
+                            <ui:TitledSlider Title="Lockout force (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="70"
-                                             Visibility="{Binding HasLockout, Converter={StaticResource BoolToVis}}"
+                                             Visibility="{Binding ShowsLockoutDials, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding LockoutForcePct, Mode=TwoWay}" />
-                            <StackPanel Visibility="{Binding HasLockout, Converter={StaticResource BoolToVis}}">
+                            <StackPanel Visibility="{Binding ShowsLockoutDials, Converter={StaticResource BoolToVis}}">
                                 <ui:TitledSlider Title="Lockout gate half-width (axis counts)" Minimum="500" Maximum="6000"
                                                  TickFrequency="100" ShowResetButton="True" ResetValue="2200"
                                                  Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
@@ -560,6 +676,8 @@
                                                  Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
                                                  Value="{Binding LockoutHalfWidthPercent, Mode=TwoWay}" />
                             </StackPanel>
+                            <TextBlock x:Name="LockoutPlacementSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
+                                       Visibility="{Binding ShowsLockoutDials, Converter={StaticResource BoolToVis}}" />
                             <ui:TitledSlider Title="Humps between the other columns (%)" Minimum="0" Maximum="100"
                                              TickFrequency="5" ShowResetButton="True" ResetValue="15"
                                              Value="{Binding BarrierForcePct, Mode=TwoWay}" />
@@ -833,7 +951,7 @@
                                        Text="The lateral guide has no ramp of its own any more. Every sideways force in the gate - the pull along the tunnel, the funnel into a slot, the slot wall itself - now rises at the same stiffness as the wall, so a gentler force gets a shorter face instead of a steeper one. Its own ramp was a free parameter, and at the bottom of its range it made the funnel the steepest thing in the gate, three and a half times the wall face, in exactly the place the lever crosses on every shift." />
 
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
-                                       Text="The lockout gate places itself: it sits just outside the band of the last main-section column, so sliding across the gate meets it straight away instead of after a long stretch of dead travel. Its width is on the Feel tab, and the Monitor tab draws the band where it actually is." />
+                                       Text="Which gap the lockout guards is chosen on the Feel tab; within that gap it still places itself against the near column's band, so sliding across the gate meets it straight away instead of after a long stretch of dead travel (a Both-direction gate sits on the gap's midpoint instead). Its width is on the Feel tab, and the Monitor tab draws the band where it actually is." />
                         </StackPanel>
                     </styles:SHSection>
 
@@ -866,12 +984,12 @@
                                              TickFrequency="1"
                                              Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding ColumnInnerHalfEnterPercent, Mode=TwoWay}" />
-                            <StackPanel Visibility="{Binding HasLockout, Converter={StaticResource BoolToVis}}">
-                                <ui:TitledSlider Title="Lockout clearance from the last column" Minimum="300" Maximum="10000"
+                            <StackPanel Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                                <ui:TitledSlider Title="Lockout clearance from the column beside it" Minimum="300" Maximum="10000"
                                                  TickFrequency="100" ShowResetButton="True" ResetValue="2400"
                                                  Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}"
                                                  Value="{Binding ColumnInnerHalfExit, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Lockout clearance from the last column (% of column spacing)" Minimum="0" Maximum="50"
+                                <ui:TitledSlider Title="Lockout clearance from the column beside it (% of column spacing)" Minimum="0" Maximum="50"
                                                  TickFrequency="1"
                                                  Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}"
                                                  Value="{Binding ColumnInnerHalfExitPercent, Mode=TwoWay}" />
@@ -879,8 +997,8 @@
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
                                        Text="How wide the opening at each column is, measured either side of its centre line - the outer two get more because they run to the end of travel. Inside it the fore/aft wall is fully open so the lever can go straight into the slot; outside it the wall blends shut over the wall blend distance on the Feel tab. It is not what decides which gear a push selects: every position in the gate belongs to the column it is nearest, so a push that beats the wall lands in the nearer slot rather than in nothing at all. There is no matching release width: once the lever is in a gear the only way out is back through the tunnel, at any sideways distance whatever." />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
-                                       Visibility="{Binding HasLockout, Converter={StaticResource BoolToVis}}"
-                                       Text="The lockout clearance above is the room the lockout gate leaves beside the 5/6 column before its band begins - hidden along with its slider on patterns with no lockout, since it does nothing there." />
+                                       Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}"
+                                       Text="The lockout clearance above is the room the lockout gate leaves beside the column it stands against before its band begins - whichever gap the Feel tab points it at. It does nothing while the lockout is off or on a slot; the line under the Feel tab's lockout dials says which gap is actually guarded." />
                             <ui:TitledSlider Title="Engage depth (from the end of travel)" Minimum="500" Maximum="28000"
                                              TickFrequency="500" ShowResetButton="True" ResetValue="4000"
                                              Value="{Binding EngageDepth, Mode=TwoWay}" />
@@ -938,7 +1056,7 @@
                         <StackPanel Margin="0,4,0,8">
                             <local:GateVisualizer x:Name="Visualizer" Height="340" HorizontalAlignment="Left" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
-                                       Text="The dot is the stick, and the shaded area is the gate's free space - drawn at the size the geometry actually makes it, so every dial on the Geometry tab moves something here. The orange band is the lockout: in the neutral channel it pushes back toward the main gears until you push through into 7/R." />
+                                       Text="The dot is the stick, and the shaded area is the gate's free space - drawn at the size the geometry actually makes it, so every dial on the Geometry tab moves something here. The orange band is the lockout: in the neutral channel it pushes back toward the paying side until you push through - or, in a hard mode, until the release key opens it, and the band dims while released." />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0"
                                        Text="Blue marks are what the plugin measures rather than what the hand feels: the solid lines across each slot are the engage depth, where the gear registers, and the dashed ones the release depth, where it lets go. The blue brackets on the tunnel edge are how wide each column's doorway opens, and the dashed blue pairs in the tunnel are the column handover width. The faint dashed verticals are the ownership boundaries - past one of those, a push that beats the wall lands in the next column's slot." />
                         </StackPanel>

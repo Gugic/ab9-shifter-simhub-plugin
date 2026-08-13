@@ -97,7 +97,13 @@ namespace AB9ActiveShifter.UI
         {
             Column guideColumn = geo.NearestColumn(x, Column.None);
             int y = GateGeometry.AxisCenter;
-            return composer.LateralGuide(x, y, guideColumn) + composer.BarrierForceIn(x, y);
+
+            // The side latch supplied per sample, crest-relative: a one-way gate ignores it,
+            // and a Both gate then draws what each side's approach actually feels - resisted
+            // toward the crest from wherever you stand - instead of nothing, which is what a
+            // history latch with no history would render.
+            int side = x >= geo.LockoutCentre ? 1 : -1;
+            return composer.LateralGuide(x, y, guideColumn) + composer.BarrierForceIn(x, y, side);
         }
 
         private static double MapX(int x, double left, double right, int axisMax)
