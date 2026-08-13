@@ -1316,7 +1316,10 @@ namespace AB9ActiveShifter.UI
 
         /// <summary>
         /// The lockout is a share of the overall gain, so the number that actually matters is
-        /// the product. Spell it out rather than making the user multiply.
+        /// the product. Spell it out rather than making the user multiply - and say where the
+        /// gate actually landed, asked of a freshly built geometry rather than re-derived,
+        /// because repairs (a gap the pattern lacks, a slot that holds no gear) are reported
+        /// here instead of being applied silently.
         /// </summary>
         private void RefreshLockoutSummary()
         {
@@ -1324,32 +1327,77 @@ namespace AB9ActiveShifter.UI
 
             ShifterSettings s = Plugin.Settings;
             EngineConfig cfg = s.ToEngineConfig();
+            GateGeometry geo = cfg.BuildGeometry();
 
             string capped = cfg.PolarityConfirmed
                 ? ""
                 : "  Gain is capped at " + EngineConfig.UnconfirmedGainCapPct +
                   "% until polarity is measured, so everything will feel light.";
 
+            string hardNote = " (hard - released by the key bound on Setup)";
+            double toll = cfg.EffectiveGain * (s.IsLockoutHardMode ? 100 : s.LockoutForcePct);
+
             if (!s.IsHPattern)
             {
-                LockoutSummary.Text = string.Format(
-                    "Of what the base can produce: push resistance about {0:0}%, lateral rail about {1:0}%.{2}",
+                string lane = string.Format(
+                    "Of what the base can produce: push resistance about {0:0}%, lateral rail about {1:0}%.",
                     cfg.EffectiveGain * s.DetentResistPct,
-                    cfg.EffectiveGain * s.ColumnPinForcePct,
-                    capped);
+                    cfg.EffectiveGain * s.ColumnPinForcePct);
+
+                if (s.IsPrnd && s.HasPrndLockout)
+                {
+                    string gapName = s.PrndLockoutGap == PrndLockoutGap.PR ? "P-R"
+                        : s.PrndLockoutGap == PrndLockoutGap.RN ? "R-N" : "N-D";
+                    double band = cfg.EffectiveGain * (s.IsPrndLockoutHardMode ? 100 : s.PrndLockoutForcePct);
+
+                    lane += string.Format("  The {0} lockout runs about {1:0}%{2}.",
+                        gapName, band, s.IsPrndLockoutHardMode ? hardNote : "");
+                }
+
+                LockoutSummary.Text = lane + capped;
                 return;
             }
 
             double wall = cfg.EffectiveGain * s.ChannelWallForcePct;
-            double lockout = cfg.EffectiveGain * s.LockoutForcePct;
 
-            LockoutSummary.Text = s.HasLockout
-                ? string.Format(
-                    "Of what the base can produce: gate walls about {0:0}%, the R-column lockout about {1:0}%.{2}",
-                    wall, lockout, capped)
-                : string.Format(
-                    "Of what the base can produce: gate walls about {0:0}%.{1}",
-                    wall, capped);
+            string gate;
+            if (geo.LockoutIsSlot)
+            {
+                int gear = geo.GearFor(geo.LockoutSlotColumn, geo.LockoutSlotDir);
+                gate = string.Format(", the {0} slot's lockout about {1:0}%{2}",
+                    geo.LabelFor(gear), toll, s.IsLockoutHardMode ? hardNote : "");
+            }
+            else if (geo.HasLockout)
+            {
+                gate = string.Format(", the lockout between {0} and {1} about {2:0}%{3}",
+                    ColumnGears(geo, (Column)geo.LockoutGapIndex),
+                    ColumnGears(geo, (Column)(geo.LockoutGapIndex + 1)),
+                    toll, s.IsLockoutHardMode ? hardNote : "");
+            }
+            else
+            {
+                gate = ", no lockout";
+            }
+
+            string repaired = "";
+            if (geo.LockoutPlacementRepaired)
+            {
+                repaired = geo.EffectiveLockoutPlacement == LockoutPlacement.Off
+                    ? "  The chosen slot holds no gear in this pattern, so the lockout is off."
+                    : "  This pattern has no such gap, so the gate guards its last one.";
+            }
+
+            LockoutSummary.Text = string.Format(
+                "Of what the base can produce: gate walls about {0:0}%{1}.{2}{3}",
+                wall, gate, repaired, capped);
+        }
+
+        /// <summary>The two gears a device column holds, as the plan view would label them.</summary>
+        private static string ColumnGears(GateGeometry geo, Column c)
+        {
+            int fwd = geo.GearFor(c, ShiftDir.Fwd);
+            int back = geo.GearFor(c, ShiftDir.Back);
+            return (fwd > 0 ? geo.LabelFor(fwd) : "-") + "/" + (back > 0 ? geo.LabelFor(back) : "-");
         }
 
         /// <summary>
