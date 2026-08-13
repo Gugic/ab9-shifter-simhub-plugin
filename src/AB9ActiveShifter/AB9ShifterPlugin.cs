@@ -121,6 +121,16 @@ namespace AB9ActiveShifter
                 Log.Info("Settings migrated into profile 'Default'.");
             }
 
+            // The shipped presets, rebuilt on every start rather than only on the first. They are
+            // the fixed starting points a tune is measured against, so they have to be present and
+            // current whatever the file says - a user who never sees a first start still gets them,
+            // and a retune of one that shipped earlier reaches an install that already exists.
+            //
+            // This cannot disturb anything tuned here: presets carry a reserved prefix no local
+            // profile is allowed to hold, so there is no name for the two to collide on and nothing
+            // to migrate. Everything already in the file stays exactly as it is.
+            Store.EnsurePresets(DefaultProfiles.Presets());
+
             ShifterProfile active = Store.FindActive();
             Store.ActiveProfile = active.Name;
             Settings = active.Settings;
@@ -424,10 +434,15 @@ namespace AB9ActiveShifter
             return imported.Name;
         }
 
-        /// <summary>Deletes the active profile. The last profile cannot be deleted.</summary>
+        /// <summary>
+        /// Deletes the active profile. The last profile cannot be deleted, and neither can a
+        /// preset - it would be back at the next start anyway, so refusing is the honest answer
+        /// rather than letting a row vanish and quietly return.
+        /// </summary>
         public void DeleteActiveProfile()
         {
             if (Store == null || Store.Profiles == null || Store.Profiles.Count <= 1) return;
+            if (DefaultProfiles.IsPreset(Store.ActiveProfile)) return;
 
             ShifterProfile active = Store.FindActive();
             if (active == null) return;
@@ -437,10 +452,16 @@ namespace AB9ActiveShifter
             if (next != null) ActivateProfile(next.Name);
         }
 
-        /// <summary>Renames the active profile, keeping names unique.</summary>
+        /// <summary>
+        /// Renames the active profile, keeping names unique. A preset cannot be renamed: its name
+        /// is its identity, and <see cref="ProfileStore.EnsurePresets"/> would put it back under
+        /// the shipped one at the next start. Tune it instead - the first change forks it into a
+        /// local profile, and that one renames freely.
+        /// </summary>
         public void RenameActiveProfile(string newName)
         {
             if (Store == null || string.IsNullOrWhiteSpace(newName)) return;
+            if (DefaultProfiles.IsPreset(Store.ActiveProfile)) return;
 
             ShifterProfile active = Store.FindActive();
             if (active == null || active.Name == newName.Trim()) return;
@@ -508,17 +529,61 @@ namespace AB9ActiveShifter
                 }
             }
 
+            ForkActivePresetIfTuned(e == null ? null : e.PropertyName);
+
             PushSettingsToEngine();
             ScheduleSave();
+        }
+
+        /// <summary>
+        /// A preset is a fixed starting point, so the first tuning change made while one is active
+        /// silently moves the edit onto a local profile and puts the preset back untouched. The
+        /// user is left editing what they were editing, under a name that is now theirs.
+        /// <para>
+        /// It fires from the change notification rather than from anything in the UI because that
+        /// is the one funnel every dial passes through: sliders, checkboxes, the pattern dropdown,
+        /// a bound SimHub action, and the derived dials that write two properties at once. A guard
+        /// on the settings page would miss all but the first.
+        /// </para>
+        /// <para>
+        /// Two things deliberately do not fork. A notification with no property name is a bulk
+        /// re-read - migration, or the session switches being applied on activation - and not an
+        /// edit at all. And anything <see cref="ProfileTransfer.IsTuning"/> rejects is a fact about
+        /// this machine rather than a tune: polarity calibration writes its measured result through
+        /// exactly this path, and a preset that forked itself the moment calibration finished would
+        /// be a copy nobody asked for, holding the one flag that lifts the 10% force cap.
+        /// </para>
+        /// </summary>
+        private void ForkActivePresetIfTuned(string changedProperty)
+        {
+            if (Store == null || Settings == null) return;
+            if (!DefaultProfiles.IsPreset(Store.ActiveProfile)) return;
+            if (!ProfileTransfer.IsTuning(changedProperty)) return;
+
+            string preset = Store.ActiveProfile;
+            string local = Store.ForkPreset(preset, DefaultProfiles.BuildPreset(preset));
+            if (local == null) return;
+
+            // Settings is untouched on purpose - ForkPreset renames the profile around it, so the
+            // object the settings page is bound to is still the one being edited. No reactivation.
+            Log.Info("'" + preset + "' is a preset and cannot be changed; the edit moved to '" +
+                     local + "'.");
+            RaiseProfileChanged();
         }
 
         /// <summary>
         /// For edits that touch the store outside a settings dial - the vehicle-model list is on
         /// <see cref="ShifterProfile"/>, not <see cref="ShifterSettings"/>, so nothing fires
         /// <see cref="OnSettingsChanged"/> for it. Same debounce either way.
+        /// <para>
+        /// Assigning a car model to a preset is an edit like any other, so it forks first - and it
+        /// has to happen before the save, or the store would be written with the model hung on a
+        /// profile that is about to be replaced by a fresh one.
+        /// </para>
         /// </summary>
         public void ScheduleProfilesSave()
         {
+            ForkActivePresetIfTuned("CarModels");
             ScheduleSave();
         }
 

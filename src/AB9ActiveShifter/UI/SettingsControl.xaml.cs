@@ -514,6 +514,20 @@ namespace AB9ActiveShifter.UI
                 _refreshingProfiles = false;
             }
 
+            // A preset is a fixed starting point: it cannot be renamed or deleted, so the buttons
+            // that would say otherwise go grey. Tuning one is still allowed and is the intended
+            // way in - the first change forks it into a local profile, which renames and deletes
+            // like any other. Duplicate stays live, because a copy of a preset is a local profile
+            // and is the deliberate way to start from one without touching a dial.
+            bool preset = DefaultProfiles.IsPreset(Plugin.Store.ActiveProfile);
+            if (RenameProfileButton != null) RenameProfileButton.IsEnabled = !preset;
+            if (DeleteProfileButton != null) DeleteProfileButton.IsEnabled = !preset;
+            if (ProfileCombo != null) ProfileCombo.IsEditable = !preset;
+            if (PresetNote != null)
+            {
+                PresetNote.Visibility = preset ? Visibility.Visible : Visibility.Collapsed;
+            }
+
             // The cycle list names profiles, so it has to follow every add, rename and delete -
             // otherwise a renamed profile silently drops out of a bound hotkey's walk.
             RefreshCycleList();

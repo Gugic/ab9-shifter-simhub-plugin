@@ -84,7 +84,7 @@ powershell -Command "Stop-Process -Name SimHubWPF -Force; Start-Sleep 3; Remove-
 A real first start logs, at `Init`:
 
 ```
-[AB9Shifter] No saved settings; installed the shipped profiles and made '7+R lockout' active.
+[AB9Shifter] No saved settings; installed the shipped profiles and made '(Preset) 7+R lockout' active.
 [AB9Shifter] Plugin is disabled in settings; engine not started.
 ```
 
@@ -92,10 +92,16 @@ Those two lines together are the check: the profiles arrived, and nothing is app
 first line is absent, the settings were restored and whatever you concluded from the run is about
 the old ones.
 
-**The profiles a fresh install starts with** are in `DefaultProfiles.cs`, written as differences
-from a bare `ShifterSettings` so the tuning reads as tuning. The plugin writes them out on the
-first start — when `ReadCommonSettings` finds nothing — and they are ordinary settings from then
-on. To refresh them after retuning on the rig, stop SimHub and turn the saved file back into
+**The presets every install carries** are in `DefaultProfiles.cs`, written as differences from a
+bare `ShifterSettings` so the tuning reads as tuning. `EnsurePresets` rebuilds them on *every*
+start, not just the first, so a retune here reaches installs that already exist. That is safe
+without a migration step because a preset's name carries a reserved prefix — `(Preset) ` — that
+`ProfileStore.UniqueName` strips off every name a user can supply, so presets and local profiles
+cannot collide and nothing already in a settings file is ever touched. Editing a preset forks it
+into a local profile instead; see *Shipped profiles* in `AGENTS.md` for why the fork renames the
+live object rather than cloning it.
+
+To refresh them after retuning on the rig, stop SimHub and turn the saved file back into
 assignments:
 
 ```bash
@@ -140,8 +146,9 @@ src/AB9ActiveShifter/
   AB9ShifterPlugin.cs      SimHub shell: lifecycle, properties, events, actions, profiles,
                            settings load/save, DataUpdate -> TelemetryState
   ShifterSettings.cs       Persisted POCO -> ToEngineConfig()
-  ShifterProfiles.cs       Named profiles, legacy migration, cloning
-  DefaultProfiles.cs       What a fresh install starts with, as deltas from bare defaults
+  ShifterProfiles.cs       Named profiles, legacy migration, cloning, the preset fork
+  DefaultProfiles.cs       The five presets, as deltas from bare defaults, and their reserved
+                           name prefix
   ProfileTransfer.cs       Export/import of one profile as a shareable file, with validation
   PluginInfo.cs            The build's version string
   Core/                    Pure, no I/O, fully unit-tested

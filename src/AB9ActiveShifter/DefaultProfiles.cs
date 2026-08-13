@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using AB9ActiveShifter.Core;
 
@@ -38,13 +39,84 @@ namespace AB9ActiveShifter
     /// </summary>
     public static class DefaultProfiles
     {
-        /// <summary>The profile a fresh install comes up in.</summary>
-        public const string ActiveName = "7+R lockout";
+        /// <summary>
+        /// What marks a profile as shipped rather than tuned here.
+        /// <para>
+        /// It is reserved, not a convention: <see cref="StripReservedPrefix"/> takes it off every
+        /// name a user can supply - a new profile, a rename, a file imported from a stranger - so
+        /// nothing but this class can mint one. That is what lets the prefix be an <em>identity</em>.
+        /// Without the reservation an imported file could arrive named "(Preset) 7+R lockout" and
+        /// be treated as immutable and regenerated over on the next start, which is a shared file
+        /// deleting a tune - the one thing <see cref="ProfileTransfer"/> exists to prevent.
+        /// </para>
+        /// </summary>
+        public const string PresetPrefix = "(Preset) ";
 
-        /// <summary>The short-throw rail gate. Named here because a test looks it up.</summary>
+        // The bare names. A preset ships as PresetPrefix + one of these, and a fork of a preset
+        // takes the bare name back - which is exactly what moves the fork into the local half of
+        // the list, since only prefixed names sort to the end.
+        public const string SevenRName = "7+R lockout";
         public const string ShortThrowName = "7+R lockout (short throw, loose)";
+        public const string FiveRName = "5+R";
+        public const string SequentialName = "Sequential";
+        public const string PrndName = "Automatic (PRND)";
 
-        public static ProfileStore Create()
+        private static readonly string[] BareNames =
+        {
+            SevenRName, ShortThrowName, FiveRName, SequentialName, PrndName
+        };
+
+        /// <summary>The profile a fresh install comes up in.</summary>
+        public static string ActiveName { get { return Preset(SevenRName); } }
+
+        /// <summary>The shipped name for a bare one.</summary>
+        public static string Preset(string bareName) { return PresetPrefix + bareName; }
+
+        /// <summary>
+        /// The bare name behind a preset's, or null if this is not one of ours. Checking against
+        /// the known list rather than the prefix alone matters: the prefix is reserved on input,
+        /// but a settings file written by a future build - or edited by hand - can still contain
+        /// a prefixed name this build knows nothing about, and treating that as a preset would
+        /// mean deleting it on sight in <see cref="ProfileStore.EnsurePresets"/>.
+        /// </summary>
+        public static string BareOf(string name)
+        {
+            if (name == null || !name.StartsWith(PresetPrefix, StringComparison.Ordinal)) return null;
+
+            string bare = name.Substring(PresetPrefix.Length);
+            foreach (string known in BareNames)
+            {
+                if (string.Equals(known, bare, StringComparison.Ordinal)) return bare;
+            }
+            return null;
+        }
+
+        /// <summary>Whether this name belongs to a shipped preset, and so is immutable.</summary>
+        public static bool IsPreset(string name) { return BareOf(name) != null; }
+
+        /// <summary>
+        /// A name with the reserved prefix taken off, however many times it was applied. Every
+        /// path that lets a user supply a name runs through this - see <see cref="PresetPrefix"/>.
+        /// </summary>
+        public static string StripReservedPrefix(string name)
+        {
+            if (name == null) return null;
+
+            string stripped = name;
+            while (stripped.StartsWith(PresetPrefix, StringComparison.Ordinal))
+            {
+                stripped = stripped.Substring(PresetPrefix.Length);
+            }
+            return stripped;
+        }
+
+        /// <summary>
+        /// Every preset, freshly built, in the order they are shown. Built rather than cached
+        /// because a preset handed out must never be the same object twice: the caller owns it
+        /// from then on, and a shared instance would let an edit to one install's list reach
+        /// another's.
+        /// </summary>
+        public static List<ShifterProfile> Presets()
         {
             ShifterSettings sevenR = Gate();
 
@@ -53,18 +125,29 @@ namespace AB9ActiveShifter
             ShifterSettings fiveR = SettingsCloner.Clone(sevenR);
             fiveR.Pattern = GatePattern.H5R;
 
-            return new ProfileStore
+            return new List<ShifterProfile>
             {
-                ActiveProfile = ActiveName,
-                Profiles = new List<ShifterProfile>
-                {
-                    new ShifterProfile { Name = "Sequential", Settings = Sequential() },
-                    new ShifterProfile { Name = ActiveName, Settings = sevenR },
-                    new ShifterProfile { Name = ShortThrowName, Settings = ShortThrow() },
-                    new ShifterProfile { Name = "5+R", Settings = fiveR },
-                    new ShifterProfile { Name = "Automatic (PRND)", Settings = Automatic() }
-                }
+                new ShifterProfile { Name = Preset(SevenRName), Settings = sevenR },
+                new ShifterProfile { Name = Preset(ShortThrowName), Settings = ShortThrow() },
+                new ShifterProfile { Name = Preset(FiveRName), Settings = fiveR },
+                new ShifterProfile { Name = Preset(SequentialName), Settings = Sequential() },
+                new ShifterProfile { Name = Preset(PrndName), Settings = Automatic() }
             };
+        }
+
+        /// <summary>One preset, freshly built, or null if that is not a preset name.</summary>
+        public static ShifterProfile BuildPreset(string presetName)
+        {
+            foreach (ShifterProfile p in Presets())
+            {
+                if (p.Name == presetName) return p;
+            }
+            return null;
+        }
+
+        public static ProfileStore Create()
+        {
+            return new ProfileStore { ActiveProfile = ActiveName, Profiles = Presets() };
         }
 
         /// <summary>The H-pattern gate, tuned on the rig. 7+R; 5+R is a copy of it.</summary>

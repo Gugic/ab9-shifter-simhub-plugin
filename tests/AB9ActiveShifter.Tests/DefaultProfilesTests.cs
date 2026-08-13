@@ -101,10 +101,22 @@ namespace AB9ActiveShifter.Tests
             // profile: the dropdown is the only place a user reads what they are switching to.
             ProfileStore store = DefaultProfiles.Create();
 
-            Assert.Equal(GatePattern.Sequential, Find(store, "Sequential").Pattern);
-            Assert.Equal(GatePattern.H7R, Find(store, "7+R lockout").Pattern);
-            Assert.Equal(GatePattern.H5R, Find(store, "5+R").Pattern);
-            Assert.Equal(GatePattern.Prnd, Find(store, "Automatic (PRND)").Pattern);
+            Assert.Equal(GatePattern.Sequential, Find(store, Preset(DefaultProfiles.SequentialName)).Pattern);
+            Assert.Equal(GatePattern.H7R, Find(store, Preset(DefaultProfiles.SevenRName)).Pattern);
+            Assert.Equal(GatePattern.H5R, Find(store, Preset(DefaultProfiles.FiveRName)).Pattern);
+            Assert.Equal(GatePattern.Prnd, Find(store, Preset(DefaultProfiles.PrndName)).Pattern);
+        }
+
+        [Fact]
+        public void EveryShippedProfileIsMarkedAsAPreset()
+        {
+            // The prefix is what makes a profile immutable, always re-created, and sorted to the
+            // end of the list. A shipped profile that missed it would look local: editable, and
+            // gone for good once deleted.
+            foreach (ShifterProfile p in DefaultProfiles.Create().Profiles)
+            {
+                Assert.True(DefaultProfiles.IsPreset(p.Name), p.Name + " does not read as a preset");
+            }
         }
 
         [Fact]
@@ -123,7 +135,7 @@ namespace AB9ActiveShifter.Tests
             // "Loose" is the open corridors plus a detent carrying nothing but the hold. Closing
             // either free width turns this into the rail gate - a different feel with a different
             // stability budget, not a tighter version of this one.
-            ShifterSettings s = Find(DefaultProfiles.Create(), DefaultProfiles.ShortThrowName);
+            ShifterSettings s = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.ShortThrowName));
 
             Assert.Equal(GatePattern.H7R, s.Pattern);
 
@@ -142,8 +154,8 @@ namespace AB9ActiveShifter.Tests
             // 5+R is shipped as a copy, so the two stay tuned alike by construction. If someone
             // tunes them apart on purpose this test is the place to say so - it failing means
             // the claim in DefaultProfiles' comment is no longer true.
-            ShifterSettings sevenR = Find(DefaultProfiles.Create(), "7+R lockout");
-            ShifterSettings fiveR = Find(DefaultProfiles.Create(), "5+R");
+            ShifterSettings sevenR = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SevenRName));
+            ShifterSettings fiveR = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.FiveRName));
 
             foreach (PropertyInfo prop in typeof(ShifterSettings).GetProperties(
                          BindingFlags.Public | BindingFlags.Instance))
@@ -159,6 +171,11 @@ namespace AB9ActiveShifter.Tests
 
                 Assert.Equal(prop.GetValue(sevenR, null), prop.GetValue(fiveR, null));
             }
+        }
+
+        private static string Preset(string bareName)
+        {
+            return DefaultProfiles.Preset(bareName);
         }
 
         private static ShifterSettings Find(ProfileStore store, string name)

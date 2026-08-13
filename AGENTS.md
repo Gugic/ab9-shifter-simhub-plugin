@@ -39,7 +39,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-339 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+351 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
@@ -80,8 +80,9 @@ src/AB9ActiveShifter/
                            DataUpdate -> TelemetryState for the effects
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
   ShifterProfiles.cs       ProfileStore (named settings + active), legacy migration, cloning
-  DefaultProfiles.cs       The five profiles a fresh install writes out, as deltas from bare
-                           defaults (see "Saved settings" below)
+  DefaultProfiles.cs       The five presets every install carries, as deltas from bare defaults,
+                           plus the reserved name prefix that marks them (see "Shipped
+                           profiles" below)
   ProfileTransfer.cs       One profile as a shareable file: what travels, and what is refused
   PluginInfo.cs            The build's version string, for the UI and for exported files
   Core/                    Pure, no I/O, fully unit-tested
@@ -150,6 +151,8 @@ tests/AB9ActiveShifter.Tests/
   ClutchModeTests.cs       Threshold mode is byte-identical to what shipped; the bite-point pulse
   ProfileCycleTests.cs     What a bound Next/Previous hotkey walks through, incl. stale names
   ProfileStoreTests.cs     Car-model matching, and the gate that keeps it off the telemetry path
+  PresetProfileTests.cs    The reserved prefix holding on every path a name arrives by, and the
+                           fork that keeps the settings object a slider is mid-drag on
   ProfileSwitchTransitionTests.cs  Easing the new gate in, and the confirmation thump's count
   ForceOutputHealthTests.cs  What the base's status flags mean, and what it takes to convict
   VJoyDeviceInfoTests.cs   What the device picker says, including the too-few-buttons trap
@@ -498,16 +501,37 @@ rolling copies in `_Backups\` beside it and restores the newest when the primary
 first-start test that only deletes the primary silently measures the old settings. See
 DEVELOPMENT.md for the command that clears both and the two log lines that prove it worked.
 
-**Shipped profiles.** A fresh install starts from `DefaultProfiles.cs`, not from bare defaults:
-`ReadCommonSettings` finding nothing is the first-start signal, the factory returns the five
-tuned profiles, and `Init` writes them straight out so they are ordinary settings from the second
-start on. They are written as *deltas* from a bare `ShifterSettings`, so the tuning reads as
+**Shipped profiles.** The five tunes in `DefaultProfiles.cs` are **presets**: rebuilt by
+`EnsurePresets` on *every* start, not just the first, so they are always present and always
+current. They are written as *deltas* from a bare `ShifterSettings`, so the tuning reads as
 tuning and a dial that gains a better default inherits it. This used to be a JSON file copied in
 by `install.ps1`; it is code now because renaming a setting silently drops its value from a JSON
 and breaks the build here. To refresh after a retune, run `tools\Show-ProfileDeltas.ps1` (SimHub
 stopped) and paste its output — **except** `Enabled` and `PolarityConfirmed`, which must stay at
 their defaults: forces ship off, and polarity is a per-unit measured fact the 10% cap exists to
 guard. `DefaultProfilesTests` fails if either creeps in.
+
+- **The name prefix is reserved, and that is the whole design.** A preset is named
+  `(Preset) <bare name>`, and `ProfileStore.UniqueName` strips that prefix off every name a user
+  can supply — add, rename, import all mint names through it. Because the two sets cannot collide,
+  presets are rebuilt unconditionally with **no migration step and no risk to anything tuned
+  here**: an install that predates them keeps every profile it had and simply gains the preset
+  block at the end. Do not weaken the reservation. Without it a file from a stranger could arrive
+  named `(Preset) 7+R lockout`, be treated as immutable, and be silently replaced on the next
+  start — a shared file deleting a tune, the one thing `ProfileTransfer` exists to prevent.
+- **A prefixed name this build does not recognise is left alone, not deleted.** `BareOf` checks
+  against the names actually shipped, so a downgrade cannot eat a preset a later build added.
+- **Editing a preset forks it, and the fork keeps the live `ShifterSettings` object.**
+  `ForkPreset` renames the profile *around* the object and re-inserts a freshly built preset in
+  its place. It is not a clone-and-swap because the settings page binds its `DataContext` to that
+  object and a fork fires from the first change of a dial — very often the first pixel of a slider
+  drag, whose remainder would then write into a profile no longer in the list. The replacement is
+  built by the factory rather than copied, because by then the edit has already been applied and
+  there is no pristine copy left in memory.
+- **Only tuning forks.** `ProfileTransfer.IsTuning` is the test, and it is the same `NotShared`
+  list a shared file refuses — one question, one answer. Polarity calibration writes its measured
+  result through the same notification a slider does; a preset that forked itself when calibration
+  finished would be an unasked-for copy holding the one flag that lifts the 10% cap.
 
 **Hardware claims.** Measure, do not assume, and write the number down in
 [docs/hardware.md](docs/hardware.md) with how it was measured. Several plausible assumptions in
