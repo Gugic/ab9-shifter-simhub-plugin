@@ -67,7 +67,10 @@ button changes hands.
 | Overall gain | 25% | Master scale. This is a 12 Nm base; raise it slowly. |
 | Gate wall, between columns | 90% | The fore/aft wall that stops you entering a gear you are not lined up with. |
 | Slot wall, once in a gear | 90% | The sideways walls of a slot. |
-| Lockout gate, guarding 7/R | 70% | The push-through toll before 7 and R. Sits against the 5/6 column; width sets the toll with it. |
+| Lockout position | Pattern default | Where the lockout lives: the pattern's traditional gap (7+R and 6+R guard 7/R, others none), off, any adjacent column gap, or one slot's mouth. The line under the dials says where it actually landed. |
+| Direction | One-way, higher column pays | Which crossings pay: toward the higher gears (the classic 7/R gate), toward the lower (the truck's low-range gate), or both ways — for a slot, into the gear, out of it, or both. |
+| Lockout mode | Push through | A toll your hand pays, or a hard gate at 100% released only by the bound key (Setup tab, under Enable). Hard-locked gears do not register until released; the gate re-engages on every start and profile switch. |
+| Lockout force (%) | 70% | The push-through toll's strength; width sets the toll with it. Idle in the hard modes, which pin the gate to 100%. |
 | Neutral spring toward 3/4 | 0% (off) | The home spring: pulls the lever along the channel toward the 3/4 column, where a real H lever rests. Around 25–30% a released lever walks home past the humps; fades out with depth so a held gear feels nothing. Follows the mirror flags. |
 | Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
 | Wall friction | 15% | The gate surfaces' own grip: drag equal to this share of whatever force you are pressed against. Zero in free travel by construction, so it costs no lightness. Note: for lean-flutter the effective fix is MOZA Cockpit's Damper at ~15% (zero-latency, at the servo); this dial is the software-side supplement. |
@@ -83,12 +86,35 @@ button changes hands.
 ## Patterns
 
 The **pattern** lives on the Setup tab, per profile: 7+R (lockout), 6+R (no 7th slot — its divider
-just continues across), 5+R (three wider columns, no lockout), Sequential, or Automatic (P R N D).
-Forward gears map to vJoy buttons 1..N and **reverse is always button 8**, whatever the pattern —
-so one set of game bindings covers every pattern and switching profiles never needs a rebind.
-(Reverse used to be the highest gear of the pattern, which put 5+R's R on button 6 — read by a game
-bound for 7+R as sixth gear, at speed.) Everything else stacks above the gears: sequential up/down
-on 9 and 10, the automatic's P, R, N and D on 11 to 14.
+just continues across), 5+R (three wider columns, no lockout), Sequential, Automatic (P R N D), or
+the truck 6 (three wider columns, six plain slots, no reverse at all). Forward gears map to vJoy
+buttons 1..N and **reverse — where the pattern has one — is always button 8** — so one set of game
+bindings covers every pattern and switching profiles never needs a rebind. (Reverse used to be the
+highest gear of the pattern, which put 5+R's R on button 6 — read by a game bound for 7+R as sixth
+gear, at speed.) The truck 6 has no reverse and uses buttons 1–6 only; what each button means is
+the game's business, which is the point — an Eaton-Fuller-style box binds them however its
+transmission mod expects. Everything else stacks above the gears: sequential up/down on 9 and 10,
+the automatic's P, R, N and D on 11 to 14.
+
+**Configuring the lockout (H patterns).** The lockout group lives in the Feel tab's *Sliding
+across the gate* section, on every H pattern. ***Lockout position*** picks the pattern default,
+off, one of the column gaps, or ***On one slot (pick the gear below)*** with the ***Locked slot***
+picker; the gap numbering is in gear-map columns, so mirroring moves the gate with the gears, and
+a gap the pattern does not have guards its last one instead (the line under the dials says so).
+***Direction*** decides which crossings pay — a gap's higher/lower/both, a slot's into/out-of/both;
+one-way gates assist the return, like a real range gate. ***Lockout mode*** is push-through, or
+one of the two hard modes: full force, gears refused, released only by the key bound on the Setup
+tab under Enable (*Release or re-engage the lockout*), with the second hard mode re-arming itself
+once the crossing completes. The truck recipe, shipped as the *Truck 6-gear (low-range lockout)*
+preset: truck 6 pattern, position *Between columns 1 and 2*, direction *One-way - entering the
+lower column pays*, push-through at the 7+R tune's strength.
+
+**The PRND lockout** has its own block in the *PRND lane* section: ***Lockout between positions***
+(P–R, R–N or N–D — by label, so mirroring the lane moves it), a direction (toward P, toward D, or
+both), the same three modes, ***PRND lockout force (%)*** and ***PRND lockout half-width (axis
+counts)***. Its band replaces that gap's detent hump and is clamped to end before both
+neighbouring notches — the lane summary reports the effective width. Force only, always: the
+selector still registers whichever position the lever physically reaches, hard mode included.
 
 **Sequential** turns the fore/aft axis into a sprung lever: push past the engage threshold and it
 fires one press of button 9 (up) or 10 (down) — above every gear button, so a game still carrying
@@ -262,6 +288,25 @@ the bite; **notches too faint** between columns → raise barrier force — the 
 barrier humps, unchanged by the rails.
 
 ## Symptom → dial
+
+**I want the low-range gate of a truck box.**
+Start from the *Truck 6-gear (low-range lockout)* preset — it is exactly this. By hand: pattern
+*H pattern, 6 gears, no reverse (truck)*, then on Feel, ***Lockout position*** *Between columns 1
+and 2* and ***Direction*** *One-way - entering the lower column pays*. Tune the toll with
+***Lockout force (%)*** and the half-width, like any lockout.
+
+**The hard lockout will not let go.**
+Working as designed until proven otherwise: the hard modes only open from the key bound on the
+Setup tab under Enable (*Release or re-engage the lockout*), and the gate re-engages on every
+start, every profile switch, and — in the re-arming mode — the moment a released crossing
+completes. Check the `LockoutEngaged` property, or the Monitor tab's band, which dims while
+released. If you wanted a gate a shove can beat, that is ***Lockout mode*** *Push through*.
+
+**I put the lockout on a slot and feel nothing.**
+Read the line under the lockout dials: if the chosen gear does not exist in this pattern (7 on
+6+R, R on the truck 6), the lockout is off and the line says so. Otherwise remember an *entry*
+toll is spent before the crossover — it stiffens the first half of the push, not the snick — and
+an *exit* toll is only met pulling back out of the seated gear.
 
 **The lockout rejects the lever hard, unlike the walls, and sets it oscillating.**
 Fixed twice over. It was the only force exempted from **wall attack**, so it alone arrived raw — that
@@ -519,14 +564,15 @@ the sideways gradient that corners are made of. It is now the largest remaining 
 at about 1.5× the wall face, so it is the one to widen if corners still feel harsh. The lateral guide
 no longer has a ramp of its own: every sideways force rises at the wall's stiffness, so a gentler
 force gets a shorter face instead of a steeper one. The enter/exit pairs are hysteresis bands — the
-exit value must always be the looser one. The lockout gate has no position dial: it places
-itself against the last main-section column, and both the plan view at the top of the tab and the
-Monitor tab draw the band where it actually is. *FFB loop rate* should stay at 1000; see
+exit value must always be the looser one. The lockout's position is a Feel-tab dial now; within
+the chosen gap the gate still places itself against the near column's band (a Both-direction gate
+sits on the midpoint), and both the plan view at the top of the tab and the Monitor tab draw the
+band where it actually is. *FFB loop rate* should stay at 1000; see
 [hardware.md](hardware.md) for why higher buys nothing.
 
 ## Presets, and why your profile just renamed itself
 
-The five shipped tunes are marked `(Preset)` and sit at the end of the profile list. They never
+The six shipped tunes are marked `(Preset)` and sit at the end of the profile list. They never
 change and they cannot be renamed or deleted — the Rename and Delete buttons grey out while one is
 selected. They exist so there is always a known-good gate to come back to when a tuning session has
 wandered.

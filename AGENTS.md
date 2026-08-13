@@ -1,10 +1,13 @@
 # AB9 Active Shifter — working notes for agents
 
-A SimHub plugin that turns a **MOZA AB9 flight base** into an **H-pattern shifter** (7+R with a
-push-through lockout, 6+R with no 7th slot, 5+R), a **sequential lever**, or an **automatic's PRND
-selector**, selectable per named profile. It renders the gate with DirectInput force feedback,
-detects the slotted gear from stick position, and holds a vJoy button per gear (or pulses up/down
-buttons in sequential, or holds one per PRND position) so any game sees a normal shifter.
+A SimHub plugin that turns a **MOZA AB9 flight base** into an **H-pattern shifter** (7+R, 6+R with
+no 7th slot, 5+R, or a six-slot truck gate with no reverse), a **sequential lever**, or an
+**automatic's PRND selector**, selectable per named profile — with a **configurable lockout**: any
+adjacent gap or a single slot, one-way either way or both, push-through or held at full force
+until a bound action releases it (the H gate and the PRND lane each carry their own). It renders
+the gate with DirectInput force feedback, detects the slotted gear from stick position, and holds
+a vJoy button per gear (or pulses up/down buttons in sequential, or holds one per PRND position)
+so any game sees a normal shifter.
 
 It is unofficial and unaffiliated — see *Naming, and the disclaimers* under Conventions before
 writing anything user-facing.
@@ -39,7 +42,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-360 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+416 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
@@ -81,7 +84,7 @@ src/AB9ActiveShifter/
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
   ShifterProfiles.cs       ProfileStore (named settings + active + the rig's own facts), legacy
                            migration, cloning, the preset fork
-  DefaultProfiles.cs       The five presets every install carries, as deltas from bare defaults,
+  DefaultProfiles.cs       The six presets every install carries, as deltas from bare defaults,
                            plus the reserved name prefix that marks them (see "Shipped
                            profiles" below)
   ProfileTransfer.cs       One profile as a shareable file: what travels, and what is refused
@@ -146,8 +149,21 @@ tests/AB9ActiveShifter.Tests/
                            lines)
   SlotEndStopTests.cs      The bottom of an H slot: the default changes nothing, the landing is
                            free, the wall only pushes home, and no axis count steps the stroke
+  LockoutPlacementTests.cs Where the placement dial actually lands the gate, per pattern,
+                           direction and mirror, and every repair it reports
+  LockoutModeTests.cs      The Both gate's edge-flip latch, and the hard modes' pinned
+                           strength, same-tick release and hold-fire arming
+  SlotLockoutTests.cs      One guarded slot: entry fight before the crossover, exit toll
+                           clear of the seat, the balk shared with the grind by max
+  LockoutRefusalTests.cs   A locked gear never latches until the key turns, and nothing
+                           already held is ever dropped
+  PrndLockoutTests.cs      The lane's band: replaces one gap's hump, zero at both notch
+                           edges, force only - the selector is never blocked
+  LockoutSettingsTests.cs  The dials' plumbing: adapters, visibility facts, ToEngineConfig,
+                           the Forces reset
   DefaultProfilesTests.cs  The shipped profiles: forces off, cap on, store coherent, and the
-                           three H presets one tune differing only in where the slot ends
+                           H presets one tune differing only in where the slot ends and where
+                           the truck's gate sits
   ProfileTransferTests.cs  Round trip, machine facts kept, every clamp on the import path
   AxisCaptureTests.cs      A pedal wired backwards, one that rests at full scale, a silent device
   ClutchModeTests.cs       Threshold mode is byte-identical to what shipped; the bite-point pulse
@@ -232,7 +248,8 @@ runners cannot load, so anything worth testing must not touch it.
   separate tremor-scale constant, not this deadband: sharing it would freeze real slow retreats
   into force steps. Pinned by `AHandsTremorNeverTripsTheAbsorber`,
   `TheLockoutHoldsWholeAgainstALeaningHand`, and `AnEstimateDipBelowTheDeadbandKeepsTheHeldCut`.
-- Time shaping (wall attack) applies to **everything a hand can lean on, the lockout included.**
+- Time shaping (wall attack) applies to **everything a hand can lean on, the lockout included,
+  hard mode and all.**
   The slot detent is the one exception — the snick must arrive whole. Do not exempt the lockout
   again: it was tried, on the theory that slewing a crossing discounts a flick, and the arithmetic
   refutes it (crossing takes tens of ms, the attack lasts ~15) while the cost was the lockout being
@@ -288,8 +305,9 @@ runners cannot load, so anything worth testing must not touch it.
   state `Neutral`, gear 0 — the lever shoved fully home and the game told nothing. A silent non-shift is
   the worst answer this gate can give. What a slot *holds* is still a fact of the gear map alone, so a
   missing slot refuses across the whole of its column's territory. `PlaceLockout` clamps the gate's
-  crest to the main section's side of its gap midpoint for the same reason — otherwise ownership could
-  hand a lever 7/R short of the gate, with the toll unpaid.
+  crest to the paying side's half of its gap for the same reason — otherwise ownership could hand a
+  lever the guarded column short of the gate, with the toll unpaid (a Both gate sits on the midpoint
+  itself, the one symmetric answer).
 - **The lateral field must not read the state machine.** It is one function of position and the
   guide column, called by both branches; `TheLateralFieldDoesNotDependOnTheLatch` sweeps every
   column, direction, position and depth and demands exact equality. Computing it per-branch produced
@@ -310,11 +328,41 @@ runners cannot load, so anything worth testing must not touch it.
   not exist yet is `ColumnAt`, so a cold start is pushed toward the column that is about to claim it.
 - Barriers fade out with depth as the slot walls fade in, and they are applied in **both** branches —
   anything indexed on the state machine puts the step back.
-- **The lockout gate positions itself** against the last main-section column
-  (`GateGeometry.LockoutCentre`), and the lateral guide's column boundaries are the barrier
-  crests, not the geometric midpoints. Anything that needs to know where the lockout is must ask
-  the geometry — a second copy of that position silently drifts (the Monitor tab's shading used
-  to be exactly that bug).
+- **The lockout gate positions itself** against the approach-side column of whichever gap the
+  placement dial points it at (`GateGeometry.LockoutCentre`; the traditional last-gap gate is the
+  `PatternDefault` resolution), and the lateral guide's column boundaries are the barrier crests,
+  not the geometric midpoints. Anything that needs to know where the lockout is must ask the
+  geometry — a second copy of that position silently drifts (the Monitor tab's shading used to be
+  exactly that bug, and the placement summary asks a freshly built geometry for the same reason).
+  Impossible placements are repaired and reported (`LockoutPlacementRepaired`), never obeyed
+  blindly and never silent.
+- **A toll both ways cannot be a function of position alone.** A position-only field refunds one
+  crossing whatever it charges the other — the over-centre flick-through, measured, from the other
+  side. The Both direction therefore rides an **edge-flip side latch** in the composer: force
+  pushes back toward the side the lever entered from, and the side re-derives only while the lever
+  is *outside* the band, so it can flip only after a complete crossing, exactly where the band's
+  own faces have the force at zero (the same zero-crossing argument that makes
+  `ChannelBlockFactor`'s direction keying safe). A retreat re-derives the same side, so nothing is
+  refunded; the latch updates at every depth, so a dive under the band owes the return toll.
+- **A hard lockout is still a force, and its arming waits for a zero.** The hotkey modes pin the
+  band to 100% *through* `EffectiveGain` — the 10% polarity cap included, never around it — and
+  release drops it the same tick. Any arming edge (the hotkey, a fresh composer, the first tick
+  after free stick) over a lever inside the guarded region **holds fire until the lever is clear**,
+  where the lockout's own shape is zero by construction: with `WallAttackMs` defaulting to 0,
+  nothing else would soften a band materialising under the hand.
+- **Refusal blocks a new latch and nothing else.** A hard lockout refuses the guarded gears
+  through the grind's own `allowEngage` path — a locked gear never latches and no button fires
+  until the release — but it never drops a gear already held, and an exit toll never refuses (a
+  refused release would hold a button down while the lever physically leaves; buttons follow
+  truth). For a Both gate the refused side is captured when the key turns, not read off the live
+  latch — an overpowered crossing flips the latch exactly when the fight is won, and refusal must
+  not lift with it. **A PRND lockout never touches the selector's state machine at all**, hard
+  mode included: a selector is always in exactly one position and its buttons follow the lever.
+- **A hard slot lockout is the grind's balk re-keyed, and overlapping walls take the max.** One
+  border, one attack, one yield floor — a border is not taller for having two reasons. The
+  push-through slot shapes are bands whose edges land where the detent is doing nothing unusual:
+  the entry fight is spent before the crossover (the snick arrives whole), and the exit toll ends
+  before the seat (a seated gear rests in a free region, not under a permanent extra load).
 - Slots and the neutral channel are **corridors with walls** by default, not pulls toward a
   centre line. A restoring force about an interior equilibrium is an oscillator; that is what made
   the middle columns shake while the outer ones (one-sided against the end of travel) were fine.
@@ -517,7 +565,7 @@ rolling copies in `_Backups\` beside it and restores the newest when the primary
 first-start test that only deletes the primary silently measures the old settings. See
 DEVELOPMENT.md for the command that clears both and the two log lines that prove it worked.
 
-**Shipped profiles.** The five tunes in `DefaultProfiles.cs` are **presets**: rebuilt by
+**Shipped profiles.** The six tunes in `DefaultProfiles.cs` are **presets**: rebuilt by
 `EnsurePresets` on *every* start, not just the first, so they are always present and always
 current. They are written as *deltas* from a bare `ShifterSettings`, so the tuning reads as
 tuning and a dial that gains a better default inherits it. This used to be a JSON file copied in
@@ -589,7 +637,7 @@ Two rules that matter more than the table:
 ## Project state
 
 Working and verified on hardware: device acquisition, polarity measurement, the 1 kHz loop, the
-full gate (walls, corridors, barriers, one-way lockout, slot detents), gear detection, vJoy
+full gate (walls, corridors, barriers, the configurable lockout, slot detents), gear detection, vJoy
 output, the settings UI, and the reset/free-stick escapes.
 
 Telemetry effects shipped in v1 form — the clutch grind with gear rejection, engine vibration,

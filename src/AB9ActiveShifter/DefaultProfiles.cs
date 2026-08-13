@@ -5,17 +5,18 @@ using AB9ActiveShifter.Core;
 namespace AB9ActiveShifter
 {
     /// <summary>
-    /// What a machine with no saved settings starts with: five working profiles rather than bare
+    /// What a machine with no saved settings starts with: six working profiles rather than bare
     /// defaults, written out to disk on that first start so they are ordinary settings from then
     /// on - editable, resettable, and never re-applied over anything a user has tuned.
     /// <para>
-    /// Three of the five are the same tune. <see cref="LooseGate"/> is the gate that actually gets
-    /// driven on the rig, and <see cref="Gate"/>, the 5+R copy of it and <see cref="ShortThrow"/>
-    /// all start there; they differ by <em>where the slot ends</em> and by nothing else. That is
-    /// deliberate, and it is a correction: the two H profiles used to carry an older, firmer tune
-    /// with every stabiliser off, which reads well on paper and is jerky in the hand. A shipped
-    /// profile is a recommendation, so all three now make the same one, and the choice a user makes
-    /// between them is a throw length rather than a quality of gate.
+    /// Four of the six are the same tune. <see cref="LooseGate"/> is the gate that actually gets
+    /// driven on the rig, and <see cref="Gate"/>, the 5+R copy of it, <see cref="ShortThrow"/> and
+    /// the truck preset all start there; they differ by <em>where the slot ends</em> - and, for
+    /// the truck, by which gap its lockout guards - and by nothing else. That is deliberate, and
+    /// it is a correction: the two H profiles used to carry an older, firmer tune with every
+    /// stabiliser off, which reads well on paper and is jerky in the hand. A shipped profile is a
+    /// recommendation, so all four now make the same one, and the choice a user makes between
+    /// them is a pattern, a throw length and a lockout rather than a quality of gate.
     /// </para>
     /// <para>
     /// These numbers were measured, not chosen. They are the tuning of the rig this plugin was
