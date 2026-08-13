@@ -63,10 +63,11 @@ namespace AB9ActiveShifter
         public const string FiveRName = "5+R";
         public const string SequentialName = "Sequential";
         public const string PrndName = "Automatic (PRND)";
+        public const string TruckName = "Truck 6-gear (low-range lockout)";
 
         private static readonly string[] BareNames =
         {
-            SevenRName, ShortThrowName, FiveRName, SequentialName, PrndName
+            SevenRName, ShortThrowName, FiveRName, SequentialName, PrndName, TruckName
         };
 
         /// <summary>The profile a fresh install comes up in.</summary>
@@ -128,13 +129,25 @@ namespace AB9ActiveShifter
             ShifterSettings fiveR = SettingsCloner.Clone(sevenR);
             fiveR.Pattern = GatePattern.H5R;
 
+            // The truck box, issue #28's request: six plain slots on buttons 1-6 and a gate
+            // between the first two columns, guarding the way DOWN into the low range. One-way
+            // on entry, because the danger is wandering into the creep gears at speed while
+            // pulling OUT of low range is the routine 2-3 upshift - the same semantics as the
+            // proven 7/R gate, mirrored onto the other end of the box. Every force dial is the
+            // 7+R tune; only the pattern and the gate's place and direction differ.
+            ShifterSettings truck = SettingsCloner.Clone(sevenR);
+            truck.Pattern = GatePattern.H6;
+            truck.LockoutPlacement = LockoutPlacement.Gap1;
+            truck.LockoutGapDirection = LockoutGapDirection.TowardLow;
+
             return new List<ShifterProfile>
             {
                 new ShifterProfile { Name = Preset(SevenRName), Settings = sevenR },
                 new ShifterProfile { Name = Preset(ShortThrowName), Settings = ShortThrow() },
                 new ShifterProfile { Name = Preset(FiveRName), Settings = fiveR },
                 new ShifterProfile { Name = Preset(SequentialName), Settings = Sequential() },
-                new ShifterProfile { Name = Preset(PrndName), Settings = Automatic() }
+                new ShifterProfile { Name = Preset(PrndName), Settings = Automatic() },
+                new ShifterProfile { Name = Preset(TruckName), Settings = truck }
             };
         }
 

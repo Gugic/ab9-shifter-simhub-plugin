@@ -87,7 +87,9 @@ namespace AB9ActiveShifter
 
             // Adapters the XAML binds, each fully derived from a dial that is written.
             "PatternIndex", "MouthShapeIndex", "ThrowFromCentre", "ClutchSourceIndex",
-            "GrindClutchModeIndex",
+            "GrindClutchModeIndex", "LockoutPlacementIndex", "LockoutGapDirectionIndex",
+            "LockoutSlotGearIndex", "LockoutSlotDirectionIndex", "LockoutModeIndex",
+            "PrndLockoutGapIndex", "PrndLockoutDirectionIndex", "PrndLockoutModeIndex",
 
             // The Feel tab's percent-of-column-spacing display toggle: each is fully derived
             // from the raw dial it shares a backing field with. Sharing both would write the
@@ -437,6 +439,12 @@ namespace AB9ActiveShifter
             if (name == "DamperCoeff")
             {
                 lo = 0; hi = 10000; return;
+            }
+            if (name == "LockoutSlotGear")
+            {
+                // A gear number, not a distance. The geometry additionally repairs a gear the
+                // pattern does not hold to Off, but a file must not smuggle in a wild value.
+                lo = 1; hi = 8; return;
             }
 
             // Everything else is a distance along an axis, and an axis is 16 bits.

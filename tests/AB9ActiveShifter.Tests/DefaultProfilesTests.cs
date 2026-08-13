@@ -105,6 +105,48 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(GatePattern.H7R, Find(store, Preset(DefaultProfiles.SevenRName)).Pattern);
             Assert.Equal(GatePattern.H5R, Find(store, Preset(DefaultProfiles.FiveRName)).Pattern);
             Assert.Equal(GatePattern.Prnd, Find(store, Preset(DefaultProfiles.PrndName)).Pattern);
+            Assert.Equal(GatePattern.H6, Find(store, Preset(DefaultProfiles.TruckName)).Pattern);
+        }
+
+        [Fact]
+        public void TheTruckPresetShipsTheLowRangeGateOneWay()
+        {
+            // Issue #28's box: six plain slots, a push-through gate between the first two
+            // columns, paying only on the way DOWN into the low range - pulling out of low is
+            // the routine upshift and must stay assisted, like leaving 7/R always has been.
+            ShifterSettings s = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.TruckName));
+
+            Assert.Equal(GatePattern.H6, s.Pattern);
+            Assert.Equal(LockoutPlacement.Gap1, s.LockoutPlacement);
+            Assert.Equal(LockoutGapDirection.TowardLow, s.LockoutGapDirection);
+            Assert.Equal(LockoutMode.PushThrough, s.LockoutMode);
+
+            GateGeometry geo = s.ToEngineConfig().BuildGeometry();
+            Assert.True(geo.HasLockout, "the truck preset must actually build its gate");
+            Assert.Equal(0, geo.LockoutGapIndex);
+            Assert.False(geo.LockoutPlacementRepaired);
+        }
+
+        [Fact]
+        public void TheTruckPresetIsTheSevenRGateWithOnlyThePatternAndLockoutChanged()
+        {
+            // Same rule as 5+R: the truck ships as a copy of the tuned gate, so the two stay
+            // tuned alike by construction - only the pattern and the gate's place and direction
+            // are its own.
+            ShifterSettings sevenR = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SevenRName));
+            ShifterSettings truck = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.TruckName));
+
+            foreach (PropertyInfo prop in typeof(ShifterSettings).GetProperties(
+                         BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (!prop.CanRead || !prop.CanWrite) continue;
+                if (prop.Name == "Pattern" || prop.Name == "PatternIndex") continue;
+                if (prop.Name == "LockoutPlacement" || prop.Name == "LockoutPlacementIndex") continue;
+                if (prop.Name == "LockoutGapDirection" || prop.Name == "LockoutGapDirectionIndex") continue;
+                if (prop.Name.EndsWith("Percent", StringComparison.Ordinal)) continue;
+
+                Assert.Equal(prop.GetValue(sevenR, null), prop.GetValue(truck, null));
+            }
         }
 
         [Fact]
