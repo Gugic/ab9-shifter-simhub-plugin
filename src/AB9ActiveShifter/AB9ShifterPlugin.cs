@@ -144,6 +144,12 @@ namespace AB9ActiveShifter
 
             Settings.ApplyLiveSwitches(Store.SessionEnabled, Store.SessionFreeStick);
 
+            // What this rig measured and what it is plugged into, adopted the same way and for the
+            // same reason. A file written before the store carried them has the answer on whichever
+            // profile was last active, which is where it always used to live.
+            if (Store.Machine == null) Store.Machine = SettingsCloner.Clone(Settings);
+            else ProfileTransfer.CopyMachineFacts(Store.Machine, Settings);
+
             if (firstStart)
             {
                 // Write them out now rather than waiting for shutdown, so the file exists from
@@ -346,6 +352,12 @@ namespace AB9ActiveShifter
             // engine sees one coherent config rather than the new gate with the old switch.
             target.Settings.ApplyLiveSwitches(Store.SessionEnabled, Store.SessionFreeStick);
 
+            // And the machine's own facts, for the same reason and at the same moment. Without
+            // this, activating a profile that was never calibrated here - every preset, by design -
+            // re-arms the 10% force cap and unbinds the clutch pedal, purely as a side effect of
+            // choosing a different gate.
+            ProfileTransfer.CopyMachineFacts(Store.Machine, target.Settings);
+
             if (Settings != null) Settings.PropertyChanged -= OnSettingsChanged;
 
             Settings = target.Settings;
@@ -526,6 +538,17 @@ namespace AB9ActiveShifter
                 if (e == null || e.PropertyName == null || e.PropertyName == "FreeStick")
                 {
                     Store.SessionFreeStick = Settings.FreeStick;
+                }
+
+                // Calibration finishing, a vJoy device picked, a clutch pedal captured: the store
+                // is the authority for those, so what just landed on the active profile has to be
+                // recorded there or the next activation would stamp the old answer back over it.
+                // The whole set is copied rather than the one property, because a pedal capture
+                // writes seven of them and fires a notification for each.
+                if (e == null || e.PropertyName == null || ProfileTransfer.IsMachineFact(e.PropertyName))
+                {
+                    if (Store.Machine == null) Store.Machine = new ShifterSettings();
+                    ProfileTransfer.CopyMachineFacts(Settings, Store.Machine);
                 }
             }
 

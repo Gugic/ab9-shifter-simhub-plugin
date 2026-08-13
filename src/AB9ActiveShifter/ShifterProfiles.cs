@@ -55,6 +55,25 @@ namespace AB9ActiveShifter
         public bool? SessionFreeStick { get; set; }
 
         /// <summary>
+        /// What this rig measured and what it is plugged into: polarity, the device and vJoy ids,
+        /// the loop rate and the clutch pedal binding. Carried here rather than per profile for
+        /// the same reason the two switches above are - they are true of the machine, so a profile
+        /// holding its own copy means switching profiles changes the answer.
+        /// <para>
+        /// A <see cref="ShifterSettings"/> is used as the carrier rather than a purpose-built
+        /// record so that the set is defined in exactly one place -
+        /// <see cref="ProfileTransfer.CopyMachineFacts"/> - and a machine fact added later is
+        /// picked up here without a second list to remember. Only the properties in that set are
+        /// ever read off it; the rest are ignored.
+        /// </para>
+        /// <para>
+        /// Null means a settings file written before this existed: adopt from whichever profile is
+        /// active, which is exactly what used to decide it.
+        /// </para>
+        /// </summary>
+        public ShifterSettings Machine { get; set; }
+
+        /// <summary>
         /// Whether a profile switch thumps the lever once per profile number, so which one
         /// arrived can be counted by hand rather than read off a screen. On by default: the whole
         /// reason profile switching moved onto a hotkey was to stop needing to look at the screen.
