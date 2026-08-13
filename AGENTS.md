@@ -39,7 +39,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-359 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+360 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
@@ -146,7 +146,8 @@ tests/AB9ActiveShifter.Tests/
                            lines)
   SlotEndStopTests.cs      The bottom of an H slot: the default changes nothing, the landing is
                            free, the wall only pushes home, and no axis count steps the stroke
-  DefaultProfilesTests.cs  The shipped profiles: forces off, cap on, store coherent
+  DefaultProfilesTests.cs  The shipped profiles: forces off, cap on, store coherent, and the
+                           three H presets one tune differing only in where the slot ends
   ProfileTransferTests.cs  Round trip, machine facts kept, every clamp on the import path
   AxisCaptureTests.cs      A pedal wired backwards, one that rests at full scale, a silent device
   ClutchModeTests.cs       Threshold mode is byte-identical to what shipped; the bite-point pulse

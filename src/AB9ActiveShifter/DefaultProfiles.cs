@@ -9,10 +9,13 @@ namespace AB9ActiveShifter
     /// defaults, written out to disk on that first start so they are ordinary settings from then
     /// on - editable, resettable, and never re-applied over anything a user has tuned.
     /// <para>
-    /// Two of the five are 7+R. That is not a duplicate: <see cref="Gate"/> is the long-throw
-    /// corridor gate with firm walls and the stabilisers off, and <see cref="ShortThrow"/> is the
-    /// same pattern with a bottom in its slots and the resistance taken out. They are different
-    /// feels, not different strengths, and neither is a starting point for the other.
+    /// Three of the five are the same tune. <see cref="LooseGate"/> is the gate that actually gets
+    /// driven on the rig, and <see cref="Gate"/>, the 5+R copy of it and <see cref="ShortThrow"/>
+    /// all start there; they differ by <em>where the slot ends</em> and by nothing else. That is
+    /// deliberate, and it is a correction: the two H profiles used to carry an older, firmer tune
+    /// with every stabiliser off, which reads well on paper and is jerky in the hand. A shipped
+    /// profile is a recommendation, so all three now make the same one, and the choice a user makes
+    /// between them is a throw length rather than a quality of gate.
     /// </para>
     /// <para>
     /// These numbers were measured, not chosen. They are the tuning of the rig this plugin was
@@ -150,66 +153,83 @@ namespace AB9ActiveShifter
             return new ProfileStore { ActiveProfile = ActiveName, Profiles = Presets() };
         }
 
-        /// <summary>The H-pattern gate, tuned on the rig. 7+R; 5+R is a copy of it.</summary>
-        private static ShifterSettings Gate()
+        /// <summary>
+        /// The H-pattern gate as it is actually driven on the rig: everything except where the
+        /// slot ends. <see cref="Gate"/> and <see cref="ShortThrow"/> are this plus a throw, and
+        /// 5+R is a copy of the first of those.
+        /// <para>
+        /// "Loose" is two things at once and both are needed for it. The detent is all hold - no
+        /// entry resistance, no pull - so the slot is free the whole way in and the only thing in
+        /// it is the seat. And the free widths stay open, <c>SlotHalfWidth</c> 2400 and
+        /// <c>ChannelFreeDepth</c> 2165, so the slots and the tunnel are corridors with room in
+        /// them rather than rails. Close either and this stops being the tune; a rail gate is a
+        /// different feel with a different stability budget, not a tighter version of this one.
+        /// There is deliberately no snick, because the crossover is what makes one and the pull is
+        /// at zero, so the profile never changes sign.
+        /// </para>
+        /// <para>
+        /// The stabilisers earn their keep here. The wall bite is short - 3816 against the 6000
+        /// this file used to ship - and a shorter face is exactly what the yield, the friction and
+        /// the attack exist to survive; the lateral pin comes down to 80 to match. That trade is
+        /// the whole difference between this and the older tune, which had a 6000 bite with every
+        /// stabiliser at zero and a pin at 100. On paper the long bite is the stabler shape. In the
+        /// hand it was jerky, and this is what replaced it.
+        /// </para>
+        /// </summary>
+        private static ShifterSettings LooseGate()
         {
             ShifterSettings s = new ShifterSettings();
 
-            // Full software gain, with the base's own Damper doing the settling. The plugin's
-            // damping is off: it thickens the lever, and real damping in the servo loop ahead of
-            // the USB round trip does the same job without that cost.
             s.OverallGainPct = 100;
-            s.DampingPct = 0;
 
-            // Walls: firm, wide-biting, and with the stabilisers off. A long bite (WallRamp) is
-            // what buys the stability that a steep face would need an absorber to survive, so the
-            // yield and the friction have nothing left to do here.
-            s.ColumnPinForcePct = 100;
+            // Corridors, left open. Half the reason this tune is called loose.
+            s.SlotHalfWidth = 2400;
+            s.ChannelFreeDepth = 2165;
+
+            // Moderate force, a short wall bite, and the full stabiliser stack that buys. The
+            // plugin's own damping is on at 10 here, which is the one number in this file that
+            // argues with the stated goal of a shifter with no software damping - it is carried
+            // because it is what the driven tune measured, not because the goal changed.
+            s.ColumnPinForcePct = 80;
             s.ChannelWallForcePct = 100;
-            s.WallRamp = 6000;
+            s.ChannelGuideForcePct = 20;
+            s.WallRamp = 3816;
             s.WallBlend = 1559;
-            s.WallYieldPct = 0;
-            s.WallFrictionPct = 0;
+            s.WallAttackMs = 15;
+            s.WallYieldPct = 10;
+            s.WallFrictionPct = 5;
+            s.DampingPct = 10;
 
-            // The neutral tunnel is nearly bare: no hump between columns, no detent holding the
-            // lever at a column, so sliding across the gate is free and the only thing a hand
-            // meets on the way to a slot is the lockout.
+            // All hold, no resistance and no pull.
+            s.DetentResistPct = 0;
+            s.DetentPullPct = 0;
+            s.DetentHoldPct = 40;
+            s.DetentHysteresis = 905;
+
+            // The tunnel band, and the lockout: firmer and much wider than default, so crossing
+            // into 7/R is a deliberate shove rather than a bump.
+            s.ChannelHalfEnter = 3268;
+            s.ChannelHalfExit = 4051;
+            s.LockoutForcePct = 90;
+            s.LockoutHalfWidth = 6000;
+
+            // Nothing in the tunnel between columns, and angled mouths feeding the slots.
             s.BarrierForcePct = 0;
             s.BarrierWidth = 400;
             s.ColumnDetentForcePct = 0;
-            s.ChannelFreeDepth = 2165;
-
-            // The lockout, the headline: firmer and much wider than default, so crossing into 7/R
-            // is a deliberate shove rather than a bump.
-            s.LockoutForcePct = 80;
-            s.LockoutHalfWidth = 6000;
-
-            // Slots: a wide free corridor, angled mouths feeding the lever in, and a detent that
-            // is all seated hold and resistance with no pull - the snick comes from the wall
-            // shape, not from a magnet at the bottom of the slot.
-            s.SlotHalfWidth = 2400;
             s.MouthShape = SlotMouthShape.Angled;
-            s.DetentResistPct = 15;
-            s.DetentPullPct = 0;
-            s.DetentHoldPct = 40;
+            s.MouthDepth = 12000;
 
-            // A long push to engage, matching a real lever's travel. Release sits 3000 counts
-            // shallower than engage, which is the hysteresis: the lever has to be pulled back out
-            // meaningfully before the gear drops, rather than falling out on the dither of a hand
-            // resting at the engage line.
-            //
-            // The rig this was copied from had these the wrong way round - release 17789 against
-            // engage 20852 - which GateGeometry repairs to engage + 1, leaving one axis count of
-            // hysteresis in 65535. That is a gear that re-registers on noise, and it is the most
-            // likely cause of the intermittent-registration report that the wall-bite ceiling work
-            // set out to explain. Depth counts inward from the extreme, so release must be the
-            // LARGER number; that is easy to get backwards and a test now checks it.
-            s.EngageDepth = 20852;
-            s.ReleaseDepth = 23852;
+            // Carried as measured. The inner-column pair is the wrong way round - exit inside
+            // enter - which GateGeometry repairs to enter + 1, leaving a single count of lateral
+            // hysteresis. It is a pure state band so the repair is the sanctioned one, and it
+            // matters less than it reads: a latched gear is held by the map, not by this band.
+            // Still a thing to fix on the rig rather than in the paste.
+            s.ColumnInnerHalfEnter = 2286;
+            s.ColumnInnerHalfExit = 300;
 
-            // Sequential dials still persist in an H profile; these are the values carried on the
-            // rig, kept so switching pattern on this profile lands somewhere sane.
-            s.ThrowFromCentre = 11915;
+            // Sequential dials persist in an H profile; these are the rig's, kept so switching
+            // pattern on one of these profiles lands somewhere sane.
             s.SeqOvertravel = 500;
             s.SeqStopForcePct = 100;
             s.SeqPulseMs = 400;
@@ -219,6 +239,12 @@ namespace AB9ActiveShifter
 
             ApplyEffects(s);
 
+            s.FxCurbsFullAtG = 1.9434039659804043;
+            s.FxEngineFreqAt1000Rpm = 12;
+            s.FxShiftGainPct = 72;
+            s.FxShiftFreqHz = 37;
+            s.FxShiftDurationMs = 107;
+
             // The grind, on and tuned low and slow - a rattle rather than a buzz - with a balk
             // wall well under default so a refused gear pushes back without feeling like a wall.
             s.GrindEnabled = true;
@@ -226,10 +252,34 @@ namespace AB9ActiveShifter
             s.GrindFreqHz = 15;
             s.GrindWallPct = 42;
             s.GrindMinSpeedKmh = 11;
+            s.GrindClutchMode = GrindClutchMode.Progressive;
 
-            s.FxLimiterEnabled = true;
-            s.FxCurbsGainPct = 100;
-            s.FxEngineGainPct = 59;
+            return s;
+        }
+
+        /// <summary>
+        /// The long throw: <see cref="LooseGate"/> with no bottom in its slots, so the seated hold
+        /// carries the lever on to the base's own mechanical stop and the gear is simply the
+        /// deepest part of the push. 7+R; 5+R is a copy of it.
+        /// </summary>
+        private static ShifterSettings Gate()
+        {
+            ShifterSettings s = LooseGate();
+
+            // Engage at 11915 counts from centre, release 3000 counts shallower. That gap is the
+            // hysteresis: the lever has to be pulled back out meaningfully before the gear drops,
+            // rather than falling out on the dither of a hand resting at the engage line.
+            //
+            // The rig this was copied from had these the wrong way round - release 17789 against
+            // engage 20852 - which GateGeometry repairs to engage + 1, leaving one axis count of
+            // hysteresis in 65535. That is a gear that re-registers on noise. Depth counts inward
+            // from the extreme, so release must be the LARGER number; that is easy to get
+            // backwards and a test checks it.
+            //
+            // SlotStopForcePct stays at its default zero, which is what makes this the long throw,
+            // and SlotOvertravel is inert without it and stays at its default too.
+            s.EngageDepth = 20852;
+            s.ReleaseDepth = 23852;
 
             return s;
         }
@@ -394,33 +444,18 @@ namespace AB9ActiveShifter
         }
 
         /// <summary>
-        /// The same 7+R gate with a bottom in the slots and the resistance taken out: a short
-        /// throw that stops where it says it does, and a lever that meets almost nothing on the
-        /// way there. Copied off the rig, where it is the tune that gets driven.
+        /// The short throw: <see cref="LooseGate"/> with a bottom in its slots, so the stroke
+        /// stops where it says it does instead of running on to the base's own stop.
         ///
         /// <para>
         /// The engage line is barely different from <see cref="Gate"/>'s - 12006 counts from
-        /// centre to the seat against 11915 - and that is the point of the profile. What makes a
-        /// throw short is <c>SlotStopForcePct</c>, not the engage line: with no end-stop the
-        /// seated hold keeps pulling past the seat and the lever runs on to the base's own
-        /// mechanical stop, so moving the engage line alone changes only where the gear
-        /// <em>registers</em>. Given a bottom the stroke ends at depth 20844 of 32767 - about two
-        /// thirds of travel - and the number a hand feels has finally moved.
-        /// </para>
-        /// <para>
-        /// "Loose" is two things at once, and both are needed for it. The detent is all hold: no
-        /// entry resistance, no pull, so the slot is free the whole way in and the only thing in
-        /// it is the seat. And the free widths stay open - <c>SlotHalfWidth</c> 2400 and
-        /// <c>ChannelFreeDepth</c> 2165 - so the slots and the tunnel are corridors with room in
-        /// them rather than rails. Close either and the tune stops being this one; a rail gate is
-        /// a different feel with a different stability budget, not a tighter version of this.
-        /// There is deliberately no snick: the crossover is what makes one, and with the pull at
-        /// zero the profile never changes sign. The stop wall arriving marks the bottom instead.
-        /// </para>
-        /// <para>
-        /// The stabilisers earn their keep here where the corridor gate has them all off. The wall
-        /// bite is shorter - 3816 against 6000 - and a shorter face is exactly what the yield, the
-        /// friction and the attack exist to survive; the lateral pin comes down to 80 to match.
+        /// centre to the seat against 11915 - and that is the point. What makes a throw short is
+        /// <c>SlotStopForcePct</c>, not the engage line: with no end-stop the seated hold keeps
+        /// pulling past the seat and the lever runs on to the mechanical stop, so moving the
+        /// engage line alone changes only where the gear <em>registers</em>. Given a bottom the
+        /// stroke ends at depth 20844 of 32767 - about two thirds of travel - and the number a
+        /// hand feels has finally moved. The stop wall arriving is also what marks the bottom, in
+        /// place of the snick this tune does not have.
         /// </para>
         /// <para>
         /// The release line sits at 35317 - past the axis centre, 2550 counts into the far half of
@@ -431,12 +466,20 @@ namespace AB9ActiveShifter
         /// its column wall across the whole gate, so changing column means pulling past centre
         /// first. 1-2 is natural; 1-3 is a deliberate over-pull.
         /// </para>
+        /// <para>
+        /// It also explains why the release line is part of this block rather than of the shared
+        /// tune, which is not obvious from the raw numbers: depth is measured from the extreme, so
+        /// two profiles whose levers come to rest in different places need different release
+        /// depths to ask a hand for the same pull. Here the lever rests in the landing, 17028 to
+        /// 20844 counts from centre, so the pull out of gear is 19578 to 23394 counts. On
+        /// <see cref="Gate"/> the lever rests at the mechanical stop, and its release depth of
+        /// 23852 <em>is</em> that pull. Copying 35317 across would have made every shift on the
+        /// long-throw gate a pull of more than half the axis.
+        /// </para>
         /// </summary>
         private static ShifterSettings ShortThrow()
         {
-            ShifterSettings s = new ShifterSettings();
-
-            s.OverallGainPct = 100;
+            ShifterSettings s = LooseGate();
 
             // The slot's bottom, which is the whole feature: seat at depth 12006, the hold fading
             // out over one wall bite, then a free landing, then the wall. The landing is the free
@@ -448,72 +491,6 @@ namespace AB9ActiveShifter
 
             // Past centre, inside the tunnel. See the note above before changing it.
             s.ReleaseDepth = 35317;
-
-            // Corridors, left open. Half the reason this profile is called loose.
-            s.SlotHalfWidth = 2400;
-            s.ChannelFreeDepth = 2165;
-
-            // Moderate force, a short wall bite, and the full stabiliser stack that buys.
-            s.ColumnPinForcePct = 80;
-            s.ChannelWallForcePct = 100;
-            s.ChannelGuideForcePct = 20;
-            s.WallRamp = 3816;
-            s.WallBlend = 1559;
-            s.WallAttackMs = 15;
-            s.WallYieldPct = 10;
-            s.WallFrictionPct = 5;
-            s.DampingPct = 10;
-
-            // All hold, no resistance and no pull.
-            s.DetentResistPct = 0;
-            s.DetentPullPct = 0;
-            s.DetentHoldPct = 40;
-            s.DetentHysteresis = 905;
-
-            // A tighter tunnel band than the corridor gate's 2600/5200, and a firmer lockout.
-            s.ChannelHalfEnter = 3268;
-            s.ChannelHalfExit = 4051;
-            s.LockoutForcePct = 90;
-            s.LockoutHalfWidth = 6000;
-
-            // Nothing in the tunnel between columns, and angled mouths feeding the slots.
-            s.BarrierForcePct = 0;
-            s.BarrierWidth = 400;
-            s.ColumnDetentForcePct = 0;
-            s.MouthShape = SlotMouthShape.Angled;
-            s.MouthDepth = 12000;
-
-            // Carried as measured. The inner-column pair is the wrong way round - exit inside
-            // enter - which GateGeometry repairs to enter + 1, leaving a single count of lateral
-            // hysteresis. It is a pure state band so the repair is the sanctioned one, and it
-            // matters less than it reads: a latched gear is held by the map, not by this band.
-            // Still a thing to fix on the rig rather than in the paste.
-            s.ColumnInnerHalfEnter = 2286;
-            s.ColumnInnerHalfExit = 300;
-
-            // Sequential dials persist in an H profile; these are the rig's, kept so switching
-            // pattern on this profile lands somewhere sane.
-            s.SeqOvertravel = 500;
-            s.SeqStopForcePct = 100;
-            s.SeqPulseMs = 400;
-
-            // Measured on this unit: constant force is inverted left/right and not fore/aft.
-            s.InvertConstantX = true;
-
-            ApplyEffects(s);
-
-            s.FxCurbsFullAtG = 1.9434039659804043;
-            s.FxEngineFreqAt1000Rpm = 12;
-            s.FxShiftGainPct = 72;
-            s.FxShiftFreqHz = 37;
-            s.FxShiftDurationMs = 107;
-
-            s.GrindEnabled = true;
-            s.GrindGainPct = 100;
-            s.GrindFreqHz = 15;
-            s.GrindWallPct = 42;
-            s.GrindMinSpeedKmh = 11;
-            s.GrindClutchMode = GrindClutchMode.Progressive;
 
             return s;
         }

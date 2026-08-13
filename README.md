@@ -114,6 +114,12 @@ its own complete tuning, so you begin from gates that were tuned on real hardwar
 bare defaults. Forces are off and the force cap is on, as they should be on a base nobody has
 measured yet.
 
+The three H presets are the **same gate**, and the only thing you are choosing between them is the
+pattern and how far the lever travels: *7+R lockout* and *5+R* run the full throw, where the lever
+carries on to the base's own stop, and *short throw* gives the slots a bottom of their own so the
+stroke ends about two thirds of the way in. Everything about how the gate feels — the wall, the
+lockout, the width of the corridors, the weight of the detent — is identical in all three.
+
 Presets are marked `(Preset)`, sit at the end of the profile list, and never change: they are
 there to be a fixed starting point you can always come back to. Turn any dial while one is
 selected and the edit quietly moves to a profile of your own with the same name — `7+R lockout`,
@@ -197,7 +203,7 @@ immediately past 5/6 the **lockout gate**: a compact band of flat force pushing 
 main gears the whole way across. Crossing it costs the same effort however fast you move the
 lever, so it cannot be flicked through. Coming back out of 7/R is assisted, like a real range
 gate. Once slotted in 7 or R the column behaves exactly like the others. The toll is the gate's
-force (80% in the shipped profile) times its width, and both are adjustable.
+force (90% in the shipped profiles) times its width, and both are adjustable.
 
 That is what the lockout is *for*: without one there is nothing between 5th and reverse but empty
 travel, and a rushed downshift can find it. The whole design follows from wanting a barrier that a

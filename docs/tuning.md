@@ -49,7 +49,7 @@ corridor the lever gets.
 | Blue brackets on the tunnel edge | *Outer* / *Inner column half-width* — how wide each doorway opens |
 | Solid blue line across each slot | *Engage depth* — where the gear registers |
 | Dashed blue line across each slot | *Release depth* — where it lets go |
-| Thick grey bar across each slot | The slot's own bottom, when *Slot end-stop wall* has given it one. Grey, not blue: a wall the hand meets, not a line anything is decided at. Absent at the shipped geometry |
+| Thick grey bar across each slot | The slot's own bottom, when *Slot end-stop wall* has given it one. Grey, not blue: a wall the hand meets, not a line anything is decided at. Absent unless the profile has given the slots a bottom — of the shipped presets, only *short throw* does |
 | Dashed blue pairs inside the tunnel | *Column handover width* |
 | Faint dashed verticals, full height | The ownership boundaries: past one, a push that beats the wall lands in the next column's slot |
 | Orange band | The lockout gate, at the width and position the geometry gives it. It reaches only as deep as the tunnel because barriers fade out with depth |
