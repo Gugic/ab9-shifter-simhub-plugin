@@ -108,6 +108,35 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void TheShortThrowProfileHasABottomAndIsActuallyLoose()
+        {
+            // Its name makes two promises, and both are settings rather than adjectives.
+            //
+            // A short throw is the end-stop, not the engage line: without SlotStopForcePct the
+            // seated hold keeps pulling past the seat and the lever runs on to the base's own
+            // mechanical stop, so moving the engage line alone changes only where the gear
+            // registers. And the landing has to be longer than the wall bite, because the hold's
+            // fade eats a bite's worth of it - a landing at or under WallRamp leaves no free
+            // travel at all, which puts the hold and the stop wall either side of a single point
+            // and rebuilds the interior equilibrium that free regions exist to prevent.
+            //
+            // "Loose" is the open corridors plus a detent carrying nothing but the hold. Closing
+            // either free width turns this into the rail gate - a different feel with a different
+            // stability budget, not a tighter version of this one.
+            ShifterSettings s = Find(DefaultProfiles.Create(), DefaultProfiles.ShortThrowName);
+
+            Assert.Equal(GatePattern.H7R, s.Pattern);
+
+            Assert.True(s.SlotStopForcePct > 0, "the short-throw profile ships with no slot bottom");
+            Assert.True(s.SlotOvertravel > s.WallRamp,
+                "the landing is all fade: " + s.SlotOvertravel + " against a " + s.WallRamp + " bite");
+
+            Assert.True(s.SlotHalfWidth > 0, "the loose profile ships with railed slots");
+            Assert.True(s.ChannelFreeDepth > 0, "the loose profile ships with a railed tunnel");
+            Assert.Equal(0, s.DetentResistPct);
+        }
+
+        [Fact]
         public void FiveRIsTheSevenRGateWithOnlyThePatternChanged()
         {
             // 5+R is shipped as a copy, so the two stay tuned alike by construction. If someone

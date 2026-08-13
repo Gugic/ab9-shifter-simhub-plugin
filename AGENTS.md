@@ -80,7 +80,7 @@ src/AB9ActiveShifter/
                            DataUpdate -> TelemetryState for the effects
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
   ShifterProfiles.cs       ProfileStore (named settings + active), legacy migration, cloning
-  DefaultProfiles.cs       The four profiles a fresh install writes out, as deltas from bare
+  DefaultProfiles.cs       The five profiles a fresh install writes out, as deltas from bare
                            defaults (see "Saved settings" below)
   ProfileTransfer.cs       One profile as a shareable file: what travels, and what is refused
   PluginInfo.cs            The build's version string, for the UI and for exported files
@@ -499,7 +499,7 @@ first-start test that only deletes the primary silently measures the old setting
 DEVELOPMENT.md for the command that clears both and the two log lines that prove it worked.
 
 **Shipped profiles.** A fresh install starts from `DefaultProfiles.cs`, not from bare defaults:
-`ReadCommonSettings` finding nothing is the first-start signal, the factory returns the four
+`ReadCommonSettings` finding nothing is the first-start signal, the factory returns the five
 tuned profiles, and `Init` writes them straight out so they are ordinary settings from the second
 start on. They are written as *deltas* from a bare `ShifterSettings`, so the tuning reads as
 tuning and a dial that gains a better default inherits it. This used to be a JSON file copied in
