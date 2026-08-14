@@ -56,6 +56,20 @@ namespace AB9ActiveShifter
         private int _prndNotchHalfWidth = 600;
         private int _prndStopForcePct = 90;
 
+        // The lockout's configuration. Every default is the shipped behaviour - the pattern's
+        // traditional gate, one-way, push-through - so a saved file without these keys builds
+        // the exact gate it always had.
+        private LockoutPlacement _lockoutPlacement = LockoutPlacement.PatternDefault;
+        private LockoutGapDirection _lockoutGapDirection = LockoutGapDirection.TowardHigh;
+        private int _lockoutSlotGear = 8;
+        private LockoutSlotDirection _lockoutSlotDirection = LockoutSlotDirection.Entry;
+        private LockoutMode _lockoutMode = LockoutMode.PushThrough;
+        private PrndLockoutGap _prndLockoutGap = PrndLockoutGap.Off;
+        private PrndLockoutDirection _prndLockoutDirection = PrndLockoutDirection.TowardD;
+        private LockoutMode _prndLockoutMode = LockoutMode.PushThrough;
+        private int _prndLockoutForcePct = 70;
+        private int _prndLockoutHalfWidth = 1200;
+
         // Telemetry effects, all off by default: they are additions to the gate, not part of it.
         private bool _fxEngineEnabled;
         private int _fxEngineGainPct = 25;
@@ -128,7 +142,7 @@ namespace AB9ActiveShifter
         /// <summary>Master force scale. Capped to 10% until the polarity wizard has run.</summary>
         public int OverallGainPct { get { return _overallGainPct; } set { Set(ref _overallGainPct, value); } }
 
-        /// <summary>Force needed to push through into the 7/R column, as a share of the overall gain.</summary>
+        /// <summary>Force needed to push through the lockout, as a share of the overall gain.</summary>
         public int LockoutForcePct { get { return _lockoutForcePct; } set { Set(ref _lockoutForcePct, value); } }
 
         /// <summary>Half-width of the lockout gate: a dot on the neutral channel, not a zone.</summary>
@@ -137,6 +151,172 @@ namespace AB9ActiveShifter
             get { return _lockoutHalfWidth; }
             set { Set(ref _lockoutHalfWidth, value); OnChanged("LockoutHalfWidthPercent"); }
         }
+
+        /// <summary>
+        /// Where the lockout lives: the pattern's traditional gap, off, any adjacent gap, or a
+        /// single slot. Map-relative, so mirroring moves it with the gears, and it survives a
+        /// pattern switch - the geometry repairs and reports what a pattern cannot honour.
+        /// </summary>
+        public LockoutPlacement LockoutPlacement
+        {
+            get { return _lockoutPlacement; }
+            set
+            {
+                if (_lockoutPlacement == value) return;
+                Set(ref _lockoutPlacement, value);
+                OnChanged("LockoutPlacementIndex");
+                OnChanged("IsLockoutOnSlot");
+                OnChanged("IsLockoutOnGap");
+                OnChanged("ShowsLockoutDials");
+            }
+        }
+
+        /// <summary>Adapter for the combo box, which binds an index rather than an enum.</summary>
+        public int LockoutPlacementIndex
+        {
+            get { return (int)_lockoutPlacement; }
+            set { LockoutPlacement = (LockoutPlacement)GateGeometry.Clamp(value, 0, 5); }
+        }
+
+        /// <summary>Which crossing of a gap lockout pays, in gear-map terms. TowardHigh is the classic 7/R gate.</summary>
+        public LockoutGapDirection LockoutGapDirection
+        {
+            get { return _lockoutGapDirection; }
+            set
+            {
+                if (_lockoutGapDirection == value) return;
+                Set(ref _lockoutGapDirection, value);
+                OnChanged("LockoutGapDirectionIndex");
+            }
+        }
+
+        /// <summary>Adapter for the combo box.</summary>
+        public int LockoutGapDirectionIndex
+        {
+            get { return (int)_lockoutGapDirection; }
+            set { LockoutGapDirection = (LockoutGapDirection)GateGeometry.Clamp(value, 0, 2); }
+        }
+
+        /// <summary>The gear a Slot placement guards, 1..8 with 8 = R.</summary>
+        public int LockoutSlotGear
+        {
+            get { return _lockoutSlotGear; }
+            set { Set(ref _lockoutSlotGear, value); OnChanged("LockoutSlotGearIndex"); }
+        }
+
+        /// <summary>Adapter for the combo box: item index 0..7 for gears 1..8.</summary>
+        public int LockoutSlotGearIndex
+        {
+            get { return _lockoutSlotGear - 1; }
+            set { LockoutSlotGear = GateGeometry.Clamp(value, 0, 7) + 1; }
+        }
+
+        /// <summary>Which way through a slot lockout pays.</summary>
+        public LockoutSlotDirection LockoutSlotDirection
+        {
+            get { return _lockoutSlotDirection; }
+            set
+            {
+                if (_lockoutSlotDirection == value) return;
+                Set(ref _lockoutSlotDirection, value);
+                OnChanged("LockoutSlotDirectionIndex");
+            }
+        }
+
+        /// <summary>Adapter for the combo box.</summary>
+        public int LockoutSlotDirectionIndex
+        {
+            get { return (int)_lockoutSlotDirection; }
+            set { LockoutSlotDirection = (LockoutSlotDirection)GateGeometry.Clamp(value, 0, 2); }
+        }
+
+        /// <summary>
+        /// How the lockout is defeated: pushed through, or held at full force until a bound
+        /// action releases it - with or without re-arming itself after each crossing.
+        /// </summary>
+        public LockoutMode LockoutMode
+        {
+            get { return _lockoutMode; }
+            set
+            {
+                if (_lockoutMode == value) return;
+                Set(ref _lockoutMode, value);
+                OnChanged("LockoutModeIndex");
+                OnChanged("IsLockoutHardMode");
+            }
+        }
+
+        /// <summary>Adapter for the combo box.</summary>
+        public int LockoutModeIndex
+        {
+            get { return (int)_lockoutMode; }
+            set { LockoutMode = (LockoutMode)GateGeometry.Clamp(value, 0, 2); }
+        }
+
+        /// <summary>Which pair of selector positions the PRND lockout sits between. Off by default.</summary>
+        public PrndLockoutGap PrndLockoutGap
+        {
+            get { return _prndLockoutGap; }
+            set
+            {
+                if (_prndLockoutGap == value) return;
+                Set(ref _prndLockoutGap, value);
+                OnChanged("PrndLockoutGapIndex");
+                OnChanged("HasPrndLockout");
+            }
+        }
+
+        /// <summary>Adapter for the combo box.</summary>
+        public int PrndLockoutGapIndex
+        {
+            get { return (int)_prndLockoutGap; }
+            set { PrndLockoutGap = (PrndLockoutGap)GateGeometry.Clamp(value, 0, 3); }
+        }
+
+        /// <summary>Which way along the lane the PRND lockout charges, named by the labels.</summary>
+        public PrndLockoutDirection PrndLockoutDirection
+        {
+            get { return _prndLockoutDirection; }
+            set
+            {
+                if (_prndLockoutDirection == value) return;
+                Set(ref _prndLockoutDirection, value);
+                OnChanged("PrndLockoutDirectionIndex");
+            }
+        }
+
+        /// <summary>Adapter for the combo box.</summary>
+        public int PrndLockoutDirectionIndex
+        {
+            get { return (int)_prndLockoutDirection; }
+            set { PrndLockoutDirection = (PrndLockoutDirection)GateGeometry.Clamp(value, 0, 2); }
+        }
+
+        /// <summary>How the PRND lockout is defeated. Force only in every mode: the selector state is never blocked.</summary>
+        public LockoutMode PrndLockoutMode
+        {
+            get { return _prndLockoutMode; }
+            set
+            {
+                if (_prndLockoutMode == value) return;
+                Set(ref _prndLockoutMode, value);
+                OnChanged("PrndLockoutModeIndex");
+                OnChanged("IsPrndLockoutHardMode");
+            }
+        }
+
+        /// <summary>Adapter for the combo box.</summary>
+        public int PrndLockoutModeIndex
+        {
+            get { return (int)_prndLockoutMode; }
+            set { PrndLockoutMode = (LockoutMode)GateGeometry.Clamp(value, 0, 2); }
+        }
+
+        /// <summary>The PRND lockout band's force, as a share of the overall gain.</summary>
+        public int PrndLockoutForcePct { get { return _prndLockoutForcePct; } set { Set(ref _prndLockoutForcePct, value); } }
+
+        /// <summary>Half-width of the PRND lockout band, fore/aft counts. Clamped by the lane; the Feel tab reports the ceiling.</summary>
+        public int PrndLockoutHalfWidth { get { return _prndLockoutHalfWidth; } set { Set(ref _prndLockoutHalfWidth, value); } }
 
         /// <summary>Force used when measuring polarity. Raise it if calibration is inconclusive.</summary>
         public int CalibrationForcePct { get { return _calibrationForcePct; } set { Set(ref _calibrationForcePct, value); } }
@@ -271,7 +451,6 @@ namespace AB9ActiveShifter
                 OnChanged("IsHPattern");
                 OnChanged("IsSequential");
                 OnChanged("IsPrnd");
-                OnChanged("HasLockout");
 
                 // ColumnSpacing depends on pattern, so every percent-of-spacing view changes
                 // even though none of the underlying raw counts did.
@@ -299,7 +478,8 @@ namespace AB9ActiveShifter
             {
                 return _pattern == GatePattern.H7R
                     || _pattern == GatePattern.H6R
-                    || _pattern == GatePattern.H5R;
+                    || _pattern == GatePattern.H5R
+                    || _pattern == GatePattern.H6;
             }
         }
 
@@ -309,8 +489,36 @@ namespace AB9ActiveShifter
         /// <summary>For the PRND-only controls, and for hiding the slot detent that has no slot.</summary>
         public bool IsPrnd { get { return _pattern == GatePattern.Prnd; } }
 
-        /// <summary>Whether this pattern has a lockout gate for its sliders to mean anything.</summary>
-        public bool HasLockout { get { return _pattern == GatePattern.H7R || _pattern == GatePattern.H6R; } }
+        // Visibility facts for the lockout group. Deliberately the user's CHOICE, not the
+        // geometry's effective answer: the old HasLockout duplicated the geometry's rule and
+        // the two could only drift, so the effective placement - repairs and all - is reported
+        // by the summary line, which asks a freshly built GateGeometry. The one-time consumers
+        // of HasLockout now key on these or on IsHPattern.
+
+        /// <summary>The Slot placement is chosen, so the slot-gear picker and its wording apply.</summary>
+        public bool IsLockoutOnSlot { get { return _lockoutPlacement == LockoutPlacement.Slot; } }
+
+        /// <summary>A gap placement (or the pattern default) is chosen, so the gap wording applies.</summary>
+        public bool IsLockoutOnGap
+        {
+            get
+            {
+                return _lockoutPlacement != LockoutPlacement.Slot
+                    && _lockoutPlacement != LockoutPlacement.Off;
+            }
+        }
+
+        /// <summary>Whether the lockout dials mean anything at all - everything but Off.</summary>
+        public bool ShowsLockoutDials { get { return _lockoutPlacement != LockoutPlacement.Off; } }
+
+        /// <summary>A hard mode is chosen, so the hotkey note applies and the force dial is idle.</summary>
+        public bool IsLockoutHardMode { get { return _lockoutMode != LockoutMode.PushThrough; } }
+
+        /// <summary>A PRND lockout is configured, so its dials apply.</summary>
+        public bool HasPrndLockout { get { return _prndLockoutGap != PrndLockoutGap.Off; } }
+
+        /// <summary>The PRND lockout is in a hard mode, so the force-only note applies.</summary>
+        public bool IsPrndLockoutHardMode { get { return _prndLockoutMode != LockoutMode.PushThrough; } }
 
         /// <summary>Exposes the pattern as an index for the XAML combo box.</summary>
         public int PatternIndex
@@ -787,7 +995,17 @@ namespace AB9ActiveShifter
                 WallFrictionPct = WallFrictionPct,
                 WallYieldPct = WallYieldPct,
                 LockoutForcePct = LockoutForcePct,
-                LockoutHalfWidth = LockoutHalfWidth
+                LockoutHalfWidth = LockoutHalfWidth,
+                LockoutPlacement = LockoutPlacement,
+                LockoutGapDirection = LockoutGapDirection,
+                LockoutSlotGear = LockoutSlotGear,
+                LockoutSlotDirection = LockoutSlotDirection,
+                LockoutMode = LockoutMode,
+                PrndLockoutGap = PrndLockoutGap,
+                PrndLockoutDirection = PrndLockoutDirection,
+                PrndLockoutMode = PrndLockoutMode,
+                PrndLockoutForcePct = PrndLockoutForcePct,
+                PrndLockoutHalfWidth = PrndLockoutHalfWidth
             };
         }
 
@@ -818,6 +1036,16 @@ namespace AB9ActiveShifter
                 OverallGainPct = d.OverallGainPct;
                 LockoutForcePct = d.LockoutForcePct;
                 LockoutHalfWidth = d.LockoutHalfWidth;
+                LockoutPlacement = d.LockoutPlacement;
+                LockoutGapDirection = d.LockoutGapDirection;
+                LockoutSlotGear = d.LockoutSlotGear;
+                LockoutSlotDirection = d.LockoutSlotDirection;
+                LockoutMode = d.LockoutMode;
+                PrndLockoutGap = d.PrndLockoutGap;
+                PrndLockoutDirection = d.PrndLockoutDirection;
+                PrndLockoutMode = d.PrndLockoutMode;
+                PrndLockoutForcePct = d.PrndLockoutForcePct;
+                PrndLockoutHalfWidth = d.PrndLockoutHalfWidth;
                 ColumnPinForcePct = d.ColumnPinForcePct;
                 ChannelWallForcePct = d.ChannelWallForcePct;
                 ChannelGuideForcePct = d.ChannelGuideForcePct;

@@ -3,7 +3,7 @@
 [![CI](https://github.com/Gugic/ab9-shifter-simhub-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/Gugic/ab9-shifter-simhub-plugin/actions/workflows/ci.yml)
 
 An alternative to the MOZA AB9's own shifter mode. This SimHub plugin renders the shift gate
-itself in force feedback — including the **push-through lockout** guarding 7th and reverse that
+itself in force feedback — including the **configurable lockout** (push-through or hotkey-released, guarding 7th and reverse out of the box) that
 the stock firmware has no setting for — and plays a **much wider range of telemetry effects**
 through the lever: a clutch grind that can refuse the gear, engine vibration, a rev limiter,
 ABS and traction control, curbs. The selected gear comes out as **vJoy buttons**, so any game
@@ -108,17 +108,20 @@ while it runs, so the copy fails if you skip that.
 
 Start SimHub and enable **AB9 Active Shifter** under *Settings → Plugins*.
 
-That is the whole install. You start with five ready-made **presets** — **7+R lockout**, **7+R
-lockout (short throw, loose)**, **5+R**, **Sequential** and **Automatic (PRND)** — each holding
+That is the whole install. You start with six ready-made **presets** — **7+R lockout**, **7+R
+lockout (short throw, loose)**, **5+R**, **Sequential**, **Automatic (PRND)** and **Truck 6-gear
+(low-range lockout)** — each holding
 its own complete tuning, so you begin from gates that were tuned on real hardware rather than from
 bare defaults. Forces are off and the force cap is on, as they should be on a base nobody has
 measured yet.
 
-The three H presets are the **same gate**, and the only thing you are choosing between them is the
-pattern and how far the lever travels: *7+R lockout* and *5+R* run the full throw, where the lever
-carries on to the base's own stop, and *short throw* gives the slots a bottom of their own so the
-stroke ends about two thirds of the way in. Everything about how the gate feels — the wall, the
-lockout, the width of the corridors, the weight of the detent — is identical in all three.
+The four H presets are the **same gate**, and the only thing you are choosing between them is the
+pattern, how far the lever travels, and where the lockout stands: *7+R lockout* and *5+R* run the
+full throw, where the lever carries on to the base's own stop, *short throw* gives the slots a
+bottom of their own so the stroke ends about two thirds of the way in, and the *truck* preset moves
+the gate between the first two columns of its six-slot pattern. Everything about how the gate
+feels — the wall, the lockout's toll, the width of the corridors, the weight of the detent — is
+identical in all four.
 
 Presets are marked `(Preset)`, sit at the end of the profile list, and never change: they are
 there to be a fixed starting point you can always come back to. Turn any dial while one is
@@ -181,8 +184,9 @@ Bind gears **1–7 and reverse to vJoy buttons 1–8**, the sequential up/down t
 automatic's **P, R, N and D to 11–14**. Do **not** bind the AB9's own axes in the game — the plugin
 is what reads them.
 
-Reverse is always button 8 whatever the pattern, and each later range sits above the last, so one
-set of bindings covers all five patterns and no binding can ever mean two things.
+Reverse is always button 8 wherever a pattern has one, and each later range sits above the last,
+so one set of bindings covers every pattern and no binding can ever mean two things (the truck
+pattern simply uses buttons 1–6 and nothing else).
 
 ## The gate
 
@@ -209,6 +213,15 @@ That is what the lockout is *for*: without one there is nothing between 5th and 
 travel, and a rushed downshift can find it. The whole design follows from wanting a barrier that a
 hurried hand cannot get through by accident and a deliberate one can.
 
+The lockout is **configurable** per profile: put it between any two columns or on a single slot's
+mouth (a reverse lockout, say), point it either way or both, or turn it off. Beyond the
+push-through toll there are two **hard modes**: the gate runs at full force and locked gears do
+not register at all until a bound key releases it — one stays released until pressed again, the
+other re-arms itself once the crossing completes, like a collar seating behind the shift. The
+automatic's selector lane can carry a lockout of its own between chosen positions (P–R for an
+out-of-park gate, R–N for a reverse guard), force-only — the selector always reports where the
+lever really is.
+
 Two rules make it feel mechanical rather than like a set of forces. A gear can only be left
 **through the neutral tunnel** — leaning sideways, or shoving through a wall, will not hand you a
 different gear, it just pushes you back into the one you are in. And pushing into a gear slightly
@@ -221,15 +234,16 @@ the way a real H lever rests at the 3/4 gate.
 
 ## Patterns
 
-Five, selectable per **profile** on the Setup tab:
+Six, selectable per **profile** on the Setup tab:
 
 | Pattern | |
 | --- | --- |
 | **7+R** | The full gate above, with the lockout |
 | **6+R** | The slot where 7 would sit genuinely does not exist — the wall over it never opens, so the lever cannot enter it at all. The stock firmware's 6+R leaves the seven-gear gate rendered with that slot merely inert, which is no guard against the misshift that choosing six gears is meant to prevent |
-| **5+R** | Three wider columns, no lockout |
+| **5+R** | Three wider columns, no lockout by default |
 | **Sequential** | A sprung fore/aft lever: one shift per stroke, with a click you can tune |
 | **Automatic (P R N D)** | A selector lane: four fixed positions in a line, a button held at whichever one the lever is in. No neutral to come back through and no gear to engage — the lever is always somewhere |
+| **Truck 6** | Three wider columns, six plain slots on buttons 1–6, no reverse anywhere — what each button means is your game's business. Made for Eaton-Fuller-style boxes: add the lockout between the first two columns (the shipped truck preset does exactly that) and you have a low-range gate |
 
 A profile stores every dial together with its pattern, so each pattern keeps its own tuning and
 switching between them is one dropdown. *Next profile* and *Previous profile* are bindable actions
@@ -305,7 +319,9 @@ Available for dashboards and formulas:
 | `LoopHz` | measured FFB loop rate |
 | `StatusMessage` | the same text shown on the Setup tab |
 
-Events: `GearEngaged`, `GearReleased`.
+Events: `GearEngaged`, `GearReleased`, `LockoutEngaged`, `LockoutReleased`. A `LockoutEngaged`
+property says whether a hard-mode lockout is currently armed (always true when no hard mode is
+configured).
 
 ### Actions you can bind to a button
 
@@ -315,6 +331,8 @@ Events: `GearEngaged`, `GearReleased`.
 | `PreviousProfile` | The same, backwards. Only worth binding once three or more profiles are in the cycle. |
 | `ToggleShifterFFB` | Turn the shifter's force feedback on and off. |
 | `ReleaseAllGears` | Drop every held gear button and stop output — the panic button. |
+| `ToggleLockout` | Release or re-engage a hard-mode lockout — the one-button key. Does nothing in push-through mode. |
+| `EngageLockout` / `ReleaseLockout` | The same as an explicit pair, for a two-position switch that a toggle would fall out of step with. |
 
 **Bind them on the Setup tab**, next to the thing they control: the profile keys under *Profile
 hotkeys*, the force toggle and the panic release under *Enable*. Click the row, press the wheel

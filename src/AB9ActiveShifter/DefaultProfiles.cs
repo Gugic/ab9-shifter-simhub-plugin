@@ -5,17 +5,18 @@ using AB9ActiveShifter.Core;
 namespace AB9ActiveShifter
 {
     /// <summary>
-    /// What a machine with no saved settings starts with: five working profiles rather than bare
+    /// What a machine with no saved settings starts with: six working profiles rather than bare
     /// defaults, written out to disk on that first start so they are ordinary settings from then
     /// on - editable, resettable, and never re-applied over anything a user has tuned.
     /// <para>
-    /// Three of the five are the same tune. <see cref="LooseGate"/> is the gate that actually gets
-    /// driven on the rig, and <see cref="Gate"/>, the 5+R copy of it and <see cref="ShortThrow"/>
-    /// all start there; they differ by <em>where the slot ends</em> and by nothing else. That is
-    /// deliberate, and it is a correction: the two H profiles used to carry an older, firmer tune
-    /// with every stabiliser off, which reads well on paper and is jerky in the hand. A shipped
-    /// profile is a recommendation, so all three now make the same one, and the choice a user makes
-    /// between them is a throw length rather than a quality of gate.
+    /// Four of the six are the same tune. <see cref="LooseGate"/> is the gate that actually gets
+    /// driven on the rig, and <see cref="Gate"/>, the 5+R copy of it, <see cref="ShortThrow"/> and
+    /// the truck preset all start there; they differ by <em>where the slot ends</em> - and, for
+    /// the truck, by which gap its lockout guards - and by nothing else. That is deliberate, and
+    /// it is a correction: the two H profiles used to carry an older, firmer tune with every
+    /// stabiliser off, which reads well on paper and is jerky in the hand. A shipped profile is a
+    /// recommendation, so all four now make the same one, and the choice a user makes between
+    /// them is a pattern, a throw length and a lockout rather than a quality of gate.
     /// </para>
     /// <para>
     /// These numbers were measured, not chosen. They are the tuning of the rig this plugin was
@@ -63,10 +64,11 @@ namespace AB9ActiveShifter
         public const string FiveRName = "5+R";
         public const string SequentialName = "Sequential";
         public const string PrndName = "Automatic (PRND)";
+        public const string TruckName = "Truck 6-gear (low-range lockout)";
 
         private static readonly string[] BareNames =
         {
-            SevenRName, ShortThrowName, FiveRName, SequentialName, PrndName
+            SevenRName, ShortThrowName, FiveRName, SequentialName, PrndName, TruckName
         };
 
         /// <summary>The profile a fresh install comes up in.</summary>
@@ -128,13 +130,25 @@ namespace AB9ActiveShifter
             ShifterSettings fiveR = SettingsCloner.Clone(sevenR);
             fiveR.Pattern = GatePattern.H5R;
 
+            // The truck box, issue #28's request: six plain slots on buttons 1-6 and a gate
+            // between the first two columns, guarding the way DOWN into the low range. One-way
+            // on entry, because the danger is wandering into the creep gears at speed while
+            // pulling OUT of low range is the routine 2-3 upshift - the same semantics as the
+            // proven 7/R gate, mirrored onto the other end of the box. Every force dial is the
+            // 7+R tune; only the pattern and the gate's place and direction differ.
+            ShifterSettings truck = SettingsCloner.Clone(sevenR);
+            truck.Pattern = GatePattern.H6;
+            truck.LockoutPlacement = LockoutPlacement.Gap1;
+            truck.LockoutGapDirection = LockoutGapDirection.TowardLow;
+
             return new List<ShifterProfile>
             {
                 new ShifterProfile { Name = Preset(SevenRName), Settings = sevenR },
                 new ShifterProfile { Name = Preset(ShortThrowName), Settings = ShortThrow() },
                 new ShifterProfile { Name = Preset(FiveRName), Settings = fiveR },
                 new ShifterProfile { Name = Preset(SequentialName), Settings = Sequential() },
-                new ShifterProfile { Name = Preset(PrndName), Settings = Automatic() }
+                new ShifterProfile { Name = Preset(PrndName), Settings = Automatic() },
+                new ShifterProfile { Name = Preset(TruckName), Settings = truck }
             };
         }
 

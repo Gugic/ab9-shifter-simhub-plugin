@@ -172,6 +172,9 @@ namespace AB9ActiveShifter
             _engine.GearChanged -= OnGearChanged;
             _engine.GearChanged += OnGearChanged;
 
+            _engine.LockoutEngagedChanged -= OnLockoutEngagedChanged;
+            _engine.LockoutEngagedChanged += OnLockoutEngagedChanged;
+
             _engine.CalibrationCompleted -= OnCalibrationCompleted;
             _engine.CalibrationCompleted += OnCalibrationCompleted;
 
@@ -312,6 +315,7 @@ namespace AB9ActiveShifter
             if (engine != null)
             {
                 engine.GearChanged -= OnGearChanged;
+                engine.LockoutEngagedChanged -= OnLockoutEngagedChanged;
                 engine.CalibrationCompleted -= OnCalibrationCompleted;
                 engine.CalibrationFinished -= OnCalibrationFinished;
                 engine.PedalCaptureCompleted -= OnPedalCaptureCompleted;
@@ -815,9 +819,29 @@ namespace AB9ActiveShifter
             this.AttachDelegate("StickY", () => Snapshot().Y);
             this.AttachDelegate("LoopHz", () => (int)Math.Round(Snapshot().LoopHz));
             this.AttachDelegate("StatusMessage", () => Snapshot().StatusMessage);
+            this.AttachDelegate("LockoutEngaged", () => Snapshot().LockoutEngaged);
 
             this.AddEvent("GearEngaged");
             this.AddEvent("GearReleased");
+            this.AddEvent("LockoutEngaged");
+            this.AddEvent("LockoutReleased");
+        }
+
+        /// <summary>
+        /// Mirrors the engine's lockout state into SimHub events, so a dashboard can flash a
+        /// range-lock light. Same defensive shape as the gear event: this runs on whichever
+        /// thread flipped the state, and an event handler must not take that thread down.
+        /// </summary>
+        private void OnLockoutEngagedChanged(bool engaged)
+        {
+            try
+            {
+                this.TriggerEvent(engaged ? "LockoutEngaged" : "LockoutReleased");
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorThrottled("lockout-event", "Lockout event handler threw", ex);
+            }
         }
 
         private void RegisterActions()
@@ -839,6 +863,29 @@ namespace AB9ActiveShifter
             // sessions, or between cars, without reaching for a mouse.
             this.AddAction("NextProfile", (a, b) => CycleProfile(1));
             this.AddAction("PreviousProfile", (a, b) => CycleProfile(-1));
+
+            // The hard lockout's keys. Toggle is the one-button binding; the explicit pair
+            // exists for a two-position switch, which an edge-triggered toggle would desync
+            // the first time a profile switch re-engaged the gate under it. All three are
+            // no-ops unless a hard mode is configured, and deliberately touch no settings -
+            // the engaged state is runtime, like free stick, never persisted.
+            this.AddAction("ToggleLockout", (a, b) =>
+            {
+                ShifterEngine engine = _engine;
+                if (engine != null) engine.ToggleLockoutRelease();
+            });
+
+            this.AddAction("EngageLockout", (a, b) =>
+            {
+                ShifterEngine engine = _engine;
+                if (engine != null) engine.SetLockoutReleased(false);
+            });
+
+            this.AddAction("ReleaseLockout", (a, b) =>
+            {
+                ShifterEngine engine = _engine;
+                if (engine != null) engine.SetLockoutReleased(true);
+            });
         }
 
         private static EngineSnapshot Snapshot()

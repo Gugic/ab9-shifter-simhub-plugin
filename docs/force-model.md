@@ -51,11 +51,34 @@ The barriers themselves:
 - *Ordinary humps* between columns 1–3: `strength · u · exp(0.5 − 0.5u²)` where `u` is distance
   from the crest over the hump width. Zero at the crest, peaking at the width, fading beyond —
   smooth everywhere, so there is no step to chatter against, and it releases once you are through.
-- *The lockout gate* guarding 7/R: a compact band of **flat, one-way** force pushing back toward
-  the main gears the entire way across, with a short face at each end and free travel beyond.
-  Flat because gradients ring. One-way because the over-centre version it replaced *refunded*
-  energy (see below). Its width × force is the **toll** a crossing must pay, at any speed. It
-  follows `MirrorColumns`, guarding whichever gap 7/R actually lives behind.
+- *The lockout gate*: a compact band of **flat** force with a short face at each end and free
+  travel beyond, guarding whichever gap the placement dial points it at (the default resolves to
+  the traditional 7/R gap on 7+R and 6+R, and to nothing elsewhere). Flat because gradients ring.
+  One-way by default because the over-centre version it replaced *refunded* energy (see below):
+  the constant sign comes from the resolved direction — `TowardHigh` is the classic gate,
+  `TowardLow` the same gate facing the other way. Its width × force is the **toll** a crossing
+  must pay, at any speed. Placement is stated in map gaps, so `MirrorColumns` relocates the gate
+  with the gears — the same rule that moves 6+R's missing slot.
+
+  **Both directions** cannot be a position-only field: a conservative field refunds one crossing
+  whatever it charges the other, which is the flick-through measured on the over-centre gate,
+  derived instead of felt. The Both gate therefore takes its sign from an **edge-flip side
+  latch**: force pushes back toward the side the lever entered from, and the side re-derives only
+  while the lever is *outside* the band — so it can flip only after a complete crossing, at a
+  position where the band's own faces already have the force at zero. A retreat re-derives the
+  same side (nothing refunded), full-band hysteresis means tremor on an edge has nothing to relay
+  (the force there is zero), and the latch updates at every depth so a dive under the band owes
+  the return toll on surfacing.
+
+  **The hard modes** pin the band to 100% — through `EffectiveGain`, the 10% polarity cap
+  included, never around it — and hand the key to a bound action instead of the hand: release
+  drops the band the same tick (a release, which the time shaping passes instantly by design),
+  and the guarded gears are *refused* while the gate is armed, through the grind's own
+  `allowEngage` path (see the invariants: refusal blocks a new latch and nothing else). Arming
+  over a lever inside the band **holds fire until the lever is clear**, where the shape is zero
+  by construction — with the attack off by default, nothing else would soften a band
+  materialising under the hand. The auto re-arm variant closes the gate itself when the released
+  crossing completes — the side latch landing opposite the grant — and never before.
 
   Its faces live **inside** the declared band, so the gate never reaches past its own width, and
   they are capped at half the width so a flat core always survives. They used to overhang the band
@@ -64,13 +87,31 @@ The barriers themselves:
   resting on a column.
 
   **It places itself** (`GateGeometry.LockoutCentre`): its inner face begins exactly where the
-  last main-section column's band ends, rather than at the midpoint of the gap. The midpoint
-  version left ~8700 counts of dead travel between 5/6 and the gate, and that gap was a usability
-  trap — the hand stops where the gate stops it, assumes it has arrived at a column, and finds
-  that pushing fore or aft neither engages a gear nor explains why. With the gate against the
-  column, meeting it means 5/6 is directly behind you, and releasing lets the guide park you on
-  it. The width is clamped to the room available so an extreme setting cannot swallow either
-  column's band.
+  approach-side column's band ends — the column the paying crossing comes from, with the wider of
+  that column's exit and free bands as clearance, because Gap1's approach is an edge column whose
+  free band is wider than the exit dial. The midpoint version left ~8700 counts of dead travel
+  between 5/6 and the gate, and that gap was a usability trap — the hand stops where the gate
+  stops it, assumes it has arrived at a column, and finds that pushing fore or aft neither engages
+  a gear nor explains why. With the gate against the column, meeting it means the column is
+  directly behind you, and releasing lets the guide park you on it. A Both gate sits on the gap's
+  midpoint instead — ownership hands over there whatever the gate does, so anchoring it to either
+  column would leave the other direction's return a free strip ending in a selectable column. The
+  width is clamped to the room available so an extreme setting cannot swallow either column's
+  band, and an impossible placement is repaired and *reported* (`LockoutPlacementRepaired`), never
+  obeyed blindly and never silent.
+
+- *The slot lockout* (`LockoutPlacement.Slot`): one gear's mouth given a toll of its own, spending
+  the profile's single lockout on a slot instead of a gap (crests then stay at their midpoints).
+  Both push-through shapes are **bands whose edges land where the detent is doing nothing
+  unusual**, so no single count of depth steps the stroke: the entry fight is spent entirely
+  before the crossover begins — the point where a gear starts to feel taken must not move, and the
+  snick arrives whole — and the exit toll is a band between the crossover and the seat, so a
+  seated gear rests in a free region rather than under a permanent extra load pressing it into the
+  stop (which is also what makes arming a hard exit over a seated gear step-free). The honest side
+  effect is the one-way toll's own character: entering crosses the exit band too and is assisted,
+  leaving costs. The hard entry mode is the grind's balk re-keyed — the detent becomes a border,
+  rendered by the identical muted curve — and where the grind and the lockout overlap the taller
+  wall wins, **max not sum**: one border, one attack, one yield floor.
 
 ### Slot mouths
 
@@ -419,8 +460,15 @@ continues across. Keying a force on direction is safe in exactly one place, and 
 fore/aft force crosses zero at the channel centre, so the switch between the two directions'
 factors happens where there is no force to step. The mouth shaping skips a missing slot for the
 same reason, and the state machine refuses to latch it, so map, wall and logic agree. 5+R needs
-none of this — it is simply three columns spread over the full axis, with no lockout and every
-barrier crest at its gap's midpoint.
+none of this — it is simply three columns spread over the full axis, with no lockout by default
+and every barrier crest at its gap's midpoint.
+
+**The truck 6.** The 5+R gate with the reverse branch removed from the gear map: six plain slots
+on buttons 1–6, nothing anywhere returning gear 8, and every downstream fact — slot existence,
+walls, mouths, state machine — derived from that one change. It exists for Eaton-Fuller-style
+boxes: give it the configurable lockout between the first two columns, paying on the way down
+into the low range, and the shipped `Truck 6-gear (low-range lockout)` preset is exactly that.
+The game decides what each button means; the pattern makes no reverse claim at all.
 
 **Sequential.** No gate at all: the lever is railed to the lateral centre and sprung home
 fore/aft. The "spring" is not a DirectInput spring — those cannot hold a lever on this base (see
@@ -491,6 +539,19 @@ There is no neutral, no travelling and no engage debounce. A selector lever is a
 one position, so `PrndStateMachine` holds an index and only ever hands it to another; the chatter
 protection is the crest hysteresis, which — unlike a tick count — works for a hand resting on a
 boundary indefinitely, the case that actually happens.
+
+**The lane's lockout.** One chosen gap — P–R for an out-of-park interlock, R–N for a reverse
+guard, N–D — can carry a gate band that **replaces** that gap's cosine hump, the exact precedent
+of the H gate's own dispatch. It is centred on the gap's crest and its width is clamped to end
+before both neighbouring notch edges (`PrndLockoutHalfWidthCeiling`, reported on the Feel tab):
+a position stays a free region whatever is asked for. The crest deliberately carries the band's
+flat core — that *is* the toll — and the nearest-position flip there is free for the band because
+it is one continuous function of the crest offset, not a nearest-field. The gap is label-relative,
+so `MirrorSlots` moves the lockout with P, R, N and D, the same rule that keeps each position's
+button on its label; direction and the hard modes run the same machinery as the H gate, edge-flip
+latch and hold-fire arming included. The one deliberate difference: **the lane's lockout never
+touches the selector's state machine, hard mode included** — force is its whole answer, because a
+blocked handover would report a position the lever is not in.
 
 ## The four stabilising mechanisms
 
@@ -723,7 +784,7 @@ thousands if the clamp goes back to `+ 1`.
 
 The floor is not only a rescue, and that is worth knowing before reading a stored profile as what
 runs. It is applied unconditionally — `Math.Max(exit, enter + MinBandSpan)` — so a *valid* pair
-narrower than 1000 counts is widened too. The three shipped H profiles are exactly that case: they
+narrower than 1000 counts is widened too. The four shipped H profiles are exactly that case: they
 carry the rig's measured 3268/4051, a gap of 783, and the geometry renders 3268/4268. Their tunnel
 gradient is therefore 10 DI per axis count, sitting on the floor, against the 3.8 of the older
 2600/5200 gate these profiles used to ship with. That is the tune that gets driven and it is not a
@@ -864,6 +925,13 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **An absorber that follows the speed estimate both ways** | The estimate's ripple swept the yield scale across its blend range at 250–500 Hz: a 25–50% force ripple felt as *grinding against a running gear* the moment the lever moved under pressure — instantly, needing no oscillation to start. Cuts stay instant; recovery is slewed over `YieldRecoveryMs`. More EMA smoothing instead was considered and rejected: smoothing is phase lag at every frequency, and lag is force given back after the launch the yield exists to catch, while the window nulls the one artifact frequency outright. |
 | **A yield deadband at sensor-noise level** (1500 counts/s) | Tremor is bigger than sensor noise: a hand holding against force reverses at up to ~3700 counts/s, so every reversal of a lean fired a fresh cut and the absorber became a relay — no equilibrium for any lean between the floor and the wall, because the force flipped between two values across zero velocity. Traced as 26 Hz / 8155 DI chatter held in a slot and a 12 Hz rebound spat off the lockout in 20000-count swings. The deadband is a lean-or-launch classifier and sits above hand-adjustment speed (10000), not above noise. |
 | **Restoring the wall whole inside the deadband** | The naive form of raising the deadband. The speed estimate dips below any threshold for a tick at the report rate, and returning full force on the dip strobes a held cut across the whole yield span at 250–500 Hz — the gear-teeth texture, reopened from the other side. Inside the deadband the force is the *held scale*, one continuous value in velocity, whichever way tremor points. |
+| **A bidirectional toll as a position-only field** | Impossible, not merely hard: over one traversal of any position-only force, the work out is the negative of the work back, so both crossings cannot cost energy. The symmetric repeller variant is exactly the rejected over-centre gate (resist to the crest, fling after). The Both gate's sign rides the edge-flip side latch instead, which only flips where the band is already zero. |
+| **Keying the Both gate's sign on the guide column** | The guide hands over at the crest — mid-band — so the sign would flip halfway across and refund the second half of every crossing: the over-centre gate rebuilt out of hysteresis. The side latch flips at the band's *edge*, where the force is zero, so a crossing pays in full. |
+| **Refusal read off the live side latch** | An overpowered crossing flips the latch the moment the band is exited — refusal keyed on it would lift exactly when the fight was won. The permitted side is captured when the key turns and changed only by the next arming edge. |
+| **Persisting the hard lockout's engaged flag in settings** | The session-flag lesson re-learned before the bug this time: a keypress would fork the active preset (IsTuning sees an ordinary property), churn the debounced save on every press, and stamp a stale answer back on the next activation. It is engine runtime state, like free stick, re-engaging on every start and gate-moving config change. |
+| **A hard slot lockout that deepens the seated hold** | "Locked in gear" as a permanent extra load presses the gear into its stop all day and makes arming over a seated lever a full-strength step at depth, where the detent path has no attack. The exit toll is a band between crossover and seat instead: the seat stays a free region, arming there is force-free, and the toll is met on the way out. |
+| **Blocking the PRND selector's state in hard mode** | A selector must always hold exactly one position and its buttons follow the lever; a blocked handover would report a position the lever is not in — a lie to the game with a transmission attached. The lane's lockout is force only in every mode. |
+| **Summing the grind wall and the hard slot balk** | A border is not taller for having two reasons, and two stacked walls would mean two attacks and two yield floors fighting over one force. The muted stack takes the max of the two. |
 
 The shape of the whole search, in one sentence: **soft gradient = stable but mush; stiff gradient =
 buzz; pure step = hammer.** Every fix that worked moved the problem out of the position gradient

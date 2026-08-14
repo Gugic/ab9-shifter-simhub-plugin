@@ -241,19 +241,29 @@ reported from the settings page as "settings won't save".
 ## SimHub surface
 
 Properties: `CurrentGear`, `GearIndex`, `InGear`, `GateState`, `GateColumn`, `StickX`, `StickY`,
-`DeviceConnected`, `DeviceName`, `VJoyConnected`, `LoopHz`, `StatusMessage`.
-Events: `GearEngaged`, `GearReleased`. Actions: `ToggleShifterFFB`, `ReleaseAllGears`.
+`DeviceConnected`, `DeviceName`, `VJoyConnected`, `LoopHz`, `StatusMessage`, `LockoutEngaged`.
+Events: `GearEngaged`, `GearReleased`, `LockoutEngaged`, `LockoutReleased`.
+Actions: `ToggleShifterFFB`, `ReleaseAllGears`, `NextProfile`, `PreviousProfile`,
+`ToggleLockout`, `EngageLockout`, `ReleaseLockout`.
 
 `LoopHz` is measured from real tick intervals, not echoed from the setting — it is the honest check
 that the loop is keeping up.
 
-UI tabs: **Setup** (profile & pattern, status, enable, free stick, pre-flight checklist, polarity
-calibration, manual overrides, gear layout), **Feel** (master gain, gate walls, sliding across the
-gate, slot detent), **Effects** (the telemetry effects: grind, engine vibration, limiter, ABS/TC,
-curbs, shift pulse, custom property — each with enable, volume and frequency), **Geometry** (force
-shaping, hysteresis bands, vJoy device, loop rate, resets), **Monitor** (live drawing of the
-configured pattern — missing slots left blank, the lockout shaded where the geometry puts it, or
-the sequential track).
+The hard lockout's engaged state is engine runtime, not a setting: a volatile level set from
+SimHub's action thread and read once per tick (the free-stick shape), so a keypress cannot fork a
+preset or churn the debounced save. It re-engages on every start and every gate-moving or
+mode-changing config swap; the composer consumes it beside `muteDetent`, and the refusal reaches
+the state machine through the grind's own `allowEngage` argument, one tick stale like the grind.
+
+UI tabs: **Setup** (profile & pattern, status, enable with the lockout's keys, free stick,
+pre-flight checklist, polarity calibration, manual overrides, gear layout), **Feel** (master gain,
+gate walls, sliding across the gate with the lockout's position, direction and mode, the PRND
+lane with its own lockout block, slot detent), **Effects** (the telemetry effects: grind, engine
+vibration, limiter, ABS/TC, curbs, shift pulse, custom property — each with enable, volume and
+frequency), **Geometry** (force shaping, hysteresis bands, vJoy device, loop rate, resets),
+**Monitor** (live drawing of the configured pattern — missing slots left blank, the lockout
+shaded where the geometry puts it and dimmed while a hard gate is released, or the sequential
+track).
 
 ## Build
 

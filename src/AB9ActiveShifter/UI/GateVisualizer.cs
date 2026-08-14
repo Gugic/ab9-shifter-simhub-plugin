@@ -79,7 +79,7 @@ namespace AB9ActiveShifter.UI
 
             // Bottom to top: territory, then the gate itself, then what the state machine keys on.
             DrawOwnershipBoundaries(dc, geo, left, right, top, bottom);
-            DrawLockoutBand(dc, geo, left, right, top, bottom);
+            DrawLockoutBand(dc, geo, snap, left, right, top, bottom);
             DrawFreeSpace(dc, geo, composer, snap, left, right, top, bottom);
             DrawTunnelExitEdges(dc, geo, left, right, top, bottom);
             DrawColumns(dc, geo, snap, left, right, top, bottom);
@@ -385,8 +385,15 @@ namespace AB9ActiveShifter.UI
         /// in the slots where there is none - and it buried the 7/R geometry behind it besides.
         /// The gradient is that fade: full across the tunnel's enter band, gone by its exit band.
         /// </summary>
-        private void DrawLockoutBand(DrawingContext dc, GateGeometry geo, double left, double right, double top, double bottom)
+        private void DrawLockoutBand(DrawingContext dc, GateGeometry geo, EngineSnapshot snap,
+                                     double left, double right, double top, double bottom)
         {
+            if (geo.LockoutIsSlot)
+            {
+                DrawSlotLockoutMark(dc, geo, snap, left, right, top, bottom);
+                return;
+            }
+
             if (!geo.HasLockout) return;
 
             double from = MapX(geo.LockoutCentre - geo.LockoutHalfWidth, left, right);
@@ -399,10 +406,14 @@ namespace AB9ActiveShifter.UI
             double holdsFrom = GateGeometry.Clamp(
                 0.5 * (1.0 - geo.ChannelHalfEnter / (double)Math.Max(1, geo.ChannelHalfExit)), 0.0, 0.5);
 
+            // Runtime state from the snapshot, the same category as the stick dot: a released
+            // hard gate exerts nothing, and the band dims to say so.
+            byte alpha = snap != null && !snap.LockoutEngaged ? (byte)0x20 : (byte)0x4A;
+
             var fade = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
             fade.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0xE8, 0x8A, 0x1A), 0));
-            fade.GradientStops.Add(new GradientStop(Color.FromArgb(0x4A, 0xE8, 0x8A, 0x1A), holdsFrom));
-            fade.GradientStops.Add(new GradientStop(Color.FromArgb(0x4A, 0xE8, 0x8A, 0x1A), 1 - holdsFrom));
+            fade.GradientStops.Add(new GradientStop(Color.FromArgb(alpha, 0xE8, 0x8A, 0x1A), holdsFrom));
+            fade.GradientStops.Add(new GradientStop(Color.FromArgb(alpha, 0xE8, 0x8A, 0x1A), 1 - holdsFrom));
             fade.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0xE8, 0x8A, 0x1A), 1));
             fade.Freeze();
 
@@ -410,8 +421,33 @@ namespace AB9ActiveShifter.UI
             dc.DrawLine(LockoutEdgePen, new Point(from, bandTop), new Point(from, bandBottom));
             dc.DrawLine(LockoutEdgePen, new Point(to, bandTop), new Point(to, bandBottom));
 
-            FormattedText text = Text("LOCKOUT", 10, LockoutEdgeBrush);
+            bool released = snap != null && !snap.LockoutEngaged;
+            FormattedText text = Text(released ? "LOCKOUT (released)" : "LOCKOUT", 10, LockoutEdgeBrush);
             dc.DrawText(text, new Point(from + 4, bandTop - text.Height - 3));
+        }
+
+        /// <summary>
+        /// A slot lockout has no band on the tunnel - its toll lives in one slot's stroke - so
+        /// the plan view marks the guarded mouth instead: the same orange, on the geometry's
+        /// own answer for which slot is guarded, never a second copy of the resolution.
+        /// </summary>
+        private void DrawSlotLockoutMark(DrawingContext dc, GateGeometry geo, EngineSnapshot snap,
+                                         double left, double right, double top, double bottom)
+        {
+            int target = geo.ColumnTarget(geo.LockoutSlotColumn);
+            int half = geo.ColumnFreeHalfWidth(geo.LockoutSlotColumn);
+            bool fwd = geo.LockoutSlotDir == ShiftDir.Fwd;
+
+            double from = MapX(target - half, left, right);
+            double to = MapX(target + half, left, right);
+            double mouth = MapY(fwd ? AxisCenter - geo.ChannelHalfExit : AxisCenter + geo.ChannelHalfExit, top, bottom);
+
+            dc.DrawLine(LockoutEdgePen, new Point(from, mouth), new Point(to, mouth));
+
+            bool released = snap != null && !snap.LockoutEngaged;
+            FormattedText text = Text(released ? "LOCKOUT (released)" : "LOCKOUT", 10, LockoutEdgeBrush);
+            double textY = fwd ? mouth - text.Height - 3 : mouth + 3;
+            dc.DrawText(text, new Point(Math.Max(left, from), textY));
         }
 
         /// <summary>

@@ -34,7 +34,7 @@ namespace AB9ActiveShifter.Core
 
         public GatePattern Pattern { get; private set; }
 
-        /// <summary>How many columns this pattern has. Three for 5+R, four otherwise.</summary>
+        /// <summary>How many columns this pattern has. Three for 5+R and the truck 6, four otherwise.</summary>
         public int ColumnCount { get; private set; }
 
         /// <summary>
@@ -47,7 +47,12 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int ReverseGear { get; private set; }
 
-        /// <summary>Whether this pattern has a push-through gate before its last column.</summary>
+        /// <summary>
+        /// Whether a lockout gate guards one of this gate's gaps. No longer a fact of the
+        /// pattern alone: the placement dial decides, and its default hands each pattern what
+        /// it has always shipped with. False for a Slot placement - a slot lockout is a
+        /// fore/aft force at one mouth, and every barrier crest stays at its gap's midpoint.
+        /// </summary>
         public bool HasLockout { get; private set; }
 
         private readonly int[] _targets;
@@ -66,16 +71,49 @@ namespace AB9ActiveShifter.Core
 
         /// <summary>
         /// Where the lockout gate sits. Not the midpoint of the gap: the gate is placed just
-        /// outside the band of the last main-section column, so sliding across the gate finds
-        /// the gate immediately rather than after a long stretch of dead travel. That dead
-        /// travel was a usability trap - the hand stops where the gate stops it, assumes it has
-        /// arrived at a column, and finds that pushing fore or aft neither engages a gear nor
-        /// explains why.
+        /// outside the band of the approach-side column - the one the paying crossing comes
+        /// from - so sliding across the gate finds the gate immediately rather than after a
+        /// long stretch of dead travel. That dead travel was a usability trap - the hand stops
+        /// where the gate stops it, assumes it has arrived at a column, and finds that pushing
+        /// fore or aft neither engages a gear nor explains why. A Both-direction gate has no
+        /// single approach side and sits on the midpoint instead: anchoring it to either column
+        /// would leave the other direction's return crossing a free path through the dead-travel
+        /// strip, because ownership hands over at the midpoint whatever the gate does.
         /// </summary>
         public int LockoutCentre { get; private set; }
 
-        /// <summary>Which gap the lockout guards. Mirroring moves 7/R to the other end.</summary>
+        /// <summary>Which device gap the lockout guards. Map-relative placement, so mirroring moves it with the gears.</summary>
         public int LockoutGapIndex { get; private set; }
+
+        /// <summary>The placement as configured, before any repair.</summary>
+        public LockoutPlacement RequestedLockoutPlacement { get; private set; }
+
+        /// <summary>
+        /// The placement actually built: PatternDefault resolved to a real gap or Off, an
+        /// impossible gap clamped to the last one, a slot the pattern does not hold turned Off.
+        /// </summary>
+        public LockoutPlacement EffectiveLockoutPlacement { get; private set; }
+
+        /// <summary>True when the effective placement is not the requested one, so the UI can say so.</summary>
+        public bool LockoutPlacementRepaired { get; private set; }
+
+        /// <summary>Which crossing of the guarded gap pays. Meaningful only when <see cref="HasLockout"/>.</summary>
+        public LockoutGapDirection LockoutDirection { get; private set; }
+
+        /// <summary>
+        /// Device-x sign of the blocked crossing: +1 when the toll is paid moving toward +X,
+        /// -1 toward -X, 0 for a Both gate (the composer's latch decides per crossing).
+        /// </summary>
+        public int LockoutBlockSign { get; private set; }
+
+        /// <summary>Whether the lockout guards a single slot's mouth instead of a gap.</summary>
+        public bool LockoutIsSlot { get; private set; }
+
+        /// <summary>The guarded slot's column, or None. Resolved through the gear map, so mirroring moves it.</summary>
+        public Column LockoutSlotColumn { get; private set; }
+
+        /// <summary>The guarded slot's direction, or None.</summary>
+        public ShiftDir LockoutSlotDir { get; private set; }
 
         /// <summary>Distance between adjacent columns.</summary>
         public int ColumnSpacing { get { return AxisMax / (ColumnCount - 1); } }
@@ -107,15 +145,14 @@ namespace AB9ActiveShifter.Core
             int detentHysteresis,
             bool mirrorColumns = false,
             bool mirrorSlots = false,
-            GatePattern pattern = GatePattern.H7R)
+            GatePattern pattern = GatePattern.H7R,
+            LockoutPlacement lockoutPlacement = LockoutPlacement.PatternDefault,
+            LockoutGapDirection lockoutDirection = LockoutGapDirection.TowardHigh,
+            int lockoutSlotGear = 8)
         {
             Pattern = pattern;
-            ColumnCount = pattern == GatePattern.H5R ? 3 : 4;
+            ColumnCount = pattern == GatePattern.H5R || pattern == GatePattern.H6 ? 3 : 4;
             ReverseGear = 8;
-
-            // 5+R has no lockout by design, and Sequential has no gate at all; the geometry
-            // stays well-formed either way so nothing downstream needs a null check.
-            HasLockout = pattern == GatePattern.H7R || pattern == GatePattern.H6R;
 
             MirrorColumns = mirrorColumns;
             MirrorSlots = mirrorSlots;
@@ -152,51 +189,186 @@ namespace AB9ActiveShifter.Core
                 _targets[i] = (int)Math.Round(i * (double)AxisMax / (ColumnCount - 1));
             }
 
-            PlaceLockout(lockoutHalfWidth);
+            PlaceLockout(lockoutHalfWidth, lockoutPlacement, lockoutDirection, lockoutSlotGear);
         }
 
         /// <summary>
-        /// Positions the lockout gate against the last main-section column, and clamps its width
-        /// to the room actually available between that column's band and the reverse column's, so
-        /// an extreme setting cannot swallow either. A pattern without a lockout gets no gap at
-        /// all: every barrier crest is its gap's midpoint, so the watershed and handover windows
-        /// sit where the geometry says they should instead of being displaced by a gate that
-        /// exerts nothing.
+        /// Resolves the placement dial into an actual gate, and positions it. PatternDefault
+        /// hands each pattern what it always shipped with - 7+R and 6+R guard their last gap,
+        /// the rest have none - which is what keeps a configuration that predates the dial
+        /// behaving exactly as it always did. An impossible request is repaired, never obeyed
+        /// blindly and never thrown on: a gap the pattern does not have clamps to its last gap
+        /// (the user asked for a lockout; silently having none is the bigger surprise), and a
+        /// slot gear the pattern does not hold turns the lockout off (there is no nearest
+        /// sensible gear). Repairs are reported through <see cref="LockoutPlacementRepaired"/>
+        /// so the UI can say so instead of the geometry lying quietly.
+        ///
+        /// A gap gate is positioned against the approach-side column - the one the paying
+        /// crossing comes from - and its width is clamped to the room actually available so an
+        /// extreme setting cannot swallow either column's band. A pattern without a lockout
+        /// gets no gap at all: every barrier crest is its gap's midpoint, so the watershed and
+        /// handover windows sit where the geometry says they should instead of being displaced
+        /// by a gate that exerts nothing.
         /// </summary>
-        private void PlaceLockout(int requestedHalfWidth)
+        private void PlaceLockout(int requestedHalfWidth, LockoutPlacement placement,
+            LockoutGapDirection direction, int slotGear)
         {
+            RequestedLockoutPlacement = placement;
+            LockoutDirection = direction;
+            LockoutSlotColumn = Column.None;
+            LockoutSlotDir = ShiftDir.None;
+
+            LockoutPlacement resolved = placement;
+            if (placement == LockoutPlacement.PatternDefault)
+            {
+                // The position each pattern has always had; the direction dial still applies,
+                // and its own default is the one-way gate 7+R has always been.
+                resolved = Pattern == GatePattern.H7R || Pattern == GatePattern.H6R
+                    ? LockoutPlacement.Gap1 + (ColumnCount - 2)
+                    : LockoutPlacement.Off;
+            }
+
+            if (resolved == LockoutPlacement.Slot)
+            {
+                Column slotColumn;
+                ShiftDir slotDir;
+                if (TryFindSlot(slotGear, out slotColumn, out slotDir))
+                {
+                    LockoutIsSlot = true;
+                    LockoutSlotColumn = slotColumn;
+                    LockoutSlotDir = slotDir;
+                }
+                else
+                {
+                    // No such gear in this pattern - gear 7 on 6+R, or R on the truck gate.
+                    resolved = LockoutPlacement.Off;
+                    LockoutPlacementRepaired = true;
+                }
+            }
+
+            int mapGap = -1;
+            if (resolved >= LockoutPlacement.Gap1 && resolved <= LockoutPlacement.Gap3)
+            {
+                mapGap = resolved - LockoutPlacement.Gap1;
+                if (mapGap > ColumnCount - 2)
+                {
+                    mapGap = ColumnCount - 2;
+                    LockoutPlacementRepaired = true;
+                }
+                resolved = LockoutPlacement.Gap1 + mapGap;
+            }
+
+            EffectiveLockoutPlacement = resolved;
+            HasLockout = mapGap >= 0;
+
             if (!HasLockout)
             {
                 LockoutGapIndex = -1;
                 LockoutHalfWidth = 0;
+                LockoutBlockSign = 0;
                 LockoutCentre = (_targets[ColumnCount - 2] + _targets[ColumnCount - 1]) / 2;
                 return;
             }
 
-            LockoutGapIndex = MirrorColumns ? 0 : ColumnCount - 2;
+            // Placement is stated in map gaps so mirroring relocates the gate with the gears -
+            // the same rule that moves 6+R's missing slot. The traditional last-gap gate falls
+            // out of this as the mapGap = ColumnCount-2 case.
+            LockoutGapIndex = MirrorColumns ? ColumnCount - 2 - mapGap : mapGap;
 
-            Column main = (Column)(MirrorColumns ? 1 : ColumnCount - 2);
-            Column locked = (Column)(MirrorColumns ? 0 : ColumnCount - 1);
-            int sign = MirrorColumns ? -1 : 1;
+            // The approach column is the one the paying crossing comes from: the lower-gear
+            // column of the gap for TowardHigh (today's "main"), the higher-gear column for
+            // TowardLow. Both has no single approach side and is handled below.
+            int lowMapColumn = mapGap;
+            int highMapColumn = mapGap + 1;
+            Column approach = (Column)DeviceColumn(direction == LockoutGapDirection.TowardLow
+                ? highMapColumn : lowMapColumn);
+            Column other = (Column)DeviceColumn(direction == LockoutGapDirection.TowardLow
+                ? lowMapColumn : highMapColumn);
+            int sign = _targets[(int)other] > _targets[(int)approach] ? 1 : -1;
+            LockoutBlockSign = direction == LockoutGapDirection.Both ? 0 : sign;
 
-            int clearance = ColumnExitHalfWidth(main);
-            int room = Math.Abs(_targets[(int)locked] - _targets[(int)main])
-                       - clearance - ColumnFreeHalfWidth(locked);
+            int midpoint = (_targets[(int)approach] + _targets[(int)other]) / 2;
+
+            if (direction == LockoutGapDirection.Both)
+            {
+                // Centred on the midpoint, the one place both crossings pay symmetrically:
+                // ownership (ColumnAt) hands over there whatever the gate does, so a band
+                // anchored to either column would leave the other direction's approach a free
+                // strip that ends in a selectable column. Width clamped to clear both columns'
+                // bands, each with the wider of its exit and free half-widths.
+                int roomLow = midpoint - _targets[Math.Min((int)approach, (int)other)]
+                              - AnchorClearance((Column)Math.Min((int)approach, (int)other));
+                int roomHigh = _targets[Math.Max((int)approach, (int)other)]
+                               - AnchorClearance((Column)Math.Max((int)approach, (int)other)) - midpoint;
+
+                LockoutHalfWidth = Clamp(requestedHalfWidth, 200,
+                    Math.Max(200, Math.Min(roomLow, roomHigh)));
+                LockoutCentre = midpoint;
+                return;
+            }
+
+            // One-way: the band starts exactly where the approach column's band ends, so the
+            // toll is met immediately with no dead travel. The clearance takes the wider of the
+            // column's exit and free half-widths: for an interior column those agree (the exit
+            // band is repaired to be the looser), but Gap1's approach is an edge column whose
+            // free band is wider than the exit dial, and starting the toll inside a column's
+            // own lined-up band is the "hard bump where the hand rests" failure the
+            // inside-the-band faces already fixed once.
+            int clearance = AnchorClearance(approach);
+            int room = Math.Abs(_targets[(int)other] - _targets[(int)approach])
+                       - clearance - ColumnFreeHalfWidth(other);
 
             LockoutHalfWidth = Clamp(requestedHalfWidth, 200, Math.Max(200, room / 2));
-            LockoutCentre = _targets[(int)main] + (sign * (clearance + LockoutHalfWidth));
+            LockoutCentre = _targets[(int)approach] + (sign * (clearance + LockoutHalfWidth));
 
-            // The crest must stay in the main section's half of the gap. Ownership hands the
-            // locked column over at the gap's midpoint (see ColumnAt), so a crest sitting past
-            // that midpoint would leave positions that belong to 7/R but are short of the gate -
-            // and a push out of the tunnel there would select 7/R without the toll ever being
-            // paid. It cannot happen at the shipped bands, only if the clearance dial is driven
-            // wider than the reverse column's own free width, which is exactly the kind of
-            // setting a repair exists for.
-            int midpoint = (_targets[(int)main] + _targets[(int)locked]) / 2;
-            LockoutCentre = MirrorColumns
-                ? Math.Max(LockoutCentre, midpoint + 1)
-                : Math.Min(LockoutCentre, midpoint - 1);
+            // The crest must stay in the approach side's half of the gap. Ownership hands the
+            // guarded column over at the gap's midpoint (see ColumnAt), so a crest sitting past
+            // that midpoint would leave positions that belong to the guarded column but are
+            // short of the gate - and a push out of the tunnel there would select it without
+            // the toll ever being paid. It cannot happen at the shipped bands, only if the
+            // clearance dial is driven wider than the far column's own free width, which is
+            // exactly the kind of setting a repair exists for.
+            LockoutCentre = sign > 0
+                ? Math.Min(LockoutCentre, midpoint - 1)
+                : Math.Max(LockoutCentre, midpoint + 1);
+        }
+
+        /// <summary>Map column index to device column index, honouring the mirror flag.</summary>
+        private int DeviceColumn(int mapColumn)
+        {
+            return MirrorColumns ? ColumnCount - 1 - mapColumn : mapColumn;
+        }
+
+        /// <summary>The room the lockout leaves beside a column: the wider of its exit and free bands.</summary>
+        private int AnchorClearance(Column c)
+        {
+            return Math.Max(ColumnExitHalfWidth(c), ColumnFreeHalfWidth(c));
+        }
+
+        /// <summary>
+        /// Finds the slot holding a gear by inverting the gear map, so a slot lockout named by
+        /// gear number follows the mirror flags exactly as the gear does. False when no slot in
+        /// this pattern holds that gear. Public because the UI's slot picker asks the same
+        /// question when labelling what a choice would actually guard.
+        /// </summary>
+        public bool TryFindSlot(int gear, out Column column, out ShiftDir dir)
+        {
+            for (int c = 0; c < ColumnCount; c++)
+            {
+                for (int d = 1; d <= 2; d++)
+                {
+                    if (GearFor((Column)c, (ShiftDir)d) == gear)
+                    {
+                        column = (Column)c;
+                        dir = (ShiftDir)d;
+                        return true;
+                    }
+                }
+            }
+
+            column = Column.None;
+            dir = ShiftDir.None;
+            return false;
         }
 
         public int ColumnTarget(Column c)
@@ -577,7 +749,8 @@ namespace AB9ActiveShifter.Core
         /// with every other gear.
         ///
         /// Reverse is the last gear-column's back slot and is always gear 8 - see
-        /// <see cref="ReverseGear"/> for why the buttons are deliberately not contiguous.
+        /// <see cref="ReverseGear"/> for why the buttons are deliberately not contiguous. The
+        /// truck 6 is the exception with no reverse at all, so it never produces gear 8.
         /// </summary>
         public int GearFor(Column c, ShiftDir dir)
         {
@@ -586,7 +759,9 @@ namespace AB9ActiveShifter.Core
             int column = MirrorColumns ? (ColumnCount - 1 - (int)c) : (int)c;
             bool forward = MirrorSlots ? dir == ShiftDir.Back : dir == ShiftDir.Fwd;
 
-            if (column == ColumnCount - 1 && !forward) return ReverseGear;
+            // The truck gate has no reverse anywhere: its last back slot is simply gear 6, so
+            // the raw formula runs through and the buttons come out contiguous at 1..6.
+            if (Pattern != GatePattern.H6 && column == ColumnCount - 1 && !forward) return ReverseGear;
 
             int raw = column * 2 + (forward ? 1 : 2);
             if (Pattern == GatePattern.H6R && raw == 7) return 0;

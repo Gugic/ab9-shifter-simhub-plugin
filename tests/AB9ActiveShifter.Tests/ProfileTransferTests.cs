@@ -296,5 +296,95 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal("H5R", (string)root["Settings"]["Pattern"]);
             Assert.Equal("Angled", (string)root["Settings"]["MouthShape"]);
         }
+
+        [Fact]
+        public void TheLockoutDialsSurviveTheRoundTrip()
+        {
+            // The whole lockout configuration is a tune, so all of it travels - by enum NAME,
+            // so a renumbering can never silently repattern someone's file.
+            ShifterSettings s = new ShifterSettings
+            {
+                LockoutPlacement = LockoutPlacement.Gap2,
+                LockoutGapDirection = LockoutGapDirection.Both,
+                LockoutSlotGear = 5,
+                LockoutSlotDirection = LockoutSlotDirection.Exit,
+                LockoutMode = LockoutMode.HotkeyAutoRearm,
+                PrndLockoutGap = PrndLockoutGap.RN,
+                PrndLockoutDirection = PrndLockoutDirection.TowardP,
+                PrndLockoutMode = LockoutMode.HotkeyToggle,
+                PrndLockoutForcePct = 55,
+                PrndLockoutHalfWidth = 900
+            };
+
+            ProfileImportResult back = ProfileTransfer.Import(
+                ProfileTransfer.Export(new ShifterProfile { Name = "Locked", Settings = s }),
+                new ShifterSettings());
+
+            Assert.Equal(0, back.Clamped);
+            Assert.Equal(0, back.Unknown);
+
+            ShifterSettings b = back.Profile.Settings;
+            Assert.Equal(LockoutPlacement.Gap2, b.LockoutPlacement);
+            Assert.Equal(LockoutGapDirection.Both, b.LockoutGapDirection);
+            Assert.Equal(5, b.LockoutSlotGear);
+            Assert.Equal(LockoutSlotDirection.Exit, b.LockoutSlotDirection);
+            Assert.Equal(LockoutMode.HotkeyAutoRearm, b.LockoutMode);
+            Assert.Equal(PrndLockoutGap.RN, b.PrndLockoutGap);
+            Assert.Equal(PrndLockoutDirection.TowardP, b.PrndLockoutDirection);
+            Assert.Equal(LockoutMode.HotkeyToggle, b.PrndLockoutMode);
+            Assert.Equal(55, b.PrndLockoutForcePct);
+            Assert.Equal(900, b.PrndLockoutHalfWidth);
+        }
+
+        [Fact]
+        public void TheLockoutIndexAdaptersNeverTravelInAProfileFile()
+        {
+            // Each adapter is fully derived from a dial that is written. Sharing both would
+            // write the same fact twice under two keys, applied back in alphabetical order -
+            // whichever sorts last would silently win.
+            string json = ProfileTransfer.Export(Sample());
+
+            foreach (string adapter in new[]
+            {
+                "LockoutPlacementIndex", "LockoutGapDirectionIndex", "LockoutSlotGearIndex",
+                "LockoutSlotDirectionIndex", "LockoutModeIndex", "PrndLockoutGapIndex",
+                "PrndLockoutDirectionIndex", "PrndLockoutModeIndex"
+            })
+            {
+                Assert.DoesNotContain(adapter, json, System.StringComparison.Ordinal);
+            }
+        }
+
+        [Fact]
+        public void ALockoutSlotGearFromAFileIsHeldToTheGearRange()
+        {
+            // A gear number, not an axis distance: a hostile file cannot smuggle in a wild
+            // value, and the geometry still repairs a gear the pattern does not hold.
+            JObject doctored = JObject.Parse(ProfileTransfer.Export(Sample()));
+            doctored["Settings"]["LockoutSlotGear"] = 99;
+
+            ProfileImportResult result = ProfileTransfer.Import(doctored.ToString(), new ShifterSettings());
+            Assert.Equal(8, result.Profile.Settings.LockoutSlotGear);
+            Assert.True(result.Clamped >= 1, "an out-of-range gear should be counted as clamped");
+
+            doctored["Settings"]["LockoutSlotGear"] = -3;
+            result = ProfileTransfer.Import(doctored.ToString(), new ShifterSettings());
+            Assert.Equal(1, result.Profile.Settings.LockoutSlotGear);
+        }
+
+        [Fact]
+        public void AnUnknownLockoutPlacementNameKeepsTheLocalValue()
+        {
+            // Enum names a build does not know - a file from a future version, or a doctored
+            // one - fall back to the local value, never guessed at, and one bad key must not
+            // cost the user the rest of the file: the dial beside it still lands.
+            JObject doctored = JObject.Parse(ProfileTransfer.Export(Sample()));
+            doctored["Settings"]["LockoutPlacement"] = "HyperspaceBypass";
+
+            ProfileImportResult result = ProfileTransfer.Import(doctored.ToString(), new ShifterSettings());
+
+            Assert.Equal(LockoutPlacement.PatternDefault, result.Profile.Settings.LockoutPlacement);
+            Assert.Equal(81, result.Profile.Settings.LockoutForcePct);
+        }
     }
 }
