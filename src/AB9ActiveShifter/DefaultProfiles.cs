@@ -200,10 +200,13 @@ namespace AB9ActiveShifter
             s.SlotHalfWidth = 2400;
             s.ChannelFreeDepth = 2165;
 
-            // Moderate force, a short wall bite, and the full stabiliser stack that buys. The
-            // plugin's own damping is on at 10 here, which is the one number in this file that
-            // argues with the stated goal of a shifter with no software damping - it is carried
-            // because it is what the driven tune measured, not because the goal changed.
+            // Moderate force, a short wall bite, and the full stabiliser stack that buys.
+            // Software damping is deliberately zero: the damping this gate relies on is MOZA
+            // Cockpit's Damper at ~15% - the install guide's one-time setting - which is real
+            // damping at the servo loop, ahead of the delay, and free of the throw-weight cost
+            // the software dial has. The tune used to carry a measured 10 here, the one number
+            // in this file that argued with the lightest-possible-lever goal; leaning on the
+            // Cockpit damper instead is what retired it.
             s.ColumnPinForcePct = 80;
             s.ChannelWallForcePct = 100;
             s.ChannelGuideForcePct = 20;
@@ -212,7 +215,7 @@ namespace AB9ActiveShifter
             s.WallAttackMs = 15;
             s.WallYieldPct = 10;
             s.WallFrictionPct = 5;
-            s.DampingPct = 10;
+            s.DampingPct = 0;
 
             // All hold, no resistance and no pull.
             s.DetentResistPct = 0;
@@ -397,13 +400,17 @@ namespace AB9ActiveShifter
             s.PrndNotchHalfWidth = 6000;
             s.PrndStopForcePct = 100;
 
-            // The lateral rail and the stabilisers around it.
+            // The lateral rail and the stabilisers around it. Software damping is zero like
+            // every preset's - the Cockpit damper carries it (see LooseGate) - and here that is
+            // also a correction: this profile used to inherit the bare default of 25 by
+            // omission, the only shipped tune with software damping on.
             s.ColumnPinForcePct = 80;
             s.WallRamp = 6000;
             s.WallBlend = 1559;
             s.WallAttackMs = 15;
             s.WallYieldPct = 15;
             s.WallFrictionPct = 7;
+            s.DampingPct = 0;
 
             // Gate dials that render nothing in PRND but persist with the profile. The tunnel
             // pair is deliberately left as measured: enter and leave are equal, which
