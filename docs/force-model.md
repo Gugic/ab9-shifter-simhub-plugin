@@ -718,9 +718,17 @@ one number into the wrong box — the two dials sit adjacent on the Geometry tab
 word.
 
 The repair is now `enter + GateGeometry.MinBandSpan` (1000 counts), which bounds the gradient at 10
-DI per axis count against the shipped gate's 3.8. The floor is narrower than every shipped tunnel
-gap, so it only ever rescues a broken configuration. `AnInvertedTunnelPairCannotBecomeAForceCliff`
-pins it, and fails with a step of thousands if the clamp goes back to `+ 1`.
+DI per axis count. `AnInvertedTunnelPairCannotBecomeAForceCliff` pins it, and fails with a step of
+thousands if the clamp goes back to `+ 1`.
+
+The floor is not only a rescue, and that is worth knowing before reading a stored profile as what
+runs. It is applied unconditionally — `Math.Max(exit, enter + MinBandSpan)` — so a *valid* pair
+narrower than 1000 counts is widened too. The three shipped H profiles are exactly that case: they
+carry the rig's measured 3268/4051, a gap of 783, and the geometry renders 3268/4268. Their tunnel
+gradient is therefore 10 DI per axis count, sitting on the floor, against the 3.8 of the older
+2600/5200 gate these profiles used to ship with. That is the tune that gets driven and it is not a
+complaint — but if the tunnel edge ever reads as abrupt, `ChannelHalfExit` above 4268 is the dial,
+and anything below it does nothing at all.
 
 The other two pairs deliberately keep the ordering-only clamp: no force ramps across them, and the
 shipped Sequential profile runs a 500-count release gap on purpose. The general rule this leaves

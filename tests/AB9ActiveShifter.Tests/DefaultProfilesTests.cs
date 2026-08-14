@@ -149,6 +149,44 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void TheTwoSevenRPresetsAreOneTuneWithTwoThrows()
+        {
+            // The claim the profile list makes by shipping two 7+R entries: they are the same
+            // gate, and the thing a user picks between them is a throw length. It was not always
+            // true - the long-throw profile carried an older, firmer tune with every stabiliser
+            // off, a 6000 wall bite against 3816 and a lateral pin at 100 against 80, which reads
+            // as the stabler shape and was jerky in the hand. Shipping two different answers to
+            // "how should this gate feel" made the dropdown a guess.
+            //
+            // Only the four dials that say where the slot ends may differ, and the whole reason
+            // ReleaseDepth is one of them is that it is measured from the extreme: the short-throw
+            // lever comes to rest in its landing and the long-throw one at the base's mechanical
+            // stop, so asking a hand for the same pull out of gear needs different numbers.
+            ShifterSettings gate = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SevenRName));
+            ShifterSettings shortThrow =
+                Find(DefaultProfiles.Create(), Preset(DefaultProfiles.ShortThrowName));
+
+            HashSet<string> theThrow = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "EngageDepth", "ReleaseDepth", "SlotOvertravel", "SlotStopForcePct",
+                "ThrowFromCentre"   // the same stored fact as EngageDepth, read from the centre
+            };
+
+            foreach (PropertyInfo prop in typeof(ShifterSettings).GetProperties(
+                         BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (!prop.CanRead || !prop.CanWrite) continue;
+                if (theThrow.Contains(prop.Name)) continue;
+
+                Assert.Equal(prop.GetValue(shortThrow, null), prop.GetValue(gate, null));
+            }
+
+            // ...and the throw really does differ, or the test above would pass on two copies.
+            Assert.Equal(0, gate.SlotStopForcePct);
+            Assert.True(shortThrow.SlotStopForcePct > 0);
+        }
+
+        [Fact]
         public void FiveRIsTheSevenRGateWithOnlyThePatternChanged()
         {
             // 5+R is shipped as a copy, so the two stay tuned alike by construction. If someone
