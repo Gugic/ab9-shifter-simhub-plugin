@@ -128,26 +128,68 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void TheTruckPresetIsTheSevenRGateWithOnlyThePatternAndLockoutChanged()
+        public void TheTruckPresetKeepsTheSharedTuneExceptWhereItsRoadTestDisagreed()
         {
-            // Same rule as 5+R: the truck ships as a copy of the tuned gate, so the two stay
-            // tuned alike by construction - only the pattern and the gate's place and direction
-            // are its own.
-            ShifterSettings sevenR = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SevenRName));
+            // The truck used to be a straight copy of the 7+R gate, which was honest only while
+            // nobody had driven the pattern. It has since come back from someone who does, tuned
+            // against a real Eaton-Fuller box, and it is a different feel on purpose - "slow and
+            // hard and deliberate" against a racing gate's fast and slick.
+            //
+            // So this test says two things at once: exactly which dials that road test moved,
+            // and that it moved nothing else. The second half is the part worth keeping - the
+            // truck is a feel, not a fork, so a change to the shared tune must still reach it.
+            ShifterSettings gate = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SevenRName));
             ShifterSettings truck = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.TruckName));
+
+            // The pattern and its gate.
+            Assert.Equal(GatePattern.H6, truck.Pattern);
+            Assert.Equal(LockoutPlacement.Gap1, truck.LockoutPlacement);
+            Assert.Equal(LockoutGapDirection.TowardLow, truck.LockoutGapDirection);
+
+            // A long deliberate push: the gear registers in the last 2767 counts of travel, a
+            // throw of 30000 from centre against the racing gate's 11915, and the same 3000-count
+            // release hysteresis every H profile here keeps.
+            Assert.Equal(30000, truck.ThrowFromCentre);
+            Assert.Equal(truck.EngageDepth + 3000, truck.ReleaseDepth);
+            Assert.True(truck.ThrowFromCentre > gate.ThrowFromCentre * 2,
+                "the truck throw is meant to be far longer than the racing gate's");
+
+            // A slot the hand pushes into, and a box that holds the lever rather than the other
+            // way round - the reverse of the loose gate's all-hold detent, and still no pull.
+            Assert.Equal(0, gate.DetentResistPct);
+            Assert.Equal(57, truck.DetentResistPct);
+            Assert.Equal(25, truck.DetentHoldPct);
+            Assert.Equal(0, truck.DetentPullPct);
+
+            // A gentler gate on firmer columns: a low-range gate is crossed on nearly every
+            // downshift, so it cannot cost what a 7/R gate crossed twice a session costs.
+            Assert.True(truck.LockoutForcePct < gate.LockoutForcePct);
+            Assert.True(truck.ColumnPinForcePct > gate.ColumnPinForcePct);
+            Assert.Equal(80, truck.OverallGainPct);
+
+            // ...and nothing else moved.
+            HashSet<string> theRoadTest = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "Pattern", "PatternIndex",
+                "LockoutPlacement", "LockoutPlacementIndex",
+                "LockoutGapDirection", "LockoutGapDirectionIndex",
+                "OverallGainPct", "ColumnPinForcePct", "LockoutForcePct",
+                "DetentResistPct", "DetentHoldPct",
+                "EngageDepth", "ReleaseDepth", "ThrowFromCentre",
+                "ClutchBitePointPct", "FxBiteEnabled", "FxEngineGainPct"
+            };
 
             foreach (PropertyInfo prop in typeof(ShifterSettings).GetProperties(
                          BindingFlags.Public | BindingFlags.Instance))
             {
                 if (!prop.CanRead || !prop.CanWrite) continue;
-                if (prop.Name == "Pattern" || prop.Name == "PatternIndex") continue;
-                if (prop.Name == "LockoutPlacement" || prop.Name == "LockoutPlacementIndex") continue;
-                if (prop.Name == "LockoutGapDirection" || prop.Name == "LockoutGapDirectionIndex") continue;
+                if (theRoadTest.Contains(prop.Name)) continue;
                 if (prop.Name.EndsWith("Percent", StringComparison.Ordinal)) continue;
 
-                Assert.Equal(prop.GetValue(sevenR, null), prop.GetValue(truck, null));
+                Assert.Equal(prop.GetValue(gate, null), prop.GetValue(truck, null));
             }
         }
+
 
         [Fact]
         public void EveryShippedProfileIsMarkedAsAPreset()

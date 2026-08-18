@@ -9,14 +9,20 @@ namespace AB9ActiveShifter
     /// defaults, written out to disk on that first start so they are ordinary settings from then
     /// on - editable, resettable, and never re-applied over anything a user has tuned.
     /// <para>
-    /// Four of the six are the same tune. <see cref="LooseGate"/> is the gate that actually gets
-    /// driven on the rig, and <see cref="Gate"/>, the 5+R copy of it, <see cref="ShortThrow"/> and
-    /// the truck preset all start there; they differ by <em>where the slot ends</em> - and, for
-    /// the truck, by which gap its lockout guards - and by nothing else. That is deliberate, and
-    /// it is a correction: the two H profiles used to carry an older, firmer tune with every
-    /// stabiliser off, which reads well on paper and is jerky in the hand. A shipped profile is a
-    /// recommendation, so all four now make the same one, and the choice a user makes between
-    /// them is a pattern, a throw length and a lockout rather than a quality of gate.
+    /// Three of the six are one tune. <see cref="LooseGate"/> is the gate that actually gets
+    /// driven on the rig, and <see cref="Gate"/>, the 5+R copy of it and <see cref="ShortThrow"/>
+    /// differ by <em>where the slot ends</em> and by nothing else. That is deliberate, and it is a
+    /// correction: the two H profiles used to carry an older, firmer tune with every stabiliser
+    /// off, which reads well on paper and is jerky in the hand. A shipped profile is a
+    /// recommendation, so all three now make the same one, and the choice a user makes between
+    /// them is a pattern and a throw length rather than a quality of gate.
+    /// </para>
+    /// <para>
+    /// <see cref="Truck"/> starts from that tune and then leaves it, which is the one place this
+    /// file ships a second opinion on purpose. Its numbers came back from the person who asked
+    /// for the pattern, measured against a real Eaton-Fuller box; nobody here drives a truck, and
+    /// a gate that is "slow and hard and deliberate" is not the racing gate turned down. Its
+    /// header says which four dials carry that and why.
     /// </para>
     /// <para>
     /// These numbers were measured, not chosen. They are the tuning of the rig this plugin was
@@ -130,17 +136,6 @@ namespace AB9ActiveShifter
             ShifterSettings fiveR = SettingsCloner.Clone(sevenR);
             fiveR.Pattern = GatePattern.H5R;
 
-            // The truck box, issue #28's request: six plain slots on buttons 1-6 and a gate
-            // between the first two columns, guarding the way DOWN into the low range. One-way
-            // on entry, because the danger is wandering into the creep gears at speed while
-            // pulling OUT of low range is the routine 2-3 upshift - the same semantics as the
-            // proven 7/R gate, mirrored onto the other end of the box. Every force dial is the
-            // 7+R tune; only the pattern and the gate's place and direction differ.
-            ShifterSettings truck = SettingsCloner.Clone(sevenR);
-            truck.Pattern = GatePattern.H6;
-            truck.LockoutPlacement = LockoutPlacement.Gap1;
-            truck.LockoutGapDirection = LockoutGapDirection.TowardLow;
-
             return new List<ShifterProfile>
             {
                 new ShifterProfile { Name = Preset(SevenRName), Settings = sevenR },
@@ -148,7 +143,7 @@ namespace AB9ActiveShifter
                 new ShifterProfile { Name = Preset(FiveRName), Settings = fiveR },
                 new ShifterProfile { Name = Preset(SequentialName), Settings = Sequential() },
                 new ShifterProfile { Name = Preset(PrndName), Settings = Automatic() },
-                new ShifterProfile { Name = Preset(TruckName), Settings = truck }
+                new ShifterProfile { Name = Preset(TruckName), Settings = Truck() }
             };
         }
 
@@ -512,6 +507,75 @@ namespace AB9ActiveShifter
 
             // Past centre, inside the tunnel. See the note above before changing it.
             s.ReleaseDepth = 35317;
+
+            return s;
+        }
+
+        /// <summary>
+        /// The truck box, issue #28's request and then its road test: six plain slots on buttons
+        /// 1-6 and a gate between the first two columns, guarding the way DOWN into the low range.
+        /// One-way on entry, because the danger is wandering into the creep gears at speed while
+        /// pulling OUT of low range is the routine 2-3 upshift - the same semantics as the proven
+        /// 7/R gate, mirrored onto the other end of the box.
+        /// <para>
+        /// It shipped as a straight copy of the 7+R tune, because nobody here drives a truck. It
+        /// is no longer one: the numbers below came back from the person who asked for the
+        /// pattern, tuned against a real Eaton-Fuller box, and they are a deliberately different
+        /// feel from the racing gate rather than a stronger or weaker version of it. In their
+        /// words, where a racing gate is fast and slick, this is "slow and hard and deliberate".
+        /// </para>
+        /// <para>
+        /// Four dials carry that, and they pull against the loose gate on purpose:
+        /// </para>
+        /// <para>
+        /// The throw is 30000 counts from centre - nearly the whole of travel, against the racing
+        /// gate's 11915 - so a gear is the far end of a long deliberate push rather than a flick.
+        /// The lever registers only in the last 2767 counts and drops the gear 3000 counts back,
+        /// the same hysteresis every H profile here keeps.
+        /// </para>
+        /// <para>
+        /// The detent is the reverse of the loose gate's: entry resistance at 57 where the racing
+        /// tune has none, and a seated hold of 25 against 40. A truck slot is something the hand
+        /// has to push INTO, and once there the box holds the lever rather than the lever holding
+        /// itself - which is also why there is still no pull. There is no snick here either.
+        /// </para>
+        /// <para>
+        /// And the gate itself is gentler - 62 against 90 - while the lateral pin is firmer, 89
+        /// against 80. A low-range gate crossed on nearly every downshift cannot cost what a 7/R
+        /// gate crossed twice a session costs; the columns are what have to be solid instead. The
+        /// master gain comes down to 80 with it, which is the whole gate's weight rather than any
+        /// one shape.
+        /// </para>
+        /// <para>
+        /// The rest is the shared tune, unchanged, and a test pins that: this is a feel, not a
+        /// fork. Two smaller things travel with it - the clutch bite point at 68, which is a
+        /// property of the box rather than of anyone's pedals, and the engine carrier at 29
+        /// against 59, a diesel idle rather than a race engine.
+        /// </para>
+        /// </summary>
+        private static ShifterSettings Truck()
+        {
+            ShifterSettings s = LooseGate();
+
+            s.Pattern = GatePattern.H6;
+            s.LockoutPlacement = LockoutPlacement.Gap1;
+            s.LockoutGapDirection = LockoutGapDirection.TowardLow;
+
+            // Slow, hard and deliberate. See the notes above - every one of these is a measured
+            // answer from a driven box, not a scaling of the racing gate.
+            s.OverallGainPct = 80;
+            s.ColumnPinForcePct = 89;
+            s.LockoutForcePct = 62;
+            s.DetentResistPct = 57;
+            s.DetentHoldPct = 25;
+
+            // A throw of 30000 counts from centre: the gear is the end of the push.
+            s.EngageDepth = 2767;
+            s.ReleaseDepth = 5767;
+
+            s.ClutchBitePointPct = 68;
+            s.FxBiteEnabled = true;
+            s.FxEngineGainPct = 29;
 
             return s;
         }

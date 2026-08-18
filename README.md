@@ -115,13 +115,19 @@ its own complete tuning, so you begin from gates that were tuned on real hardwar
 bare defaults. Forces are off and the force cap is on, as they should be on a base nobody has
 measured yet.
 
-The four H presets are the **same gate**, and the only thing you are choosing between them is the
-pattern, how far the lever travels, and where the lockout stands: *7+R lockout* and *5+R* run the
-full throw, where the lever carries on to the base's own stop, *short throw* gives the slots a
-bottom of their own so the stroke ends about two thirds of the way in, and the *truck* preset moves
-the gate between the first two columns of its six-slot pattern. Everything about how the gate
-feels — the wall, the lockout's toll, the width of the corridors, the weight of the detent — is
-identical in all four.
+Three of the H presets are the **same gate**, and the only thing you are choosing between them is
+the pattern and how far the lever travels: *7+R lockout* and *5+R* run the full throw, where the
+lever carries on to the base's own stop, and *short throw* gives the slots a bottom of their own so
+the stroke ends about two thirds of the way in. Everything about how the gate feels — the wall, the
+lockout's toll, the width of the corridors, the weight of the detent — is identical in all three.
+
+The *truck* preset is deliberately not one of them. Its numbers came back from someone driving a
+real Eaton-Fuller box, and where a racing gate is fast and slick, a truck gate is slow and hard and
+deliberate: a throw of nearly the whole of travel, a slot the hand has to push *into* rather than
+fall into, a lighter seat once it is there, and a gentler low-range gate on firmer columns —
+because that gate is crossed on almost every downshift, where a 7/R gate is crossed twice a
+session. If you want a racing feel on six truck slots, start from *7+R lockout* and switch the
+pattern instead.
 
 Presets are marked `(Preset)`, sit at the end of the profile list, and never change: they are
 there to be a fixed starting point you can always come back to. Turn any dial while one is
