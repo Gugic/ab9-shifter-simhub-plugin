@@ -108,18 +108,20 @@ while it runs, so the copy fails if you skip that.
 
 Start SimHub and enable **AB9 Active Shifter** under *Settings → Plugins*.
 
-That is the whole install. You start with six ready-made **presets** — **7+R lockout**, **7+R
-lockout (short throw, loose)**, **5+R**, **Sequential**, **Automatic (PRND)** and **Truck 6-gear
-(low-range lockout)** — each holding
-its own complete tuning, so you begin from gates that were tuned on real hardware rather than from
-bare defaults. Forces are off and the force cap is on, as they should be on a base nobody has
-measured yet.
+That is the whole install. You start with seven ready-made **presets** — **7+R lockout**, **7+R
+lockout (short throw, loose)**, **5+R**, **5+R wide**, **Sequential**, **Automatic (PRND)** and
+**Truck 6-gear (low-range lockout)** — each holding its own complete tuning, so you begin from
+gates that were tuned on real hardware rather than from bare defaults. Forces are off and the force
+cap is on, as they should be on a base nobody has measured yet.
 
-Three of the H presets are the **same gate**, and the only thing you are choosing between them is
-the pattern and how far the lever travels: *7+R lockout* and *5+R* run the full throw, where the
-lever carries on to the base's own stop, and *short throw* gives the slots a bottom of their own so
-the stroke ends about two thirds of the way in. Everything about how the gate feels — the wall, the
-lockout's toll, the width of the corridors, the weight of the detent — is identical in all three.
+Four of the H presets are the **same gate**, and the only thing you are choosing between them is
+the pattern, how far the lever travels, and how wide the gate stands: *7+R lockout* runs the full
+throw, where the lever carries on to the base's own stop, *short throw* gives the slots a bottom of
+their own so the stroke ends about two thirds of the way in, and the two *5+R* entries are that
+same gate on three columns — the plain one narrowed to 60% of the stick so a shift is about the
+reach a 7+R asks for, the *wide* one spread over the whole of it. Everything about how the gate
+feels — the wall, the lockout's toll, the width of the corridors, the weight of the detent — is
+identical in all four.
 
 The *truck* preset is deliberately not one of them. Its numbers came back from someone driving a
 real Eaton-Fuller box, and where a racing gate is fast and slick, a truck gate is slow and hard and
@@ -128,6 +130,9 @@ fall into, a lighter seat once it is there, and a gentler low-range gate on firm
 because that gate is crossed on almost every downshift, where a 7/R gate is crossed twice a
 session. If you want a racing feel on six truck slots, start from *7+R lockout* and switch the
 pattern instead.
+
+It is narrowed to 60% as well, for the same reason 5+R is: six slots spread over the whole stick is
+a long reach, and a truck box is already asking for a long push fore and aft.
 
 Presets are marked `(Preset)`, sit at the end of the profile list, and never change: they are
 there to be a fixed starting point you can always come back to. Turn any dial while one is
@@ -246,7 +251,7 @@ Six, selectable per **profile** on the Setup tab:
 | --- | --- |
 | **7+R** | The full gate above, with the lockout |
 | **6+R** | The slot where 7 would sit genuinely does not exist — the wall over it never opens, so the lever cannot enter it at all. The stock firmware's 6+R leaves the seven-gear gate rendered with that slot merely inert, which is no guard against the misshift that choosing six gears is meant to prevent |
-| **5+R** | Three wider columns, no lockout by default |
+| **5+R** | Three wider columns, no lockout by default. Shipped twice - narrowed to 60% of the stick so a shift is about the reach a 7+R asks for, and *wide* at the full sweep |
 | **Sequential** | A sprung fore/aft lever: one shift per stroke, with a click you can tune |
 | **Automatic (P R N D)** | A selector lane: four fixed positions in a line, a button held at whichever one the lever is in. No neutral to come back through and no gear to engage — the lever is always somewhere |
 | **Truck 6** | Three wider columns, six plain slots on buttons 1–6, no reverse anywhere — what each button means is your game's business. Made for Eaton-Fuller-style boxes: add the lockout between the first two columns (the shipped truck preset does exactly that) and you have a low-range gate |

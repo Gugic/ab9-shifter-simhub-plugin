@@ -5,11 +5,11 @@ using AB9ActiveShifter.Core;
 namespace AB9ActiveShifter
 {
     /// <summary>
-    /// What a machine with no saved settings starts with: six working profiles rather than bare
+    /// What a machine with no saved settings starts with: seven working profiles rather than bare
     /// defaults, written out to disk on that first start so they are ordinary settings from then
     /// on - editable, resettable, and never re-applied over anything a user has tuned.
     /// <para>
-    /// Three of the six are one tune. <see cref="LooseGate"/> is the gate that actually gets
+    /// Three of the seven are one tune. <see cref="LooseGate"/> is the gate that actually gets
     /// driven on the rig, and <see cref="Gate"/>, the 5+R copy of it and <see cref="ShortThrow"/>
     /// differ by <em>where the slot ends</em> and by nothing else. That is deliberate, and it is a
     /// correction: the two H profiles used to carry an older, firmer tune with every stabiliser
@@ -62,19 +62,29 @@ namespace AB9ActiveShifter
         /// </summary>
         public const string PresetPrefix = "(Preset) ";
 
+        /// <summary>
+        /// What the three-column presets stand at. They put half as many columns across the same
+        /// stick as a four-column gate does, so at full width every shift is half again the reach;
+        /// this brings them in to a little tighter than 7+R's own spacing. The wall outside the
+        /// pattern is what makes a narrowed gate usable at all - see EngineConfig.PatternEdgeForcePct.
+        /// </summary>
+        public const int NarrowWidthPct = 60;
+
         // The bare names. A preset ships as PresetPrefix + one of these, and a fork of a preset
         // takes the bare name back - which is exactly what moves the fork into the local half of
         // the list, since only prefixed names sort to the end.
         public const string SevenRName = "7+R lockout";
         public const string ShortThrowName = "7+R lockout (short throw, loose)";
         public const string FiveRName = "5+R";
+        public const string FiveRWideName = "5+R wide";
         public const string SequentialName = "Sequential";
         public const string PrndName = "Automatic (PRND)";
         public const string TruckName = "Truck 6-gear (low-range lockout)";
 
         private static readonly string[] BareNames =
         {
-            SevenRName, ShortThrowName, FiveRName, SequentialName, PrndName, TruckName
+            SevenRName, ShortThrowName, FiveRName, FiveRWideName, SequentialName, PrndName,
+            TruckName
         };
 
         /// <summary>The profile a fresh install comes up in.</summary>
@@ -131,16 +141,32 @@ namespace AB9ActiveShifter
         {
             ShifterSettings sevenR = Gate();
 
-            // 5+R is the same gate with a column taken out - every force dial identical, so it is
-            // literally a copy. Tuning them apart is a user's business, not a shipped difference.
-            ShifterSettings fiveR = SettingsCloner.Clone(sevenR);
-            fiveR.Pattern = GatePattern.H5R;
+            // 5+R twice, which is not a duplicate: the same gate at two widths. Three columns
+            // spread over the whole axis put 32767 counts between them against a four-column
+            // gate's 21845, which is half again the reach for every shift and reads as sprawling
+            // next to a real five-speed - so the plain 5+R is narrowed and the wide one is kept
+            // for anyone who wants the full sweep of the stick.
+            //
+            // 60% puts 19660 counts between columns, a little tighter than 7+R's own spacing.
+            // It costs some wall bite: 3816 asked against a ceiling of 3262 at that spacing, so
+            // the faces come out slightly stiffer. The stored value stays at 3816 deliberately -
+            // the geometry bounds it and the Feel tab says so, and widening the pattern gives the
+            // tuned bite straight back rather than leaving a number nobody chose.
+            //
+            // Every force dial is otherwise the 7+R tune, so it is literally a copy. Tuning them
+            // apart is a user's business, not a shipped difference.
+            ShifterSettings fiveRWide = SettingsCloner.Clone(sevenR);
+            fiveRWide.Pattern = GatePattern.H5R;
+
+            ShifterSettings fiveR = SettingsCloner.Clone(fiveRWide);
+            fiveR.PatternWidthPct = NarrowWidthPct;
 
             return new List<ShifterProfile>
             {
                 new ShifterProfile { Name = Preset(SevenRName), Settings = sevenR },
                 new ShifterProfile { Name = Preset(ShortThrowName), Settings = ShortThrow() },
                 new ShifterProfile { Name = Preset(FiveRName), Settings = fiveR },
+                new ShifterProfile { Name = Preset(FiveRWideName), Settings = fiveRWide },
                 new ShifterProfile { Name = Preset(SequentialName), Settings = Sequential() },
                 new ShifterProfile { Name = Preset(PrndName), Settings = Automatic() },
                 new ShifterProfile { Name = Preset(TruckName), Settings = Truck() }
@@ -560,6 +586,10 @@ namespace AB9ActiveShifter
             s.Pattern = GatePattern.H6;
             s.LockoutPlacement = LockoutPlacement.Gap1;
             s.LockoutGapDirection = LockoutGapDirection.TowardLow;
+
+            // Narrowed like the other three-column preset: six slots across the whole stick is a
+            // reach, and a truck box is already asking for a long push fore and aft.
+            s.PatternWidthPct = NarrowWidthPct;
 
             // Slow, hard and deliberate. See the notes above - every one of these is a measured
             // answer from a driven box, not a scaling of the racing gate.
