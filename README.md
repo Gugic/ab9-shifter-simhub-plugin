@@ -251,6 +251,13 @@ Six, selectable per **profile** on the Setup tab:
 | **Automatic (P R N D)** | A selector lane: four fixed positions in a line, a button held at whichever one the lever is in. No neutral to come back through and no gear to engage — the lever is always somewhere |
 | **Truck 6** | Three wider columns, six plain slots on buttons 1–6, no reverse anywhere — what each button means is your game's business. Made for Eaton-Fuller-style boxes: add the lockout between the first two columns (the shipped truck preset does exactly that) and you have a low-range gate |
 
+**How wide the pattern stands is a dial too.** By default the columns are spread over the whole
+stick, which is right for 7+R and a lot of reach for the three-column patterns — 5+R and the truck
+6 put half as many columns across the same travel, so each shift crosses half again the distance.
+*Pattern width* on the Geometry tab squeezes the pattern in from both sides, keeping its middle
+where it is, with the live gate above the slider showing it happen. Around 67% gives a
+three-column pattern the same reach a 7+R has.
+
 A profile stores every dial together with its pattern, so each pattern keeps its own tuning and
 switching between them is one dropdown. *Next profile* and *Previous profile* are bindable actions
 if you would rather not use the dropdown.

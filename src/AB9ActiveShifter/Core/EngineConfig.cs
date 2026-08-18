@@ -431,6 +431,14 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int LockoutSlotGear = 8;
 
+        /// <summary>
+        /// How much of the stick's side-to-side travel the columns are spread over. 100 is the
+        /// whole axis, which is what every pattern did before this dial existed and is still the
+        /// default. Narrowing centres the pattern and brings the outer columns in off the ends.
+        /// See GateGeometry.MinPatternWidthPct for the floor and why it is where it is.
+        /// </summary>
+        public int PatternWidthPct = 100;
+
         /// <summary>Which way through a Slot placement pays the toll.</summary>
         public LockoutSlotDirection LockoutSlotDirection = LockoutSlotDirection.Entry;
 
@@ -745,7 +753,8 @@ namespace AB9ActiveShifter.Core
                 Pattern,
                 LockoutPlacement,
                 LockoutGapDirection,
-                LockoutSlotGear);
+                LockoutSlotGear,
+                PatternWidthPct);
         }
     }
 }

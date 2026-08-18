@@ -934,6 +934,19 @@
                         </StackPanel>
                     </styles:SHSection>
 
+                    <styles:SHSection Title="PATTERN WIDTH" ShowSeparator="True"
+                                      Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Margin="0,4,0,8">
+                            <ui:TitledSlider Title="Pattern width, side to side (% of stick travel)" Minimum="30" Maximum="100"
+                                             TickFrequency="1" ShowResetButton="True" ResetValue="100"
+                                             Value="{Binding PatternWidthPct, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
+                                       Text="How much of the stick&apos;s side-to-side travel the columns are spread over. At 100% the outer columns sit at the very ends, which is where every pattern used to be. Lower it and the pattern is squeezed in from both sides, keeping its middle where it was, so a shift across the gate is a shorter reach - the gate above shows it happening. It is mainly for the three-column patterns: 5+R and the truck 6 put half as many columns across the same stick as 7+R does, so at full width they feel sprawling next to a real five-speed. Around 67% gives them the same spacing a 7+R has." />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
+                                       Text="Nothing else rescales with it. Slot corridors, wall bites and column doorways are all still the raw counts you set, so narrowing the pattern makes each of them a bigger share of the room between columns - which is why the % of column spacing readouts move when this does, and why the wall bite ceiling on the Feel tab can start biting. Narrow a long way and check that figure." />
+                        </StackPanel>
+                    </styles:SHSection>
+
                     <styles:SHSection Title="FORCE SHAPING" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <ui:TitledSlider Title="Gate wall fade width, across a column (axis counts)" Minimum="200" Maximum="6000"

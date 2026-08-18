@@ -451,6 +451,52 @@ lean toward home rather than a return. Crossing the lockout outbound the spring 
 toll, and in the 7/R channel it keeps tugging toward the main gears — which is the truck-like
 behaviour the lockout's one-way force already sketched, now extended across the whole channel.
 
+## How wide the pattern stands
+
+The columns used to be spread over the whole axis by construction — `_targets[i] = i × 65535 /
+(n−1)` — so the outer two sat exactly at the ends of travel and the spacing was whatever the column
+count made it: 21845 counts on the four-column patterns, **32767 on the three-column ones**. That is
+the whole of why 5+R and the truck 6 read as sprawling. It is not a softer gate, it is half again
+the reach for every shift, and no force dial can shorten a distance.
+
+`PatternWidthPct` is the distance dial. The span is `65535 × width/100`, the pattern is **centred**
+in the axis rather than anchored, and the targets are laid out inside it. At 100 the arithmetic is
+byte-for-byte what it always was, which is the entire migration story: every saved profile that
+predates the dial renders unchanged, and `TheDefaultWidthLeavesEveryColumnExactlyWhereItAlwaysWas`
+pins that for all four H patterns. About **67%** gives a three-column pattern a four-column reach.
+
+Centred, not anchored, and rounded away from zero rather than with .NET's default banker's rule.
+The axis is odd, so centring always leaves a spare half-count; sending it to the ends means the
+middle column of a three-column gate lands on the identical count at every width. Narrowing 5+R
+must not move the column a hand rests on — that column is also the home spring's anchor.
+
+Three things follow, and two of them are the reason this is written down.
+
+**The outer columns stop being one-sided against the end of travel.** That property is quoted in
+this project as the reason the outer columns were fine while the middle ones shook: a column at the
+axis end has travel on one side only, so its guide cannot be a restoring force about an interior
+equilibrium. Narrowed, it can — there is now bare axis past it, and the lateral field pins the
+lever back from both sides exactly as it does for an inner column. This is not a new failure mode,
+it is the *existing* one applied to two more columns, and the stabiliser stack the inner columns
+already run on is what covers it. If a narrowed outer column hunts, it wants what an inner one
+wants: lower force, not more damping.
+
+**Nothing else rescales.** Slot corridors, wall bites, column doorways and the lockout's width are
+all still the raw counts they were set to, so each becomes a larger share of a narrower gate. That
+is deliberate — a dial that silently rescaled a tune would make every stored count mean something
+different depending on a second dial — but it means the geometric ceilings tighten as the pattern
+narrows. `WallRampCeiling` is computed from `ColumnSpacing/2 − corridor − hysteresis`, so it is the
+first to bite, and the Feel tab already prints it. `MinPatternWidthPct` (25) is where a four-column
+gate has 5461 counts between columns, which a shipped 2400-count corridor and its wall no longer
+fit inside; below that the answer stops being "narrow" and starts being "broken", so the geometry
+clamps and the slider stops at 30.
+
+**Every position still belongs to a column.** The bare axis outside the pattern is not a hole:
+`ColumnAt` is nearest-column and never `None`, so a push out there lands in the outermost column's
+slot rather than in nothing at all. That invariant exists because a silent non-shift — the lever
+shoved fully home with the game told nothing — is the worst answer this gate can give, and it is
+swept across the whole axis at a narrow width by `EveryPositionInTheGateStillBelongsToAColumn`.
+
 ## Other patterns
 
 **Missing slots (6+R).** A slot that holds no gear is rendered by never opening its mouth: the
@@ -566,8 +612,10 @@ now how every wall behaves.
 
 **Free corridors.** A restoring force about an interior equilibrium is an oscillator: the stick
 overshoots, gets pushed back, and hunts. Slots and the neutral channel therefore have *width* with
-no force inside. This is why the outer columns were always stable while the middle ones shook —
+no force inside. This is why the outer columns were always stable while the middle ones shook �
 an outer column's force is one-sided against the end of travel, and one-sided force cannot hunt.
+That last part holds only at full pattern width; narrowed, an outer column has axis on both sides
+and is an interior equilibrium like any other. See *How wide the pattern stands*.
 
 **Rebound absorption (`WallYieldPct`).** Non-conservative rendering: a force that resists motion,
 or acts on a stick that is holding still, passes at **full** strength, but a force accelerating the

@@ -62,6 +62,7 @@ namespace AB9ActiveShifter
         private LockoutPlacement _lockoutPlacement = LockoutPlacement.PatternDefault;
         private LockoutGapDirection _lockoutGapDirection = LockoutGapDirection.TowardHigh;
         private int _lockoutSlotGear = 8;
+        private int _patternWidthPct = 100;
         private LockoutSlotDirection _lockoutSlotDirection = LockoutSlotDirection.Entry;
         private LockoutMode _lockoutMode = LockoutMode.PushThrough;
         private PrndLockoutGap _prndLockoutGap = PrndLockoutGap.Off;
@@ -452,17 +453,53 @@ namespace AB9ActiveShifter
                 OnChanged("IsSequential");
                 OnChanged("IsPrnd");
 
-                // ColumnSpacing depends on pattern, so every percent-of-spacing view changes
-                // even though none of the underlying raw counts did.
-                OnChanged("WallRampPercent");
-                OnChanged("SlotHalfWidthPercent");
-                OnChanged("LockoutHalfWidthPercent");
-                OnChanged("BarrierWidthPercent");
-                OnChanged("WallBlendPercent");
-                OnChanged("ColumnEdgeEnterPercent");
-                OnChanged("ColumnInnerHalfEnterPercent");
-                OnChanged("ColumnInnerHalfExitPercent");
-                OnChanged("DetentHysteresisPercent");
+                NotifySpacingDependents();
+            }
+        }
+
+        /// <summary>
+        /// Every percent-of-column-spacing view changes when the spacing does, even though none
+        /// of the underlying raw counts did. Two dials move the spacing - the pattern, which sets
+        /// the column count, and <see cref="PatternWidthPct"/>, which sets how far apart they
+        /// stand - so both raise these, and neither should grow its own copy of the list.
+        /// </summary>
+        private void NotifySpacingDependents()
+        {
+            OnChanged("WallRampPercent");
+            OnChanged("SlotHalfWidthPercent");
+            OnChanged("LockoutHalfWidthPercent");
+            OnChanged("BarrierWidthPercent");
+            OnChanged("WallBlendPercent");
+            OnChanged("ColumnEdgeEnterPercent");
+            OnChanged("ColumnInnerHalfEnterPercent");
+            OnChanged("ColumnInnerHalfExitPercent");
+            OnChanged("DetentHysteresisPercent");
+        }
+
+        /// <summary>
+        /// How much of the stick's side-to-side travel the columns are spread over, as a
+        /// percentage. 100 - the default, and what every pattern did before this dial - spreads
+        /// them over the whole axis, so the outer columns sit at the ends of travel.
+        /// <para>
+        /// The three-column patterns are why it exists. 5+R and the truck 6 put 32767 counts
+        /// between columns against a four-column gate's 21845, which is a lot of stick to cross
+        /// for a five-speed. Narrowing centres the pattern, so it takes the same room off both
+        /// sides and the middle column does not move.
+        /// </para>
+        /// <para>
+        /// It is a raw-count multiplier on the geometry and nothing else: every lateral dial is
+        /// still the count it was, which is exactly why the percent-of-spacing views move when
+        /// this does. A slot corridor of 2400 is a wider share of a narrower gate.
+        /// </para>
+        /// </summary>
+        public int PatternWidthPct
+        {
+            get { return _patternWidthPct; }
+            set
+            {
+                if (_patternWidthPct == value) return;
+                Set(ref _patternWidthPct, value);
+                NotifySpacingDependents();
             }
         }
 
@@ -999,6 +1036,7 @@ namespace AB9ActiveShifter
                 LockoutPlacement = LockoutPlacement,
                 LockoutGapDirection = LockoutGapDirection,
                 LockoutSlotGear = LockoutSlotGear,
+                PatternWidthPct = PatternWidthPct,
                 LockoutSlotDirection = LockoutSlotDirection,
                 LockoutMode = LockoutMode,
                 PrndLockoutGap = PrndLockoutGap,
@@ -1087,6 +1125,7 @@ namespace AB9ActiveShifter
                 ColumnEdgeEnter = d.ColumnEdgeEnter;
                 ColumnInnerHalfEnter = d.ColumnInnerHalfEnter;
                 ColumnInnerHalfExit = d.ColumnInnerHalfExit;
+                PatternWidthPct = d.PatternWidthPct;
                 EngageDepth = d.EngageDepth;
                 ReleaseDepth = d.ReleaseDepth;
                 DetentHysteresis = d.DetentHysteresis;

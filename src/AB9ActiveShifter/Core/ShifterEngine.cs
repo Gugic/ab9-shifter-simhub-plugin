@@ -1300,6 +1300,10 @@ namespace AB9ActiveShifter.Core
             if (a == null || b == null) return false;
 
             return a.Pattern == b.Pattern
+
+                // Moves every column target, so the whole gate is rebuilt around it.
+                && a.PatternWidthPct == b.PatternWidthPct
+
                 && a.ChannelHalfEnter == b.ChannelHalfEnter
                 && a.ChannelHalfExit == b.ChannelHalfExit
                 && a.ColumnEdgeEnter == b.ColumnEdgeEnter

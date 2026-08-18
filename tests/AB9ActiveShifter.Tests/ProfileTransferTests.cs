@@ -145,6 +145,31 @@ namespace AB9ActiveShifter.Tests
             Assert.Null(dials["TickHz"]);
         }
 
+
+        [Fact]
+        public void ThePatternWidthTravelsAndIsHeldToItsOwnFloor()
+        {
+            // It ends in Pct but is not a force: it is how wide the pattern stands, so its
+            // envelope is the geometry's floor rather than the 0-100 every torque scale gets.
+            // Without its own case a file could ask for a pattern of zero width - every column
+            // on the same count - and be let through to be quietly repaired by the geometry.
+            ShifterProfile original = Sample();
+            original.Settings.PatternWidthPct = 62;
+
+            ProfileImportResult travelled =
+                ProfileTransfer.Import(ProfileTransfer.Export(original), new ShifterSettings());
+
+            Assert.Equal(62, travelled.Profile.Settings.PatternWidthPct);
+            Assert.Equal(0, travelled.Clamped);
+
+            JObject doctored = JObject.Parse(ProfileTransfer.Export(original));
+            ((JObject)doctored["Settings"])["PatternWidthPct"] = 0;
+
+            ProfileImportResult result = ProfileTransfer.Import(doctored.ToString(), new ShifterSettings());
+
+            Assert.Equal(GateGeometry.MinPatternWidthPct, result.Profile.Settings.PatternWidthPct);
+            Assert.Equal(1, result.Clamped);
+        }
         [Fact]
         public void AForcePercentageCannotArriveAboveFull()
         {
