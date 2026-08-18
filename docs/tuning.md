@@ -77,7 +77,8 @@ button changes hands.
 | Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
 | Wall friction | 15% | The gate surfaces' own grip: drag equal to this share of whatever force you are pressed against. Zero in free travel by construction, so it costs no lightness. Note: for lean-flutter the effective fix is MOZA Cockpit's Damper at ~15% (zero-latency, at the servo); this dial is the software-side supplement. |
 | Slot mouth | Square | Shape of the divider ends where they meet the tunnel. Square is the plain notch and changes nothing. |
-| Pattern width | 100% | Geometry tab. How much of the stick the columns are spread over, centred. Mainly for 5+R and the truck 6, which put three columns across the same stick 7+R puts four across; around 67% gives them a four-column reach. |
+| Pattern width | 100% (60% in the 5+R and truck presets) | Geometry tab. How much of the stick the columns are spread over, centred. Mainly for 5+R and the truck 6, which put three columns across the same stick 7+R puts four across; the shipped presets use 60%, a little tighter than that. |
+| Wall at the pattern edge | 100% | Geometry tab. The wall outside the outermost columns, which is bare travel with no gear in it once the pattern is narrowed. One-way, inward only. Renders nothing at all at 100% width. |
 | Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
 | Neutral tunnel depth | 2600 counts | The state band: where "in the tunnel" ends and the lateral field's rise lives. Must exceed your fore/aft slop while sliding sideways, or you spend your time in the transition band instead. Measured on real hands: p50 1848, p90 3215. |
 | Tunnel depth, free corridor | 2600 counts | Where the tunnel's fore/aft centring force begins. Ships equal to the state band, so the tunnel is simply free; dial to zero for the rail gate. Capped at the state band. |
@@ -295,9 +296,10 @@ barrier humps, unchanged by the rails.
 **5+R or the truck 6 feels sprawling — every shift is a reach across the whole stick.**
 It is, and it is arithmetic rather than tuning: three columns spread over the same stick that 7+R
 spreads four over puts 32767 counts between them against 21845. ***Pattern width, side to side (%
-of stick travel)*** on the Geometry tab is the dial — around **67%** gives a three-column pattern
-exactly a four-column reach, and the live gate above the slider shows it happening. It squeezes the
-pattern in from both sides, so the middle column does not move.
+of stick travel)*** on the Geometry tab is the dial. **60%** is what the shipped *5+R* and *Truck*
+presets use — a little tighter than a four-column reach — and the live gate above the slider shows
+it happening. It squeezes the pattern in from both sides, so the middle column does not move. The
+*5+R wide* preset is the same gate left at 100% if you prefer the full sweep.
 
 Nothing else rescales with it, which is the thing to watch. Slot corridors, wall bites and column
 doorways stay the raw counts you set, so each becomes a bigger share of a narrower gate — check the
@@ -305,11 +307,19 @@ doorways stay the raw counts you set, so each becomes a bigger share of a narrow
 that starts biting first. The percent-of-column-spacing readouts move for the same reason, without
 anything stored having changed.
 
+The pattern gets an edge when you narrow it, and that is a second dial. ***Wall at the pattern
+edge (%)***, right under the width slider, is what stops the lever sliding off the side into the
+bare travel a narrowed pattern leaves — the neutral tunnel is deliberately free everywhere else, so
+without it there is nothing out there at all. It only ever pushes back in, it is zero everywhere
+inside the pattern, and at 100% width it renders nothing whatever it is set to. Turn it down for a
+soft edge, off to have none.
+
 **I want the low-range gate of a truck box.**
 Start from the *Truck 6-gear (low-range lockout)* preset — it is exactly this, and unlike the other
 H presets it also carries a truck's *feel*, tuned against a real Eaton-Fuller box rather than
-copied from the racing gate. By hand: pattern *H pattern, 6 gears, no reverse (truck)*, then on
-Feel, ***Lockout position*** *Between columns 1 and 2* and ***Direction*** *One-way - entering the
+copied from the racing gate, and it ships narrowed to 60% width for the same reason 5+R does. By
+hand: pattern *H pattern, 6 gears, no reverse (truck)*, then on Feel, ***Lockout position***
+*Between columns 1 and 2* and ***Direction*** *One-way - entering the
 lower column pays*. Tune the toll with ***Lockout force (%)*** and the half-width, like any lockout.
 
 **My truck gate feels like a racing gate — too quick and too easy.**
@@ -600,7 +610,7 @@ band where it actually is. *FFB loop rate* should stay at 1000; see
 
 ## Presets, and why your profile just renamed itself
 
-The six shipped tunes are marked `(Preset)` and sit at the end of the profile list. They never
+The seven shipped tunes are marked `(Preset)` and sit at the end of the profile list. They never
 change and they cannot be renamed or deleted — the Rename and Delete buttons grey out while one is
 selected. They exist so there is always a known-good gate to come back to when a tuning session has
 wandered.

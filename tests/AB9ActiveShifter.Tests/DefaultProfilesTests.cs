@@ -141,8 +141,10 @@ namespace AB9ActiveShifter.Tests
             ShifterSettings gate = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SevenRName));
             ShifterSettings truck = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.TruckName));
 
-            // The pattern and its gate.
+            // The pattern, its gate, and how wide it stands. Six slots across the whole stick is
+            // a reach, and this box already asks for a long push fore and aft.
             Assert.Equal(GatePattern.H6, truck.Pattern);
+            Assert.Equal(DefaultProfiles.NarrowWidthPct, truck.PatternWidthPct);
             Assert.Equal(LockoutPlacement.Gap1, truck.LockoutPlacement);
             Assert.Equal(LockoutGapDirection.TowardLow, truck.LockoutGapDirection);
 
@@ -176,6 +178,7 @@ namespace AB9ActiveShifter.Tests
                 "OverallGainPct", "ColumnPinForcePct", "LockoutForcePct",
                 "DetentResistPct", "DetentHoldPct",
                 "EngageDepth", "ReleaseDepth", "ThrowFromCentre",
+                "PatternWidthPct",
                 "ClutchBitePointPct", "FxBiteEnabled", "FxEngineGainPct"
             };
 
@@ -271,13 +274,16 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void FiveRIsTheSevenRGateWithOnlyThePatternChanged()
+        public void TheWideFiveRIsTheSevenRGateWithOnlyThePatternChanged()
         {
-            // 5+R is shipped as a copy, so the two stay tuned alike by construction. If someone
-            // tunes them apart on purpose this test is the place to say so - it failing means
-            // the claim in DefaultProfiles' comment is no longer true.
+            // 5+R ships as a copy, so the two stay tuned alike by construction. If someone tunes
+            // them apart on purpose this test is the place to say so - it failing means the claim
+            // in DefaultProfiles' comment is no longer true.
+            //
+            // It is the WIDE one that carries the claim now. The plain 5+R is that same gate
+            // narrowed, which is a difference of one dial and is pinned by the test below.
             ShifterSettings sevenR = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SevenRName));
-            ShifterSettings fiveR = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.FiveRName));
+            ShifterSettings fiveR = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.FiveRWideName));
 
             foreach (PropertyInfo prop in typeof(ShifterSettings).GetProperties(
                          BindingFlags.Public | BindingFlags.Instance))
@@ -292,6 +298,53 @@ namespace AB9ActiveShifter.Tests
                 if (prop.Name.EndsWith("Percent", StringComparison.Ordinal)) continue;
 
                 Assert.Equal(prop.GetValue(sevenR, null), prop.GetValue(fiveR, null));
+            }
+
+            Assert.Equal(100, fiveR.PatternWidthPct);
+        }
+
+        [Fact]
+        public void TheTwoFiveRPresetsAreOneGateAtTwoWidths()
+        {
+            // Why there are two. Three columns spread over the whole axis put 32767 counts
+            // between them against a four-column gate's 21845 - half again the reach for every
+            // shift - so the plain 5+R is narrowed and the wide one keeps the full sweep for
+            // anyone who wants it. One dial apart, and nothing else: narrowing is a distance, not
+            // a different tune.
+            ShifterSettings narrow = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.FiveRName));
+            ShifterSettings wide = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.FiveRWideName));
+
+            foreach (PropertyInfo prop in typeof(ShifterSettings).GetProperties(
+                         BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (!prop.CanRead || !prop.CanWrite) continue;
+                if (prop.Name == "PatternWidthPct") continue;
+                if (prop.Name.EndsWith("Percent", StringComparison.Ordinal)) continue;
+
+                Assert.Equal(prop.GetValue(wide, null), prop.GetValue(narrow, null));
+            }
+
+            Assert.Equal(100, wide.PatternWidthPct);
+            Assert.Equal(DefaultProfiles.NarrowWidthPct, narrow.PatternWidthPct);
+            Assert.True(narrow.ToEngineConfig().BuildGeometry().ColumnSpacing
+                        < wide.ToEngineConfig().BuildGeometry().ColumnSpacing);
+        }
+
+        [Fact]
+        public void EveryNarrowedPresetShipsTheWallItsEdgeNeeds()
+        {
+            // Load-bearing for the two narrowed presets and for nothing else. Outside the
+            // outermost columns a narrowed pattern leaves bare travel with no gear in it, and the
+            // neutral tunnel is deliberately free everywhere else - so a narrowed preset with no
+            // edge wall is a lever that slides to the base's own stop with nothing to say the
+            // gate ended. That is exactly what the first narrowed build did, reported from the
+            // rig, and it is why these two must never ship narrowed with the wall at zero.
+            foreach (ShifterProfile p in DefaultProfiles.Create().Profiles)
+            {
+                if (p.Settings.PatternWidthPct >= 100) continue;
+
+                Assert.True(p.Settings.PatternEdgeForcePct > 0,
+                    p.Name + " is narrowed to " + p.Settings.PatternWidthPct + "% with no edge wall");
             }
         }
 

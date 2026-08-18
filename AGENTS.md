@@ -42,7 +42,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-425 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+435 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
@@ -84,7 +84,7 @@ src/AB9ActiveShifter/
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
   ShifterProfiles.cs       ProfileStore (named settings + active + the rig's own facts), legacy
                            migration, cloning, the preset fork
-  DefaultProfiles.cs       The six presets every install carries, as deltas from bare defaults,
+  DefaultProfiles.cs       The seven presets every install carries, as deltas from bare defaults,
                            plus the reserved name prefix that marks them (see "Shipped
                            profiles" below)
   ProfileTransfer.cs       One profile as a shareable file: what travels, and what is refused
@@ -151,6 +151,8 @@ tests/AB9ActiveShifter.Tests/
                            free, the wall only pushes home, and no axis count steps the stroke
   PatternWidthTests.cs     How wide the pattern stands: the default is the old geometry to the
                            count, narrowing is centred, and no bare axis loses its column
+  PatternEdgeWallTests.cs  The wall a narrowed pattern needs at its sides: one-way, zero inside,
+                           inert at full width, and the angled mouth step it is NOT
   LockoutPlacementTests.cs Where the placement dial actually lands the gate, per pattern,
                            direction and mirror, and every repair it reports
   LockoutModeTests.cs      The Both gate's edge-flip latch, and the hard modes' pinned
@@ -163,9 +165,10 @@ tests/AB9ActiveShifter.Tests/
                            edges, force only - the selector is never blocked
   LockoutSettingsTests.cs  The dials' plumbing: adapters, visibility facts, ToEngineConfig,
                            the Forces reset
-  DefaultProfilesTests.cs  The shipped profiles: forces off, cap on, store coherent, and the
-                           H presets one tune differing only in where the slot ends - except the
-                           truck, whose road test is pinned dial by dial
+  DefaultProfilesTests.cs  The shipped profiles: forces off, cap on, store coherent, the H
+                           presets one tune differing only in where the slot ends and how wide
+                           the gate stands - except the truck, whose road test is pinned dial by
+                           dial - and no narrowed preset shipping without its edge wall
   ProfileTransferTests.cs  Round trip, machine facts kept, every clamp on the import path
   AxisCaptureTests.cs      A pedal wired backwards, one that rests at full scale, a silent device
   ClutchModeTests.cs       Threshold mode is byte-identical to what shipped; the bite-point pulse

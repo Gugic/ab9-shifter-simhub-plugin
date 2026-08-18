@@ -50,6 +50,7 @@ namespace AB9ActiveShifter.Core
         private readonly int _channelWallForce;
         private readonly int _channelGuideForce;
         private readonly int _columnDetentForce;
+        private readonly int _patternEdgeForce;
         private readonly int _barrierForce;
         private readonly int _lockoutForce;
         private readonly int _homeSpringForce;
@@ -238,6 +239,7 @@ namespace AB9ActiveShifter.Core
             _channelWallForce = Force(config.ChannelWallForcePct, gain);
             _channelGuideForce = Force(config.ChannelGuideForcePct, gain);
             _columnDetentForce = Force(config.ColumnDetentForcePct, gain);
+            _patternEdgeForce = Force(config.PatternEdgeForcePct, gain);
             _barrierForce = Force(config.BarrierForcePct, gain);
 
             // The hard modes pin the gate to full strength - that is what "hard" means - but
@@ -992,14 +994,45 @@ namespace AB9ActiveShifter.Core
             if (guideColumn == Column.None) return 0;
 
             int depth = Math.Abs(y - GateGeometry.AxisCenter);
-            int plateau = GuidePlateau(depth);
+            int offset = x - _geo.ColumnTarget(guideColumn);
+
+            bool outward = OutsideThePattern(guideColumn, offset);
+            int plateau = outward
+                ? Math.Max(GuidePlateau(depth), _patternEdgeForce)
+                : GuidePlateau(depth);
             if (plateau <= 0) return 0;
 
-            int offset = x - _geo.ColumnTarget(guideColumn);
             int corridor = SlotCorridor(guideColumn) + MouthExtra(offset, depth, y, guideColumn);
-            int face = GuideFace(plateau, corridor);
+            int face = GuideFace(plateau, corridor, outward);
 
             return (int)Math.Round(Saturating(offset, plateau, face, corridor) * Relief(x, y, face));
+        }
+
+        /// <summary>
+        /// Whether this position is off the outward side of an outer column - the bare axis a
+        /// narrowed pattern leaves between its edge and the base's own stop.
+        /// <para>
+        /// It exists because that region had nothing in it. In the neutral tunnel the guide's
+        /// plateau is <c>ColumnDetentForcePct</c>, which the shipped tunes set to zero on purpose:
+        /// sliding across the gate is meant to be free. That was harmless only while the outer
+        /// columns sat at the ends of travel, where the base's mechanical stop WAS the edge of the
+        /// pattern. Narrow the pattern and the tunnel is free from one stop to the other with the
+        /// gate floating in the middle - measured at exactly 0 DI across the whole axis, and a
+        /// lever parked ten thousand counts outside the first column with nothing to say so.
+        /// </para>
+        /// <para>
+        /// One-sided by construction, which is what makes it safe: it only ever pushes back in, so
+        /// it is not a restoring force about an interior equilibrium and cannot hunt. It is also
+        /// zero inside every corridor, so the lightness rule survives it, and inert at full width -
+        /// there is no room outside an outer column when that column is at the stop.
+        /// </para>
+        /// </summary>
+        private bool OutsideThePattern(Column guideColumn, int offset)
+        {
+            if (_patternEdgeForce <= 0) return false;
+
+            if ((int)guideColumn == 0) return offset < 0;
+            return (int)guideColumn == _geo.ColumnCount - 1 && offset > 0;
         }
 
         /// <summary>
@@ -1160,13 +1193,22 @@ namespace AB9ActiveShifter.Core
         /// stiffness as the slot wall: plateau over face is always pin force over the wall's bite.
         /// A gentler force therefore gets a shorter face rather than a steeper one.
         /// </summary>
-        private int GuideFace(int plateau, int corridor)
+        private int GuideFace(int plateau, int corridor, bool outward = false)
         {
             int ramp = SlotRamp(corridor);
             if (_columnPinForce <= 0) return ramp;
 
-            return GateGeometry.Clamp(
-                (int)Math.Round(plateau * ramp / (double)_columnPinForce), 1, ramp);
+            int scaled = (int)Math.Round(plateau * ramp / (double)_columnPinForce);
+
+            // The ceiling at one wall bite is there because two neighbouring columns each ramp
+            // toward the gap between them, and faces longer than the bite would overlap. Outward
+            // of the pattern there is no neighbour - only the bare axis the width dial left - so
+            // the ceiling has nothing to protect, and applying it anyway would be the one place in
+            // the gate where a stronger force got a STEEPER face instead of a longer one. That is
+            // exactly the rule this method exists to enforce.
+            return outward
+                ? Math.Max(1, scaled)
+                : GateGeometry.Clamp(scaled, 1, ramp);
         }
 
         /// <summary>
