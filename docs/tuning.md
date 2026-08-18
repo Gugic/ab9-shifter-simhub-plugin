@@ -290,10 +290,22 @@ barrier humps, unchanged by the rails.
 ## Symptom → dial
 
 **I want the low-range gate of a truck box.**
-Start from the *Truck 6-gear (low-range lockout)* preset — it is exactly this. By hand: pattern
-*H pattern, 6 gears, no reverse (truck)*, then on Feel, ***Lockout position*** *Between columns 1
-and 2* and ***Direction*** *One-way - entering the lower column pays*. Tune the toll with
-***Lockout force (%)*** and the half-width, like any lockout.
+Start from the *Truck 6-gear (low-range lockout)* preset — it is exactly this, and unlike the other
+H presets it also carries a truck's *feel*, tuned against a real Eaton-Fuller box rather than
+copied from the racing gate. By hand: pattern *H pattern, 6 gears, no reverse (truck)*, then on
+Feel, ***Lockout position*** *Between columns 1 and 2* and ***Direction*** *One-way - entering the
+lower column pays*. Tune the toll with ***Lockout force (%)*** and the half-width, like any lockout.
+
+**My truck gate feels like a racing gate — too quick and too easy.**
+Four dials carry the difference, and the truck preset ships all four. ***Throw from centre to a
+seated gear*** near the top of its range (30000 counts in the preset, against 11915 in the racing
+gate), so a gear is the end of a long push. ***Resistance entering the slot (%)*** well up (57)
+where a racing tune has none, so the slot is something the hand pushes *into*. ***Seated hold,
+keeps the gear in (%)*** down (25 against 40), so the box holds the lever rather than the lever
+holding itself. And ***Lockout force (%)*** *down* (62 against 90) with ***Slot wall / lateral
+rail (%)*** up (89 against 80) — a low-range gate is crossed on nearly every downshift, so it
+cannot cost what a 7/R gate crossed twice a session costs, and the columns are what have to be
+solid instead.
 
 **The hard lockout will not let go.**
 Working as designed until proven otherwise: the hard modes only open from the key bound on the
