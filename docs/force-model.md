@@ -497,6 +497,59 @@ slot rather than in nothing at all. That invariant exists because a silent non-s
 shoved fully home with the game told nothing — is the worst answer this gate can give, and it is
 swept across the whole axis at a narrow width by `EveryPositionInTheGateStillBelongsToAColumn`.
 
+### The pattern needs an edge once it stops reaching the stops
+
+Shipped without one, and reported off the rig within the hour: the pattern narrowed correctly and
+then had nothing at its sides. The lever slid straight past the outermost column and parked against
+the base's own stop, ten thousand counts out, with no gear there and no force to say the gate had
+ended.
+
+The cause is a thing that was true and then quietly stopped being true. In the neutral tunnel the
+lateral guide's plateau is `ColumnDetentForcePct`, and every shipped tune sets it to **zero** on
+purpose — a free tunnel is the whole character of the gate, no hump between columns and no detent
+holding the lever at one. `BarrierForcePct` is zero with it. So in the tunnel the only lateral force
+in the gate is the lockout. That was safe only because the outer columns were *at* the ends of
+travel: the base's mechanical stop was the edge of the pattern. Measured after narrowing: **0 DI
+across the entire axis** at tunnel depth, inside the pattern and outside it alike.
+
+`PatternEdgeForcePct` (default 100) is the edge. Outward of an outer column the guide's plateau
+becomes `max(GuidePlateau(depth), edgeForce)` — so the wall is there in the tunnel, where there was
+nothing, and at depth it simply takes over from the pin it already exceeded. Four properties make it
+safe, and each is pinned:
+
+- **One-sided.** It only ever pushes back in. That is not a restoring force about an interior
+  equilibrium, so it cannot hunt — the same argument that made outer columns stable when they were
+  against the stops, restored to them deliberately instead of by accident.
+- **Zero inside the pattern.** The free tunnel is untouched between the outer columns, so the fix
+  costs none of the lightness it exists to protect.
+- **Inert at full width**, by construction rather than by a guard: an outer column at the stop has
+  no room outside it. That is why it can default to full strength and reach every existing profile
+  at once without changing one of them.
+- **Its face is longer, not steeper.** The edge is stronger than the lateral pin, so `GuideFace`
+  scales its face up in proportion. The ceiling of one wall bite is lifted for this one direction,
+  and only for it: that ceiling exists because two neighbouring columns ramp toward the gap between
+  them and long faces would overlap, and outward of the pattern there is no neighbour — only the
+  bare axis the width dial left. Applying it anyway would make this the one place in the gate where
+  a stronger force got a steeper face, which is the rule `GuideFace` exists to enforce.
+
+**A step the width dial left behind, not yet fixed.** Found while testing the above and recorded
+rather than papered over. `MouthOpeningFor` bounds a mouth at `ColumnSpacing/2 − corridor − 200`;
+narrowing shrinks that half-spacing until an angled mouth reaches the column boundary, where the
+guide changes hands, and the two columns' mouths do not match there — an angled mouth opens one
+flank, and outer and inner columns have different corridors. Measured at depth `ChannelHalfExit`,
+worst single-count step across the axis, edge wall off:
+
+| | 100% | 67% | 55% | 45% |
+| --- | --- | --- | --- | --- |
+| 5+R | 3 DI | 7 DI | 27 DI | 38 DI |
+| 7+R | 7 DI | 37 DI | — | 32 DI |
+
+38 DI is 0.046 Nm — three orders of magnitude under the failures this bound was written for (20000,
+9810, 4924) — but it is a step and it grows with narrowing. The fix is to bound the mouth by the
+handover window rather than by a flat 200 counts, which changes mouths at *every* width and so wants
+its own change and its own session on the rig. `AnAngledMouthStepsAtNarrowWidthsAndThatIsNotTheEdgeWall`
+holds the line where it is measured today, so a fix shows up there and a regression does too.
+
 ## Other patterns
 
 **Missing slots (6+R).** A slot that holds no gear is rendered by never opening its mouth: the

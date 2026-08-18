@@ -34,6 +34,7 @@ namespace AB9ActiveShifter
         private int _channelWallForcePct = 90;
         private int _channelGuideForcePct = 5;
         private int _columnDetentForcePct = 12;
+        private int _patternEdgeForcePct = 100;
         private int _barrierForcePct = 15;
         private int _homeSpringPct;
         private int _lockoutHalfWidth = 2200;
@@ -397,6 +398,13 @@ namespace AB9ActiveShifter
         public int ChannelWallForcePct { get { return _channelWallForcePct; } set { Set(ref _channelWallForcePct, value); } }
         public int ChannelGuideForcePct { get { return _channelGuideForcePct; } set { Set(ref _channelGuideForcePct, value); } }
         public int ColumnDetentForcePct { get { return _columnDetentForcePct; } set { Set(ref _columnDetentForcePct, value); } }
+
+        /// <summary>
+        /// The wall outside the outermost columns, which only has anywhere to be once
+        /// <see cref="PatternWidthPct"/> is under 100. At full width the outer columns are at the
+        /// stops and this renders nothing at all, whatever it is set to.
+        /// </summary>
+        public int PatternEdgeForcePct { get { return _patternEdgeForcePct; } set { Set(ref _patternEdgeForcePct, value); } }
 
         public int BarrierForcePct { get { return _barrierForcePct; } set { Set(ref _barrierForcePct, value); } }
 
@@ -951,6 +959,7 @@ namespace AB9ActiveShifter
                 ChannelWallForcePct = ChannelWallForcePct,
                 ChannelGuideForcePct = ChannelGuideForcePct,
                 ColumnDetentForcePct = ColumnDetentForcePct,
+                PatternEdgeForcePct = PatternEdgeForcePct,
                 BarrierForcePct = BarrierForcePct,
                 HomeSpringPct = HomeSpringPct,
                 MouthShape = MouthShape,
@@ -1088,6 +1097,7 @@ namespace AB9ActiveShifter
                 ChannelWallForcePct = d.ChannelWallForcePct;
                 ChannelGuideForcePct = d.ChannelGuideForcePct;
                 ColumnDetentForcePct = d.ColumnDetentForcePct;
+                PatternEdgeForcePct = d.PatternEdgeForcePct;
                 BarrierForcePct = d.BarrierForcePct;
                 HomeSpringPct = d.HomeSpringPct;
                 MouthShape = d.MouthShape;

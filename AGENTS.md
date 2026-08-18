@@ -42,7 +42,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-425 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+433 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
@@ -151,6 +151,8 @@ tests/AB9ActiveShifter.Tests/
                            free, the wall only pushes home, and no axis count steps the stroke
   PatternWidthTests.cs     How wide the pattern stands: the default is the old geometry to the
                            count, narrowing is centred, and no bare axis loses its column
+  PatternEdgeWallTests.cs  The wall a narrowed pattern needs at its sides: one-way, zero inside,
+                           inert at full width, and the angled mouth step it is NOT
   LockoutPlacementTests.cs Where the placement dial actually lands the gate, per pattern,
                            direction and mirror, and every repair it reports
   LockoutModeTests.cs      The Both gate's edge-flip latch, and the hard modes' pinned

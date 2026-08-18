@@ -944,6 +944,11 @@
                                        Text="How much of the stick&apos;s side-to-side travel the columns are spread over. At 100% the outer columns sit at the very ends, which is where every pattern used to be. Lower it and the pattern is squeezed in from both sides, keeping its middle where it was, so a shift across the gate is a shorter reach - the gate above shows it happening. It is mainly for the three-column patterns: 5+R and the truck 6 put half as many columns across the same stick as 7+R does, so at full width they feel sprawling next to a real five-speed. Around 67% gives them the same spacing a 7+R has." />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
                                        Text="Nothing else rescales with it. Slot corridors, wall bites and column doorways are all still the raw counts you set, so narrowing the pattern makes each of them a bigger share of the room between columns - which is why the % of column spacing readouts move when this does, and why the wall bite ceiling on the Feel tab can start biting. Narrow a long way and check that figure." />
+                            <ui:TitledSlider Title="Wall at the pattern edge (%)" Minimum="0" Maximum="100"
+                                             TickFrequency="5" ShowResetButton="True" ResetValue="100"
+                                             Value="{Binding PatternEdgeForcePct, Mode=TwoWay}" />
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8"
+                                       Text="What stops the lever wandering off the side of a narrowed pattern. Outside the outermost columns there is bare travel with no gear in it, and the neutral tunnel is deliberately free everywhere else, so without this the lever slides to the base&apos;s own stop with nothing to say the gate ended. It is one-sided - it only ever pushes back in, never out - so it is a wall rather than a centring force, and it is zero everywhere inside the pattern. At 100% width it renders nothing at all, whatever it is set to: the outer columns are already at the stops and there is no room outside them." />
                         </StackPanel>
                     </styles:SHSection>
 

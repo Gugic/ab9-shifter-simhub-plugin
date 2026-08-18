@@ -374,6 +374,13 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public int ColumnDetentForcePct = 12;
 
+        /// <summary>
+        /// The wall outside the outermost columns, once <see cref="PatternWidthPct"/> has left bare
+        /// axis out there for a lever to wander into. Inert at full width by construction - the
+        /// outer columns sit at the stops, so there is no room outside them to render anything in.
+        /// </summary>
+        public int PatternEdgeForcePct = 100;
+
         /// <summary>Humps between the ordinary columns, felt as you slide across the gate.</summary>
         public int BarrierForcePct = 15;
 

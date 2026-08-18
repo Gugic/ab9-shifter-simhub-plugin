@@ -78,6 +78,7 @@ button changes hands.
 | Wall friction | 15% | The gate surfaces' own grip: drag equal to this share of whatever force you are pressed against. Zero in free travel by construction, so it costs no lightness. Note: for lean-flutter the effective fix is MOZA Cockpit's Damper at ~15% (zero-latency, at the servo); this dial is the software-side supplement. |
 | Slot mouth | Square | Shape of the divider ends where they meet the tunnel. Square is the plain notch and changes nothing. |
 | Pattern width | 100% | Geometry tab. How much of the stick the columns are spread over, centred. Mainly for 5+R and the truck 6, which put three columns across the same stick 7+R puts four across; around 67% gives them a four-column reach. |
+| Wall at the pattern edge | 100% | Geometry tab. The wall outside the outermost columns, which is bare travel with no gear in it once the pattern is narrowed. One-way, inward only. Renders nothing at all at 100% width. |
 | Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
 | Neutral tunnel depth | 2600 counts | The state band: where "in the tunnel" ends and the lateral field's rise lives. Must exceed your fore/aft slop while sliding sideways, or you spend your time in the transition band instead. Measured on real hands: p50 1848, p90 3215. |
 | Tunnel depth, free corridor | 2600 counts | Where the tunnel's fore/aft centring force begins. Ships equal to the state band, so the tunnel is simply free; dial to zero for the rail gate. Capped at the state band. |
@@ -304,6 +305,13 @@ doorways stay the raw counts you set, so each becomes a bigger share of a narrow
 *wall bite distance* effective ceiling on the Feel tab after a big change, because that is the one
 that starts biting first. The percent-of-column-spacing readouts move for the same reason, without
 anything stored having changed.
+
+The pattern gets an edge when you narrow it, and that is a second dial. ***Wall at the pattern
+edge (%)***, right under the width slider, is what stops the lever sliding off the side into the
+bare travel a narrowed pattern leaves — the neutral tunnel is deliberately free everywhere else, so
+without it there is nothing out there at all. It only ever pushes back in, it is zero everywhere
+inside the pattern, and at 100% width it renders nothing whatever it is set to. Turn it down for a
+soft edge, off to have none.
 
 **I want the low-range gate of a truck box.**
 Start from the *Truck 6-gear (low-range lockout)* preset — it is exactly this, and unlike the other

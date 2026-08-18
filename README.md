@@ -258,6 +258,11 @@ stick, which is right for 7+R and a lot of reach for the three-column patterns �
 where it is, with the live gate above the slider showing it happen. Around 67% gives a
 three-column pattern the same reach a 7+R has.
 
+Narrowing leaves bare travel outside the outermost columns, with no gear in it and — because the
+neutral tunnel is deliberately free — nothing to stop the lever sliding into it. *Wall at the
+pattern edge*, under the same slider, is that edge: one-way, inward only, zero everywhere inside
+the pattern, and it renders nothing at all at full width.
+
 A profile stores every dial together with its pattern, so each pattern keeps its own tuning and
 switching between them is one dropdown. *Next profile* and *Previous profile* are bindable actions
 if you would rather not use the dropdown.
