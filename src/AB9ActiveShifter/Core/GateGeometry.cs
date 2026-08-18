@@ -29,6 +29,15 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public const int MinBandSpan = 1000;
 
+        /// <summary>
+        /// The narrowest the pattern may stand, as a percentage of the axis. Below this a
+        /// four-column gate has less room between columns than a shipped slot corridor plus its
+        /// wall needs, so every lateral dial hits its geometric ceiling at once - see the note in
+        /// the constructor. A guard on a hostile value, not a tuning limit; the slider stops well
+        /// short of it.
+        /// </summary>
+        public const int MinPatternWidthPct = 25;
+
         /// <summary>Full-scale force in DirectInput units.</summary>
         public const int ForceMax = 10000;
 
@@ -115,8 +124,18 @@ namespace AB9ActiveShifter.Core
         /// <summary>The guarded slot's direction, or None.</summary>
         public ShiftDir LockoutSlotDir { get; private set; }
 
+        /// <summary>
+        /// How much of the axis the columns are spread over, in counts, centred on the axis.
+        /// Full travel at the default 100%; narrower brings the outer columns in off the ends of
+        /// the stick, which is the only way to make a three-column pattern feel less sprawling.
+        /// </summary>
+        public int PatternSpan { get; private set; }
+
+        /// <summary>The pattern width actually used, after clamping. 100 is the whole axis.</summary>
+        public int PatternWidthPct { get; private set; }
+
         /// <summary>Distance between adjacent columns.</summary>
-        public int ColumnSpacing { get { return AxisMax / (ColumnCount - 1); } }
+        public int ColumnSpacing { get { return PatternSpan / (ColumnCount - 1); } }
 
         /// <summary>
         /// The column the neutral spring pulls toward: the one holding gears 3 and 4, where a
@@ -148,7 +167,8 @@ namespace AB9ActiveShifter.Core
             GatePattern pattern = GatePattern.H7R,
             LockoutPlacement lockoutPlacement = LockoutPlacement.PatternDefault,
             LockoutGapDirection lockoutDirection = LockoutGapDirection.TowardHigh,
-            int lockoutSlotGear = 8)
+            int lockoutSlotGear = 8,
+            int patternWidthPct = 100)
         {
             Pattern = pattern;
             ColumnCount = pattern == GatePattern.H5R || pattern == GatePattern.H6 ? 3 : 4;
@@ -183,10 +203,35 @@ namespace AB9ActiveShifter.Core
             ReleaseDepth = Math.Max(releaseDepth, engageDepth + 1);
             DetentHysteresis = detentHysteresis;
 
+            // How wide the pattern stands. The three-column patterns are the reason this dial
+            // exists: spread over the whole axis they put 32767 counts between columns against
+            // the four-column gate's 21845, which reads as sprawling next to a real 5-speed.
+            //
+            // Clamped rather than trusted - it arrives from a settings file - and the floor is
+            // set where the gate is still a gate: at 25% a four-column pattern has 5461 counts
+            // between columns, which a 2400-count slot corridor and a wall bite have to fit
+            // inside. Narrower than that and every lateral dial is against its own ceiling at
+            // once, so the answer stops being "narrow" and starts being "broken".
+            //
+            // The pattern is centred, not anchored, so narrowing takes the same room off each
+            // side and the middle column of an odd pattern does not move at all. At 100 the
+            // arithmetic below is exactly what it always was - low is 0 and the span is the
+            // whole axis - which is what keeps every tuned profile rendering unchanged.
+            PatternWidthPct = Clamp(patternWidthPct, MinPatternWidthPct, 100);
+            PatternSpan = (int)Math.Round(AxisMax * (PatternWidthPct / 100.0));
+            // Rounded away from zero rather than truncated - and NOT with the default banker's
+            // rounding, which sends exactly the half-counts this hits to the wrong side. The axis
+            // is odd, so centring a pattern always has a spare half-count; this puts it at the
+            // ENDS rather than biasing the whole pattern left, which is what lets the middle
+            // column of a three-column gate land on the identical count at every width. Narrowing
+            // 5+R must not move the column a hand rests on.
+            int low = (int)Math.Round((AxisMax - PatternSpan) / 2.0, MidpointRounding.AwayFromZero);
+
             _targets = new int[ColumnCount];
             for (int i = 0; i < ColumnCount; i++)
             {
-                _targets[i] = (int)Math.Round(i * (double)AxisMax / (ColumnCount - 1));
+                _targets[i] = low + (int)Math.Round(
+                    i * (double)PatternSpan / (ColumnCount - 1), MidpointRounding.AwayFromZero);
             }
 
             PlaceLockout(lockoutHalfWidth, lockoutPlacement, lockoutDirection, lockoutSlotGear);

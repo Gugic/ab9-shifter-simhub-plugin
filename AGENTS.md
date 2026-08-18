@@ -42,7 +42,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-416 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+425 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
@@ -149,6 +149,8 @@ tests/AB9ActiveShifter.Tests/
                            lines)
   SlotEndStopTests.cs      The bottom of an H slot: the default changes nothing, the landing is
                            free, the wall only pushes home, and no axis count steps the stroke
+  PatternWidthTests.cs     How wide the pattern stands: the default is the old geometry to the
+                           count, narrowing is centred, and no bare axis loses its column
   LockoutPlacementTests.cs Where the placement dial actually lands the gate, per pattern,
                            direction and mirror, and every repair it reports
   LockoutModeTests.cs      The Both gate's edge-flip latch, and the hard modes' pinned
@@ -162,8 +164,8 @@ tests/AB9ActiveShifter.Tests/
   LockoutSettingsTests.cs  The dials' plumbing: adapters, visibility facts, ToEngineConfig,
                            the Forces reset
   DefaultProfilesTests.cs  The shipped profiles: forces off, cap on, store coherent, and the
-                           H presets one tune differing only in where the slot ends and where
-                           the truck's gate sits
+                           H presets one tune differing only in where the slot ends - except the
+                           truck, whose road test is pinned dial by dial
   ProfileTransferTests.cs  Round trip, machine facts kept, every clamp on the import path
   AxisCaptureTests.cs      A pedal wired backwards, one that rests at full scale, a silent device
   ClutchModeTests.cs       Threshold mode is byte-identical to what shipped; the bite-point pulse
@@ -365,7 +367,10 @@ runners cannot load, so anything worth testing must not touch it.
   before the seat (a seated gear rests in a free region, not under a permanent extra load).
 - Slots and the neutral channel are **corridors with walls** by default, not pulls toward a
   centre line. A restoring force about an interior equilibrium is an oscillator; that is what made
-  the middle columns shake while the outer ones (one-sided against the end of travel) were fine.
+  the middle columns shake while the outer ones were fine - the latter being one-sided against the
+  end of travel, which is true only at the default `PatternWidthPct` of 100. Narrow the pattern and
+  the outer columns gain bare axis on both sides and become interior equilibria like any other, so
+  a narrowed outer column that hunts wants what an inner one wants: lower force, never damping.
   Both free widths are dials (`SlotHalfWidth`, `ChannelFreeDepth`) and **zero is a supported
   setting** — the rail gate, the native shifter-mode topology, one axis guided everywhere (see
   docs/force-model.md). Closing a corridor brings the interior equilibrium back, so rails are

@@ -30,7 +30,9 @@ questions that used to need a trip to the rig:
   experiment can be walked back one dial at a time instead of by resetting the tab.
 - **Raw counts or percent of column spacing.** The lateral dials can be read either way. Percent
   is the more portable view, because column spacing changes with the pattern — a slot width tuned
-  on 7+R is a different fraction of the room on 5+R, which has three columns instead of four.
+  on 7+R is a different fraction of the room on 5+R, which has three columns instead of four — and
+  with *Pattern width* on the Geometry tab, which moves the same spacing without changing a single
+  stored count.
 
 ## What the Geometry tab shows you while you turn a dial
 
@@ -75,6 +77,7 @@ button changes hands.
 | Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
 | Wall friction | 15% | The gate surfaces' own grip: drag equal to this share of whatever force you are pressed against. Zero in free travel by construction, so it costs no lightness. Note: for lean-flutter the effective fix is MOZA Cockpit's Damper at ~15% (zero-latency, at the servo); this dial is the software-side supplement. |
 | Slot mouth | Square | Shape of the divider ends where they meet the tunnel. Square is the plain notch and changes nothing. |
+| Pattern width | 100% | Geometry tab. How much of the stick the columns are spread over, centred. Mainly for 5+R and the truck 6, which put three columns across the same stick 7+R puts four across; around 67% gives them a four-column reach. |
 | Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
 | Neutral tunnel depth | 2600 counts | The state band: where "in the tunnel" ends and the lateral field's rise lives. Must exceed your fore/aft slop while sliding sideways, or you spend your time in the transition band instead. Measured on real hands: p50 1848, p90 3215. |
 | Tunnel depth, free corridor | 2600 counts | Where the tunnel's fore/aft centring force begins. Ships equal to the state band, so the tunnel is simply free; dial to zero for the rail gate. Capped at the state band. |
@@ -288,6 +291,19 @@ the bite; **notches too faint** between columns → raise barrier force — the 
 barrier humps, unchanged by the rails.
 
 ## Symptom → dial
+
+**5+R or the truck 6 feels sprawling — every shift is a reach across the whole stick.**
+It is, and it is arithmetic rather than tuning: three columns spread over the same stick that 7+R
+spreads four over puts 32767 counts between them against 21845. ***Pattern width, side to side (%
+of stick travel)*** on the Geometry tab is the dial — around **67%** gives a three-column pattern
+exactly a four-column reach, and the live gate above the slider shows it happening. It squeezes the
+pattern in from both sides, so the middle column does not move.
+
+Nothing else rescales with it, which is the thing to watch. Slot corridors, wall bites and column
+doorways stay the raw counts you set, so each becomes a bigger share of a narrower gate — check the
+*wall bite distance* effective ceiling on the Feel tab after a big change, because that is the one
+that starts biting first. The percent-of-column-spacing readouts move for the same reason, without
+anything stored having changed.
 
 **I want the low-range gate of a truck box.**
 Start from the *Truck 6-gear (low-range lockout)* preset — it is exactly this, and unlike the other

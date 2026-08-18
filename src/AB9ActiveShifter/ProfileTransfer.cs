@@ -415,6 +415,14 @@ namespace AB9ActiveShifter
         /// </summary>
         private static void RangeFor(string name, out int lo, out int hi)
         {
+            if (name == "PatternWidthPct")
+            {
+                // Not a torque scale despite the suffix - it is how wide the pattern stands, and
+                // its own floor is where a gate stops being one. Checked before the Pct rule
+                // below, which would otherwise let a file ask for a pattern of zero width and
+                // leave the geometry to quietly repair it.
+                lo = GateGeometry.MinPatternWidthPct; hi = 100; return;
+            }
             if (name.EndsWith("Pct", StringComparison.Ordinal))
             {
                 // Everything that scales torque. The tightest clamp here, and the reason for it.
