@@ -42,7 +42,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-435 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+443 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
@@ -110,7 +110,9 @@ src/AB9ActiveShifter/
     RetryBackoff.cs        "Do not try that again yet" - the gate on I/O the tick can attempt
                            and fail. A throttled log is not one; see its header
     VelocityEstimator.cs   Position -> speed across a 4 ms window; per-tick differences alias
-    TraceRecorder.cs       Per-tick ring buffer -> CSV, so a feel complaint can be replayed
+    TraceRecorder.cs       Per-tick ring buffer -> CSV, so a feel complaint can be replayed.
+                           Keeps the LAST two minutes; read its header before making it stop
+                           at capacity again
     VJoyDeviceInfo.cs      One vJoy device as the picker shows it, and the sentence describing it
   Device/                  DirectInput and Win32
     FfbDevice.cs           Open by VID/PID, exclusive+background, poll
@@ -142,6 +144,9 @@ tests/AB9ActiveShifter.Tests/
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
   RetryBackoffTests.cs     A failing device open cannot be attempted once per tick, counted
   VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
+  TraceRecorderTests.cs    That the buffer keeps the newest two minutes rather than the oldest,
+                           wraps without a seam, says in the file when it dropped ticks, and
+                           never stops itself - the three halves of losing a captured failure
   SequentialTests.cs       One-shift-per-stroke, re-arm, mirror, spring shape, click kick
   PrndTests.cs             The selector: always in exactly one position, buttons above every
                            other range, and no axis count anywhere that steps the lane's force

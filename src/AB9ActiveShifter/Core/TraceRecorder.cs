@@ -37,22 +37,49 @@ namespace AB9ActiveShifter.Core
             public float DtMs;
         }
 
-        /// <summary>Two minutes at 1 kHz. Recording stops rather than wrapping, so a trace has a start.</summary>
+        /// <summary>
+        /// Two minutes at 1 kHz, kept as the LAST two minutes: the buffer wraps and recording runs
+        /// until it is stopped.
+        ///
+        /// It used to stop itself at capacity instead, on the reasoning that a trace should have a
+        /// start. That is right for a feel complaint, where the movement is made on purpose and
+        /// stopping takes seconds - and in that case wrapping gives the identical file, because
+        /// nothing was dropped. It is exactly wrong for a fault that arrives at an unknown time:
+        /// the base froze fifty minutes into a session on 2026-08-20 and what the buffer held was
+        /// the first two minutes of the race. Worse, stopping itself made <see cref="IsRecording"/>
+        /// false, so the press meant to save the trace fell through to <see cref="Start"/> and
+        /// discarded it. Keeping the tail costs nothing a from-the-start trace had and is the only
+        /// version that can catch something nobody can schedule.
+        /// </summary>
         public const int Capacity = 120000;
 
         private readonly Sample[] _samples = new Sample[Capacity];
         private volatile bool _recording;
+
+        // Engine thread writes these; the UI reads them after Stop. Ints rather than one long
+        // counter because this framework targets x86, where a 64-bit read can tear.
+        private int _writeIndex;
         private int _count;
+        private int _wraps;
         private double _originMs;
 
         public bool IsRecording { get { return _recording; } }
+
+        /// <summary>How many ticks the buffer is holding - at most <see cref="Capacity"/>.</summary>
         public int Count { get { return _count; } }
-        public bool IsFull { get { return _count >= Capacity; } }
+
+        /// <summary>Whether the buffer has wrapped, so the oldest ticks recorded are gone.</summary>
+        public bool IsFull { get { return _wraps > 0; } }
+
+        /// <summary>Ticks recorded and then overwritten, for the header and the status line.</summary>
+        public long Dropped { get { return (long)_wraps * Capacity + _writeIndex - _count; } }
 
         /// <summary>Called from the UI. The loop notices on its next tick.</summary>
         public void Start()
         {
             _count = 0;
+            _writeIndex = 0;
+            _wraps = 0;
             _originMs = -1;
             _recording = true;
         }
@@ -63,9 +90,22 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// Engine thread. Deliberately does nothing that can block or allocate, and stops itself when
-        /// full rather than overwriting, so what is saved is a contiguous stretch from the moment
-        /// recording began.
+        /// Forgets what was recorded. Called after a successful save, because the buffer outliving
+        /// the file it was written to is what makes the record button ambiguous: with anything held
+        /// counting as savable, a recorder that never empties can only ever save.
+        /// </summary>
+        public void Clear()
+        {
+            _count = 0;
+            _writeIndex = 0;
+            _wraps = 0;
+            _originMs = -1;
+        }
+
+        /// <summary>
+        /// Engine thread. Deliberately does nothing that can block or allocate, and never stops
+        /// itself: past capacity it overwrites the oldest tick, so what is saved is the contiguous
+        /// stretch ending at the moment recording was stopped.
         /// </summary>
         public void Add(double nowMs, int x, int y, int vx, int vy, double dtMs,
                         GateState state, Column column, ShiftDir direction, int gear,
@@ -73,12 +113,7 @@ namespace AB9ActiveShifter.Core
         {
             if (!_recording) return;
 
-            int i = _count;
-            if (i >= Capacity)
-            {
-                _recording = false;
-                return;
-            }
+            int i = _writeIndex;
 
             if (_originMs < 0) _originMs = nowMs;
 
@@ -95,7 +130,17 @@ namespace AB9ActiveShifter.Core
             _samples[i].Fx = fx;
             _samples[i].Fy = fy;
 
-            _count = i + 1;
+            // Advance last, so a reader that catches this mid-write sees the slot still counted as
+            // the oldest rather than as the newest.
+            i++;
+            if (i >= Capacity)
+            {
+                i = 0;
+                _wraps++;
+            }
+            _writeIndex = i;
+
+            if (_count < Capacity) _count++;
         }
 
         /// <summary>
@@ -106,6 +151,9 @@ namespace AB9ActiveShifter.Core
         public string Save(string directory, EngineConfig cfg, string note)
         {
             int n = Math.Min(_count, Capacity);
+            int start = n < Capacity ? 0 : _writeIndex;
+            long dropped = Dropped;
+
             Directory.CreateDirectory(directory);
 
             string name = "trace-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + ".csv";
@@ -113,13 +161,27 @@ namespace AB9ActiveShifter.Core
 
             var sb = new StringBuilder(n * 64);
             sb.Append("# AB9 Active Shifter trace, ").Append(n).Append(" ticks").AppendLine();
+
+            // Said in the file rather than only in the UI: a trace whose ms column starts at
+            // 2 830 000 is not a broken clock, it is the tail of a long session, and whoever reads
+            // it months later needs to know that without having to ask.
+            if (dropped > 0)
+            {
+                sb.Append("# the last ").Append(n).Append(" ticks of ").Append(dropped + n)
+                  .Append(" recorded; the ms column is milliseconds since recording began")
+                  .AppendLine();
+            }
+
             if (!string.IsNullOrEmpty(note)) sb.Append("# note: ").Append(note).AppendLine();
             sb.Append("# ").Append(Describe(cfg)).AppendLine();
             sb.AppendLine("# x,y in axis counts 0..65535 centre 32767; vx,vy counts/s; fx,fy DirectInput units as sent");
             sb.AppendLine("ms,x,y,vx,vy,dtMs,state,column,dir,gear,fx,fy");
 
-            for (int i = 0; i < n; i++)
+            for (int k = 0; k < n; k++)
             {
+                int i = start + k;
+                if (i >= Capacity) i -= Capacity;
+
                 Sample s = _samples[i];
                 sb.Append(s.Ms.ToString("0.000", CultureInfo.InvariantCulture)).Append(',')
                   .Append(s.X).Append(',').Append(s.Y).Append(',')
