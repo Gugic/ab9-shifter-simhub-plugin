@@ -161,6 +161,7 @@ src/AB9ActiveShifter/
     ForceComposer.cs       Position + velocity -> forces. The heart
     EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
+    DeviceFault.cs         A DirectInput HRESULT as gone / taken by another app / unknown
     VelocityEstimator.cs   Position -> speed across a 4 ms window
     PolarityCalibrator.cs  Measures effect polarity on hardware
     TraceRecorder.cs       Per-tick ring buffer -> CSV; keeps the LAST two minutes, so it can

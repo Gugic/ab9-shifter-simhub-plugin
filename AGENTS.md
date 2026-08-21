@@ -42,7 +42,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-443 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
+454 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
 arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
@@ -107,6 +107,8 @@ src/AB9ActiveShifter/
     PedalDeviceInfo.cs     One controller as the pedal picker shows it
     PolarityCalibrator.cs  Measures effect polarity on hardware
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
+    DeviceFault.cs         Reads a DirectInput HRESULT as gone / taken by another app / unknown.
+                           The one distinction whose repair is opposite - see its header
     RetryBackoff.cs        "Do not try that again yet" - the gate on I/O the tick can attempt
                            and fail. A throttled log is not one; see its header
     VelocityEstimator.cs   Position -> speed across a 4 ms window; per-tick differences alias
@@ -143,6 +145,8 @@ tests/AB9ActiveShifter.Tests/
   GateStateMachineTests.cs Transitions, hysteresis, lockout traces
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
   RetryBackoffTests.cs     A failing device open cannot be attempted once per tick, counted
+  DeviceFaultTests.cs      Which HRESULTs mean another program has the base, so standing down and
+                           crashing the user's game do not get confused
   VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
   TraceRecorderTests.cs    That the buffer keeps the newest two minutes rather than the oldest,
                            wraps without a seam, says in the file when it dropped ticks, and
@@ -444,6 +448,17 @@ runners cannot load, so anything worth testing must not touch it.
   that order, always. A gear must never stay stuck down.
 - The watchdog (500 ms timer, 1 s staleness) calls `EmergencyStop`. `StopForces` is the only
   device method callable off the engine thread, and it swallows everything.
+- **A device another application has taken is released, not reclaimed.** Exclusive+background is
+  the strongest cooperative level DirectInput has and it still loses to a foreground app, so
+  reopening is not a repair - it is a theft, and it pulls the device out from under the game
+  mid-frame. Measured: `DIERR_NOTEXCLUSIVEACQUIRED` at 00:31:38.140 followed by our own successful
+  reopen 127 ms later, and a user report of Forza crashing when the plugin is re-armed.
+  `DeviceFaults.Classify` names the condition and `ReadyToReclaim` waits for SimHub to report no
+  game running - a timer alone would take the device mid-race, just less often. A config change is
+  the deliberate override, and `DIERR_INPUTLOST` stays `Unknown` on purpose: it cannot tell a
+  focus change from a pulled cable, so it still re-acquires once and the failure of *that* attempt
+  is what gets classified. The real fix is outside the plugin - hide the base from games with
+  HidHide, see docs/hardware.md.
 - **A repair keyed on this base's status flags needs a second source, and never touches the gear.**
   The base sets `DIGFFS_EMPTY` while producing force — measured, held over forty minutes with no
   other fault flag — and `DIGFFS_STOPPED` at rest, which is why `Idle` is not a fault. Since

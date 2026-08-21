@@ -414,7 +414,7 @@ namespace AB9ActiveShifter.Core
 
                     if (_phase != EnginePhase.Run)
                     {
-                        if (nowMs >= nextOpenAttemptMs)
+                        if (nowMs >= nextOpenAttemptMs && (!_yielded || ReadyToReclaim(nowMs)))
                         {
                             if (TryOpenDevice(cfg, nowMs))
                             {
@@ -565,7 +565,7 @@ namespace AB9ActiveShifter.Core
                 string error;
                 if (!_device.TryPoll(out rawX, out rawY, out error))
                 {
-                    HandleDeviceLoss(error);
+                    HandleDeviceLoss(error, _device.LastFault, nowMs);
                     return;
                 }
 
@@ -756,7 +756,10 @@ namespace AB9ActiveShifter.Core
 
                 if (_effects.IsFaulted)
                 {
-                    HandleDeviceLoss("Effect updates failed repeatedly; reopening the device.");
+                    DeviceFault fault = _effects.LastFault;
+                    HandleDeviceLoss(fault == DeviceFault.TakenByAnotherApp
+                        ? "our exclusive acquisition was revoked"
+                        : "Effect updates failed repeatedly; reopening the device.", fault, nowMs);
                     return;
                 }
 
@@ -1113,6 +1116,8 @@ namespace AB9ActiveShifter.Core
                 }
 
                 Log.ResetThrottle("device-open");
+                Log.ResetThrottle("device-yield");
+                _yielded = false;
                 _phase = EnginePhase.Run;
                 _status = BuildReadyStatus(cfg);
                 return true;
@@ -1133,10 +1138,51 @@ namespace AB9ActiveShifter.Core
             return "Running on " + deviceName + ", " + vjoy + ", " + gain + ".";
         }
 
-        private void HandleDeviceLoss(string reason)
+        /// <summary>
+        /// Gives the device up, and decides whether to go looking for it again.
+        ///
+        /// For every fault but one the answer is yes, on the usual backoff. The exception is a
+        /// device another application has taken, where reopening is not a repair: DirectInput
+        /// hands exclusive access to the foreground app, so the game wins the moment it asks - and
+        /// the reconnect loop then takes it straight back, at which point the game loses its device
+        /// mid-frame and crashes. Measured on this rig with Forza and with Wreckfest 2, and visible
+        /// in the log as DIERR_NOTEXCLUSIVEACQUIRED followed one tenth of a second later by our own
+        /// "Opened 'MOZA AB9 FFB Base' exclusive+background" - us winning the tug of war.
+        ///
+        /// There is no cooperative level that beats this; exclusive+background is already the
+        /// strongest DirectInput offers, and exclusive is mandatory for creating effects at all.
+        /// The only real fix is for games not to see the base (HidHide), so the log says so.
+        /// </summary>
+        private void HandleDeviceLoss(string reason, DeviceFault fault, long nowMs)
         {
-            Log.WarnThrottled("device-loss", "Device lost: " + reason, 10);
-            _status = reason;
+            if (fault == DeviceFault.TakenByAnotherApp)
+            {
+                _yielded = true;
+
+                // Reset then immediately hold off, so the first look is one whole wait away. An
+                // instant re-check would land in the moment the game was still starting up and the
+                // telemetry had not caught up yet - which reads as "no game" and takes the device
+                // straight back, the exact thing being fixed.
+                _yieldedRetry.Reset();
+                _yieldedRetry.Failed(nowMs);
+
+                _status = "Another application has taken the base. Standing down rather than " +
+                          "taking it back - reclaiming it is what crashes the game. It will be " +
+                          "picked up again once no game is running.";
+
+                Log.WarnThrottled("device-yield",
+                    "Another application has taken the base (" + reason + "). Standing down: " +
+                    "DirectInput gives exclusive access to the foreground application, so " +
+                    "reopening it here would pull the device out from under that program. The " +
+                    "gate will be picked up again once no game is running. To stop this happening " +
+                    "at all, hide the base's HID interface from games with HidHide and whitelist " +
+                    "SimHubWPF.exe - games are meant to see the vJoy device, not the base.", 30);
+            }
+            else
+            {
+                Log.WarnThrottled("device-loss", "Device lost: " + reason, 10);
+                _status = reason;
+            }
 
             if (_output != null) _output.ReleaseAll();
 
@@ -1144,6 +1190,51 @@ namespace AB9ActiveShifter.Core
             DisposeDevice();
 
             _phase = EnginePhase.SearchDevice;
+        }
+
+        // --- standing down for another application ------------------------------------------
+        //
+        // Set when a fault says another process owns the base, cleared by a successful open or by
+        // any config change - which is what makes re-picking a device on the Setup tab, or toggling
+        // the plugin off and on, the deliberate "take it back anyway" escape.
+        private volatile bool _yielded;
+
+        /// <summary>
+        /// How often a stood-down engine may look to see whether the base is free again. Longer
+        /// than the ordinary reconnect because the answer is usually "still racing", and every
+        /// attempt that SUCCEEDS while a game is running is a crash rather than a recovery.
+        /// </summary>
+        private readonly RetryBackoff _yieldedRetry = new RetryBackoff(5000, 15000, 30000);
+
+        /// <summary>A game reported within this long counts as still running.</summary>
+        private const int GameLiveWindowMs = 2000;
+
+        /// <summary>
+        /// Whether to reach for the base again after standing down.
+        ///
+        /// The rule is "when it is actually free", not "in N seconds", because a timer that fires
+        /// mid-race takes the device off the game exactly as the old code did, just less often.
+        /// SimHub already knows whether a game is running and the engine already has that snapshot,
+        /// so the wait costs nothing to ask for. A game SimHub does not recognise is the hole in
+        /// this - it reads as no game - which is the other reason the log points at HidHide.
+        /// </summary>
+        private bool ReadyToReclaim(long nowMs)
+        {
+            if (!_yieldedRetry.Due(nowMs)) return false;
+
+            TelemetryState telemetry = _telemetry;
+            int age = unchecked(Environment.TickCount - telemetry.CapturedAtTick);
+
+            if (telemetry.GameRunning && age >= 0 && age <= GameLiveWindowMs)
+            {
+                _yieldedRetry.Failed(nowMs);
+                return false;
+            }
+
+            _yielded = false;
+            _yieldedRetry.Succeeded();
+            Log.Info("No game is holding the base now; picking it up again.");
+            return true;
         }
 
         private void ApplyConfigChange(EngineConfig cfg, long nowMs)
@@ -1215,6 +1306,12 @@ namespace AB9ActiveShifter.Core
                                (previous.VendorId != cfg.VendorId ||
                                 previous.ProductId != cfg.ProductId ||
                                 previous.VJoyDeviceId != cfg.VJoyDeviceId);
+
+            // A config change is the user's own hand on the plugin - re-picking a device, toggling
+            // it off and on - so it is also the escape from standing down: take the base back even
+            // if a game is holding it, because this time someone asked for it.
+            _yielded = false;
+            _yieldedRetry.Reset();
 
             if (needsReopen && _phase == EnginePhase.Run)
             {

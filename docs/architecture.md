@@ -17,7 +17,16 @@ One SimHub plugin assembly, `AB9ActiveShifter.dll`, plus a test project. The spl
 exceptions except `FfbDevice.StopForces()`, which the watchdog may call to kill output when the
 loop has stopped ticking, and which swallows everything because the device may already be gone.
 
-The thread runs `SearchDevice → OpenDevice → Run`, with 1/2/5 s backoff on failure. Each tick:
+The thread runs `SearchDevice → OpenDevice → Run`, with 1/2/5 s backoff on failure — **except when
+the fault says another application has taken the base**, where it stands down instead. Exclusive
+access goes to the foreground app, so reopening is not a repair; it pulls the device out from under
+the game and crashes it. `DeviceFaults.Classify` reads the HRESULT, `HandleDeviceLoss` releases and
+sets `_yielded`, and `ReadyToReclaim` waits for SimHub to report no game running before looking
+again (5/15/30 s between looks, and the first look one whole wait after the loss so a game still
+starting up is not mistaken for one that has gone). Any config change clears the stand-down, which
+is what makes re-picking a device on Setup the deliberate "take it back anyway".
+
+Each tick:
 
 1. Poll position (cheap, and first, so every computation runs on data <1 ms old).
 2. If calibration is active, run that instead and return.
