@@ -161,9 +161,11 @@ src/AB9ActiveShifter/
     ForceComposer.cs       Position + velocity -> forces. The heart
     EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
+    DeviceFault.cs         A DirectInput HRESULT as gone / taken by another app / unknown
     VelocityEstimator.cs   Position -> speed across a 4 ms window
     PolarityCalibrator.cs  Measures effect polarity on hardware
-    TraceRecorder.cs       Per-tick ring buffer -> CSV, so a feel complaint can be replayed
+    TraceRecorder.cs       Per-tick ring buffer -> CSV; keeps the LAST two minutes, so it can
+                           be left running through a session and still hold the failure
   Device/                  DirectInput and Win32
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
   Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the Setup tab's picker (query-only)
@@ -196,7 +198,9 @@ change, deploy it, and say what to try and what to look for. Do not conclude a f
 fixed without that.
 
 `Monitor` → the trace recorder writes every tick to CSV, which is how a complaint like "it buzzes
-coming off the lockout" becomes a frequency and an amplitude instead of an adjective.
+coming off the lockout" becomes a frequency and an amplitude instead of an adjective. It keeps
+the **last** two minutes and never stops itself, so for a fault that arrives at an unknown time
+the move is to start it, drive, and stop it once the fault has happened.
 
 ## CI and releases
 

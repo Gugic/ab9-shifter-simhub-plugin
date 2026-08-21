@@ -176,10 +176,32 @@ plugin can render. Two verdicts from hardware, and both stand:
 The plugin takes the device `Exclusive | Background` — exclusive is required to create FFB
 effects, background so forces stay live while the *game* has focus rather than SimHub.
 
-Things that will take it away: **MOZA Cockpit**, a **Pit House** live-tuning page, and
-occasionally a game. The failure surfaces as `DIERR_OTHERAPPHASPRIO` /
-`DIERR_NOTEXCLUSIVEACQUIRED`; the engine backs off (1/2/5 s) and retries, so a transient grab
-recovers on its own.
+Things that will take it away: **MOZA Cockpit**, a **Pit House** live-tuning page, and **any game
+that enumerates it as a force feedback device** — measured here with Forza Motorsport and
+Wreckfest 2. The failure surfaces as `DIERR_OTHERAPPHASPRIO` / `DIERR_NOTEXCLUSIVEACQUIRED`.
+
+**Exclusive does not mean what the name suggests, and there is no stronger level.** DirectInput
+grants exclusive access to the *foreground* application and unacquires whoever held it in the
+background, so a game asking for the base always wins. Worse, the reconnect loop used to take it
+straight back: the log for 2026-08-20 00:31:38 shows `DIERR_NOTEXCLUSIVEACQUIRED` followed 127 ms
+later by our own `Opened 'MOZA AB9 FFB Base' exclusive+background`, and the user's report is that
+re-arming the plugin while Forza is running crashes the game. That is us pulling the device out
+from under it mid-frame.
+
+So a fault the driver classifies as *taken by another application* now **stands the engine down**
+rather than reopening (`DeviceFaults.Classify`, `ShifterEngine.ReadyToReclaim`): it releases the
+device, says so in the status, and waits until SimHub reports no game running before picking it up
+again. Any config change is the deliberate override. Everything else — a device that has simply
+gone — still retries on the ordinary 1/2/5 s backoff.
+
+**The real fix is for games not to see the base at all.** Hide its HID interface
+(`HID\VID_346E&PID_1000&MI_02`, *not* the `MI_00` serial port that Cockpit and Pit House need)
+with [HidHide](https://github.com/nefarius/HidHide) and whitelist `SimHubWPF.exe`. Games are meant
+to see the **vJoy** device for gears; the base is the plugin's alone. This is also worth ruling in
+or out as a cause of the silent freezes — two DirectInput applications creating and driving effects
+on the same base while ownership changes hands is not a state the firmware is likely to be tested
+against, and on this rig the Wreckfest run went game-detected 00:30:29 → exclusivity revoked
+00:31:38 → device off the bus 00:32:06.
 
 **Steam Input is not one of them, on this rig.** It was listed as a required setup step from the
 start, inherited from BonusFFB's issue tracker rather than measured here, and in use with Steam

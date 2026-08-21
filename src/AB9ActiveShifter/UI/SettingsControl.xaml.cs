@@ -1675,12 +1675,23 @@ namespace AB9ActiveShifter.UI
             ShifterEngine engine = AB9ShifterPlugin.Engine;
             if (engine == null) return;
 
-            if (engine.Trace.IsRecording)
+            // Anything recorded is savable, not only a recording still running. The buffer wraps
+            // now so it no longer stops itself - but a trace held from an earlier session, or one
+            // the engine stopped for its own reasons, must still be reachable. This used to test
+            // IsRecording alone, and the press meant to save a full buffer fell straight through
+            // to Start() and threw the trace away without a word.
+            if (engine.Trace.IsRecording || engine.Trace.Count > 0)
             {
                 try
                 {
+                    int ticks = engine.Trace.Count;
+                    long dropped = engine.Trace.Dropped;
                     string path = engine.SaveTrace(null);
-                    RecordStatus.Text = "Saved " + engine.Trace.Count + " ticks to " + path;
+
+                    RecordStatus.Text = dropped > 0
+                        ? "Saved the last " + ticks + " ticks (of " + (dropped + ticks) +
+                          " recorded) to " + path
+                        : "Saved " + ticks + " ticks to " + path;
                 }
                 catch (Exception ex)
                 {
@@ -1693,7 +1704,8 @@ namespace AB9ActiveShifter.UI
 
             engine.Trace.Start();
             RecordButton.Content = "Stop and save";
-            RecordStatus.Text = "Recording. Make the movement that misbehaves, then stop.";
+            RecordStatus.Text = "Recording the last two minutes. Make the movement that misbehaves, " +
+                                "then stop - or leave this running and stop it after something goes wrong.";
         }
 
         private void OnOpenTraces(object sender, RoutedEventArgs e)
