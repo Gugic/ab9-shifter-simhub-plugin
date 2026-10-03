@@ -27,6 +27,8 @@ hotkeys and car-model switching.
 On the first AB9 startup, a read-only mode check completes before virtual output can start.
 An unavailable port preserves the existing generic setup; a confirmed native mode suppresses
 virtual output. This check runs once per process, with subsequent reads on the open Setup page.
+The startup gate is reserved synchronously, then the read is scheduled from the UI dispatcher
+so its completion can safely notify bound settings even when SimHub initializes plugins elsewhere.
 
 A write action disables the virtual session first, using the existing teardown ordering, then
 temporarily mutes hardware torque while it configures the base. No action automatically

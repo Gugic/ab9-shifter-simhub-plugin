@@ -48,7 +48,7 @@ namespace AB9ActiveShifter
             }
         }
 
-        private async void DetectNativeAtStartup()
+        private void DetectNativeAtStartup()
         {
             if (Settings.VendorId != Ab9NativeProtocol.VendorId || Settings.ProductId != Ab9NativeProtocol.ProductId) return;
             lock (EngineSync)
@@ -56,6 +56,13 @@ namespace AB9ActiveShifter
                 if (_nativeStartupChecked || _nativeStartupCheck) return;
                 _nativeStartupCheck = true;
             }
+            // Init may run off the dispatcher. Reserve the gate before queuing the read,
+            // then resume on the UI thread so its result can safely notify bound settings.
+            OnUiThread(CompleteNativeStartupCheck);
+        }
+
+        private async void CompleteNativeStartupCheck()
+        {
             try { await RefreshNativeAsync(); }
             catch (Exception ex) { Log.Error("Could not check the AB9 mode at startup", ex); }
             finally
