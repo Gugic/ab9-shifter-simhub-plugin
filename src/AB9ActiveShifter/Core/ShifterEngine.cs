@@ -90,6 +90,35 @@ namespace AB9ActiveShifter.Core
         // thread; the snapshot is written by SimHub's data thread and read here, whole.
         private readonly EffectComposer _gameEffects = new EffectComposer();
         private volatile TelemetryState _telemetry = TelemetryState.Inactive;
+        private volatile NativeEffectFrame _nativeEffects = NativeEffectFrame.Silent;
+        private readonly NativeEffectMixer _nativeEffectMixer = new NativeEffectMixer();
+        private double _grindEffectLevel;
+        private int _biteEffectSequence;
+
+        public double GrindEffectLevel { get { return Volatile.Read(ref _grindEffectLevel); } }
+        public int BiteEffectSequence { get { return Volatile.Read(ref _biteEffectSequence); } }
+
+        public void SetNativeEffects(NativeEffectFrame frame)
+        {
+            _nativeEffects = frame ?? NativeEffectFrame.Silent;
+        }
+
+        private EffectOutput StepEffects(EngineConfig cfg, TelemetryState telemetry, int ageMs,
+                                         double dtMs, bool approaching, double depth = 1)
+        {
+            EffectOutput output = _gameEffects.Step(cfg, telemetry, ageMs, dtMs, approaching, depth);
+            Volatile.Write(ref _grindEffectLevel, output.GrindLevel);
+            Volatile.Write(ref _biteEffectSequence, output.BiteSequence);
+            if (cfg.NativeEffectsEnabled)
+            {
+                NativeEffectFrame native = _nativeEffects;
+                bool fresh = telemetry != null && telemetry.GameRunning
+                    && ageMs >= 0 && ageMs <= EffectComposer.StaleAfterMs;
+                output.VibY = _nativeEffectMixer.Step(native, cfg.NativeEffectsEpoch,
+                    unchecked(Environment.TickCount - native.CapturedAtTick), dtMs, cfg.EffectiveGain, fresh);
+            }
+            return output;
+        }
 
         private Timer _watchdog;
         private long _lastTickStamp;
@@ -602,7 +631,7 @@ namespace AB9ActiveShifter.Core
                 {
                     // No grind in sequential - clutchless shifting is what a dog box is for -
                     // so the effects only contribute vibration here.
-                    EffectOutput fx = _gameEffects.Step(cfg, telemetry, telemetryAge, dtMs, false);
+                    EffectOutput fx = StepEffects(cfg, telemetry, telemetryAge, dtMs, false);
 
                     SeqTransition st = _seqMachine.Update(y);
                     gearChanged = st.Shift != 0 || _seqPushed != st.Pushed;
@@ -624,7 +653,7 @@ namespace AB9ActiveShifter.Core
                 {
                     // No grind: there is no clutch and no synchro to balk on a selector, and
                     // nothing here that a refused engagement would even mean.
-                    EffectOutput fx = _gameEffects.Step(cfg, telemetry, telemetryAge, dtMs, false);
+                    EffectOutput fx = StepEffects(cfg, telemetry, telemetryAge, dtMs, false);
 
                     StateTransition t = _prndMachine.Update(y);
                     gearChanged = t.GearChanged;
@@ -682,7 +711,7 @@ namespace AB9ActiveShifter.Core
                     double slotDepth = approaching
                         ? _geometry.EngageFraction(_stateMachine.Direction, y)
                         : 0.0;
-                    EffectOutput fx = _gameEffects.Step(
+                    EffectOutput fx = StepEffects(
                         cfg, telemetry, telemetryAge, dtMs, approaching, slotDepth);
 
                     // The hard lockout's refusal rides the same allowEngage the grind uses, and

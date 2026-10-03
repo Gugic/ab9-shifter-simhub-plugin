@@ -266,6 +266,9 @@ namespace AB9ActiveShifter
             // Start from this machine's settings so everything the file does not carry stays as
             // measured here, then overlay the shared dials.
             ShifterSettings settings = SettingsCloner.Clone(localFacts);
+            // An old shared file carries legacy dials. It must migrate those, rather than
+            // inheriting the receiving profile's unrelated native effect tree.
+            settings.NativeEffectsJson = null;
             ProfileImportResult result = new ProfileImportResult();
 
             HashSet<string> known = new HashSet<string>(StringComparer.Ordinal);
@@ -370,6 +373,12 @@ namespace AB9ActiveShifter
                 if (p.PropertyType == typeof(string))
                 {
                     string s = token.ToObject<string>() ?? string.Empty;
+                    if (p.Name == "NativeEffectsJson")
+                    {
+                        value = NativeEffectsData.Validate(s);
+                        clamped = !string.Equals(s, (string)value, StringComparison.Ordinal);
+                        return true;
+                    }
                     if (s.Length > MaxStringLength)
                     {
                         s = s.Substring(0, MaxStringLength);

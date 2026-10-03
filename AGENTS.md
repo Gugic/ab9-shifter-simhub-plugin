@@ -42,10 +42,9 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-492 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+511 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 and the pure release parser in `Updates/ReleaseInfo.cs`. Keep them that way — they are the only
-automated check on force arithmetic, and a
-sign error here drives a 12 Nm base the wrong way.
+automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
 CI runs exactly this plus `dotnet format whitespace --verify-no-changes`, on every push and
 pull request. It builds against the stubs in `build/refs` because a hosted runner has no
@@ -89,6 +88,8 @@ src/AB9ActiveShifter/
                            plus the reserved name prefix that marks them (see "Shipped
                            profiles" below)
   ProfileTransfer.cs       One profile as a shareable file: what travels, and what is refused
+  NativeEffectsData.cs     Validates the portable native tree without constructing a transport
+  Effects/                 Native ShakeIt host/editor, Lever output adapter and shifter sources
   PluginInfo.cs            The build's version string, for the UI and for exported files
   Core/                    Pure, no I/O, fully unit-tested
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
@@ -101,6 +102,7 @@ src/AB9ActiveShifter/
     PrndStateMachine.cs    Which position is held. No neutral, no travelling, no debounce
     ForceComposer.cs       The gate itself: position+velocity -> forces. The heart.
     EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
+    NativeEffectMixer.cs   Native envelopes -> independent sine carriers at 1 kHz, no native I/O
     TelemetryState.cs      Immutable game-telemetry snapshot, data thread -> engine thread
     ClutchTypes.cs         Where the clutch is read from, and how it decides the grind
     AxisCalibration.cs     A pedal's measured travel/direction/slack -> 0..100, SimHub's scale
@@ -146,6 +148,7 @@ src/AB9ActiveShifter/
 tests/AB9ActiveShifter.Tests/
   ForceComposerTests.cs    Force shape, stability properties, polarity, clamps
   EffectComposerTests.cs   Carrier amplitudes and gain cap, staleness cut, grind conditions
+  NativeEffectTests.cs     Native tone budgets, phases, freshness, profile epochs and safe import
   GateStateMachineTests.cs Transitions, hysteresis, lockout traces
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
   RetryBackoffTests.cs     A failing device open cannot be attempted once per tick, counted
@@ -243,12 +246,19 @@ runners cannot load, so anything worth testing must not touch it.
   carrier is keyed on time, not position, so it cannot form the loop the yield and attack
   stabilise — and the yield would chop a zero-mean carrier every half cycle (the grinding-bug
   texture, made deliberately). It stays inside the final clamp and the polarity signs, its
-  budget is capped (3000/4500/5000 DI in `EffectComposer`) and scaled by the effective gain, the
-  10% polarity cap included. **Stale telemetry (>500 ms) silences every effect the same tick** —
+  budget is capped (3000/4500/5000 DI in `NativeEffectMixer`, constants in `EffectComposer`)
+  before the effective gain, the 10% polarity cap included even with many stacked tones.
+  **Stale telemetry (>500 ms) silences ordinary effects the same tick** —
   a hung game must not leave a buzz running. **The grind never touches geometry**: rejection is
   `allowEngage` into the state machine plus the balk-wall detent (entry resistance +
   `GrindWallPct`, no crossover, attack-shaped like the wall it has become), never a moved or
   closed wall (see the rejected table in docs/force-model.md).
+- **Native ShakeIt owns the Effects tab, never the base.** Its single Lever output manager
+  publishes copied tones; only the existing engine writes DirectInput. Native Test may play
+  without a game, but still needs fresh frames, an armed shifter and the effective gain cap.
+  A profile epoch rejects outgoing tones immediately. Preserve whole native trees on transfer,
+  strip transports before deserialization, and keep both the settings object and the native
+  editor alive when a preset forks mid-drag.
 - **Velocity is never an adjacent-tick difference, and the absorber's scale is one-way in time.**
   Under write contention the device delivers distinct positions at only ~500 Hz, so per-tick
   differencing alternates ~2:1 and anything keying force on it renders a 250–500 Hz ripple —

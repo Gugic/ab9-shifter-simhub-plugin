@@ -232,31 +232,46 @@ is the default and what a fresh install does.
 
 ## Telemetry effects (the Effects tab)
 
-Vibration driven by the game, on top of the gate: all off by default, all silenced within half a
-second of the game pausing or closing, all scaled by the overall gain (the 10% polarity cap
-included). Each row is enable + volume + frequency:
+The whole tab uses SimHub's native ShakeIt editor. **Add effect**, **Add group** and
+**Calibration** sit above the list; expanded rows have **Response filter**, **Live effects**,
+**Effect frequency**, **High priority** and **Channels assignment**. Route feedback to **Lever**.
+Use **Effects gain** and **Mute effects** above the editor for its master level, and
+**Reset effects to defaults** to rebuild all rows. The selected shifter profile owns the tune.
+
+The lever's overall gain, including its 10% unconfirmed-polarity cap, still applies. Ordinary
+effects are silenced within 500 ms of stale/inactive telemetry or native output. The native
+**Test** link can play without a game while the shifter is armed; enable the row, route it to
+Lever, leave **Mute effects** off and **Release all forces (free stick)** off to feel it.
 
 | Effect | Fires when | Notes |
 | --- | --- | --- |
-| Gear grind | Pushing into a gear with the clutch up while the engine turns | The headline. With **rejection** on, the gear also refuses to register and the slot becomes a **balk wall** — the entry resistance with `Balk wall (%)` stacked on top, a border the lever grinds against, louder the harder it is forced — until the clutch goes down, then the gear thunks straight in. H patterns only; an engaged gear never grinds; sequential is exempt (dog boxes shift clutchless by design). |
-| Engine vibration | Whenever the engine turns | Pitch scales with the revs, anchored by **frequency at 1000 rpm** — set what idle should feel like; 17 is once per revolution, 34 ≈ a four-cylinder's firing pulses. Capped at 130 Hz. Keep the volume low — it never stops. |
-| Rev limiter | Revs ≥ the redline percentage | Silent when the game reports no redline. |
-| ABS / TC | The game's own ABS-active / TC-active flags | Different default pitches (44 / 60 Hz) so both firing in one corner stay distinguishable. |
-| Curbs and bumps | Rapid shake in the car's vertical acceleration | No surface data needed: a baseline tracker follows sustained load (corners, braking) so only the shake plays, with a ~150 ms ring-down that keeps a rumble strip's rhythm. **Full volume at (G)** is the sensitivity — lower it to make gentle curbs louder. Silent in games that report no acceleration; the ShakeIt bridge below is the per-wheel alternative. |
+| Clutch grind | Pushing into an H-pattern gear with the clutch up while the engine turns | **Reject the gear while grinding (registers only once the clutch is down)** keeps the gear from registering and replaces the snick with the entry resistance plus **Balk wall (%)**. The core decision and wall remain immediate. Native response/gain/frequency shape the tone at the data rate. An engaged gear never grinds; sequential and PRND are exempt. |
+| RPMs | Native RPM telemetry | Native RPM/response curve and low/high frequencies replace the former frequency-at-1000-rpm dial. Rendered frequencies are limited to 4–130 Hz. |
+| Rev limiter | Revs ≥ **Starts at (% of redline)** | Silent when the game reports no plausible redline. |
+| ABS Active / TC Active | The game's active flags | Native **Pulse duration (ms)** can extend a short event. Existing pitches migrate. |
+| Road impacts | Native per-wheel road/impact telemetry | Replaces the old vertical-acceleration heuristic. Use native response and calibration; available data varies by game. |
 | Clutch bite point | The clutch crosses the bite point, either way | Tells the hand where the drivetrain connects. Silent while the pedal moves without crossing, so riding the clutch stays quiet. Set the point itself on the **Setup** tab — it is a property of the car, not of the pedals. |
-| Gear shift pulse | The game's reported gear changes | Confirms what the game *accepted* — useful in sequential and with paddle cars. |
-| Custom property | Any SimHub property, 0–100 → volume | Try `DataCorePlugin.GameData.Throttle` to hear it work. The real use: a ShakeIt Bass Shakers effect group with *Export property* enabled puts road rumble, wheel slip and impacts on the lever with all of ShakeIt's own tuning. |
+| Gear shift | The game's reported gear changes | Native gear selection/debounce and pulse duration controls; confirms what the game accepted. |
+| Custom property | **Property name (0-100)** → volume | Keeps the old exported-property bridge. Use native **Custom effect** from **Add effect** for formulas and additional sources. |
+
+Existing profiles migrate all nine rows together, carrying enabled state, gain, frequency,
+limiter/clutch settings and pulse duration. RPM pitch/response and road sensitivity have different
+native models, so those need a feel retune; the old **Full volume at (G)** dial has no direct native
+equivalent. Grind uses the native sine tone instead of the old jittered square wave. Ordinary
+sources come directly from ShakeIt; four shifter sources appear under **AB9 shifter** in
+**Add effect**. Native effects can also be grouped, reordered, copied and deleted.
 
 Symptoms:
 
 | Symptom | Dial |
 | --- | --- |
-| Grind never fires | The game must report the clutch pedal. Watch the `Clutch` property in SimHub: if a pressed pedal reads low, lower the **clutch pressed above** threshold. Check the engine is running and any speed floor. |
-| Grind fires in the garage / pit lane | Raise **only grind above (km/h)**. |
+| Grind never fires | Enable the row. In threshold mode lower **Clutch counts as pressed above (%)** if a pressed pedal reads low. Check the engine is running and the speed floor. |
+| Grind fires in the garage / pit lane | Raise **Only grind above (km/h)**. |
 | A gear registers despite grinding | **Reject the gear while grinding** is off, or the game itself needs no clutch — the rejection is ours, not the game's. |
-| The grind feels like a lean, not a border | Raise **balk wall (%)** — it stacks on the entry resistance while a shift is rejected. It only acts with rejection on. |
-| Effects feel weak | They share the overall gain; check polarity is confirmed (the 10% cap mutes effects too) before raising per-effect volumes. |
-| A buzz outlives the game | It cannot, by design (500 ms staleness cut). If you feel one, it is the gate — record a trace. |
+| The grind feels like a lean, not a border | Raise **Balk wall (%)** — it stacks on the entry resistance while a shift is rejected. It only acts with rejection on. |
+| Effects feel weak | Check **Effects gain**, row gain and Lever assignment, then overall gain and confirmed polarity. The shared vibration budget limits stacked effects. |
+| Test is silent | Arm the shifter, enable the effect and Lever channel, turn **Mute effects** off, and leave **Release all forces (free stick)** off. Test does not bypass the force cap. |
+| A buzz outlives the game | Only a running Test may play without a game; it expires. Otherwise the 500 ms cutoff applies — record a trace if a buzz remains. |
 
 ## The clutch (Setup tab)
 

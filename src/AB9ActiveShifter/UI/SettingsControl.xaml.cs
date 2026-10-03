@@ -49,6 +49,7 @@ namespace AB9ActiveShifter.UI
 
 
         private ShifterSettings _boundSettings;
+        private object _boundEffectsProfile;
         private bool _refreshingProfiles;
         private bool _refreshingVJoy;
 
@@ -140,6 +141,26 @@ namespace AB9ActiveShifter.UI
             // settings object on one of those must not wipe markers for edits already sitting
             // on the current profile.
             if (!ReferenceEquals(previous, _boundSettings)) RefreshProfileBaseline();
+            BindEffectsEditor();
+        }
+
+        private void BindEffectsEditor()
+        {
+            if (NativeEffectsEditor == null || Plugin == null) return;
+            if (Plugin.Effects == null)
+            {
+                NativeEffectsEditor.Content = new TextBlock
+                {
+                    Text = "SimHub's native effects editor is unavailable. See the SimHub log for details.",
+                    TextWrapping = TextWrapping.Wrap
+                };
+                return;
+            }
+            EffectsMasterPanel.DataContext = Plugin.Effects.Settings;
+            // Preset forking keeps the same native profile and slider alive mid-drag.
+            if (NativeEffectsEditor.Content != null && ReferenceEquals(_boundEffectsProfile, Plugin.Effects.ProfileIdentity)) return;
+            _boundEffectsProfile = Plugin.Effects.ProfileIdentity;
+            NativeEffectsEditor.Content = Plugin.Effects.CreateEditor();
         }
 
         /// <summary>
@@ -902,32 +923,8 @@ namespace AB9ActiveShifter.UI
         /// status. Kept to plain text rather than a bar: what a user needs while binding is
         /// "is this the pedal I am pressing", and a number answers that at a glance.
         /// </summary>
-        /// <summary>
-        /// Hides whichever clutch dial the current grind mode does not read.
-        /// <para>
-        /// The threshold and the bite point never both decide - Threshold mode reads the
-        /// threshold and ignores the bite point, fading reads the bite point and ignores the
-        /// threshold, and a test pins that. Showing both regardless made it look as though they
-        /// competed, which was the first question asked about the feature.
-        /// </para>
-        /// </summary>
-        private void RefreshGrindModeVisibility()
-        {
-            if (GrindThresholdSlider == null || _boundSettings == null) return;
-
-            bool usesThreshold = _boundSettings.GrindClutchMode == GrindClutchMode.Threshold;
-
-            GrindThresholdSlider.Visibility = usesThreshold ? Visibility.Visible : Visibility.Collapsed;
-            if (GrindBitePointNote != null)
-            {
-                GrindBitePointNote.Visibility = usesThreshold ? Visibility.Collapsed : Visibility.Visible;
-            }
-        }
-
         private void RefreshPedalStatus()
         {
-            RefreshGrindModeVisibility();
-
             if (PedalPanel == null || _boundSettings == null) return;
 
             PedalPanel.Visibility = _boundSettings.ClutchSource == ClutchSource.Pedal
@@ -1170,6 +1167,7 @@ namespace AB9ActiveShifter.UI
         private void OnExportProfile(object sender, RoutedEventArgs e)
         {
             if (Plugin == null || Plugin.Store == null) return;
+            if (Plugin.Effects != null) Plugin.Effects.SaveIfChanged(true);
 
             ShifterProfile active = Plugin.Store.FindActive();
             if (active == null) return;
@@ -1761,6 +1759,12 @@ namespace AB9ActiveShifter.UI
             }
 
             Plugin.Settings.ResetToDefaults(scope);
+            if (scope == ShifterSettings.ResetScope.Effects || scope == ShifterSettings.ResetScope.Everything)
+            {
+                if (Plugin.Effects != null) Plugin.Effects.Reset();
+                Plugin.PushSettingsToEngine();
+                BindEffectsEditor();
+            }
             RefreshLockoutSummary();
             RefreshLockoutPlacementSummary();
             RefreshWallRampSummary();

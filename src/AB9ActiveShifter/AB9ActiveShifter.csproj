@@ -73,6 +73,10 @@
       <HintPath>$(SimHubDir)MahApps.Metro.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="GongSolutions.WPF.DragDrop">
+      <HintPath>$(SimHubDir)GongSolutions.WPF.DragDrop.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(SimHubDir)Newtonsoft.Json.dll</HintPath>
       <Private>false</Private>

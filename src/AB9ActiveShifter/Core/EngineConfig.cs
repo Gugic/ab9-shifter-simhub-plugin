@@ -7,6 +7,10 @@ namespace AB9ActiveShifter.Core
     /// </summary>
     public sealed class EngineConfig
     {
+        // Runtime adapter facts, not persisted dials. A profile epoch keeps an outgoing
+        // native effect frame from playing against an incoming gate.
+        public bool NativeEffectsEnabled;
+        public int NativeEffectsEpoch;
         // Device
         public int VendorId = 0x346E;
         public int ProductId = 0x1000;

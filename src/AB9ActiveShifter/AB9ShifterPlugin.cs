@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using AB9ActiveShifter.Core;
+using AB9ActiveShifter.Effects;
 using AB9ActiveShifter.Updates;
 using GameReaderCommon;
 using SimHub.Plugins;
@@ -27,6 +28,8 @@ namespace AB9ActiveShifter
         /// </summary>
         private static ShifterEngine _engine;
         private static UpdateService _updates;
+        private static NativeEffectsService _nativeEffects;
+        public NativeEffectsService Effects { get { return _nativeEffects; } }
 
         private static readonly object EngineSync = new object();
         private bool _processExitHooked;
@@ -191,7 +194,21 @@ namespace AB9ActiveShifter
             Settings.PropertyChanged -= OnSettingsChanged;
             Settings.PropertyChanged += OnSettingsChanged;
 
-            _engine.ApplyConfig(Settings.ToEngineConfig());
+            try
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke((Action)(() =>
+                {
+                    if (_nativeEffects == null) _nativeEffects = new NativeEffectsService(this, pluginManager);
+                    _nativeEffects.Bind(this);
+                }));
+            }
+            catch (Exception ex) { Log.Error("SimHub's native Effects editor is unavailable", ex); }
+
+            EngineConfig initialConfig = Settings.ToEngineConfig();
+            initialConfig.NativeEffectsEnabled = true;
+            initialConfig.GrindEnabled = false;
+            if (_nativeEffects != null) _nativeEffects.Configure(initialConfig);
+            _engine.ApplyConfig(initialConfig);
 
             AttachProperties();
             RegisterActions();
@@ -216,7 +233,8 @@ namespace AB9ActiveShifter
         /// <summary>
         /// Feeds the telemetry effects. The FFB loop itself deliberately does not run off this
         /// - it must work with no game running - so this only publishes a snapshot the engine
-        /// reads at its own pace. On SimHub's critical path: no locks, one small allocation.
+        /// reads at its own pace. Native ShakeIt envelopes are also copied here; a busy profile
+        /// swap publishes silence instead of blocking SimHub's data thread.
         /// </summary>
         public void DataUpdate(PluginManager pluginManager, ref GameData data)
         {
@@ -226,6 +244,7 @@ namespace AB9ActiveShifter
             if (data == null || !data.GameRunning || data.NewData == null)
             {
                 engine.SetTelemetry(TelemetryState.Inactive);
+                if (_nativeEffects != null) _nativeEffects.DataUpdate(pluginManager, ref data, 0);
                 return;
             }
 
@@ -266,7 +285,8 @@ namespace AB9ActiveShifter
             // lives; the engine only ever sees the value.
             double custom = 0;
             ShifterSettings settings = Settings;
-            if (settings != null && settings.FxCustomEnabled && !string.IsNullOrWhiteSpace(settings.FxCustomProperty))
+            if (settings != null && (settings.FxCustomEnabled || (_nativeEffects != null && _nativeEffects.Ready))
+                && !string.IsNullOrWhiteSpace(settings.FxCustomProperty))
             {
                 try
                 {
@@ -296,6 +316,7 @@ namespace AB9ActiveShifter
                 CustomValue = custom,
                 CapturedAtTick = Environment.TickCount
             });
+            if (_nativeEffects != null) _nativeEffects.DataUpdate(pluginManager, ref data, custom);
         }
 
         /// <summary>
@@ -305,7 +326,8 @@ namespace AB9ActiveShifter
         public void End(PluginManager pluginManager)
         {
             Log.Info("End (saving settings; engine left running).");
-            this.SaveCommonSettings(SettingsKey, Store);
+            SaveStore();
+            if (_nativeEffects != null) _nativeEffects.SaveNativeState();
         }
 
         /// <summary>IReusable: the genuine shutdown, when SimHub is really done with us.</summary>
@@ -315,6 +337,11 @@ namespace AB9ActiveShifter
 
             // Flush any edit the debounce was still holding; a duplicate save is harmless.
             SaveStore();
+            if (_nativeEffects != null)
+            {
+                _nativeEffects.Stop();
+                _nativeEffects = null;
+            }
 
             ShifterEngine engine;
             UpdateService updates;
@@ -375,6 +402,12 @@ namespace AB9ActiveShifter
         /// </summary>
         public void ActivateProfile(string name)
         {
+            var app = System.Windows.Application.Current;
+            if (app != null && !app.Dispatcher.CheckAccess())
+            {
+                OnUiThread(() => ActivateProfile(name));
+                return;
+            }
             if (Store == null || Store.Profiles == null) return;
 
             ShifterProfile target = null;
@@ -383,6 +416,9 @@ namespace AB9ActiveShifter
                 if (p != null && p.Name == name && p.Settings != null) { target = p; break; }
             }
             if (target == null || target.Settings == Settings) return;
+            // Flush before detaching the outgoing settings, so a native edit made just before
+            // a hotkey switch still forks its preset and belongs to the outgoing profile.
+            if (_nativeEffects != null) _nativeEffects.SaveIfChanged(true);
 
             // The session's switches, not the outgoing profile's: an activation must never be the
             // thing that decides whether the shifter is running. Applied before the swap so the
@@ -400,6 +436,8 @@ namespace AB9ActiveShifter
             Settings = target.Settings;
             Settings.PropertyChanged += OnSettingsChanged;
             Store.ActiveProfile = target.Name;
+
+            if (_nativeEffects != null) _nativeEffects.SelectProfile(Settings);
 
             PushSettingsToEngine();
             SaveStore();
@@ -452,6 +490,7 @@ namespace AB9ActiveShifter
         /// <summary>Adds a copy of the current profile under the given name and makes it live.</summary>
         public void AddProfileFromCurrent(string requestedName)
         {
+            if (_nativeEffects != null) _nativeEffects.SaveIfChanged(true);
             if (Store == null) return;
             if (Store.Profiles == null) Store.Profiles = new System.Collections.Generic.List<ShifterProfile>();
 
@@ -528,6 +567,7 @@ namespace AB9ActiveShifter
         /// </summary>
         internal void SaveStore()
         {
+            if (_nativeEffects != null) _nativeEffects.SaveIfChanged(true);
             try { this.SaveCommonSettings(SettingsKey, Store); }
             catch (Exception ex) { Log.Error("Could not save profiles", ex); }
         }
@@ -547,6 +587,9 @@ namespace AB9ActiveShifter
             if (engine == null || Settings == null) return;
 
             EngineConfig cfg = Settings.ToEngineConfig();
+            cfg.NativeEffectsEnabled = true;
+            cfg.GrindEnabled = false;
+            if (_nativeEffects != null) _nativeEffects.Configure(cfg);
 
             // How many times the lever thumps after a switch, so the profile can be counted by
             // hand. The count is the profile's own place in the store, which is a fact only the
