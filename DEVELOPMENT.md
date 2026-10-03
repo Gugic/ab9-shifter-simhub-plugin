@@ -126,6 +126,12 @@ difference between a field read and a property call, and between one enum consta
 straight into the IL. A stub that merely looks right produces a DLL that builds green in CI and
 throws on the rig. Read [build/refs/README.md](build/refs/README.md) before touching one.
 
+The Effects tab uses SimHub's public ShakeIt classes, an undocumented integration surface.
+`ShakeItStubs.cs` mirrors their exact signatures, including generic declaring types. The real
+build also references SimHub's bundled `GongSolutions.WPF.DragDrop`, which the native profile
+implements. Check the editor and profile reload in the installed SimHub after an upgrade;
+successful token binding alone cannot verify initialization or WPF behavior.
+
 To prove a stub-built DLL still binds, on a machine that has SimHub:
 
 ```bash
@@ -151,6 +157,8 @@ src/AB9ActiveShifter/
   DefaultProfiles.cs       The five presets, as deltas from bare defaults, and their reserved
                            name prefix
   ProfileTransfer.cs       Export/import of one profile as a shareable file, with validation
+  NativeEffectsData.cs     Validates a native tune before SimHub deserializes it
+  Effects/                 Native ShakeIt service/editor, Lever output adapter and four sources
   PluginInfo.cs            The build's version string
   Core/                    Pure, no I/O, fully unit-tested
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
@@ -161,6 +169,7 @@ src/AB9ActiveShifter/
     PrndStateMachine.cs    Which position is held. Always exactly one
     ForceComposer.cs       Position + velocity -> forces. The heart
     EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
+    NativeEffectMixer.cs   Native tone envelopes -> independent, budgeted 1 kHz carriers
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
     DeviceFault.cs         A DirectInput HRESULT as gone / taken by another app / unknown
     VelocityEstimator.cs   Position -> speed across a 4 ms window

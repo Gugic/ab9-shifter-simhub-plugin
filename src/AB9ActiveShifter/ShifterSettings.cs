@@ -12,6 +12,16 @@ namespace AB9ActiveShifter
     /// </summary>
     public class ShifterSettings : INotifyPropertyChanged
     {
+        private string _nativeEffectsJson;
+
+        /// <summary>Native effect rows for this tune. Null is the one-time legacy migration signal.</summary>
+        public string NativeEffectsJson
+        {
+            get { return _nativeEffectsJson; }
+            set { Set(ref _nativeEffectsJson, value); }
+        }
+
+        internal void SetNativeEffectsSilently(string json) { _nativeEffectsJson = json; }
         // Off by default on purpose: enabling takes the base exclusively and starts applying
         // force. That must be a deliberate act, after the MOZA Cockpit setup and the rest of
         // the pre-flight steps, with the user at the stick.
@@ -1145,6 +1155,7 @@ namespace AB9ActiveShifter
 
             if (scope == ResetScope.Effects || scope == ResetScope.Everything)
             {
+                NativeEffectsJson = null;
                 FxEngineEnabled = d.FxEngineEnabled;
                 FxEngineGainPct = d.FxEngineGainPct;
                 FxEngineFreqAt1000Rpm = d.FxEngineFreqAt1000Rpm;

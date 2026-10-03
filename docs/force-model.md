@@ -932,10 +932,11 @@ timeout, the pulse count, and that pulses never play while the ramp is still win
 
 ## The vibration channel and the grind
 
-The telemetry effects (`Core/EffectComposer.cs`) are the one family of force that is neither a
-wall nor a guide: **zero-mean carriers** — sine for the engine / limiter / ABS / TC / curbs /
-shift-pulse / custom-property effects, a square wave with per-half-cycle amplitude jitter for
-the grind —
+The telemetry effects are the one family of force that is neither a wall nor a guide:
+**zero-mean sine carriers**, rendered by `Core/NativeEffectMixer.cs` from SimHub's native
+ShakeIt strength/frequency envelopes. Each tone keeps its own phase, including overlapping
+effects at different frequencies. Grind now uses the native tone rather than the old square
+wave with half-cycle amplitude jitter; its texture needs a fresh hardware feel check. Carriers are
 summed onto the fore/aft force **after the yield and the attack, before the clamp and the
 polarity signs** (the same joining point as damping, and for a mirror-image reason).
 
@@ -949,14 +950,15 @@ That placement is both safe and required:
   attack is a slew (15 ms is most of a cycle at 44 Hz), and the yield keys on force-against-
   velocity sign, which a zero-mean carrier flips every half cycle — the yield would chop it
   exactly the way the aliased velocity estimate once chopped the wall force. That artifact was
-  the grinding bug; the grind effect produces the texture deliberately, on demand, instead.
+  the grinding bug; a requested carrier must arrive intact instead.
 - The amplitudes live inside a fixed budget: 3000 DI per ordinary effect, 4500 for the grind,
-  the sum clamped at 5000, everything scaled by the same effective gain as the gate — the 10%
+  the sum clamped at 5000 before scaling by the same effective gain as the gate — the 10%
   unconfirmed-polarity cap included, because a symmetric carrier has no polarity but 12 Nm of
   anything needs the cap. The final ±10000 clamp still rules the composed total.
 - **Staleness is a safety property.** Telemetry older than 500 ms, or a game that is not
-  running, silences every effect the same tick. A paused or hung game must not leave a buzz
-  running against the hand.
+  running, silences ordinary effects the same tick. Native frames have their own 500 ms cutoff
+  and profile generation stamp. An explicit native Test is the one out-of-game exception,
+  still subject to the frame cutoff, armed state and gain cap.
 - Renderable pitch: with one force write per tick at 1 kHz (≈500 Hz per axis when both are hot),
   carriers render cleanly up to roughly 100–130 Hz. The dials stop there.
 

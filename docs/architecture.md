@@ -12,6 +12,8 @@ One SimHub plugin assembly, `AB9ActiveShifter.dll`, plus a test project. The spl
 - **`UI/`** binds directly to `ShifterSettings` and never talks to the device.
 - **`Updates/`** checks GitHub and replaces the plugin DLL, entirely away from the force loop.
   `ReleaseInfo` is the pure parser and version policy tested without I/O.
+- **`Effects/`** hosts SimHub's native ShakeIt editor and sources. Its output manager copies
+  strength/frequency envelopes into a pure `NativeEffectFrame`; it owns no device handle.
 
 ## Threading
 
@@ -99,11 +101,11 @@ SimHub **rebuilds plugins at game change**, so the engine must survive it:
 | `FinalizePlugin` (`IReusable`) | The real teardown |
 | `ProcessExit` hook | Backstop |
 
-`DataUpdate` feeds the telemetry effects: it builds an immutable `TelemetryState` snapshot (rpm,
-clutch, speed, gear string, ABS/TC flags, heave G, the sampled custom property) and hands it to the engine
-through one volatile reference — no locks, one small allocation, nothing else on SimHub's critical
-path. The FFB loop still deliberately does not *run* off it, because the gate must work with no
-game running.
+`DataUpdate` publishes the immutable `TelemetryState` used by the clutch protection, then steps
+SimHub's native ShakeIt host. The native output manager copies each active tone into a second
+immutable snapshot. Native profile swaps and serialization use a short lock on the dispatcher;
+the data callback uses `Monitor.TryEnter` and publishes silence if busy. The 1 kHz loop takes
+neither that lock nor any native object. It still runs with no game connected.
 
 ## Plugin updates
 
@@ -231,13 +233,39 @@ gear it missed, or the game sees neutral until the next shift — in PRND, possi
 
 ## Telemetry effects and the grind
 
-`EffectComposer` lives on the engine thread and keeps the carrier phases; `TelemetryState` is
-written whole by SimHub's data thread and read whole by the tick, so there is nothing to lock.
-Freshness is judged from the snapshot's `Environment.TickCount` capture stamp (unchecked
-subtraction, wrap-safe): anything older than 500 ms — game paused, hung, or gone — silences every
-effect the same tick. The vibration is summed into the composed fore/aft force after the yield
-and attack stages and inside the final clamp and polarity signs; the reasoning lives in
-[force-model.md](force-model.md), "The vibration channel and the grind".
+`NativeEffectsService` embeds SimHub's `EffectsListMain`, with the native add/group/calibration
+toolbar, response filters, live previews, tests, frequency, priority and channel assignment.
+`AB9EffectOutputManager` is a public `MotorsWithFrequencyOutputManagerBase` adapter with one
+logical **Lever** channel. Native sources compute the envelopes; the pure `NativeEffectMixer`
+keeps a separate sine phase for each tone and renders them at 1 kHz. It allocates nothing during
+a tick and keeps the measured 4–130 Hz range. Native frequency modulation, including its
+**White noise** frequency randomization, is preserved. Sound banks are not lever outputs.
+
+`EffectComposer` remains the immediate clutch/grind decision and bite-crossing counter on the
+engine thread. Four source containers expose clutch grind, clutch bite point, rev limiter and
+the legacy custom-property bridge inside native rows. Grind protection runs every tick; its
+vibration envelope is sampled by ShakeIt at the game's data rate. Legacy carrier code and
+fields remain for old-profile migration and arithmetic regression tests, but the plugin always
+selects native rendering and stays silent if its native host cannot load.
+
+Unchecked `Environment.TickCount` subtraction checks both snapshots. A stale native frame or a
+profile-epoch mismatch silences the mixer; stale/inactive telemetry silences ordinary effects
+within 500 ms. An explicitly requested native **Test** can play without a game, while still
+requiring fresh native frames, an armed shifter, the effective gain cap and the vibration budget.
+The vibration joins the fore/aft force after yield/attack and before the final clamp/polarity
+signs. Native high-priority tones suppress ordinary tones on this one channel.
+
+Each named shifter profile stores its native tree and master gain/mute in `NativeEffectsJson`.
+A null field seeds nine rows from that profile's old dials, silently, once. Native edits are
+observed every 250 ms and use the existing preset-fork/autosave path; expansion and selection
+state are excluded, and a preset fork keeps the live native profile/editor as well as the
+settings object. JSON property ordering does not count as an edit. Reset Effects rebuilds every
+row. Export/import carries the whole tree; `NativeEffectsData` strips output managers and
+restricts container/filter/output/settings types before native deserialization. The profile
+picker outside Effects is the only picker. The service survives per-game plugin reconstruction.
+Native calibration is saved through the public host's `SaveSettings` at End/Finalize. That also
+writes an auxiliary native settings snapshot, which the from-device host ignores on reload;
+the shifter profile's `NativeEffectsJson` remains the sole authority for effect tuning.
 
 The grind is the one effect with mechanical consequences, and it touches exactly two things:
 `GateStateMachine.Update` takes an `allowEngage` flag that refuses the Traveling→Engaged
@@ -311,9 +339,8 @@ the state machine through the grind's own `allowEngage` argument, one tick stale
 UI tabs: **Setup** (profile & pattern, status, enable with the lockout's keys, free stick,
 pre-flight checklist, polarity calibration, manual overrides, gear layout), **Feel** (master gain,
 gate walls, sliding across the gate with the lockout's position, direction and mode, the PRND
-lane with its own lockout block, slot detent), **Effects** (the telemetry effects: grind, engine
-vibration, limiter, ABS/TC, curbs, shift pulse, custom property — each with enable, volume and
-frequency), **Geometry** (force shaping, hysteresis bands, vJoy device, loop rate, resets),
+lane with its own lockout block, slot detent), **Effects** (the full native ShakeIt editor and
+the four shifter source rows), **Geometry** (force shaping, hysteresis bands, vJoy device, loop rate, resets),
 **Monitor** (live drawing of the configured pattern — missing slots left blank, the lockout
 shaded where the geometry puts it and dimmed while a hard gate is released, or the sequential
 track), and **Options** (app update preferences, release notes and install/restart actions).

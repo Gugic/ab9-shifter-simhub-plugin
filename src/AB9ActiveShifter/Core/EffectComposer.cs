@@ -5,6 +5,8 @@ namespace AB9ActiveShifter.Core
     /// <summary>What the telemetry effects contribute to one tick.</summary>
     public struct EffectOutput
     {
+        public double GrindLevel;
+        public int BiteSequence;
         /// <summary>Vibration to sum onto the fore/aft force, gate frame, DirectInput units.</summary>
         public int VibY;
 
@@ -101,6 +103,7 @@ namespace AB9ActiveShifter.Core
         private bool _biteSeeded;
         private bool _biteWasEngaged;
         private double _bitePulseLeftMs;
+        private int _biteSequence;
 
         // The grind's tooth-depth jitter. A plain square wave reads as a buzzer; giving each
         // half-cycle a fresh pseudo-random depth reads as teeth skipping. Deterministic - a
@@ -119,7 +122,7 @@ namespace AB9ActiveShifter.Core
         public EffectOutput Step(EngineConfig cfg, TelemetryState t, int ageMs, double dtMs,
                                  bool approachingSlot, double slotDepth = 1.0)
         {
-            EffectOutput output = default(EffectOutput);
+            EffectOutput output = new EffectOutput { BiteSequence = _biteSequence };
 
             bool fresh = t != null && t.GameRunning && ageMs >= 0 && ageMs <= StaleAfterMs;
             if (!fresh)
@@ -145,7 +148,7 @@ namespace AB9ActiveShifter.Core
             // can dial, and revving still raises it proportionally, like firing pulses coming
             // up a real linkage. 17 Hz per 1000 rpm is once per revolution; engine firing
             // orders are multiples of that. Capped where the write rate stops rendering pitch.
-            if (cfg.FxEngineEnabled && t.Rpms > MinEngineRpm)
+            if (!cfg.NativeEffectsEnabled && cfg.FxEngineEnabled && t.Rpms > MinEngineRpm)
             {
                 double freq = GateGeometry.Clamp(
                     t.Rpms / 1000.0 * cfg.FxEngineFreqAt1000Rpm, 4.0, 130.0);
@@ -154,19 +157,19 @@ namespace AB9ActiveShifter.Core
 
             // Rev limiter: a fixed-pitch buzz from just under the redline. Skipped entirely
             // when the game does not report a plausible limit.
-            if (cfg.FxLimiterEnabled && t.MaxRpm >= 1000
+            if (!cfg.NativeEffectsEnabled && cfg.FxLimiterEnabled && t.MaxRpm >= 1000
                 && t.Rpms >= t.MaxRpm * cfg.FxLimiterFromPct / 100.0)
             {
                 vib += Sine(ref _limiterPhase, cfg.FxLimiterFreqHz, dtMs,
                             Amp(cfg.FxLimiterGainPct, gain, VibFullScale));
             }
 
-            if (cfg.FxAbsEnabled && t.AbsActive)
+            if (!cfg.NativeEffectsEnabled && cfg.FxAbsEnabled && t.AbsActive)
             {
                 vib += Sine(ref _absPhase, cfg.FxAbsFreqHz, dtMs, Amp(cfg.FxAbsGainPct, gain, VibFullScale));
             }
 
-            if (cfg.FxTcEnabled && t.TcActive)
+            if (!cfg.NativeEffectsEnabled && cfg.FxTcEnabled && t.TcActive)
             {
                 vib += Sine(ref _tcPhase, cfg.FxTcFreqHz, dtMs, Amp(cfg.FxTcGainPct, gain, VibFullScale));
             }
@@ -176,7 +179,7 @@ namespace AB9ActiveShifter.Core
             // part (cornering, braking, crests) so only the shake remains; the envelope rises
             // the tick a strike lands and rings down over ~150 ms, which is what keeps a
             // rumble strip's da-da-da rhythm intact through a fixed-pitch carrier.
-            if (cfg.FxCurbsEnabled)
+            if (!cfg.NativeEffectsEnabled && cfg.FxCurbsEnabled)
             {
                 if (!_heaveSeeded)
                 {
@@ -214,7 +217,7 @@ namespace AB9ActiveShifter.Core
                 _lastGear = gear;
             }
 
-            if (_shiftPulseLeftMs > 0)
+            if (!cfg.NativeEffectsEnabled && _shiftPulseLeftMs > 0)
             {
                 if (dtMs > 0) _shiftPulseLeftMs -= dtMs;
                 vib += Sine(ref _shiftPhase, cfg.FxShiftFreqHz, dtMs,
@@ -226,14 +229,16 @@ namespace AB9ActiveShifter.Core
             // the drivetrain connects. Edge-triggered off a seeded state so adopting the first
             // reading is silent; a pulse on every game start would train the hand to ignore it.
             bool engaged = t.Clutch < GateGeometry.Clamp(cfg.ClutchBitePointPct, 0, 100);
-            if (_biteSeeded && engaged != _biteWasEngaged && cfg.FxBiteEnabled)
+            if (_biteSeeded && engaged != _biteWasEngaged)
             {
-                _bitePulseLeftMs = Math.Max(20, cfg.FxBiteDurationMs);
+                _biteSequence = unchecked(_biteSequence + 1);
+                output.BiteSequence = _biteSequence;
+                if (cfg.FxBiteEnabled) _bitePulseLeftMs = Math.Max(20, cfg.FxBiteDurationMs);
             }
             _biteWasEngaged = engaged;
             _biteSeeded = true;
 
-            if (_bitePulseLeftMs > 0)
+            if (!cfg.NativeEffectsEnabled && _bitePulseLeftMs > 0)
             {
                 if (dtMs > 0) _bitePulseLeftMs -= dtMs;
                 vib += Sine(ref _bitePhase, cfg.FxBiteFreqHz, dtMs,
@@ -243,7 +248,7 @@ namespace AB9ActiveShifter.Core
             // Custom property: any SimHub property scaled 0..100 drives the volume, which puts
             // ShakeIt's whole effects engine - road rumble, wheel lock, impacts - at the
             // lever's disposal through an exported effect-group property.
-            if (cfg.FxCustomEnabled)
+            if (!cfg.NativeEffectsEnabled && cfg.FxCustomEnabled)
             {
                 double level = GateGeometry.Clamp(t.CustomValue, 0.0, 100.0) / 100.0;
                 if (level > 0)
@@ -269,9 +274,10 @@ namespace AB9ActiveShifter.Core
                 output.GrindStrength = engagement;
 
                 double press = 0.4 + 0.6 * GateGeometry.Clamp(slotDepth, 0.0, 1.0);
+                output.GrindLevel = press * engagement;
                 int amp = (int)Math.Round(
                     Amp(cfg.GrindGainPct, gain, GrindFullScale) * press * engagement);
-                vib += Square(ref _grindPhase, cfg.GrindFreqHz, dtMs, amp);
+                if (!cfg.NativeEffectsEnabled) vib += Square(ref _grindPhase, cfg.GrindFreqHz, dtMs, amp);
             }
 
             output.VibY = GateGeometry.Clamp(vib, -VibTotalMax, VibTotalMax);

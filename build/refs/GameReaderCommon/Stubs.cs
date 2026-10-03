@@ -42,3 +42,13 @@ namespace GameReaderCommon
         public double? AccelerationHeave { get; set; }
     }
 }
+
+namespace GameReaderCommon.Enums
+{
+    public enum FFBPlacement { All, Front, Rear, Left, Right, FrontLeft, FrontRight, RearLeft, RearRight }
+}
+
+namespace GameReaderCommon.Feedback
+{
+    public class FeedbackCapabilities { }
+}
