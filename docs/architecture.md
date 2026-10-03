@@ -329,7 +329,10 @@ submitting; failed releases prevent pressing a replacement gear. Cleanup attempt
 even after the output reports disconnected. The optional role at index 0 is H neutral only;
 `ReleaseAll`, including calibration and the watchdog, clears it too.
 
-`GearOutputConfig` masks mappings by the current pattern and compares output configuration.
+The settings UI always exposes H-pattern, sequential and PRND mappings as separate groups.
+`GearOutputConfig` masks runtime mappings by the current pattern and compares active output
+configuration. Editing another pattern's assignments retains the current output and its
+held roles; switching pattern or editing a role it uses releases and replaces the output.
 Output mode, role assignments, and vJoy id are machine facts, excluded from shared profiles.
 Changing backend, active mapping, or native pattern disconnects the old output before creating
 the new one and republishing the held gear. Changing output does not reopen the AB9. Reconnect

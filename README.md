@@ -249,7 +249,9 @@ Use **Configure Control Mapper**, choose **Assign roles**, and create the roles 
 For keyboard output, add roles under **Keyboard** and choose each simulated key. For controller
 buttons, configure Control Mapper's vJoy or Arduino bridge output. Return here, press
 **Refresh roles**, and assign an existing role to each gear, sequential direction, or PRND
-position shown. Typing a name here does not create a role. Bind the resulting keys or controller
+position. **H-pattern mappings**, **Sequential mappings** and **PRND mappings** are always
+shown together, independently of the profile's selected pattern. Typing a name here does not
+create a role. Bind the resulting keys or controller
 buttons in your game.
 Blank mappings send nothing, and missing roles are reported. The output choice and mappings
 belong to your rig: switching profiles keeps them, and shared profiles never replace them.
@@ -262,7 +264,8 @@ For **Automatic (P R N D)**, assign existing Control Mapper roles to **PRND: P**
 `PRND.P`, `PRND.R`, `PRND.N` and `PRND.D`. Configure their keys or controller buttons and press
 **Refresh roles** to make newly created roles available. The selected
 position's role stays held until the lever moves to another position; N has its own held role.
-The mapping panel shows instructions for the selected pattern.
+Each mapping group has its own instructions. Only the active pattern sends output; editing
+another pattern's assignments keeps the current output connected and held.
 **H-pattern neutral (optional)** holds a separate role while an H gate is in neutral, for games
 that need an explicit neutral key. Leave it blank for controller bindings that use released
 gear buttons as neutral. Keyboard bindings depend on the game: verify direct gear

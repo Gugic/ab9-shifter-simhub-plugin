@@ -42,7 +42,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-620 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+623 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -148,7 +148,7 @@ src/AB9ActiveShifter/
   UI/                      SettingsControl.xaml (first-run Setup, Main/Options, tuning modals)
     SettingsControl.Updates.cs Update banner, app preferences, release notes and install/restart
     SettingsControl.Native.cs Native setup actions and control availability
-    SettingsControl.Outputs.cs Output selector, pattern-specific native role pickers and readiness
+    SettingsControl.Outputs.cs Output selector, all-pattern native role pickers and readiness
     ControlMapperFeatureSettings.cs Guarded public host feature setting, explicit enable/restart
     GateVisualizer.cs      The gate plan view with the live stick position, on Monitor and again
                            at the top of Geometry. Draws the gate's real free space, the mouths
@@ -563,6 +563,9 @@ runners cannot load, so anything worth testing must not touch it.
   an id; recreating one cannot release another owner's roles. Keep it for the output's lifetime,
   release only our roles, and attempt cleanup even after failed writes. Changing output releases
   the old backend before pressing on the new one, without reopening the force-feedback base.
+- **Output mappings are rig settings, separate from a profile's pattern.** Keep H-pattern,
+  sequential and PRND assignments visible together. Only active mappings affect runtime output
+  and readiness; editing another pattern must not release held roles or reconnect output.
 - **Output ownership belongs to the master switch, not the base connection.** Main's
   `Shifter enabled` keeps selected output acquired through base loss and native pauses.
   Acquisition and bounded ownership checks continue without a base; gear presses wait for a

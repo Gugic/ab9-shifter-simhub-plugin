@@ -459,7 +459,7 @@ namespace AB9ActiveShifter.UI
             RefreshSlotThrowSummary();
             RefreshPrndLaneSummary();
 
-            // Output belongs to the rig, but the displayed role rows follow this profile's pattern.
+            // All output mappings belong to the rig; readiness follows the active pattern.
             RefreshOutputSettings();
             UpdateCalibrationSection();
         }

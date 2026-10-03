@@ -78,8 +78,9 @@ namespace AB9ActiveShifter.Core
             if (before.OutputMode != after.OutputMode) return true;
             if (after.OutputMode == GearOutputMode.VJoy)
                 return before.VJoyDeviceId != after.VJoyDeviceId;
-            return !RolesEqual(before.ControlMapperRoles, after.ControlMapperRoles)
-                   || before.Pattern != after.Pattern;
+            return before.Pattern != after.Pattern
+                   || !RolesEqual(RolesForPattern(before.ControlMapperRoles, before.Pattern),
+                       RolesForPattern(after.ControlMapperRoles, after.Pattern));
         }
 
         public static string ControlMapperProblem(bool isAvailable, string[] roles, ICollection<string> available)

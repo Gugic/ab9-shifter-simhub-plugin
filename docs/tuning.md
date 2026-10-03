@@ -66,7 +66,7 @@ Firmware **AB9 H-pattern** uses the base's own buttons and hides plugin output c
 
 Direct vJoy uses the **Device** picker and **Refresh** to choose its virtual controller;
 14 buttons cover all patterns. Keep its device separate from any vJoy device used by Control
-Mapper. The native choice shows mappings for the current profile's pattern, a feature status,
+Mapper. The native choice always shows mappings for all patterns, a feature status,
 and **Refresh roles**. The status checks whether Control Mapper is loaded; an enabled mapper
 with no roles is reported separately from a disabled feature. **Controls and events** is a
 separate SimHub page. If disabled, **Enable Control Mapper and restart SimHub** enables the
@@ -81,14 +81,15 @@ Choose its output, then return and **Refresh roles**. Choose or type an existing
 typing does not create a role. Blank mappings send nothing. Roles can drive keyboard keys,
 controller buttons through Control Mapper's vJoy or Arduino bridge, or SimHub controls.
 
-The H rows are **Gear 1** through the pattern's highest forward gear and **Reverse** where it
-exists. **H-pattern neutral (optional)** sends a held neutral role for games that need a separate
-neutral key. Sequential shows **Sequential up** and **Sequential down**; the selector shows
+**H-pattern mappings** shows **Gear 1** through **Gear 7** and **Reverse**, regardless of the
+selected pattern. **H-pattern neutral (optional)** sends a held neutral role for games that need
+a separate neutral key. **Sequential mappings** shows **Sequential up** and **Sequential down**;
+**PRND mappings** shows
 **PRND: P**, **PRND: R**, **PRND: N**, and **PRND: D**. H gears and selector positions hold their
 roles, and sequential uses Main's **Sequential pulse length (ms)**. Verify keyboard direct-gear
 and neutral bindings in the game. Missing roles are reported under the mappings.
 
-The mapping panel's instructions follow the selected **Pattern**. For **Automatic (P R N D)**,
+All three groups and their instructions stay visible without changing **Pattern**. For PRND,
 assign existing Control Mapper roles to each position's row. Custom roles such as `PRND.P`,
 `PRND.R`, `PRND.N` and `PRND.D` are optional if you need additional assignments; configure
 their keys or controller buttons in Control Mapper, then **Refresh roles**.
@@ -105,7 +106,9 @@ Main's **Sharing and button mapping** follows the selected output.
 
 The output choice and role assignments belong to the rig and survive profile and operating-mode
 changes. Editing mappings or changing backend releases the previous output before publishing the
-current lever state. Calibration clears every role, including optional H neutral. AB9 onboard
+current lever state when the active output is affected. Editing another pattern's mappings
+preserves the current output and held roles. Only the active pattern sends output, and its
+mappings determine readiness. Calibration clears every role, including optional H neutral. AB9 onboard
 configuration pauses the selected output along with the forces and resumes it through the same
 checked transaction as direct vJoy.
 

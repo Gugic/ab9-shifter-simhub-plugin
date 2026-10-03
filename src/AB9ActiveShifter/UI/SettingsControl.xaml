@@ -2,6 +2,16 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
+        <DataTemplate x:Key="OutputRoleMappingTemplate">
+            <Grid Margin="0,3" MaxWidth="650" HorizontalAlignment="Stretch">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="210" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Label}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ComboBox Grid.Column="1" MinWidth="180" IsEditable="True" ItemsSource="{Binding AvailableRoles}" Text="{Binding Role, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" ToolTip="Choose or type an existing Control Mapper role. Leave blank to send nothing." />
+            </Grid>
+        </DataTemplate>
         <Style TargetType="{x:Type ui:TitledSlider}">
             <Setter Property="ToolTip" Value="Right-click to undo the last adjustment." />
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="OnSliderGestureStartMouse" />
@@ -212,21 +222,25 @@
                                                 <styles:SHButtonSecondary x:Name="ConfigureControlMapperButton" Content="Configure Control Mapper" Click="OnConfigureControlMapper" Padding="10,3" Margin="0,0,8,4" />
                                                 <styles:SHButtonSecondary Content="Refresh roles" Click="OnRefreshControlMapperRoles" Padding="10,3" Margin="0,0,0,4" />
                                             </WrapPanel>
-                                            <TextBlock x:Name="ControlMapperPatternHint" TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" />
-                                            <ItemsControl x:Name="ControlMapperMappings">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Grid Margin="0,3" MaxWidth="650" HorizontalAlignment="Stretch">
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="210" />
-                                                                <ColumnDefinition Width="*" />
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{Binding Label}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                                            <ComboBox Grid.Column="1" MinWidth="180" IsEditable="True" ItemsSource="{Binding AvailableRoles}" Text="{Binding Role, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" ToolTip="Choose or type an existing Control Mapper role. Leave blank to send nothing." />
-                                                        </Grid>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
+                                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" Text="Configure all patterns here without changing the active profile. These are rig settings; only the active pattern sends output." />
+                                            <styles:SHSection Title="H-pattern mappings" ShowSeparator="True">
+                                                <StackPanel Margin="0,4,0,12">
+                                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="Use Gear1, Gear2 and so on, and GearR for Reverse, or choose your own roles. Returning to neutral releases the held gear role. Leave H-pattern neutral (optional) blank unless your game needs a separate neutral key." />
+                                                    <ItemsControl x:Name="HPatternMappings" ItemTemplate="{StaticResource OutputRoleMappingTemplate}" />
+                                                </StackPanel>
+                                            </styles:SHSection>
+                                            <styles:SHSection Title="Sequential mappings" ShowSeparator="True">
+                                                <StackPanel Margin="0,4,0,12">
+                                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="Use ShiftUp and ShiftDown, or choose your own roles. Each shift pulses its role using Sequential pulse length (ms) on Main." />
+                                                    <ItemsControl x:Name="SequentialMappings" ItemTemplate="{StaticResource OutputRoleMappingTemplate}" />
+                                                </StackPanel>
+                                            </styles:SHSection>
+                                            <styles:SHSection Title="PRND mappings" ShowSeparator="True">
+                                                <StackPanel Margin="0,4,0,12">
+                                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="Assign existing roles to P, R, N and D. If you need additional roles, you can create custom ones such as PRND.P, PRND.R, PRND.N and PRND.D. The selected position holds its assigned role, including N." />
+                                                    <ItemsControl x:Name="PrndMappings" ItemTemplate="{StaticResource OutputRoleMappingTemplate}" />
+                                                </StackPanel>
+                                            </styles:SHSection>
                                             <TextBlock x:Name="ControlMapperHint" TextWrapping="Wrap" Opacity="0.85" Margin="0,8,0,0" />
                                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0" Text="H gears and PRND positions hold their roles; sequential shifts use the pulse length on Main. H-pattern neutral is optional. Blank mappings send nothing. Check direct-gear and neutral keyboard bindings in your game. These assignments belong to the rig and survive profile switches." />
                                         </StackPanel>

@@ -32,13 +32,8 @@ namespace AB9ActiveShifter.UI
             if (_boundSettings == null || VJoyPanel == null) return;
             VJoyPanel.Visibility = UsesControlMapper ? Visibility.Collapsed : Visibility.Visible;
             ControlMapperPanel.Visibility = UsesControlMapper ? Visibility.Visible : Visibility.Collapsed;
-            ControlMapperPatternHint.Text = _boundSettings.Pattern == GatePattern.Prnd
-                ? "Assign existing Control Mapper roles to P, R, N and D below. If you need additional roles, you can create custom ones such as PRND.P, PRND.R, PRND.N and PRND.D. The selected position holds its assigned role, including N. Configure each role's key or controller button in Control Mapper."
-                : _boundSettings.Pattern == GatePattern.Sequential
-                    ? "Map Sequential up to ShiftUp and Sequential down to ShiftDown, or choose your own roles. Each shift pulses its role."
-                    : "Map the gears to Gear1, Gear2 and so on, and Reverse to GearR, or choose your own roles. Returning to H-pattern neutral releases the held gear role. Leave H-pattern neutral (optional) blank unless your game needs a separate neutral key; create a custom role for that key if needed.";
             OutputBindingSummary.Text = UsesControlMapper
-                ? "Control Mapper roles: configure this pattern's assignments in Options → Base and output, then bind the resulting keys or controller buttons in your game. Blank mappings send nothing."
+                ? "Control Mapper roles: configure H-pattern, sequential and PRND assignments in Options → Base and output, then bind the resulting keys or controller buttons in your game. All mappings belong to the rig; only the active pattern sends output. Blank mappings send nothing."
                 : "vJoy buttons: gears 1–7 → 1–7, reverse → 8; sequential up/down → 9/10; P/R/N/D → 11/12/13/14. The truck pattern uses buttons 1–6.";
             if (Plugin.CurrentOperatingMode != OperatingMode.Ab9HPattern)
             {
@@ -146,11 +141,11 @@ namespace AB9ActiveShifter.UI
             string[] roles = _boundSettings.ControlMapperRoles;
             for (int button = 0; button < GearOutputConfig.RoleCount; button++)
             {
-                if (GearOutputConfig.UsesButton(_boundSettings.Pattern, button))
-                    _outputRoleEntries.Add(new OutputRoleEntry(this, button, roles[button], available));
+                _outputRoleEntries.Add(new OutputRoleEntry(this, button, roles[button], available));
             }
-            ControlMapperMappings.ItemsSource = null;
-            ControlMapperMappings.ItemsSource = _outputRoleEntries;
+            HPatternMappings.ItemsSource = _outputRoleEntries.GetRange(0, 9);
+            SequentialMappings.ItemsSource = _outputRoleEntries.GetRange(9, 2);
+            PrndMappings.ItemsSource = _outputRoleEntries.GetRange(11, 4);
         }
 
         private sealed class OutputRoleEntry : INotifyPropertyChanged

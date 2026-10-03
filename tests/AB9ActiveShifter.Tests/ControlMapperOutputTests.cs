@@ -305,5 +305,38 @@ namespace AB9ActiveShifter.Tests
             after.Pattern = GatePattern.Sequential;
             Assert.True(GearOutputConfig.OutputChanged(before, after));
         }
+
+        [Theory]
+        [InlineData(GatePattern.H7R, 1, 13)]
+        [InlineData(GatePattern.Sequential, 9, 1)]
+        [InlineData(GatePattern.Prnd, 13, 9)]
+        public void ConfiguringAnotherPatternPreservesTheCurrentOutput(GatePattern pattern, int active, int other)
+        {
+            var before = new EngineConfig { OutputMode = GearOutputMode.ControlMapper, Pattern = pattern };
+            before.ControlMapperRoles[active] = "held";
+            var after = new EngineConfig
+            {
+                OutputMode = GearOutputMode.ControlMapper,
+                Pattern = pattern,
+                ControlMapperRoles = GearOutputConfig.CopyRoles(before.ControlMapperRoles)
+            };
+            after.ControlMapperRoles[other] = "configured for later";
+            Assert.False(GearOutputConfig.OutputChanged(before, after));
+            Assert.Equal("configured for later", after.ControlMapperRoles[other]);
+
+            var mapper = new Roles();
+            mapper.Available.Add("held");
+            var connection = new GearOutputConnection(cfg => new ControlMapperGearOutput(mapper,
+                GearOutputConfig.RolesForPattern(cfg.ControlMapperRoles, cfg.Pattern), false));
+            connection.Configure(before);
+            connection.Poll(0, true, active);
+            var output = connection.Output;
+            Assert.False(connection.Configure(after));
+            Assert.Same(output, connection.Output);
+            Assert.Equal(new[] { "press held" }, mapper.Calls);
+
+            after.ControlMapperRoles[active] = "replacement";
+            Assert.True(GearOutputConfig.OutputChanged(before, after));
+        }
     }
 }
