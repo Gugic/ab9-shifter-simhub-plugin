@@ -139,11 +139,15 @@ while it runs, so the copy fails if you skip that.
 
 Start SimHub and enable **AB9 Active Shifter** under *Settings → Plugins*.
 
-That is the whole install. You start with seven ready-made **presets** — **7+R lockout**, **7+R
-lockout (short throw, loose)**, **5+R**, **5+R wide**, **Sequential**, **Automatic (PRND)** and
+That is the whole install. You start with eight ready-made **presets** — **7+R lockout**, **7+R
+lockout (short throw, loose)**, **5+R**, **5+R wide**, **Sequential**, **Sequential (stiff, short)**, **Automatic (PRND)** and
 **Truck 6-gear (low-range lockout)** — each holding its own complete tuning, so you begin from
 gates that were tuned on real hardware rather than from bare defaults. Forces are off and the force
 cap is on, as they should be on a base nobody has measured yet.
+
+**Sequential (stiff, short)** preserves a tune driven on the development rig: a 7,552-count
+throw, full click, 14.54% base damping and 14% base friction. It includes the tune's native
+Effects rows and response curves. The original **Sequential** preset remains available.
 
 Four of the H presets are the **same gate**, and the only thing you are choosing between them is
 the pattern, how far the lever travels, and how wide the gate stands: *7+R lockout* runs the full

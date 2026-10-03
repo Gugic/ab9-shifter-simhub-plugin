@@ -763,10 +763,16 @@ band where it actually is. *FFB loop rate* in Options should stay at 1000; see
 
 ## Presets, and why your profile just renamed itself
 
-The seven shipped tunes are marked `(Preset)` and sit at the end of the profile list. They never
+The eight shipped tunes are marked `(Preset)` and sit at the end of the profile list. They never
 change and they cannot be renamed or deleted — the Rename and Delete buttons grey out while one is
 selected. They exist so there is always a known-good gate to come back to when a tuning session has
 wandered.
+
+**(Preset) Sequential (stiff, short)** comes from the custom Sequential tune captured on the
+development rig. Its throw is 7,552 counts from centre, with 2,010 counts of overtravel and a
+100 ms output pulse. Click is 100%, push resistance 46%, base damping 14.54% and base friction
+14%. The native Effects configuration is retained, including the engine response curve and
+enabled limiter. Like every preset, it starts disabled and needs this rig's own calibration.
 
 Turning any dial while a preset is selected therefore does not edit it. The edit moves to a profile
 of your own, carrying the preset's name without the marker — `(Preset) 7+R lockout` becomes

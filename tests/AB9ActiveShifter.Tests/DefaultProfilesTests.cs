@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using AB9ActiveShifter;
 using AB9ActiveShifter.Core;
+using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace AB9ActiveShifter.Tests
@@ -126,10 +127,47 @@ namespace AB9ActiveShifter.Tests
             ProfileStore store = DefaultProfiles.Create();
 
             Assert.Equal(GatePattern.Sequential, Find(store, Preset(DefaultProfiles.SequentialName)).Pattern);
+            Assert.Equal(GatePattern.Sequential, Find(store, Preset(DefaultProfiles.SequentialStiffShortName)).Pattern);
             Assert.Equal(GatePattern.H7R, Find(store, Preset(DefaultProfiles.SevenRName)).Pattern);
             Assert.Equal(GatePattern.H5R, Find(store, Preset(DefaultProfiles.FiveRName)).Pattern);
             Assert.Equal(GatePattern.Prnd, Find(store, Preset(DefaultProfiles.PrndName)).Pattern);
             Assert.Equal(GatePattern.H6, Find(store, Preset(DefaultProfiles.TruckName)).Pattern);
+        }
+
+        [Fact]
+        public void TheStiffShortSequentialKeepsTheCustomRigsStrokeAndResistance()
+        {
+            ShifterSettings s = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SequentialStiffShortName));
+            Assert.Equal(7552, s.ThrowFromCentre);
+            Assert.Equal(25215, s.EngageDepth);
+            Assert.Equal(25715, s.ReleaseDepth);
+            Assert.Equal(2010, s.SeqOvertravel);
+            Assert.Equal(100, s.SeqStopForcePct);
+            Assert.Equal(100, s.SeqPulseMs);
+            Assert.Equal(100, s.SeqClickPct);
+            Assert.Equal(46, s.DetentResistPct);
+            Assert.Equal(14.54, s.BaseDamperPct);
+            Assert.Equal(14, s.BaseFrictionPct);
+            Assert.True(s.FxLimiterEnabled);
+            Assert.False(s.PedalCalibrated);
+            Assert.Equal("", s.PedalDeviceId);
+        }
+
+        [Fact]
+        public void TheStiffShortSequentialPreservesItsNativeEffectsAndCurvesWithoutTransports()
+        {
+            ShifterSettings s = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SequentialStiffShortName));
+            var effects = JObject.Parse(NativeEffectsData.Validate(s.NativeEffectsJson));
+            var rows = (JArray)effects["Profile"]["EffectsContainers"];
+            Assert.Equal(9, rows.Count);
+            JObject engine = (JObject)rows[2];
+            Assert.Equal("RPMContainer", (string)engine["ContainerType"]);
+            Assert.Equal("SplineFilter", (string)engine["Filter"]["FilterType"]);
+            Assert.Equal(new[] { "0;0", "1;100", "100;100" }, engine["Filter"]["ControlPoints"].ToObject<string[]>());
+            Assert.Equal(98, (int)engine["Output"]["HighFrequency"]);
+            Assert.True((bool)rows[3]["IsEnabled"]);
+            Assert.Equal("AB9LimiterEffectContainer", (string)rows[3]["ContainerType"]);
+            Assert.DoesNotContain("OutputManager", s.NativeEffectsJson);
         }
 
         [Fact]

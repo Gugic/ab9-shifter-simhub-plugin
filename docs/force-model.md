@@ -18,6 +18,12 @@ All of this lives in `Core/ForceComposer.cs`, which is pure and fully unit-teste
 
 ## Optional base effects
 
+The shipped **Sequential (stiff, short)** preset captures the custom Sequential tune from the
+development rig on 2026-10-03. It changes tuning only: a 7,552-count firing distance, 2,010-count
+overtravel, 46% push resistance, 100% click, 14.54% generic base damping and 14% base friction.
+Its native Effects tree is preserved. The force shapes and polarity cap are unchanged; the
+original Sequential preset remains a separate choice.
+
 The gate's force shapes are shared by Generic FFB Stick and AB9-native. Their extra software
 damping, wall friction, home spring and telemetry effects stay in the constant-force path.
 Only global base effects change provider: generic mode adds DirectInput spring, damper,

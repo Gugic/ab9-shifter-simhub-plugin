@@ -156,8 +156,9 @@ src/AB9ActiveShifter/
   AB9ShifterPlugin.Native.cs Three operating modes and verified AB9 onboard configuration
   ShifterSettings.cs       Persisted POCO -> ToEngineConfig()
   ShifterProfiles.cs       Named profiles, legacy migration, cloning, the preset fork
-  DefaultProfiles.cs       The five presets, as deltas from bare defaults, and their reserved
+  DefaultProfiles.cs       The eight presets, as deltas from bare defaults, and their reserved
                            name prefix
+  DefaultProfiles.SequentialStiffShort.cs Captured short sequential tune and portable native Effects tree
   ProfileTransfer.cs       Export/import of one profile as a shareable file, with validation
   NativeEffectsData.cs     Validates a native tune before SimHub deserializes it
   Effects/                 Native ShakeIt service/editor, Lever output adapter and four sources

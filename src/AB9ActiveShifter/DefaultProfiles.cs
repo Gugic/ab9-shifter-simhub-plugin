@@ -5,11 +5,11 @@ using AB9ActiveShifter.Core;
 namespace AB9ActiveShifter
 {
     /// <summary>
-    /// What a machine with no saved settings starts with: seven working profiles rather than bare
+    /// What a machine with no saved settings starts with: eight working profiles rather than bare
     /// defaults, written out to disk on that first start so they are ordinary settings from then
     /// on - editable, resettable, and never re-applied over anything a user has tuned.
     /// <para>
-    /// Three of the seven are one tune. <see cref="LooseGate"/> is the gate that actually gets
+    /// The H presets share one tune. <see cref="LooseGate"/> is the gate that actually gets
     /// driven on the rig, and <see cref="Gate"/>, the 5+R copy of it and <see cref="ShortThrow"/>
     /// differ by <em>where the slot ends</em> and by nothing else. That is deliberate, and it is a
     /// correction: the two H profiles used to carry an older, firmer tune with every stabiliser
@@ -47,7 +47,7 @@ namespace AB9ActiveShifter
     /// overwrites the moment it runs.
     /// </para>
     /// </summary>
-    public static class DefaultProfiles
+    public static partial class DefaultProfiles
     {
         /// <summary>
         /// What marks a profile as shipped rather than tuned here.
@@ -78,12 +78,13 @@ namespace AB9ActiveShifter
         public const string FiveRName = "5+R";
         public const string FiveRWideName = "5+R wide";
         public const string SequentialName = "Sequential";
+        public const string SequentialStiffShortName = "Sequential (stiff, short)";
         public const string PrndName = "Automatic (PRND)";
         public const string TruckName = "Truck 6-gear (low-range lockout)";
 
         private static readonly string[] BareNames =
         {
-            SevenRName, ShortThrowName, FiveRName, FiveRWideName, SequentialName, PrndName,
+            SevenRName, ShortThrowName, FiveRName, FiveRWideName, SequentialName, SequentialStiffShortName, PrndName,
             TruckName
         };
 
@@ -168,6 +169,7 @@ namespace AB9ActiveShifter
                 new ShifterProfile { Name = Preset(FiveRName), Settings = fiveR },
                 new ShifterProfile { Name = Preset(FiveRWideName), Settings = fiveRWide },
                 new ShifterProfile { Name = Preset(SequentialName), Settings = Sequential() },
+                new ShifterProfile { Name = Preset(SequentialStiffShortName), Settings = SequentialStiffShort() },
                 new ShifterProfile { Name = Preset(PrndName), Settings = Automatic() },
                 new ShifterProfile { Name = Preset(TruckName), Settings = Truck() }
             };
