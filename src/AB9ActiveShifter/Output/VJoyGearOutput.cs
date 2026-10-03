@@ -29,6 +29,7 @@ namespace AB9ActiveShifter.Output
         private readonly object _sync = new object();
 
         private bool _acquired;
+        private bool _hasOwnedDevice;
         private int _heldGear;
 
         public VJoyGearOutput(uint deviceId)
@@ -41,6 +42,31 @@ namespace AB9ActiveShifter.Output
         public string LastError { get; private set; }
 
         public int HeldGear { get { return _heldGear; } }
+
+        public bool CheckConnection()
+        {
+            lock (_sync)
+            {
+                if (!_acquired) return false;
+                try
+                {
+                    if (_vjoy.GetVJDStatus(_deviceId) != VjdStat.VJD_STAT_OWN)
+                    {
+                        _hasOwnedDevice = false;
+                        LostOwnership("vJoy device " + _deviceId + " is no longer owned by this plugin; reconnecting automatically.");
+                    }
+                }
+                catch (Exception ex) { LostOwnership("Could not check vJoy ownership: " + ex.Message); }
+                return _acquired;
+            }
+        }
+
+        private void LostOwnership(string reason)
+        {
+            _acquired = false;
+            _heldGear = 0;
+            LastError = reason;
+        }
 
         public bool Connect()
         {
@@ -80,6 +106,7 @@ namespace AB9ActiveShifter.Output
                         return false;
                     }
 
+                    _hasOwnedDevice = true;
                     int buttons = _vjoy.GetVJDButtonNumber(_deviceId);
                     if (buttons < Core.VJoyDeviceInfo.ButtonsNeeded)
                     {
@@ -97,7 +124,11 @@ namespace AB9ActiveShifter.Output
                         LastError = null;
                     }
 
-                    _vjoy.ResetButtons(_deviceId);
+                    if (!_vjoy.ResetButtons(_deviceId))
+                    {
+                        LostOwnership("Could not clear vJoy device " + _deviceId + " while connecting.");
+                        return false;
+                    }
                     _heldGear = 0;
                     _acquired = true;
                     Log.Info("vJoy device " + _deviceId + " acquired (" + buttons + " buttons).");
@@ -123,12 +154,20 @@ namespace AB9ActiveShifter.Output
                     // Release first: a game must never observe two gears held at once.
                     if (_heldGear >= 1 && _heldGear <= GearCount)
                     {
-                        _vjoy.SetBtn(false, _deviceId, (uint)_heldGear);
+                        if (!_vjoy.SetBtn(false, _deviceId, (uint)_heldGear))
+                        {
+                            LostOwnership("vJoy did not release the previous gear; reconnecting automatically.");
+                            return;
+                        }
                     }
 
                     if (gear >= 1 && gear <= GearCount)
                     {
-                        _vjoy.SetBtn(true, _deviceId, (uint)gear);
+                        if (!_vjoy.SetBtn(true, _deviceId, (uint)gear))
+                        {
+                            LostOwnership("vJoy did not accept the gear; reconnecting automatically.");
+                            return;
+                        }
                     }
 
                     _heldGear = gear;
@@ -136,6 +175,7 @@ namespace AB9ActiveShifter.Output
                 catch (Exception ex)
                 {
                     Log.ErrorThrottled("vjoy-setbtn", "vJoy button update failed", ex);
+                    LostOwnership("vJoy button update failed: " + ex.Message);
                 }
             }
         }
@@ -148,11 +188,13 @@ namespace AB9ActiveShifter.Output
 
                 try
                 {
-                    _vjoy.SetBtn(down, _deviceId, (uint)button);
+                    if (!_vjoy.SetBtn(down, _deviceId, (uint)button))
+                        LostOwnership("vJoy did not accept the button update; reconnecting automatically.");
                 }
                 catch (Exception ex)
                 {
                     Log.ErrorThrottled("vjoy-setbtn", "vJoy button update failed", ex);
+                    LostOwnership("vJoy button update failed: " + ex.Message);
                 }
             }
         }
@@ -164,12 +206,17 @@ namespace AB9ActiveShifter.Output
                 if (!_acquired) return;
                 try
                 {
-                    _vjoy.ResetButtons(_deviceId);
+                    if (!_vjoy.ResetButtons(_deviceId))
+                    {
+                        LostOwnership("vJoy did not clear its buttons; reconnecting automatically.");
+                        return;
+                    }
                     _heldGear = 0;
                 }
                 catch (Exception ex)
                 {
                     Log.ErrorThrottled("vjoy-reset", "vJoy button reset failed", ex);
+                    LostOwnership("vJoy button reset failed: " + ex.Message);
                 }
             }
         }
@@ -178,9 +225,12 @@ namespace AB9ActiveShifter.Output
         {
             lock (_sync)
             {
-                if (!_acquired) return;
+                if (!_acquired && !_hasOwnedDevice) return;
                 try
                 {
+                    // A failed write can clear our cache while the driver still owns the
+                    // device. Only relinquish our ownership; never reset someone else's.
+                    if (_vjoy.GetVJDStatus(_deviceId) != VjdStat.VJD_STAT_OWN) return;
                     _vjoy.ResetButtons(_deviceId);
                     _vjoy.RelinquishVJD(_deviceId);
                     Log.Info("vJoy device " + _deviceId + " released.");
@@ -193,6 +243,7 @@ namespace AB9ActiveShifter.Output
                 {
                     _heldGear = 0;
                     _acquired = false;
+                    _hasOwnedDevice = false;
                 }
             }
         }

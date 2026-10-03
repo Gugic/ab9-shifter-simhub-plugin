@@ -18,7 +18,8 @@ checked snapshot. Startup and setting changes retain their mode checks and write
 
 Virtual dials apply on the next FFB tick. The seven onboard dials apply automatically after
 500 ms without another edit, and selecting a profile applies its onboard values too. Ordinary
-changes preserve the force-feedback toggle: output pauses for the write and resumes after the
+changes preserve the master switch: buttons and forces pause for the write, output ownership
+is retained, and the base resumes after the
 latest values pass readback, provided it was enabled and you have not turned it off or pressed
 panic. Setup, mode changes, calibration and failed writes leave output off.
 Virtual force percentages are scaled by **Overall gain**; until polarity is confirmed its
@@ -27,6 +28,15 @@ unconfirmed polarity also caps requested hardware torque at 10% and keeps the on
 
 Setup completion persists. Losing the base or selected output shows connection status on the working
 screen rather than reopening first-run Setup. Use Options to change the rig or measure again.
+
+**Shifter enabled** on Main is the master switch for the base and selected gear output.
+**Using the master switch and free stick** explains the two controls. While enabled, output
+acquisition and recovery continue independently of the base connection. A base restart clears
+buttons while its position is unavailable, retains the vJoy device, and resyncs gear output on
+reconnect. Silent loss of vJoy ownership is checked once per second and reacquired using the
+output retry schedule; no output-device reselection is needed. Turning the master off clears
+buttons and releases both devices. Firmware **AB9 H-pattern** also releases plugin output.
+**Release all forces (free stick)** removes plugin forces while keeping its connections.
 
 ## Options and plugin updates
 

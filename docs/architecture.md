@@ -28,13 +28,14 @@ Profiles are shared between virtual modes. The selected mode routes the same bas
 percentages to DirectInput or onboard controls; switching modes never clones or retunes a
 profile. Firmware H-pattern blocks profile activation and virtual output.
 
-The initial read-only mode check is reserved before output can start, then dispatched so its
+The initial read-only mode check is reserved before forces or gear presses can start, then dispatched so its
 completion can safely notify bound settings. A failed read preserves a generic setup; a known
 firmware H-pattern mode or an uncertain mode after a failed write blocks virtual output on that
 AB9. Other FFB sticks remain independent. The UI reads native settings once when Feel opens,
 or when the user requests Refresh AB9 in Options. Its status timer only renders the cached snapshot;
 opening Main/Options or leaving an editor open does not poll the configuration port. Startup
 checks and the fresh checks/readbacks required by a configuration transaction remain in place.
+Output ownership may be reserved while the check is pending, with every button clear.
 
 Every write pauses virtual output first, using the existing teardown ordering, then mutes
 hardware torque while configuring the base. Torque is restored last. A pure
@@ -55,7 +56,8 @@ recipes and failure behavior are detailed in [native-ab9.md](native-ab9.md).
 exceptions except `FfbDevice.StopForces()`, which the watchdog may call to kill output when the
 loop has stopped ticking, and which swallows everything because the device may already be gone.
 
-The thread runs `SearchDevice → OpenDevice → Run`, with 1/2/5 s backoff on failure — **except when
+The thread maintains selected output ownership before attempting the base. The base runs
+`SearchDevice → OpenDevice → Run`, with 1/2/5 s backoff on failure — **except when
 the fault says another application has taken the base**, where it stands down instead. Exclusive
 access goes to the foreground app, so reopening is not a repair; it pulls the device out from under
 the game and crashes it. `DeviceFaults.Classify` reads the HRESULT, `HandleDeviceLoss` releases and
@@ -147,6 +149,22 @@ SimHub **rebuilds plugins at game change**, so the engine must survive it:
 | `End` | Save settings only |
 | `FinalizePlugin` (`IReusable`) | The real teardown |
 | `ProcessExit` hook | Backstop |
+
+`ShifterSettings.Enabled` is Main's **Shifter enabled** master switch, controlling both base
+and output ownership. `NativeProfilePolicy.CanOwnGearOutput` permits either virtual mode even
+when the base is missing, but rejects selected or observed AB9 firmware H-pattern mode.
+The shell stamps `EngineConfig.VirtualDeviceEnabled` with the stricter existing force/setup
+eligibility. A pending native check or unavailable AB9-native snapshot can therefore keep an
+output-only loop alive without touching DirectInput or publishing any gear/neutral role.
+A failed read alone no longer clears the user's master request; verified firmware H-pattern
+still does. Verified native reads resume an output-only loop when base eligibility returns;
+an ordinary status refresh does not disturb an already eligible running or yielded base.
+
+Before a native write the shell synchronously stops the base thread with output retention,
+then starts an output-only loop. This keeps the selected reservation while the write/readback
+is outstanding. The ordinary verified resume policy still decides whether forces may return.
+Master off, panic, shutdown and firmware H-pattern fully disconnect output; base loss and
+temporary native configuration clear its buttons without relinquishing it.
 
 `DataUpdate` publishes the immutable `TelemetryState` used by the clutch protection, then steps
 SimHub's native ShakeIt host. The native output manager copies each active tone into a second
@@ -319,6 +337,15 @@ uses the existing 1/2/5/15 s backoff and republishes the current state, except d
 `OutputConnected` and `OutputError` describe either backend; the existing `VJoyConnected`
 property continues to mean direct vJoy specifically.
 
+`GearOutputConnection` owns that lifecycle and uses a fakeable `IGearOutput` boundary. It polls
+acquisition while the base is absent and checks cached ownership once per second while connected.
+Its deadlines reset when the engine clock restarts, without replacing a retained output.
+vJoy checks actual driver ownership and invalidates its cached connection after failed button
+writes or resets. Recovery republishes a held gear only when the engine has a usable base sample;
+otherwise every button remains clear, including H neutral and PRND. Successful base reopen
+resyncs all state machines and publishes the current position. Base reconnect neither replaces
+the output instance nor resets its acquisition backoff. Native role output uses the same policy.
+
 Ordering at the engine remains release-before-press and output requests before force writes.
 Control Mapper queues roles for its own worker, so request ordering does **not** establish that
 the game's key/button arrived before the force. End-to-end timing, keyboard neutral semantics,
@@ -328,8 +355,9 @@ is connected or the game accepted them; those are checked in Control Mapper and 
 
 The output choice is independent of `ProfileStore.SelectedOperatingMode`. Both Generic FFB
 Stick and AB9-native run either backend; firmware H-pattern stops the engine and hides plugin
-output settings. Native configuration uses the same output teardown before the CDC transaction,
-then resumes the selected backend only through the checked `NativeWritePause` path. Calibration
+output settings. Native configuration clears buttons and releases the base before the CDC
+transaction while retaining output ownership, then resumes presses and forces only through the
+checked `NativeWritePause` path. Calibration
 never publishes H neutral while probes run.
 
 ## Telemetry effects and the grind

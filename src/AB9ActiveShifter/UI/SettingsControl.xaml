@@ -91,7 +91,7 @@
                             <StackPanel Margin="0,0,0,8">
                                 <Border x:Name="VirtualEnableSection" Margin="0,4,0,4" Padding="0">
                                     <StackPanel Margin="0">
-                                        <styles:SHToggleCheckbox IsChecked="{Binding Enabled, Mode=TwoWay}" Content="Shifter force feedback enabled" Margin="0" />
+                                        <styles:SHToggleCheckbox IsChecked="{Binding Enabled, Mode=TwoWay}" Content="Shifter enabled" Margin="0" ToolTip="Master switch for the base and selected gear output. Off clears buttons and releases both devices." />
                                     </StackPanel>
                                 </Border>
                                 <Border x:Name="VirtualFreeStickSection" Margin="0,4,0,4" Padding="0">
@@ -137,9 +137,9 @@
                         </Border>
                         <StackPanel Grid.Row="3" Grid.ColumnSpan="2">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" x:Name="MainRecordStatus" />
-                            <styles:SHExpander Header="Using forces and free stick" Margin="0,4,0,8">
+                            <styles:SHExpander Header="Using the master switch and free stick" Margin="0,4,0,8">
                                 <StackPanel Margin="0,4,0,4">
-                                    <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="Enable after setup. Turning this off releases the base for another application." />
+                                    <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="Shifter enabled controls the base and selected gear output together. While enabled, the plugin keeps its output acquired through base disconnects and restarts. Buttons clear while the base is unavailable, then follow its position on reconnect. Turning this off clears buttons and releases both devices. AB9 H-pattern mode releases plugin output too." />
                                     <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="This is a 12 Nm base and this is third-party software driving it: if the lever ever shakes, kicks or drives itself to a stop, untick this - and if it will not stop, cut the base's power. Keep your face and free hand clear the first time you enable a profile you have not felt before. See ABOUT in Options." />
                                     <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="Releases the plugin’s forces while keeping its device connection. Onboard base effects can still resist movement in AB9-native mode." />
                                 </StackPanel>

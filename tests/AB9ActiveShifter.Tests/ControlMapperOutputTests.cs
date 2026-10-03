@@ -75,6 +75,20 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(1, mapper.RoleQueries);
         }
 
+        [Fact]
+        public void AMapperThatDisappearsInvalidatesTheConnectionAndStillAttemptsItsOwnCleanup()
+        {
+            var mapper = new Roles();
+            var output = Output(mapper, false, 1);
+            output.SetGear(1);
+            mapper.IsAvailable = false;
+            Assert.False(output.CheckConnection());
+            Assert.False(output.IsConnected);
+            Assert.Contains("no longer loaded", output.LastError);
+            output.ReleaseAll();
+            Assert.Equal(new[] { "press role 1", "release role 1" }, mapper.Calls);
+        }
+
         [Theory]
         [InlineData(1, 2)]
         [InlineData(7, 8)]

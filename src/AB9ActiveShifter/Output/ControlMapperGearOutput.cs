@@ -30,6 +30,20 @@ namespace AB9ActiveShifter.Output
         public bool IsConnected { get { return _connected; } }
         public string LastError { get; private set; }
 
+        public bool CheckConnection()
+        {
+            lock (_sync)
+            {
+                if (!_connected) return false;
+                try
+                {
+                    if (!_mapper.IsAvailable) Fail("Control Mapper is no longer loaded.");
+                }
+                catch (Exception ex) { Fail(ex.Message); }
+                return _connected;
+            }
+        }
+
         public bool Connect()
         {
             lock (_sync)

@@ -32,6 +32,15 @@ namespace AB9ActiveShifter
         public bool Ab9ModesAvailable { get { return NativeSnapshot.CanManage; } }
         public bool CanConfigureNative { get { return Settings != null && Ab9ModesAvailable && !NativeBusy && !_nativeStartupCheck; } }
 
+        public bool GearOutputAvailable
+        {
+            get
+            {
+                return Settings != null && NativeProfilePolicy.CanOwnGearOutput(CurrentOperatingMode,
+                Settings.VendorId, Settings.ProductId, _ab9InNativeMode);
+            }
+        }
+
         public bool VirtualControlsAvailable
         {
             get
@@ -92,10 +101,10 @@ namespace AB9ActiveShifter
                 _ab9InNativeMode = snapshot.IsNative;
                 _ab9ModeUncertain = false;
             }
-            if (Settings != null && (snapshot.IsNative || (CurrentOperatingMode == OperatingMode.Ab9Native && !snapshot.CanManage))
+            if (Settings != null && snapshot.IsNative
                 && Settings.VendorId == Ab9NativeProtocol.VendorId && Settings.ProductId == Ab9NativeProtocol.ProductId)
                 Settings.Enabled = false;
-            if (!VirtualControlsAvailable) PushSettingsToEngine();
+            if (!VirtualControlsAvailable || (_engine != null && !_engine.VirtualDeviceEnabled)) PushSettingsToEngine();
         }
 
         /// <summary>Changes the rig's provider only after the selected AB9 configuration reads back.</summary>

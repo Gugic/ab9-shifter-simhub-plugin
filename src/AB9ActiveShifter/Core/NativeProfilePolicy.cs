@@ -17,5 +17,11 @@ namespace AB9ActiveShifter.Core
             return !(vendor == Ab9NativeProtocol.VendorId
                 && product == Ab9NativeProtocol.ProductId && ab9ModeUnsafe);
         }
+
+        public static bool CanOwnGearOutput(OperatingMode mode, int vendor, int product, bool ab9InHPattern)
+        {
+            return CanActivate(mode) && !(vendor == Ab9NativeProtocol.VendorId
+                && product == Ab9NativeProtocol.ProductId && ab9InHPattern);
+        }
     }
 }

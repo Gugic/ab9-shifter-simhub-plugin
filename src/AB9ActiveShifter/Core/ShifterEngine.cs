@@ -72,25 +72,14 @@ namespace AB9ActiveShifter.Core
 
         private FfbDevice _device;
         private EffectSet _effects;
-        private IGearOutput _output;
-        private readonly Func<EngineConfig, IGearOutput> _outputFactory;
+        private readonly GearOutputConnection _outputConnection;
+        private IGearOutput _output { get { return _outputConnection.Output; } }
+        private volatile bool _releaseOutputOnStop = true;
 
         public ShifterEngine(Func<EngineConfig, IGearOutput> outputFactory = null)
         {
-            _outputFactory = outputFactory ?? (cfg => new VJoyGearOutput(cfg.VJoyDeviceId));
+            _outputConnection = new GearOutputConnection(outputFactory ?? (cfg => new VJoyGearOutput(cfg.VJoyDeviceId)));
         }
-
-        /// <summary>
-        /// How often a failing gear-output connect may be retried, once the base is already open.
-        ///
-        /// A `RetryBackoff` rather than a bare attempt per tick for the reason the pedal open
-        /// records: this is I/O the loop can attempt and fail, and a throttled log line is not a
-        /// gate on the cost. Longer at the tail than the base's own schedule because nothing is
-        /// waiting on the millisecond - fifteen seconds after vJoy appears is indistinguishable
-        /// from instant to a person, and a driver that is simply not installed then costs one
-        /// cheap status query per fifteen seconds for the life of the session.
-        /// </summary>
-        private readonly RetryBackoff _outputConnectRetry = new RetryBackoff(1000, 2000, 5000, 15000);
 
         // Telemetry effects. The composer keeps carrier phases and lives on the engine
         // thread; the snapshot is written by SimHub's data thread and read here, whole.
@@ -300,6 +289,8 @@ namespace AB9ActiveShifter.Core
             _configDirty = true;
         }
 
+        public bool VirtualDeviceEnabled { get { return _config.VirtualDeviceEnabled; } }
+
         /// <summary>
         /// Hands the engine the latest game telemetry. Called from SimHub's data thread; the
         /// tick reads whichever snapshot is current and judges freshness from its capture
@@ -316,6 +307,8 @@ namespace AB9ActiveShifter.Core
             {
                 if (_running) return;
                 _calibrationOutputHeld = false;
+                _releaseOutputOnStop = true;
+                _outputConnection.RestartClock();
                 _running = true;
                 _phase = EnginePhase.SearchDevice;
                 _status = "Starting";
@@ -339,15 +332,16 @@ namespace AB9ActiveShifter.Core
             Log.Info("FFB engine started.");
         }
 
-        public void Stop(TimeSpan timeout)
+        public void Stop(TimeSpan timeout, bool releaseOutput = true)
         {
             Thread thread;
             lock (_deviceLock)
             {
+                _releaseOutputOnStop = releaseOutput;
                 if (!_running && _thread == null)
                 {
                     ClearCalibration();
-                    Teardown();
+                    Teardown(releaseOutput);
                     return;
                 }
 
@@ -364,7 +358,7 @@ namespace AB9ActiveShifter.Core
             lock (_deviceLock)
             {
                 ClearCalibration();
-                Teardown();
+                Teardown(releaseOutput);
             }
 
             DisposeWatchdog();
@@ -392,7 +386,11 @@ namespace AB9ActiveShifter.Core
         // and must survive output reconnects or config changes until a deliberate restart.
         private bool CanPublishHeldOutput
         {
-            get { return !IsCalibrating && !_calibrationOutputHeld && Volatile.Read(ref _calibrationRequest) == 0; }
+            get
+            {
+                return _device != null && _activeConfig != null && _activeConfig.VirtualDeviceEnabled
+                && !IsCalibrating && !_calibrationOutputHeld && Volatile.Read(ref _calibrationRequest) == 0;
+            }
         }
 
         /// <summary>
@@ -404,6 +402,7 @@ namespace AB9ActiveShifter.Core
         {
             Log.Error("Emergency stop: " + reason);
             _running = false;
+            _releaseOutputOnStop = true;
             _phase = EnginePhase.Faulted;
             _status = "Stopped for safety: " + reason;
 
@@ -464,6 +463,17 @@ namespace AB9ActiveShifter.Core
 
                     EngineConfig cfg = _activeConfig;
 
+                    // Output ownership is independent of the USB base. While it is absent,
+                    // held buttons stay clear and acquisition/recovery still runs here.
+                    WatchGearOutput(cfg, nowMs);
+                    if (!cfg.VirtualDeviceEnabled)
+                    {
+                        _status = "Base paused until native setup is verified; keeping the selected gear output acquired.";
+                        PublishSnapshot(GateGeometry.AxisCenter, GateGeometry.AxisCenter, 0);
+                        Thread.Sleep(25);
+                        continue;
+                    }
+
                     if (_phase != EnginePhase.Run)
                     {
                         if (nowMs >= nextOpenAttemptMs && (!_yielded || ReadyToReclaim(nowMs)))
@@ -488,7 +498,6 @@ namespace AB9ActiveShifter.Core
                     }
 
                     WatchForceOutput(nowMs);
-                    WatchGearOutput(cfg, nowMs);
 
                     Tick(cfg, nowMs, tickCount, loopHz);
 
@@ -514,7 +523,7 @@ namespace AB9ActiveShifter.Core
             {
                 lock (_deviceLock)
                 {
-                    Teardown();
+                    Teardown(_releaseOutputOnStop);
                 }
 
                 if (_paceTimer != null)
@@ -1164,17 +1173,6 @@ namespace AB9ActiveShifter.Core
                 _device = device;
                 _effects = effects;
 
-                if (_output == null) _output = _outputFactory(cfg);
-                if (_output.Connect()) _outputConnectRetry.Succeeded();
-                else
-                {
-                    // Forces are still useful without output, so keep running and say why - and hand
-                    // the retry to the loop, because this method is not called again once the base
-                    // is open. See WatchGearOutput.
-                    Log.WarnThrottled("output-connect", _output.LastError ?? "Gear output unavailable", 15);
-                    _outputConnectRetry.Failed(nowMs);
-                }
-
                 int x, y;
                 string pollError;
                 if (_device.TryPoll(out x, out y, out pollError))
@@ -1182,7 +1180,7 @@ namespace AB9ActiveShifter.Core
                     _stateMachine.Resync(x, y);
                     _seqMachine.Resync(y);
                     _prndMachine.Resync(y);
-                    if (_output.IsConnected && CanPublishHeldOutput)
+                    if (_output != null && _output.IsConnected && CanPublishHeldOutput)
                         _output.SetGear(CurrentHeldButton(cfg));
                 }
 
@@ -1314,14 +1312,11 @@ namespace AB9ActiveShifter.Core
             EngineConfig previous = _activeConfig;
             _activeConfig = cfg;
 
-            bool outputChanged = GearOutputConfig.OutputChanged(previous, cfg);
-            if (outputChanged && _output != null)
+            bool outputChanged = _outputConnection.Configure(cfg);
+            if (outputChanged)
             {
                 // Release the previous backend and its mapping before publishing anything on
                 // the new one. Output changes never need to give up the force-feedback base.
-                _output.Disconnect();
-                _output = null;
-                _outputConnectRetry.Reset();
                 _pulseButton = 0;
                 _pulsePending = 0;
             }
@@ -1406,7 +1401,6 @@ namespace AB9ActiveShifter.Core
             }
             else if (outputChanged && _phase == EnginePhase.Run)
             {
-                _output = _outputFactory(cfg);
                 WatchGearOutput(cfg, nowMs);
                 _status = BuildReadyStatus(cfg);
             }
@@ -1731,28 +1725,13 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         private void WatchGearOutput(EngineConfig cfg, long nowMs)
         {
-            IGearOutput output = _output;
-            if (output == null || output.IsConnected) return;
-            if (!_outputConnectRetry.Due(nowMs)) return;
-
-            if (!output.Connect())
-            {
-                _outputConnectRetry.Failed(nowMs);
+            bool wasConnected = _output != null && _output.IsConnected;
+            bool publish = _phase == EnginePhase.Run && CanPublishHeldOutput;
+            bool connected = _outputConnection.Poll(nowMs, publish, publish ? CurrentHeldButton(cfg) : 0);
+            if (connected)
+                Log.Info("Gear output connected; " + (publish ? "the current gear was republished." : "waiting for a fresh base position."));
+            if (_phase == EnginePhase.Run && (connected || wasConnected != (_output != null && _output.IsConnected)))
                 _status = BuildReadyStatus(cfg);
-                return;
-            }
-
-            _outputConnectRetry.Succeeded();
-
-            // Buttons before forces is about ordering within a change; this is a device arriving
-            // late, so what it needs is the truth it missed. Push the held gear straight out or
-            // the game sees neutral until the next shift - and in a pattern that holds a position
-            // rather than a gear, possibly for the whole session.
-            if (CanPublishHeldOutput)
-                output.SetGear(CurrentHeldButton(cfg));
-
-            Log.Info("Gear output connected on retry; the gear is being published again.");
-            _status = BuildReadyStatus(cfg);
         }
 
         /// <summary>
@@ -1841,7 +1820,7 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>Must be called under <see cref="_deviceLock"/>.</summary>
-        private void Teardown()
+        private void Teardown(bool releaseOutput = false)
         {
             // Order matters and is the same on every path: buttons, then forces, then the
             // device handle. Releasing the device first could leave a gear button stuck.
@@ -1853,6 +1832,7 @@ namespace AB9ActiveShifter.Core
             // non-exclusive, so it can neither hold a button down nor leave a force running. It
             // still has to go, or a disabled plugin keeps a handle on the user's pedal set.
             ClosePedals();
+            if (releaseOutput) _outputConnection.Disconnect();
         }
 
         private void DisposeEffects()
@@ -1883,12 +1863,6 @@ namespace AB9ActiveShifter.Core
         public void Dispose()
         {
             Stop(TimeSpan.FromSeconds(2));
-
-            if (_output != null)
-            {
-                _output.Disconnect();
-                _output = null;
-            }
 
             DisposeWatchdog();
         }

@@ -622,6 +622,7 @@ namespace AB9ActiveShifter
 
             EngineConfig cfg = Settings.ToEngineConfig();
             cfg.BaseEffectsViaDirectInput = CurrentOperatingMode == OperatingMode.GenericFfbStick;
+            cfg.VirtualDeviceEnabled = VirtualControlsAvailable;
             cfg.NativeEffectsEnabled = true;
             cfg.GrindEnabled = false;
             if (_nativeEffects != null) _nativeEffects.Configure(cfg);
@@ -635,9 +636,17 @@ namespace AB9ActiveShifter
 
             engine.ApplyConfig(cfg);
 
-            bool run = Settings.Enabled && VirtualControlsAvailable;
-            if (run && !engine.IsRunning) engine.Start();
-            else if (!run && engine.IsRunning) engine.Stop(TimeSpan.FromSeconds(2));
+            bool run = Settings.Enabled && GearOutputAvailable;
+            if (!run)
+                engine.Stop(TimeSpan.FromSeconds(2));
+            else
+            {
+                // Native writes need the base completely stopped before touching CDC.
+                // Keep the output reservation and restart a loop that only maintains it.
+                if (!cfg.VirtualDeviceEnabled && engine.IsRunning)
+                    engine.Stop(TimeSpan.FromSeconds(2), releaseOutput: false);
+                if (!engine.IsRunning) engine.Start();
+            }
         }
 
         private void OnSettingsChanged(object sender, PropertyChangedEventArgs e)
@@ -977,9 +986,9 @@ namespace AB9ActiveShifter
                 if (!enable) CancelNativeResume();
                 OnUiThread(() =>
                 {
-                    if (Settings == null || (enable && !VirtualControlsAvailable)) return;
+                    if (Settings == null || (enable && !GearOutputAvailable)) return;
                     Settings.Enabled = enable;
-                    Log.Info("Shifter FFB toggled " + (enable ? "on" : "off") + ".");
+                    Log.Info("Shifter toggled " + (enable ? "on" : "off") + ".");
                 });
             });
 

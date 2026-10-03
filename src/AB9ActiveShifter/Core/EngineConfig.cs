@@ -11,6 +11,8 @@ namespace AB9ActiveShifter.Core
         // native effect frame from playing against an incoming gate.
         public bool NativeEffectsEnabled;
         public int NativeEffectsEpoch;
+        // Output can stay acquired while native setup prevents touching the base.
+        public bool VirtualDeviceEnabled = true;
         // Device
         public int VendorId = 0x346E;
         public int ProductId = 0x1000;

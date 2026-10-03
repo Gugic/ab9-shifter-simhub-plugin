@@ -47,7 +47,7 @@ namespace AB9ActiveShifter.UI
             FinishSetupButton.IsEnabled = ready && !Plugin.NativeBusy && !calibrating;
             VirtualChecklistSection.Visibility = Plugin.CurrentOperatingMode == OperatingMode.GenericFfbStick
                 ? Visibility.Visible : Visibility.Collapsed;
-            VirtualEnableSection.IsEnabled = !calibrating && (virtualAvailable || _boundSettings.Enabled);
+            VirtualEnableSection.IsEnabled = !calibrating && (Plugin.GearOutputAvailable || _boundSettings.Enabled);
             VirtualFreeStickSection.IsEnabled = virtualAvailable && !Plugin.NativeWriteBusy;
             VirtualOutputSection.IsEnabled = !Plugin.NativeWriteBusy && !calibrating;
             VirtualClutchSection.IsEnabled = !Plugin.NativeWriteBusy;

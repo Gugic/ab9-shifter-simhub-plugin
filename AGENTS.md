@@ -42,7 +42,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-603 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+620 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -142,6 +142,7 @@ src/AB9ActiveShifter/
   Output/IControlMapperRoles.cs Role API boundary, faked in I/O-free output tests
   Output/SimHubControlMapperRoles.cs Public SimHub role API; one interface owns press and release
   Core/GearOutputConfig.cs Output choice, role meanings, pattern masking and change detection
+  Core/GearOutputConnection.cs Independent ownership, health checks and bounded reconnect (fake API)
   Updates/                 ReleaseInfo (pure release/version/asset policy), UpdateService
                            (background checks), UpdateInstaller (verified atomic DLL replacement)
   UI/                      SettingsControl.xaml (first-run Setup, Main/Options, tuning modals)
@@ -225,6 +226,7 @@ tests/AB9ActiveShifter.Tests/
   ControlMapperOutputTests.cs Held-role lifetimes, neutral, shared roles, failed writes and cleanup,
                            machine facts and compatibility defaults; a fake API, no I/O
   ControlMapperFeatureTests.cs Fake host model: activation isolation, restart rollback and fallback
+  GearOutputConnectionTests.cs Base-independent ownership, recovery, timing and release policy
 build/refs/                Reference-only stubs of SimHub's assemblies, so the plugin builds
                            on a machine with no SimHub. Read build/refs/README.md before
                            touching one - a wrong signature builds green and throws on the rig
@@ -561,6 +563,12 @@ runners cannot load, so anything worth testing must not touch it.
   an id; recreating one cannot release another owner's roles. Keep it for the output's lifetime,
   release only our roles, and attempt cleanup even after failed writes. Changing output releases
   the old backend before pressing on the new one, without reopening the force-feedback base.
+- **Output ownership belongs to the master switch, not the base connection.** Main's
+  `Shifter enabled` keeps selected output acquired through base loss and native pauses.
+  Acquisition and bounded ownership checks continue without a base; gear presses wait for a
+  usable position and clear on loss. Master off and selected/observed firmware H-pattern release
+  ownership. Keep native force eligibility separate: output reservation never permits FFB or
+  H-neutral/PRND presses before setup verification or during calibration.
 - **Control Mapper feature availability is not role availability.** Use the loaded plugin
   lookup; an empty list also describes an enabled mapper with no roles, and Controls and events
   is independent. Enable/restart is an explicit UI action through the guarded public host model

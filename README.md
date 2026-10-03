@@ -210,11 +210,19 @@ Once measured, the whole section collapses to its result and a **Measure again**
 is a property of the base rather than of a profile, so it only wants remeasuring if the hardware
 changes or the gate starts pushing the wrong way.
 
-### 6. Switch the forces on
+### 6. Switch the shifter on
 
 The shifter **starts off**. Enabling it takes the base exclusively and begins applying force, so
-do it deliberately: put a hand on the stick, then tick *Shifter force feedback enabled* on the
+do it deliberately: put a hand on the stick, then tick **Shifter enabled** on the
 Main screen.
+
+This is the master switch for the base and selected gear output. While on, the plugin keeps
+the selected vJoy device acquired through base disconnects and power cycles, including while
+waiting for the base to become available. Buttons clear while position is unavailable and
+resync when it returns. Lost vJoy ownership is checked and reacquired automatically; there is
+no need to reselect the output device. Turning the master off clears buttons and releases both
+devices. **AB9 H-pattern** mode also releases plugin output because the firmware owns its buttons.
+**Release all forces (free stick)** keeps the connections while removing the plugin's forces.
 
 Raise the overall gain slowly from there. This is a 12 Nm base.
 

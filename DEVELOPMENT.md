@@ -181,6 +181,7 @@ src/AB9ActiveShifter/
     NativeEffectMixer.cs   Native tone envelopes -> independent, budgeted 1 kHz carriers
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
     GearOutputConfig.cs    Output choice, per-pattern role mappings and change detection (pure)
+    GearOutputConnection.cs Independent output ownership, health checks and bounded reconnect (fake API)
     DeviceFault.cs         A DirectInput HRESULT as gone / taken by another app / unknown
     VelocityEstimator.cs   Position -> speed across a 4 ms window
     PolarityCalibrator.cs  Measures effect polarity on hardware
@@ -205,6 +206,7 @@ src/AB9ActiveShifter/
 tests/AB9ActiveShifter.Tests/
   ControlMapperOutputTests.cs Role lifetimes, cleanup, mapping validation and rig-owned settings
   ControlMapperFeatureTests.cs Fake host model: activation isolation, restart rollback and fallback
+  GearOutputConnectionTests.cs Base-independent ownership, recovery, timing and release policy
   NativeSettingsDebounceTests.cs Pending edits survive busy reads; latest tune wins each batch
   NativeWritePauseTests.cs Ordinary updates preserve Enabled; failures/off/panic cannot resume
   OperatingModeTests.cs    Shared providers, calibration caps and store migration
