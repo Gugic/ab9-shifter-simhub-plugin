@@ -17,6 +17,37 @@ One SimHub plugin assembly, `AB9ActiveShifter.dll`, plus a test project. The spl
 
 ## Threading
 
+**AB9 configuration** is an optional CDC worker, separate from the force and telemetry
+threads. The rig chooses Generic FFB Stick, AB9-native or AB9 H-pattern. Both virtual modes
+run the same gate and vJoy output; AB9-native replaces only the basic DirectInput base effects
+with onboard settings. Firmware H-pattern releases the virtual engine entirely.
+
+The worker uses exact USB identity, re-checks firmware at each session, reads every write back
+and releases the COM port afterward. Both AB9 choices require firmware 1.1.5.2 or newer.
+Profiles are shared between virtual modes. The selected mode routes the same base-effect
+percentages to DirectInput or onboard controls; switching modes never clones or retunes a
+profile. Firmware H-pattern blocks profile activation and virtual output.
+
+The initial read-only mode check is reserved before output can start, then dispatched so its
+completion can safely notify bound settings. A failed read preserves a generic setup; a known
+firmware H-pattern mode or an uncertain mode after a failed write blocks virtual output on that
+AB9. Other FFB sticks remain independent. Subsequent reads refresh the open settings screen.
+
+Every write pauses virtual output first, using the existing teardown ordering, then mutes
+hardware torque while configuring the base. Torque is restored last. A pure
+`NativeSettingsDebounce` holds the latest copied values for the seven onboard dials until
+500 ms after the last edit; busy reads and in-flight writes do not lose a newer edit. The
+UI dispatcher drains the queue, while the CDC work stays on its separate worker. A batch
+keeps one pause until its final requested values pass readback.
+
+`NativeWritePause` preserves the user's enabled switch during ordinary tuning and profile
+activation, without leaving output running during configuration. Only a successful final
+readback may resume an already-enabled session. Off and panic revoke resume immediately,
+including when their dispatcher update has not arrived yet. Setup, mode changes, calibration,
+imports and failures leave virtual output off. Mode/profile identity changes cancel queued
+outgoing edits; profile activation and list edits wait for a current write to finish. Setup
+recipes and failure behavior are detailed in [native-ab9.md](native-ab9.md).
+
 **One background thread, `AB9ShifterFFB`, owns every DirectInput, effect, and vJoy call.** No
 exceptions except `FfbDevice.StopForces()`, which the watchdog may call to kill output when the
 loop has stopped ticking, and which swallows everything because the device may already be gone.
@@ -28,7 +59,7 @@ the game and crashes it. `DeviceFaults.Classify` reads the HRESULT, `HandleDevic
 sets `_yielded`, and `ReadyToReclaim` waits for SimHub to report no game running before looking
 again (5/15/30 s between looks, and the first look one whole wait after the loss so a game still
 starting up is not mistaken for one that has gone). Any config change clears the stand-down, which
-is what makes re-picking a device on Setup the deliberate "take it back anyway".
+is what makes re-picking a device in Options the deliberate "take it back anyway".
 
 Each tick:
 
@@ -55,16 +86,29 @@ so a tick never sees a half-applied configuration. Dragging a *force* slider reb
 composer — the state machine is left alone unless the geometry actually moved, so tuning cannot
 knock out a gear you are currently holding.
 
+Calibration is queued before the engine starts, so acquisition cannot briefly run a normal
+profile. Pending acquisition and the gaps between individual probes remain part of one active
+calibration. Completion or cancellation holds all DirectInput forces and vJoy buttons off
+until a deliberate restart. Successful AB9-native setup then reapplies the shared base-effect
+percentages while virtual output stays off. Navigating away cancels an unfinished measurement.
+
 ## Effect handling
 
-Five effects are created once after acquire + reset and then only mutated — never stopped and
-restarted — via `SetParameters(TypeSpecificParameters | NoRestart)`:
+The constant forces and two calibration springs are created after acquire + reset; damper,
+friction and inertia are optional condition effects where supported. Parameters use
+`SetParameters(TypeSpecificParameters | NoRestart)`, with a retry without `NoRestart` before
+repeated failures fault the effect set. Effects start at zero; ordinary frames supply their
+requested coefficients, while calibration frames remain unmodified.
 
-`springX`, `springY`, `constantX`, `constantY`, `damper`.
-
-The springs exist but the gate does not use them (see [force-model.md](force-model.md)); a test
-pins that. Retry logic: one retry without `NoRestart`, then three strikes fault the set and the
-engine reopens the device.
+`ForceComposer` continues to render every gate wall as constant force, with both spring fields
+off. `BaseEffectComposer` adds Generic FFB Stick's optional global spring, friction and inertia
+after the gate is composed. The spring uses separately measured signs on each axis and is
+suppressed unless its own polarity confirmation is present. Its center is DirectInput offset
+zero, not a moving gate anchor. These effects share the effective gain and 10% unconfirmed cap,
+are zero in free-stick mode, and are excluded during calibration. AB9-native suppresses these
+DirectInput base effects, including the legacy device damper, without removing software wall
+damping, wall friction, home spring or telemetry forces. Coefficients are written only when
+changed, and all created effects participate in download checks, stop and disposal.
 
 **A second failure mode is invisible to that path**, because it produces no write errors at all:
 the base can throw the effects away while keeping the handle valid and accepting every write. A
@@ -225,7 +269,7 @@ The connect used to be attempted only there, and the loop stops calling that met
 base opens — so at a cold boot, where SimHub starts with the machine and the vJoy device is a second
 or two behind it, the base won the race, the phase went to `Run`, and vJoy was never asked again.
 The gate rendered perfectly and no game was ever told what gear it was in, until someone re-picked
-the device on the Setup tab by hand — which worked only because re-picking it is a config change,
+the device in Options by hand — which worked only because re-picking it is a config change,
 and a config change reopens everything. `WatchVJoy` now runs each tick beside `WatchForceOutput`,
 gated by a `RetryBackoff` (1/2/5/15 s) because this is I/O the tick can attempt and fail, and it
 pushes `CurrentHeldButton` out the instant it succeeds: a device that arrives late must be told the
@@ -336,14 +380,26 @@ preset or churn the debounced save. It re-engages on every start and every gate-
 mode-changing config swap; the composer consumes it beside `muteDetent`, and the refusal reaches
 the state machine through the grind's own `allowEngage` argument, one tick stale like the grind.
 
-UI tabs: **Setup** (profile & pattern, status, enable with the lockout's keys, free stick,
-pre-flight checklist, polarity calibration, manual overrides, gear layout), **Feel** (master gain,
-gate walls, sliding across the gate with the lockout's position, direction and mode, the PRND
-lane with its own lockout block, slot detent), **Effects** (the full native ShakeIt editor and
-the four shifter source rows), **Geometry** (force shaping, hysteresis bands, vJoy device, loop rate, resets),
-**Monitor** (live drawing of the configured pattern — missing slots left blank, the lockout
-shaded where the geometry puts it and dimmed while a hard gate is released, or the sequential
-track), and **Options** (app update preferences, release notes and install/restart actions).
+Setup is a first-run view. `ProfileStore.SetupCompleted` keeps a configured rig on Main
+through disconnects and restarts; existing measured rigs adopt the completed state. Main holds
+the setup summary, profiles, pattern, force enable/free-stick and live monitor. Geometry, Feel
+and Effects open as modal windows. Geometry keeps a second live monitor outside its scroller.
+Options holds the mode switch, device/output settings, recalibration, pedals, hotkeys,
+diagnostics, resets, updates and About. Main uses one level of disclosure for automatic
+profile switching and sharing help; vehicle IDs never lengthen the action buttons. Firmware
+H-pattern exposes only mode and device status.
+
+All editor panels are created with the settings control so slider indexing, reset/undo state
+and namescope bindings remain intact when a panel is temporarily hosted by a modal. The existing
+ShakeIt editor instance moves with its panel; changing presentation does not recreate a profile.
+Geometry resets dimensions and placement, Feel resets strengths and response, and neither
+resets measured polarity or machine identity. Calibration and complete resets live in Options.
+
+All profiles share plugin geometry, extra effects and base-effect percentages between virtual
+modes. In AB9-native, onboard changes apply automatically after the quiet period. Profile
+import validates tuning and preserves machine facts, then activates the new profile with
+virtual output disabled; its onboard values still synchronize automatically. Mode choice is
+a rig preference and never travels in a shared profile.
 
 ## Build
 

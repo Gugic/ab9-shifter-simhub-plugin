@@ -284,6 +284,12 @@ namespace AB9ActiveShifter.Core
         /// <summary>Anti-oscillation damping, 0..10000. Carried per frame so a gain change
         /// can be applied without recreating the effect.</summary>
         public int DamperCoefficient;
+
+        /// <summary>Optional global device friction, independent of the gate's wall friction.</summary>
+        public int FrictionCoefficient;
+
+        /// <summary>Optional global device inertia.</summary>
+        public int InertiaCoefficient;
     }
 
     /// <summary>Result of one sequential state machine step.</summary>

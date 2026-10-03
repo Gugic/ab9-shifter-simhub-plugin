@@ -109,10 +109,12 @@ The centring is non-linear and strong:
 That last number is why `DetentHoldPct` defaults to 55 and why a light seated hold simply loses
 the argument and the gear falls back out.
 
-The real control is **MOZA Cockpit** — *not* Pit House, which has no Spring setting in flight
-mode. Required, once:
+The real control is the onboard **Spring** setting — exposed by **MOZA Cockpit**, and now by the
+plugin's **Prepare base** action in AB9-native mode on supported AB9 firmware. Pit House has no Spring setting in
+flight mode. Required, once:
 
-**The configuration is split across MOZA's two apps, and both are required.**
+**Firmware 1.1.5.2 or newer can be configured directly in the plugin.** The two-app procedure
+below is the manual fallback for older firmware. See [native-ab9.md](native-ab9.md).
 
 The firmware mode switch is in **Pit House**, under **AB9 Mode**: set it to **Flight Simulation
 Base** rather than *Shifter*. That is what makes the base enumerate as the two-axis DirectInput
@@ -246,10 +248,19 @@ Frames on the base's serial port (COM12 on this machine): `7E len group dev cmd 
 checksum seeded at `0x0D`. Commands seen: `0x5D` input mode, `0xAF00` spring, `0xA900` max torque.
 AZOM also presence-spoofs Pit House via a CoAP stub.
 
-This is a possible future convenience — the plugin could set Spring = 0 and DirectInput mode
-itself instead of asking the user to visit Cockpit. Two known traps: AZOM does not cover flight
-base mode, and it **re-pushes Shifter mode and Spring = 50 when a profile is applied**, which
-would silently undo the setup mid-session.
+The plugin now implements these protocol facts independently, with exact AB9 identification,
+firmware gating, and verified readback. AZOM's newer notes document flight `0` / native shifter
+`1` on command `5D`. The installed Cockpit database and SDK additionally identify DirectInput
+`1` on `85`, overall intensity `AE`, inertia `B1`, and game gain `99`.
+
+Read-only measurement on 2026-10-03: the plugin's own CDC worker found COM11 and read all
+seven Cockpit basic dials, native layout and mechanical resistance. Group `04`
+returned `01 01 02 05`, while Cockpit displayed **1.1.5.2**: the last two version components are
+build/patch on the wire. The decoder uses Cockpit's order for comparison. Full query evidence,
+values and verification limits are recorded in [native-ab9.md](native-ab9.md).
+
+Keep AZOM's AB9 connection disabled when using these controls: competing profile applications
+can overwrite mode and Spring mid-session, and only one program can open the CDC port.
 
 ## Disproven — do not rebuild these
 
@@ -259,8 +270,9 @@ Assumptions that looked reasonable, cost real time, and are false:
   Pit House still matters, though — it owns the **AB9 Mode** switch that puts the base into
   flight mode in the first place. The split is: Pit House sets the mode, Cockpit sets the forces.
 - ~~`DIPROP_AUTOCENTER` disables the base's centring~~ → ignored by firmware.
-- ~~The plugin disables the base's autocentring itself~~ → it cannot; the README claimed this for
-  weeks and it misdirected debugging more than once.
+- ~~A DirectInput request disables the base's autocentring~~ → it does not. The plugin now uses
+  the separately verified serial Spring register for optional AB9 setup; other sticks still
+  require their own hardware configuration.
 - ~~Spring effects can make the gate walls firm~~ → capped at ~0.3 DI/count, arithmetically
   impossible.
 - ~~The device damper/friction can settle an oscillating wall~~ → far too weak; software velocity
@@ -287,8 +299,9 @@ The two useful discriminators, since this will be diagnosed again:
 
 - **`0x8007048F` is `ERROR_DEVICE_NOT_CONNECTED`** — the device leaving the bus, not a rejected
   write. No `SetParameters` can produce it directly.
-- **The base is a composite device**: `MI_00` is a USB serial port (COM12) and `MI_02` is the HID
-  game controller. **Pit House and MOZA Cockpit talk to `MI_00`; we use `MI_02`.** So "it works
+- **The base is a composite device**: `MI_00` is a USB serial port and `MI_02` is the HID
+  game controller. **Pit House and MOZA Cockpit talk to `MI_00`; our virtual engine uses `MI_02`**
+  (the optional AB9 configuration worker now also uses `MI_00`). So "it works
   fine in Pit House gearbox mode" is not evidence that the base is healthy — that mode never
   touches the interface the plugin uses, nor the DirectInput force feedback path at all.
 

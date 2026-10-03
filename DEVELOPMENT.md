@@ -152,6 +152,7 @@ SimHub's property system only ever read a snapshot; nothing else touches DirectI
 src/AB9ActiveShifter/
   AB9ShifterPlugin.cs      SimHub shell: lifecycle, properties, events, actions, profiles,
                            settings load/save, DataUpdate -> TelemetryState
+  AB9ShifterPlugin.Native.cs Three operating modes and verified AB9 onboard configuration
   ShifterSettings.cs       Persisted POCO -> ToEngineConfig()
   ShifterProfiles.cs       Named profiles, legacy migration, cloning, the preset fork
   DefaultProfiles.cs       The five presets, as deltas from bare defaults, and their reserved
@@ -161,6 +162,13 @@ src/AB9ActiveShifter/
   Effects/                 Native ShakeIt service/editor, Lever output adapter and four sources
   PluginInfo.cs            The build's version string
   Core/                    Pure, no I/O, fully unit-tested
+    Ab9NativeProtocol.cs   CDC frame codec, parameters and firmware eligibility
+    Ab9NativeSettings.cs   Native read/write snapshots and validated configuration plans
+    NativeProfilePolicy.cs Operating-mode and virtual engine eligibility
+    NativeSettingsDebounce.cs Latest onboard tune after a 500 ms quiet period
+    NativeWritePause.cs    Checked output suspension; off/panic always cancel resume
+    BaseEffectComposer.cs  Optional generic spring/friction/inertia, capped and polarity-aware
+    OperatingMode.cs       Rig-wide effect provider; shared profiles keep the same percentages
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
     GateGeometry.cs        Column targets, hysteresis bands, gear map, unit conversions
     GateStateMachine.cs    Neutral / Traveling / Engaged
@@ -177,15 +185,21 @@ src/AB9ActiveShifter/
     TraceRecorder.cs       Per-tick ring buffer -> CSV; keeps the LAST two minutes, so it can
                            be left running through a session and still hold the failure
   Device/                  DirectInput and Win32
+    Ab9NativeDevice.cs     Separate CDC worker, exact AB9 discovery and checked transactions
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
-  Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the Setup tab's picker (query-only)
+  Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the device/output picker (query-only)
   Updates/                 ReleaseInfo (pure policy), UpdateService (background GitHub checks),
                            UpdateInstaller (validated, atomic DLL replacement)
-  UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor/Options), the
-                           GateVisualizer plan view and the Feel tab's force-curve graphs, all
+  UI/                      SettingsControl.xaml (first-run Setup, Main/Options, tuning modals), the
+                           GateVisualizer plan view and the Feel modal's force-curve graphs, all
                            on ForceGraphVisualizerBase and each sampling ForceComposer itself
     SettingsControl.Updates.cs App update preferences, shared banner and install/restart actions
+    SettingsControl.Native.cs Native setup actions, status and control availability
 tests/AB9ActiveShifter.Tests/
+  NativeSettingsDebounceTests.cs Pending edits survive busy reads; latest tune wins each batch
+  NativeWritePauseTests.cs Ordinary updates preserve Enabled; failures/off/panic cannot resume
+  OperatingModeTests.cs    Shared providers, calibration caps and store migration
+  BaseEffectComposerTests.cs Generic typed effects and separate spring-polarity safety
 build/refs/                Reference-only stubs of SimHub's assemblies
 tools/Verify-StubBuild.ps1 Proves a stub-built DLL binds against the real SimHub
 tools/Show-ProfileDeltas.ps1 Turns a tuned settings file back into DefaultProfiles.cs assignments
@@ -210,7 +224,7 @@ Arithmetic does not settle a feel question. The human at the stick is the instru
 change, deploy it, and say what to try and what to look for. Do not conclude a feel problem is
 fixed without that.
 
-`Monitor` → the trace recorder writes every tick to CSV, which is how a complaint like "it buzzes
+**Options → Diagnostics** → the trace recorder writes every tick to CSV, which is how a complaint like "it buzzes
 coming off the lockout" becomes a frequency and an amplitude instead of an adjective. It keeps
 the **last** two minutes and never stops itself, so for a fault that arrives at an unknown time
 the move is to start it, drive, and stop it once the fault has happened.
@@ -282,7 +296,7 @@ You are iterating on software that drives a 12 Nm servo, usually with a hand on 
   add a path around that cap.
 - Test a force change at low gain first, and keep the base's power switch reachable.
 - A build that fails to load is silent; a build that loads with a sign error is not. If the stick
-  fights you everywhere after a change, tick *Release all forces (free stick)* on the Setup tab —
+  fights you everywhere after a change, tick *Release all forces (free stick)* in Options —
   anything still resisting is the hardware, not your code.
 - Ad-hoc hardware probes belong in a scratch project outside this repo, run with SimHub stopped so
   the device is free.

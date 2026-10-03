@@ -18,7 +18,7 @@ namespace AB9ActiveShifter
     [PluginDescription("Renders an H-pattern, sequential or PRND shift gate in force feedback on an AB9 flight base, plays telemetry effects through the lever, and outputs the selected gear as vJoy buttons. Unofficial third-party plugin, not affiliated with MOZA. Drives a 12 Nm device - see the Setup tab.")]
     [PluginAuthor("Gugic")]
     [PluginName("AB9 Active Shifter")]
-    public class AB9ShifterPlugin : IPlugin, IDataPlugin, IWPFSettingsV2, IReusable
+    public partial class AB9ShifterPlugin : IPlugin, IDataPlugin, IWPFSettingsV2, IReusable
     {
         private const string SettingsKey = "GeneralSettings";
 
@@ -92,6 +92,7 @@ namespace AB9ActiveShifter
 
         public void Init(PluginManager pluginManager)
         {
+            StartNativeSettingsUpdates();
             PluginManager = pluginManager;
             Log.Info("Init (plugin instance created).");
 
@@ -137,6 +138,7 @@ namespace AB9ActiveShifter
             // profile is allowed to hold, so there is no name for the two to collide on and nothing
             // to migrate. Everything already in the file stays exactly as it is.
             Store.EnsurePresets(DefaultProfiles.Presets());
+            Store.MigrateOperatingMode();
 
             ShifterProfile active = Store.FindActive();
             Store.ActiveProfile = active.Name;
@@ -205,6 +207,7 @@ namespace AB9ActiveShifter
             catch (Exception ex) { Log.Error("SimHub's native Effects editor is unavailable", ex); }
 
             EngineConfig initialConfig = Settings.ToEngineConfig();
+            initialConfig.BaseEffectsViaDirectInput = CurrentOperatingMode == OperatingMode.GenericFfbStick;
             initialConfig.NativeEffectsEnabled = true;
             initialConfig.GrindEnabled = false;
             if (_nativeEffects != null) _nativeEffects.Configure(initialConfig);
@@ -219,8 +222,9 @@ namespace AB9ActiveShifter
                 _processExitHooked = true;
             }
 
-            if (Settings.Enabled) _engine.Start();
-            else Log.Info("Plugin is disabled in settings; engine not started.");
+            DetectNativeAtStartup();
+            ReplayPendingNativeSettings();
+            PushSettingsToEngine();
 
             lock (EngineSync)
             {
@@ -333,6 +337,7 @@ namespace AB9ActiveShifter
         /// <summary>IReusable: the genuine shutdown, when SimHub is really done with us.</summary>
         public void FinalizePlugin()
         {
+            StopNativeSettingsUpdates();
             Log.Info("FinalizePlugin (shutting the engine down).");
 
             // Flush any edit the debounce was still holding; a duplicate save is harmless.
@@ -400,12 +405,12 @@ namespace AB9ActiveShifter
         /// handles the swap like any config change - gears release if the new geometry says
         /// the stick is not in one, and a sequential pulse in flight is cleared.
         /// </summary>
-        public void ActivateProfile(string name)
+        public void ActivateProfile(string name, bool applyNative = true)
         {
             var app = System.Windows.Application.Current;
             if (app != null && !app.Dispatcher.CheckAccess())
             {
-                OnUiThread(() => ActivateProfile(name));
+                OnUiThread(() => ActivateProfile(name, applyNative));
                 return;
             }
             if (Store == null || Store.Profiles == null) return;
@@ -416,33 +421,48 @@ namespace AB9ActiveShifter
                 if (p != null && p.Name == name && p.Settings != null) { target = p; break; }
             }
             if (target == null || target.Settings == Settings) return;
+            if (!CanActivateProfile(target)) return;
             // Flush before detaching the outgoing settings, so a native edit made just before
             // a hotkey switch still forks its preset and belongs to the outgoing profile.
             if (_nativeEffects != null) _nativeEffects.SaveIfChanged(true);
 
-            // The session's switches, not the outgoing profile's: an activation must never be the
-            // thing that decides whether the shifter is running. Applied before the swap so the
-            // engine sees one coherent config rather than the new gate with the old switch.
-            target.Settings.ApplyLiveSwitches(Store.SessionEnabled, Store.SessionFreeStick);
+            // Reserve the output pause before rebinding: the incoming virtual gate must not
+            // run against the outgoing onboard tune. The session toggle remains the user's.
+            bool applyOnboard = CurrentOperatingMode == OperatingMode.Ab9Native && applyNative;
+            if (applyOnboard && !BeginNativeOperation(true)) return;
+            CancelPendingNativeSettings();
+            try
+            {
+                // The session's switches, not the outgoing profile's: an activation must never be the
+                // thing that decides whether the shifter is running. Applied before the swap so the
+                // engine sees one coherent config rather than the new gate with the old switch.
+                target.Settings.ApplyLiveSwitches(Store.SessionEnabled, Store.SessionFreeStick);
 
-            // And the machine's own facts, for the same reason and at the same moment. Without
-            // this, activating a profile that was never calibrated here - every preset, by design -
-            // re-arms the 10% force cap and unbinds the clutch pedal, purely as a side effect of
-            // choosing a different gate.
-            ProfileTransfer.CopyMachineFacts(Store.Machine, target.Settings);
+                // And the machine's own facts, for the same reason and at the same moment. Without
+                // this, activating a profile that was never calibrated here - every preset, by design -
+                // re-arms the 10% force cap and unbinds the clutch pedal, purely as a side effect of
+                // choosing a different gate.
+                ProfileTransfer.CopyMachineFacts(Store.Machine, target.Settings);
 
-            if (Settings != null) Settings.PropertyChanged -= OnSettingsChanged;
+                if (Settings != null) Settings.PropertyChanged -= OnSettingsChanged;
 
-            Settings = target.Settings;
-            Settings.PropertyChanged += OnSettingsChanged;
-            Store.ActiveProfile = target.Name;
+                Settings = target.Settings;
+                Settings.PropertyChanged += OnSettingsChanged;
+                Store.ActiveProfile = target.Name;
 
-            if (_nativeEffects != null) _nativeEffects.SelectProfile(Settings);
+                if (_nativeEffects != null) _nativeEffects.SelectProfile(Settings);
 
-            PushSettingsToEngine();
-            SaveStore();
-            RaiseProfileChanged();
-            Log.Info("Profile '" + target.Name + "' activated.");
+                PushSettingsToEngine();
+                SaveStore();
+                RaiseProfileChanged();
+                Log.Info("Profile '" + target.Name + "' activated.");
+                if (applyOnboard) ApplyNativeProfileInBackground();
+            }
+            catch
+            {
+                if (applyOnboard) EndNativeOperation();
+                throw;
+            }
         }
 
         /// <summary>
@@ -457,7 +477,7 @@ namespace AB9ActiveShifter
             {
                 if (Store == null) return;
 
-                string next = Store.NextInCycle(Store.ActiveProfile, direction);
+                string next = Store.NextInCycle(Store.ActiveProfile, direction, CanActivateProfile);
                 if (string.IsNullOrEmpty(next)) return;
 
                 ActivateProfile(next);
@@ -490,8 +510,8 @@ namespace AB9ActiveShifter
         /// <summary>Adds a copy of the current profile under the given name and makes it live.</summary>
         public void AddProfileFromCurrent(string requestedName)
         {
+            if (Store == null || !CanActivateProfile(Store.FindActive())) return;
             if (_nativeEffects != null) _nativeEffects.SaveIfChanged(true);
-            if (Store == null) return;
             if (Store.Profiles == null) Store.Profiles = new System.Collections.Generic.List<ShifterProfile>();
 
             var profile = new ShifterProfile
@@ -502,6 +522,11 @@ namespace AB9ActiveShifter
 
             Store.Profiles.Add(profile);
             ActivateProfile(profile.Name);
+            if (Store.ActiveProfile != profile.Name)
+            {
+                SaveStore();
+                RaiseProfileChanged();
+            }
         }
 
         /// <summary>
@@ -511,12 +536,16 @@ namespace AB9ActiveShifter
         /// </summary>
         public string AddImportedProfile(ShifterProfile imported)
         {
-            if (Store == null || imported == null || imported.Settings == null) return null;
+            if (Store == null || !CanActivateProfile(imported)) return null;
             if (Store.Profiles == null) Store.Profiles = new System.Collections.Generic.List<ShifterProfile>();
 
             imported.Name = Store.UniqueName(imported.Name);
             Store.Profiles.Add(imported);
+            Settings.Enabled = false;
+            // Imported profiles follow the same provider routing, with virtual output off.
             ActivateProfile(imported.Name);
+            SaveStore();
+            RaiseProfileChanged();
 
             Log.Info("Imported profile '" + imported.Name + "'.");
             return imported.Name;
@@ -529,15 +558,16 @@ namespace AB9ActiveShifter
         /// </summary>
         public void DeleteActiveProfile()
         {
-            if (Store == null || Store.Profiles == null || Store.Profiles.Count <= 1) return;
+            if (Store == null || NativeWriteBusy || CurrentOperatingMode == OperatingMode.Ab9HPattern || Store.Profiles == null || Store.Profiles.Count <= 1) return;
             if (DefaultProfiles.IsPreset(Store.ActiveProfile)) return;
 
             ShifterProfile active = Store.FindActive();
             if (active == null) return;
 
+            ShifterProfile next = Store.Profiles.Find(p => p != active && CanActivateProfile(p));
+            if (next == null) return;
             Store.Profiles.Remove(active);
-            ShifterProfile next = Store.FindActive();
-            if (next != null) ActivateProfile(next.Name);
+            ActivateProfile(next.Name);
         }
 
         /// <summary>
@@ -548,7 +578,7 @@ namespace AB9ActiveShifter
         /// </summary>
         public void RenameActiveProfile(string newName)
         {
-            if (Store == null || string.IsNullOrWhiteSpace(newName)) return;
+            if (Store == null || NativeWriteBusy || CurrentOperatingMode == OperatingMode.Ab9HPattern || string.IsNullOrWhiteSpace(newName)) return;
             if (DefaultProfiles.IsPreset(Store.ActiveProfile)) return;
 
             ShifterProfile active = Store.FindActive();
@@ -584,9 +614,10 @@ namespace AB9ActiveShifter
         public void PushSettingsToEngine()
         {
             ShifterEngine engine = _engine;
-            if (engine == null || Settings == null) return;
+            if (engine == null || Settings == null || _nativeUpdatesStopped) return;
 
             EngineConfig cfg = Settings.ToEngineConfig();
+            cfg.BaseEffectsViaDirectInput = CurrentOperatingMode == OperatingMode.GenericFfbStick;
             cfg.NativeEffectsEnabled = true;
             cfg.GrindEnabled = false;
             if (_nativeEffects != null) _nativeEffects.Configure(cfg);
@@ -600,8 +631,9 @@ namespace AB9ActiveShifter
 
             engine.ApplyConfig(cfg);
 
-            if (Settings.Enabled && !engine.IsRunning) engine.Start();
-            else if (!Settings.Enabled && engine.IsRunning) engine.Stop(TimeSpan.FromSeconds(2));
+            bool run = Settings.Enabled && VirtualControlsAvailable;
+            if (run && !engine.IsRunning) engine.Start();
+            else if (!run && engine.IsRunning) engine.Stop(TimeSpan.FromSeconds(2));
         }
 
         private void OnSettingsChanged(object sender, PropertyChangedEventArgs e)
@@ -611,6 +643,10 @@ namespace AB9ActiveShifter
             // startup and the switch would spring back on the next profile activation.
             if (Store != null && Settings != null)
             {
+                if (Store.Machine != null && (e?.PropertyName == nameof(ShifterSettings.VendorId)
+                    || e?.PropertyName == nameof(ShifterSettings.ProductId))
+                    && (Store.Machine.VendorId != Settings.VendorId || Store.Machine.ProductId != Settings.ProductId))
+                    InvalidatePolarity();
                 if (e == null || e.PropertyName == null || e.PropertyName == "Enabled")
                 {
                     Store.SessionEnabled = Settings.Enabled;
@@ -633,7 +669,7 @@ namespace AB9ActiveShifter
             }
 
             ForkActivePresetIfTuned(e == null ? null : e.PropertyName);
-
+            ScheduleNativeSettings(e == null ? null : e.PropertyName);
             PushSettingsToEngine();
             ScheduleSave();
         }
@@ -785,13 +821,9 @@ namespace AB9ActiveShifter
                     {
                         case CalibrationTarget.ConstantX: Settings.InvertConstantX = inverted; break;
                         case CalibrationTarget.ConstantY: Settings.InvertConstantY = inverted; break;
-                        // Spring polarity is measured but has nowhere to go: the gate is built
-                        // from constant forces only. The probe still runs, because a base that
-                        // answers predictably on both effect families is the evidence the force
-                        // cap waits for.
-                        case CalibrationTarget.SpringX:
-                        case CalibrationTarget.SpringY:
-                            break;
+                        // Spring signs are committed together only after every probe succeeds.
+                        case CalibrationTarget.SpringX: break;
+                        case CalibrationTarget.SpringY: break;
                     }
                 }
 
@@ -822,6 +854,13 @@ namespace AB9ActiveShifter
                 }
 
                 Settings.PolarityConfirmed = conclusive;
+                Settings.BaseSpringPolarityConfirmed = false;
+                if (conclusive)
+                {
+                    Settings.InvertSpringX = LastCalibration[CalibrationTarget.SpringX].Outcome == CalibrationOutcome.Inverted;
+                    Settings.InvertSpringY = LastCalibration[CalibrationTarget.SpringY].Outcome == CalibrationOutcome.Inverted;
+                    Settings.BaseSpringPolarityConfirmed = true;
+                }
                 CopyPolarityToEveryProfile();
 
                 Log.Info(conclusive
@@ -854,6 +893,9 @@ namespace AB9ActiveShifter
                 profile.Settings.InvertConstantX = Settings.InvertConstantX;
                 profile.Settings.InvertConstantY = Settings.InvertConstantY;
                 profile.Settings.PolarityConfirmed = Settings.PolarityConfirmed;
+                profile.Settings.InvertSpringX = Settings.InvertSpringX;
+                profile.Settings.InvertSpringY = Settings.InvertSpringY;
+                profile.Settings.BaseSpringPolarityConfirmed = Settings.BaseSpringPolarityConfirmed;
                 profile.Settings.CalibrationForcePct = Settings.CalibrationForcePct;
             }
         }
@@ -924,21 +966,30 @@ namespace AB9ActiveShifter
         {
             this.AddAction("ToggleShifterFFB", (a, b) =>
             {
-                Settings.Enabled = !Settings.Enabled;
-                Log.Info("Shifter FFB toggled " + (Settings.Enabled ? "on" : "off") + ".");
+                if (Settings == null) return;
+                bool enable = !Settings.Enabled;
+                if (!enable) CancelNativeResume();
+                OnUiThread(() =>
+                {
+                    if (Settings == null || (enable && !VirtualControlsAvailable)) return;
+                    Settings.Enabled = enable;
+                    Log.Info("Shifter FFB toggled " + (enable ? "on" : "off") + ".");
+                });
             });
 
             this.AddAction("ReleaseAllGears", (a, b) =>
             {
+                CancelNativeResume();
                 ShifterEngine engine = _engine;
                 if (engine != null) engine.EmergencyStop("manual release requested");
+                OnUiThread(() => { if (Settings != null) Settings.Enabled = false; });
             });
 
             // Bindable to a wheel button or a key in SimHub's own Controls page, which is the
             // point: switching between an H gate and a sequential lever is a thing done between
             // sessions, or between cars, without reaching for a mouse.
-            this.AddAction("NextProfile", (a, b) => CycleProfile(1));
-            this.AddAction("PreviousProfile", (a, b) => CycleProfile(-1));
+            this.AddAction("NextProfile", (a, b) => OnUiThread(() => CycleProfile(1)));
+            this.AddAction("PreviousProfile", (a, b) => OnUiThread(() => CycleProfile(-1)));
 
             // The hard lockout's keys. Toggle is the one-button binding; the explicit pair
             // exists for a two-position switch, which an edge-triggered toggle would desync

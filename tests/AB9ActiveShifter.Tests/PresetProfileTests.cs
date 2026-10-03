@@ -88,6 +88,22 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void OldQuarterTorquePresetsRefreshWithoutOverwritingALocallyChosenHardwareLimit()
+        {
+            ProfileStore store = DefaultProfiles.Create();
+            foreach (ShifterProfile profile in store.Profiles) profile.Settings.NativeTorquePct = 25;
+            var local = new ShifterProfile { Name = "My hardware limit", Settings = new ShifterSettings { NativeTorquePct = 37 } };
+            store.Profiles.Insert(0, local);
+
+            store.EnsurePresets(DefaultProfiles.Presets());
+
+            Assert.Same(local, store.Profiles[0]);
+            Assert.Equal(37, local.Settings.NativeTorquePct);
+            foreach (ShifterProfile profile in store.Profiles)
+                if (DefaultProfiles.IsPreset(profile.Name)) Assert.Equal(100, profile.Settings.NativeTorquePct);
+        }
+
+        [Fact]
         public void APrefixedNameThisBuildDoesNotKnowIsLeftAlone()
         {
             // A settings file can outlive the build that wrote it. If a later version ships a

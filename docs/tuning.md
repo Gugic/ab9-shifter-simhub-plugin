@@ -1,14 +1,28 @@
 # Tuning guide
 
-The dials are spread over the plugin's **Setup**, **Feel**, **Effects** and **Geometry** tabs —
-feel lives on Feel, the telemetry buzzes on Effects, and the positions the gate is built from on
-Geometry. All of them apply on the next FFB tick, so nothing needs restarting. Forces are percentages of what the base can produce *before* the master
-gain, so raising overall gain lifts the whole gate together and keeps tuned ratios intact.
+After first-run **Setup**, **Main** holds your profile, pattern, status and live monitor. Open
+**Geometry** for positions, widths, travel and detection; **Feel** for strengths and resistance;
+**Effects** for game-driven feedback. Geometry keeps its live monitor fixed above the scrolling
+controls. **Options** holds mode, device/output, recalibration, pedals, hotkeys and diagnostics.
+Main's **Automatic profile switching** and **Sharing and button mapping** sections open
+independently; vehicle IDs stay separate from the compact action buttons.
 
-Run **Measure polarity** first. Until it succeeds, gain is capped at 10% and everything feels
-light — that is the safety cap doing its job, not a tuning problem. The Feel, Effects, Geometry and
-Monitor tabs stay hidden until polarity is measured and a vJoy device is available, so if this
-guide describes a tab you cannot see, that is why.
+The rig's three-way mode switch chooses **Generic FFB Stick**, **AB9-native** or **AB9 H-pattern**.
+Both virtual modes share the gate and all extra plugin effects. Generic uses DirectInput base
+effects; AB9-native uses the basic effects supported onboard by Cockpit. Firmware H-pattern
+exposes only device status and the mode switch, with plugin output and tuning unavailable.
+
+Virtual dials apply on the next FFB tick. The seven onboard dials apply automatically after
+500 ms without another edit, and selecting a profile applies its onboard values too. Ordinary
+changes preserve the force-feedback toggle: output pauses for the write and resumes after the
+latest values pass readback, provided it was enabled and you have not turned it off or pressed
+panic. Setup, mode changes, calibration and failed writes leave output off.
+Virtual force percentages are scaled by **Overall gain**; until polarity is confirmed its
+effective value is capped at 10%. Hardware gains and onboard resistance are separate scales;
+unconfirmed polarity also caps requested hardware torque at 10% and keeps the onboard spring off.
+
+Setup completion persists. Losing the base or vJoy shows connection status on the working
+screen rather than reopening first-run Setup. Use Options to change the rig or measure again.
 
 ## Options and plugin updates
 
@@ -27,7 +41,7 @@ Dismiss hides only that version's banner, and a later release gets a new banner.
 remains accessible from Options. A failed check or download appears in the status so it can be
 retried; a release with no verified DLL can still be opened for manual installation.
 
-## What the Feel tab shows you while you turn a dial
+## What the tuning editors show you while you turn a dial
 
 Four things worth knowing before working through the rest of this guide, because they answer
 questions that used to need a trip to the rig:
@@ -48,13 +62,13 @@ questions that used to need a trip to the rig:
 - **Raw counts or percent of column spacing.** The lateral dials can be read either way. Percent
   is the more portable view, because column spacing changes with the pattern — a slot width tuned
   on 7+R is a different fraction of the room on 5+R, which has three columns instead of four — and
-  with *Pattern width* on the Geometry tab, which moves the same spacing without changing a single
+  with *Pattern width* on the Geometry editor, which moves the same spacing without changing a single
   stored count.
 
-## What the Geometry tab shows you while you turn a dial
+## What Geometry shows you while you turn a dial
 
-The same live gate the Monitor tab draws sits at the top of the Geometry tab, under **THE GATE
-THESE DIALS MAKE**, so a slider and its effect are on screen together. It is a plan view drawn at
+The same live gate shown on Main stays at the top of Geometry, outside its scroller, so a
+slider and its effect remain on screen together. It is a plan view drawn at
 the size the geometry actually makes it — every dial below moves something in it — and the slot
 outlines are sampled from the force code rather than redrawn, so the corridor you see is the
 corridor the lever gets.
@@ -64,7 +78,7 @@ corridor the lever gets.
 | The shaded area | The gate's free space: where nothing pushes you sideways |
 | Depth of the horizontal band | *Neutral tunnel half-depth (enter)* |
 | Grey dashed lines above and below it | *Neutral tunnel half-depth (leave)* |
-| Width of each slot, and its funnel at the mouth | *Slot width, free corridor*, *mouth reach* and *mouth opening* on Feel |
+| Width of each slot, and its funnel at the mouth | *Slot width, free corridor*, *mouth reach* and *mouth opening* in Geometry |
 | Blue brackets on the tunnel edge | *Outer* / *Inner column half-width* — how wide each doorway opens |
 | Solid blue line across each slot | *Engage depth* — where the gear registers |
 | Dashed blue line across each slot | *Release depth* — where it lets go |
@@ -81,21 +95,59 @@ button changes hands.
 
 ## Start here
 
+### Base effects: one tune, two providers
+
+Both AB9 modes require a genuine connected base with firmware **1.1.5.2 or newer**. Refresh
+its status after closing Cockpit, Pit House or AZOM's AB9 connection. AB9-native selects flight
+mode and prepares the base; it still uses the plugin's virtual gate, calibration and vJoy.
+AB9 H-pattern uses firmware buttons and exposes no plugin tuning.
+
+Feel labels the AB9's basic effects **Base-driven effects**: they are processed internally by
+the base and avoid the plugin's USB round trip. Generic FFB Stick provides the same controls
+through DirectInput. Profiles and presets keep exactly the same percentages in both modes;
+there are no native copies or separate preset sets. Physical strength can differ by provider.
+
+| Shared base control | Default | Meaning |
+| --- | --- | --- |
+| Base spring (%) | 0% | Global centring |
+| Base damper (%) | 8% | Base damping; preserves the existing DirectInput coefficient of 800 |
+| Base inertia (%) | 0% | Base inertia |
+| Base friction (%) | 0% | Base friction |
+
+AB9-native also exposes hardware torque, overall intensity and game gain, each defaulting to
+100%. Generic mode ignores these hardware scales. The plugin's home spring, wall damping,
+wall friction and game effects remain separate and available in both virtual modes.
+
+Generic typed effects share effective gain and are released by free stick. The global spring
+requires its own measured per-axis signs; rigs whose earlier calibration stored only constant
+force signs must measure again before it activates. The existing gate calibration remains
+valid and does not send the rig through first-run Setup again.
+
+Onboard edits save and apply automatically after a short pause; there is no Apply button.
+An update keeps the force-feedback toggle as set, while a failed write leaves forces off.
+Setup and recalibration temporarily neutralize onboard conditions for the probes and leave
+virtual output off afterward. Free stick releases plugin forces, while onboard resistance can
+remain. Importing a profile applies its onboard values in AB9-native mode but keeps virtual
+output disabled. [Native configuration](native-ab9.md) records the transaction ordering,
+protocol evidence and current hardware verification limits.
+
+### Generic virtual profiles
+
 | Dial | Default | What it does |
 | --- | --- | --- |
 | Overall gain | 25% | Master scale. This is a 12 Nm base; raise it slowly. |
 | Gate wall, between columns | 90% | The fore/aft wall that stops you entering a gear you are not lined up with. |
-| Slot wall, once in a gear | 90% | The sideways walls of a slot. |
+| Slot wall / lateral rail (%) | 90% | The sideways walls of a slot. |
 | Lockout position | Pattern default | Where the lockout lives: the pattern's traditional gap (7+R and 6+R guard 7/R, others none), off, any adjacent column gap, or one slot's mouth. The line under the dials says where it actually landed. |
 | Direction | One-way, higher column pays | Which crossings pay: toward the higher gears (the classic 7/R gate), toward the lower (the truck's low-range gate), or both ways — for a slot, into the gear, out of it, or both. |
-| Lockout mode | Push through | A toll your hand pays, or a hard gate at 100% released only by the bound key (Setup tab, under Enable). Hard-locked gears do not register until released; the gate re-engages on every start and profile switch. |
+| Lockout mode | Push through | A toll your hand pays, or a hard gate at 100% released only by the bound key (Options, hotkeys). Hard-locked gears do not register until released; the gate re-engages on every start and profile switch. |
 | Lockout force (%) | 70% | The push-through toll's strength; width sets the toll with it. Idle in the hard modes, which pin the gate to 100%. |
 | Neutral spring toward 3/4 | 0% (off) | The home spring: pulls the lever along the channel toward the 3/4 column, where a real H lever rests. Around 25–30% a released lever walks home past the humps; fades out with depth so a held gear feels nothing. Follows the mirror flags. |
 | Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
 | Wall friction | 15% | The gate surfaces' own grip: drag equal to this share of whatever force you are pressed against. Zero in free travel by construction, so it costs no lightness. Note: for lean-flutter the effective fix is MOZA Cockpit's Damper at ~15% (zero-latency, at the servo); this dial is the software-side supplement. |
 | Slot mouth | Square | Shape of the divider ends where they meet the tunnel. Square is the plain notch and changes nothing. |
-| Pattern width | 100% (60% in the 5+R and truck presets) | Geometry tab. How much of the stick the columns are spread over, centred. Mainly for 5+R and the truck 6, which put three columns across the same stick 7+R puts four across; the shipped presets use 60%, a little tighter than that. |
-| Wall at the pattern edge | 100% | Geometry tab. The wall outside the outermost columns, which is bare travel with no gear in it once the pattern is narrowed. One-way, inward only. Renders nothing at all at 100% width. |
+| Pattern width | 100% (60% in the 5+R and truck presets) | Geometry editor. How much of the stick the columns are spread over, centred. Mainly for 5+R and the truck 6, which put three columns across the same stick 7+R puts four across; the shipped presets use 60%, a little tighter than that. |
+| Wall at the pattern edge | 100% | Feel. The wall outside the outermost columns, which is bare travel with no gear in it once the pattern is narrowed. One-way, inward only. Renders nothing at all at 100% width. |
 | Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
 | Neutral tunnel depth | 2600 counts | The state band: where "in the tunnel" ends and the lateral field's rise lives. Must exceed your fore/aft slop while sliding sideways, or you spend your time in the transition band instead. Measured on real hands: p50 1848, p90 3215. |
 | Tunnel depth, free corridor | 2600 counts | Where the tunnel's fore/aft centring force begins. Ships equal to the state band, so the tunnel is simply free; dial to zero for the rail gate. Capped at the state band. |
@@ -106,7 +158,7 @@ button changes hands.
 
 ## Patterns
 
-The **pattern** lives on the Setup tab, per profile: 7+R (lockout), 6+R (no 7th slot — its divider
+The **pattern** lives on Main, per profile: 7+R (lockout), 6+R (no 7th slot — its divider
 just continues across), 5+R (three wider columns, no lockout), Sequential, Automatic (P R N D), or
 the truck 6 (three wider columns, six plain slots, no reverse at all). Forward gears map to vJoy
 buttons 1..N and **reverse — where the pattern has one — is always button 8** — so one set of game
@@ -117,15 +169,13 @@ the game's business, which is the point — an Eaton-Fuller-style box binds them
 transmission mod expects. Everything else stacks above the gears: sequential up/down on 9 and 10,
 the automatic's P, R, N and D on 11 to 14.
 
-**Configuring the lockout (H patterns).** The lockout group lives in the Feel tab's *Sliding
-across the gate* section, on every H pattern. ***Lockout position*** picks the pattern default,
+**Configuring the lockout (H patterns).** Lockout placement, direction and width live in Geometry; its behavior and force live in Feel, on every H pattern. ***Lockout position*** picks the pattern default,
 off, one of the column gaps, or ***On one slot (pick the gear below)*** with the ***Locked slot***
 picker; the gap numbering is in gear-map columns, so mirroring moves the gate with the gears, and
 a gap the pattern does not have guards its last one instead (the line under the dials says so).
 ***Direction*** decides which crossings pay — a gap's higher/lower/both, a slot's into/out-of/both;
 one-way gates assist the return, like a real range gate. ***Lockout mode*** is push-through, or
-one of the two hard modes: full force, gears refused, released only by the key bound on the Setup
-tab under Enable (*Release or re-engage the lockout*), with the second hard mode re-arming itself
+one of the two hard modes: full force, gears refused, released only by the key bound in Options under Hotkeys (*Release or re-engage the lockout*), with the second hard mode re-arming itself
 once the crossing completes. The truck recipe, shipped as the *Truck 6-gear (low-range lockout)*
 preset: truck 6 pattern, position *Between columns 1 and 2*, direction *One-way - entering the
 lower column pays*, push-through at the 7+R tune's strength.
@@ -143,10 +193,10 @@ H-pattern bindings cannot read a shift pulse as a gear — re-armed when the lev
 by dials that pull double duty: **detent resist** is the push-out resistance (rises to full at the
 threshold), **detent hold** is what remains past the click, **slot wall** sets the lateral rail,
 and the pulse length sits next to the pattern selector. Swap up/down with **MirrorSlots** (gear
-layout section). The **sequential stroke** section (Feel tab, sequential only) owns the stroke
+layout section). The **sequential stroke** controls (Geometry for travel, Feel for force; sequential only) owns the stroke
 itself: **actuation throw** is the distance from centre to the firing line, in the sequential
 hand's own units — shorten it for a quicker shift, and it moves the re-arm line with it so a
-short throw cannot machine-gun (it is the same stored fact as the Geometry tab's engage depth,
+short throw cannot machine-gun (it is the same stored fact as the Geometry editor's engage depth,
 which measures from the end of travel instead). **Shift click kick** is what makes the click
 *hit*: a 25 ms burst in the stroke's direction the instant the shift registers, which then
 throws the lever onto the end-stop — raise the kick for a sharper mechanism, the **end-stop
@@ -155,7 +205,7 @@ The spring reaches full resistance exactly at the threshold and the click moves 
 short throw stays progressive rather than becoming a wall. The landing past the click and the
 end-stop are both measured from the firing point, so the whole stroke shortens as one thing.
 
-**Short throw (H patterns).** The *Throw and slot end-stop* section on the Feel tab. Two dials, and
+**Short throw (H patterns).** Throw and landing are in Geometry; slot end-stop strength is in Feel. Two dials, and
 the order matters because only one of them shortens anything:
 
 - ***Throw from centre to a seated gear*** moves the line a gear registers at, and it moves the
@@ -179,8 +229,8 @@ anyway. On a base still centring in firmware, leave the end-stop off.
 
 **Automatic (P R N D)** turns the fore/aft axis into a selector lane: four fixed positions, a vJoy
 button held at whichever one the lever is in, and nothing else. There is no neutral to come back
-through and no gear to engage — the lever is always somewhere, which is why the Monitor tab reads
-*Engaged* the whole time. Its own section, **PRND LANE** on the Feel tab, owns all of it:
+through and no gear to engage — the lever is always somewhere, which is why the Main monitor reads
+*Engaged* the whole time. Its own section, **PRND LANE** controls are split between Geometry (travel, notches and placement) and Feel (forces and lockout behavior):
 
 - ***Lane half-length from centre*** puts P and D that far either side of centre, the other two
   dividing the rest evenly. It is the lane's own dial rather than the throw the H and sequential
@@ -206,22 +256,22 @@ per profile, so switching is one dropdown.
 
 **Switching without the dropdown.** *Next profile* and *Previous profile* are actions, so they
 bind to a wheel button or a key in SimHub's own **Controls** page like any other. Which profiles
-they walk through is on the Setup tab under *Profile hotkeys*: tick the ones you want, or tick
+they walk through is in Options under *Profile hotkeys*: tick the ones you want, or tick
 none and they walk through all of them. Switching releases any held gear and clears a sequential
 pulse in flight before the new gate is applied, so it is safe to press while driving — which is
 the point, if you keep an H profile and a sequential one for different cars.
 
-**Switching by car.** *Vehicle models (optional)* on the Setup tab takes one vehicle id per line —
+**Switching by car.** **Automatic profile switching** on Main takes one vehicle id per line —
 whatever the game's own telemetry reports for the current car. When the running car matches a line,
 that profile activates on its own. Leave the box empty to keep a profile out of it entirely, which
 is the default and what a fresh install does.
 
-- **Add last used vehicle** fills in whatever the running game most recently reported, which is the
+- **Add last vehicle** fills in whatever the running game most recently reported, which is the
   easy way to learn the exact string: start the game, sit in the car, come back and press it. It
   shows the raw telemetry value rather than a tidy name, because that is all a plugin can see. The
-  plugin only looks the car up while this page is open or some profile already lists one, so the
-  button reads *(none seen yet)* until a game is actually running.
-- **+ Add manually** opens a blank line to type an id into. The box commits when you click away
+  plugin only looks the car up while this page is open or some profile already lists one. The
+  separate status line says **No vehicle reported yet** until a game supplies an ID.
+- **Add manually** opens a blank line to type an id into. The box commits when you click away
   from it.
 - If two profiles claim the same car, the one **earlier in the list** wins. That is deliberate
   rather than clever: a genuine clash is yours to resolve.
@@ -230,7 +280,7 @@ is the default and what a fresh install does.
   re-seats the gear the same way — which is nothing while you are in the pits, and the reason not to
   map two profiles to cars you swap between mid-session.
 
-## Telemetry effects (the Effects tab)
+## Telemetry effects (Effects)
 
 The whole tab uses SimHub's native ShakeIt editor. **Add effect**, **Add group** and
 **Calibration** sit above the list; expanded rows have **Response filter**, **Live effects**,
@@ -250,7 +300,7 @@ Lever, leave **Mute effects** off and **Release all forces (free stick)** off to
 | Rev limiter | Revs ≥ **Starts at (% of redline)** | Silent when the game reports no plausible redline. |
 | ABS Active / TC Active | The game's active flags | Native **Pulse duration (ms)** can extend a short event. Existing pitches migrate. |
 | Road impacts | Native per-wheel road/impact telemetry | Replaces the old vertical-acceleration heuristic. Use native response and calibration; available data varies by game. |
-| Clutch bite point | The clutch crosses the bite point, either way | Tells the hand where the drivetrain connects. Silent while the pedal moves without crossing, so riding the clutch stays quiet. Set the point itself on the **Setup** tab — it is a property of the car, not of the pedals. |
+| Clutch bite point | The clutch crosses the bite point, either way | Tells the hand where the drivetrain connects. Silent while the pedal moves without crossing, so riding the clutch stays quiet. Set the point itself in **Effects** — it is a property of the car, not of the pedals. |
 | Gear shift | The game's reported gear changes | Native gear selection/debounce and pulse duration controls; confirms what the game accepted. |
 | Custom property | **Property name (0-100)** → volume | Keeps the old exported-property bridge. Use native **Custom effect** from **Add effect** for formulas and additional sources. |
 
@@ -273,7 +323,7 @@ Symptoms:
 | Test is silent | Arm the shifter, enable the effect and Lever channel, turn **Mute effects** off, and leave **Release all forces (free stick)** off. Test does not bypass the force cap. |
 | A buzz outlives the game | Only a running Test may play without a game; it expires. Otherwise the 500 ms cutoff applies — record a trace if a buzz remains. |
 
-## The clutch (Setup tab)
+## The clutch (Options for the pedal, Effects for its profile tune)
 
 Where the clutch reading comes from, and the one number that describes your car rather than your
 hardware.
@@ -294,7 +344,7 @@ shared profile.
 
 **Bite point** is where the clutch starts to pick up, as a percentage of travel. It cannot be
 measured from the pedal — nothing in the motion marks it — so set it where the car actually bites.
-Two things use it: the bite-point pulse on the Effects tab, and the grind's *fade* mode.
+Two things use it: the bite-point pulse on the Effects editor, and the grind's *fade* mode.
 
 | Symptom | Dial |
 | --- | --- |
@@ -313,7 +363,7 @@ float across or lean on — reached by closing both free corridors
 | --- | --- | --- |
 | Slot width, free corridor | **0** | The column becomes a rail: any lateral displacement is pulled straight back to the column line. |
 | Tunnel depth, free corridor | **0** | The tunnel becomes a rail: any fore/aft wander meets immediate centring, hardening between columns so a push there resolves sideways into a column instead of finding a wall to lean on. |
-| Slot wall, once in a gear | **50–60% to start** | The rail's stiffness. The interior equilibrium is back, so this has a hunt ceiling — raise until a *middle* column trembles, then back off. The outer columns cannot hunt and tolerate more. |
+| Slot wall / lateral rail (%) | **50–60% to start** | The rail's stiffness. The interior equilibrium is back, so this has a hunt ceiling — raise until a *middle* column trembles, then back off. The outer columns cannot hunt and tolerate more. |
 | Gate wall, between columns | **70–80% to start** | The tunnel rail's stiffness between columns. Too high reads as the tunnel grabbing your fore/aft wander. |
 | Wall attack | **10–20 ms, on** | Load-bearing for rails: static hold is what lets a railed lever sit quietly under a leaning hand. |
 | Wall absorption | keep high (~55–65%) | The other half of the hunt ceiling. |
@@ -328,19 +378,19 @@ barrier humps, unchanged by the rails.
 **5+R or the truck 6 feels sprawling — every shift is a reach across the whole stick.**
 It is, and it is arithmetic rather than tuning: three columns spread over the same stick that 7+R
 spreads four over puts 32767 counts between them against 21845. ***Pattern width, side to side (%
-of stick travel)*** on the Geometry tab is the dial. **60%** is what the shipped *5+R* and *Truck*
+of stick travel)*** on the Geometry editor is the dial. **60%** is what the shipped *5+R* and *Truck*
 presets use — a little tighter than a four-column reach — and the live gate above the slider shows
 it happening. It squeezes the pattern in from both sides, so the middle column does not move. The
 *5+R wide* preset is the same gate left at 100% if you prefer the full sweep.
 
 Nothing else rescales with it, which is the thing to watch. Slot corridors, wall bites and column
 doorways stay the raw counts you set, so each becomes a bigger share of a narrower gate — check the
-*wall bite distance* effective ceiling on the Feel tab after a big change, because that is the one
+*wall bite distance* effective ceiling on the Geometry after a big change, because that is the one
 that starts biting first. The percent-of-column-spacing readouts move for the same reason, without
 anything stored having changed.
 
 The pattern gets an edge when you narrow it, and that is a second dial. ***Wall at the pattern
-edge (%)***, right under the width slider, is what stops the lever sliding off the side into the
+edge (%)*** in Feel is what stops the lever sliding off the side into the
 bare travel a narrowed pattern leaves — the neutral tunnel is deliberately free everywhere else, so
 without it there is nothing out there at all. It only ever pushes back in, it is zero everywhere
 inside the pattern, and at 100% width it renders nothing whatever it is set to. Turn it down for a
@@ -350,7 +400,7 @@ soft edge, off to have none.
 Start from the *Truck 6-gear (low-range lockout)* preset — it is exactly this, and unlike the other
 H presets it also carries a truck's *feel*, tuned against a real Eaton-Fuller box rather than
 copied from the racing gate, and it ships narrowed to 60% width for the same reason 5+R does. By
-hand: pattern *H pattern, 6 gears, no reverse (truck)*, then on Feel, ***Lockout position***
+hand: pattern *H pattern, 6 gears, no reverse (truck)*, then in Geometry, ***Lockout position***
 *Between columns 1 and 2* and ***Direction*** *One-way - entering the
 lower column pays*. Tune the toll with ***Lockout force (%)*** and the half-width, like any lockout.
 
@@ -367,9 +417,9 @@ solid instead.
 
 **The hard lockout will not let go.**
 Working as designed until proven otherwise: the hard modes only open from the key bound on the
-Setup tab under Enable (*Release or re-engage the lockout*), and the gate re-engages on every
+Options under hotkeys (*Release or re-engage the lockout*), and the gate re-engages on every
 start, every profile switch, and — in the re-arming mode — the moment a released crossing
-completes. Check the `LockoutEngaged` property, or the Monitor tab's band, which dims while
+completes. Check the `LockoutEngaged` property, or the Main monitor's band, which dims while
 released. If you wanted a gate a shove can beat, that is ***Lockout mode*** *Push through*.
 
 **I put the lockout on a slot and feel nothing.**
@@ -432,7 +482,7 @@ than nothing (see the next entry), so this is no longer a silent failure — but
 that is not doing its job. Keep the bite at or below ~3000 with the default slot width, which leaves
 ~1500 counts of solid divider. Raising **slot width** eats the same budget from the other end.
 
-The Feel tab now shows this rather than leaving it to be discovered on the rig. Under *Wall bite
+Geometry shows this rather than leaving it to be discovered on the rig. Under *Wall bite
 distance* it prints the **effective** bite — what the gate actually renders after the room between
 columns has had its say — and says "capped down from N" when the slider is asking for more than
 the geometry allows. If the two numbers differ, the slider has been lying to you, and this symptom
@@ -563,8 +613,8 @@ Raise **seated hold**. At full deflection the base drags the stick home with ~90
 force, and a light hold simply loses.
 
 **The throw is too long — I want a short-throw box.**
-Feel → THROW AND SLOT END-STOP. Shorten **throw from centre to a seated gear** *and* raise **slot
-end-stop wall** above zero. The throw alone is not enough and this is the part that surprises
+In Geometry, shorten **throw from centre to a seated gear**; in Feel, raise **slot end-stop
+wall** above zero. The throw alone is not enough and this is the part that surprises
 people: with no end-stop the seated hold keeps pulling past the seat, so the lever still runs on to
 the base's mechanical stop and all you moved was where the gear registers. The line under the
 sliders spells out where the gear seats and where the lever stops.
@@ -579,7 +629,7 @@ The toll is **lockout force × lockout gate half-width** — widen the band or r
 overall gain too: at 25% gain a 70% lockout is only ~2 Nm, which momentum beats easily.
 
 **The wall ends at the tunnel feel square and catch the lever going past them.**
-Feel → SLOT MOUTHS. *Rounded* fillets both flanks of every slot mouth, so the lever is eased past a
+Geometry → SLOT MOUTHS. *Rounded* fillets both flanks of every slot mouth, so the lever is eased past a
 divider end instead of cornered on it. *Angled* chamfers one flank only, the side the next gear in
 sequence lies on, so withdrawing with a little lateral pressure is carried that way - out of 2 toward
 3, out of 5 toward 4, and so on. All three only ever remove force; none of them pushes.
@@ -628,16 +678,16 @@ get hard to take.
 device's own damper is too weak to matter here, so this is computed in software from measured
 velocity.
 
-**Geometry tab.** *Gate wall fade width* (1500) is how far sideways the fore/aft wall takes to go
+**Geometry editor.** *Gate wall fade width* (1500) is how far sideways the fore/aft wall takes to go
 from open on a column to solid between columns — the mouth of each slot, seen from the tunnel, and
 the sideways gradient that corners are made of. It is now the largest remaining gradient in the gate
 at about 1.5× the wall face, so it is the one to widen if corners still feel harsh. The lateral guide
 no longer has a ramp of its own: every sideways force rises at the wall's stiffness, so a gentler
 force gets a shorter face instead of a steeper one. The enter/exit pairs are hysteresis bands — the
-exit value must always be the looser one. The lockout's position is a Feel-tab dial now; within
+exit value must always be the looser one. The lockout's position is in Geometry; within
 the chosen gap the gate still places itself against the near column's band (a Both-direction gate
-sits on the midpoint), and both the plan view at the top of the tab and the Monitor tab draw the
-band where it actually is. *FFB loop rate* should stay at 1000; see
+sits on the midpoint), and both the plan view at the top of Geometry and the Main monitor draw the
+band where it actually is. *FFB loop rate* in Options should stay at 1000; see
 [hardware.md](hardware.md) for why higher buys nothing.
 
 ## Presets, and why your profile just renamed itself
@@ -667,7 +717,9 @@ preset is rebuilt at the next start. Calibrate once, on any profile, and every p
 
 ## Resets
 
-The Geometry tab has scoped resets: **Forces**, **Geometry**, **Calibration**, **Everything**.
+Each editor has its own reset: Feel resets strengths and resistance, Geometry resets dimensions
+and placement, and Effects resets game effects. Calibration and complete resets live in Options.
+Resetting Feel does not move the geometry; resetting Geometry does not change the loop rate.
 Measured polarity is deliberately *not* part of Forces or Geometry — it describes the hardware, not
 a preference, and discarding it would silently re-arm the 10% force cap.
 

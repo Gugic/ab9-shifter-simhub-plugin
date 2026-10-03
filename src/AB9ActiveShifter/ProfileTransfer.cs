@@ -53,7 +53,7 @@ namespace AB9ActiveShifter
         public const string FormatId = "AB9ActiveShifter.Profile";
 
         /// <summary>Bumped only when an older build could misread a newer file, not on every dial.</summary>
-        public const int FormatVersion = 1;
+        public const int FormatVersion = 2;
 
         public const string FileExtension = ".ab9profile.json";
 
@@ -68,8 +68,13 @@ namespace AB9ActiveShifter
         /// </summary>
         private static readonly HashSet<string> NotShared = new HashSet<string>(StringComparer.Ordinal)
         {
+            // Obsolete fields from the unshipped firmware-profile experiment. Base effects now
+            // use the same four percentages with either provider, selected outside profiles.
+            "Ab9NativeProfile", "NativeSpringPct", "NativeDamperPct", "NativeInertiaPct", "NativeFrictionPct",
+            "NativeFfbMode", "NativeLayout", "NativeMechanicalResistancePct",
             // Measured, per unit. Someone else's answer is worse than no answer.
             "PolarityConfirmed", "InvertConstantX", "InvertConstantY", "CalibrationForcePct",
+            "InvertSpringX", "InvertSpringY", "BaseSpringPolarityConfirmed",
 
             // This machine's hardware and loop.
             "VendorId", "ProductId", "VendorIdHex", "ProductIdHex", "VJoyDeviceId", "TickHz",
@@ -86,7 +91,7 @@ namespace AB9ActiveShifter
             "Enabled", "FreeStick",
 
             // Adapters the XAML binds, each fully derived from a dial that is written.
-            "PatternIndex", "MouthShapeIndex", "ThrowFromCentre", "ClutchSourceIndex",
+            "PatternIndex", "MouthShapeIndex", "ThrowFromCentre", "ClutchSourceIndex", "BaseDamperPct",
             "GrindClutchModeIndex", "LockoutPlacementIndex", "LockoutGapDirectionIndex",
             "LockoutSlotGearIndex", "LockoutSlotDirectionIndex", "LockoutModeIndex",
             "PrndLockoutGapIndex", "PrndLockoutDirectionIndex", "PrndLockoutModeIndex",
@@ -117,6 +122,7 @@ namespace AB9ActiveShifter
         private static readonly HashSet<string> MachineFacts = new HashSet<string>(StringComparer.Ordinal)
         {
             "PolarityConfirmed", "InvertConstantX", "InvertConstantY", "CalibrationForcePct",
+            "InvertSpringX", "InvertSpringY", "BaseSpringPolarityConfirmed",
             "VendorId", "ProductId", "VJoyDeviceId", "TickHz",
             "PedalDeviceId", "PedalAxisIndex", "PedalRawMin", "PedalRawMax",
             "PedalDeadzoneLow", "PedalDeadzoneHigh", "PedalInvert", "ClutchSource"
@@ -204,7 +210,7 @@ namespace AB9ActiveShifter
 
             JObject root = new JObject();
             root.Add("Format", FormatId);
-            root.Add("FormatVersion", FormatVersion);
+            root.Add("FormatVersion", 1);
             root.Add("ExportedBy", PluginInfo.Version);
             root.Add("Name", profile.Name ?? "Profile");
             root.Add("Settings", dials);
@@ -262,6 +268,8 @@ namespace AB9ActiveShifter
             {
                 throw new ProfileTransferException("That profile has no settings in it.");
             }
+            if (dials["Ab9NativeProfile"]?.Type == JTokenType.Boolean && (bool)dials["Ab9NativeProfile"])
+                throw new ProfileTransferException("That profile belongs to the unshipped firmware-profile experiment. Use a virtual shifter profile.");
 
             // Start from this machine's settings so everything the file does not carry stays as
             // measured here, then overlay the shared dials.
@@ -269,6 +277,8 @@ namespace AB9ActiveShifter
             // An old shared file carries legacy dials. It must migrate those, rather than
             // inheriting the receiving profile's unrelated native effect tree.
             settings.NativeEffectsJson = null;
+            // A legacy virtual file imported while a native profile is selected stays virtual.
+            settings.Ab9NativeProfile = false;
             ProfileImportResult result = new ProfileImportResult();
 
             HashSet<string> known = new HashSet<string>(StringComparer.Ordinal);

@@ -22,6 +22,33 @@ namespace AB9ActiveShifter
         }
 
         internal void SetNativeEffectsSilently(string json) { _nativeEffectsJson = json; }
+
+        private bool _ab9NativeProfile;
+        private int _nativeTorquePct = 100;
+        private int _nativeOverallIntensityPct = 100;
+        private int _nativeGameGainPct = 100;
+
+        /// <summary>Read only for removal of the old, unshipped experimental firmware profiles.</summary>
+        public bool Ab9NativeProfile { get { return _ab9NativeProfile; } set { Set(ref _ab9NativeProfile, value); } }
+        public int NativeTorquePct { get { return _nativeTorquePct; } set { Set(ref _nativeTorquePct, value); } }
+        public int NativeOverallIntensityPct { get { return _nativeOverallIntensityPct; } set { Set(ref _nativeOverallIntensityPct, value); } }
+        public int NativeGameGainPct { get { return _nativeGameGainPct; } set { Set(ref _nativeGameGainPct, value); } }
+
+        public Ab9NativeSettings ToNativeSettings()
+        {
+            return new Ab9NativeSettings
+            {
+                Torque = PolarityConfirmed ? NativeTorquePct : Math.Min(10, NativeTorquePct),
+                OverallIntensity = NativeOverallIntensityPct,
+                Spring = PolarityConfirmed ? BaseSpringPct : 0,
+                Damper = (int)Math.Round(BaseDamperPct),
+                Inertia = BaseInertiaPct,
+                Friction = BaseFrictionPct,
+                GameGain = NativeGameGainPct,
+                FfbMode = 1
+            };
+        }
+
         // Off by default on purpose: enabling takes the base exclusively and starts applying
         // force. That must be a deliberate act, after the MOZA Cockpit setup and the rest of
         // the pre-flight steps, with the user at the stick.
@@ -32,6 +59,9 @@ namespace AB9ActiveShifter
         private bool _polarityConfirmed;
         private bool _invertConstantX;
         private bool _invertConstantY;
+        private bool _invertSpringX;
+        private bool _invertSpringY;
+        private bool _baseSpringPolarityConfirmed;
         private bool _mirrorColumns;
         private bool _mirrorSlots;
         private bool _freeStick;
@@ -133,6 +163,9 @@ namespace AB9ActiveShifter
         private int _wallFrictionPct = 15;
         private int _wallYieldPct = 45;
         private int _damperCoeff = 800;
+        private int _baseSpringPct;
+        private int _baseFrictionPct;
+        private int _baseInertiaPct;
         private int _detentResistPct = 22;
         private int _detentPullPct = 35;
         private int _detentHoldPct = 55;
@@ -334,6 +367,9 @@ namespace AB9ActiveShifter
         public int CalibrationForcePct { get { return _calibrationForcePct; } set { Set(ref _calibrationForcePct, value); } }
 
         public bool PolarityConfirmed { get { return _polarityConfirmed; } set { Set(ref _polarityConfirmed, value); } }
+        public bool InvertSpringX { get { return _invertSpringX; } set { Set(ref _invertSpringX, value); } }
+        public bool InvertSpringY { get { return _invertSpringY; } set { Set(ref _invertSpringY, value); } }
+        public bool BaseSpringPolarityConfirmed { get { return _baseSpringPolarityConfirmed; } set { Set(ref _baseSpringPolarityConfirmed, value); } }
 
         // Measured per axis and per effect family: this base inverts constant force on X but not
         // on Y, and the spring on Y but not on X.
@@ -801,7 +837,15 @@ namespace AB9ActiveShifter
         /// <summary>How much of a wall's force is given up on the rebound. The anti-buzz control.</summary>
         public int WallYieldPct { get { return _wallYieldPct; } set { Set(ref _wallYieldPct, value); } }
 
-        public int DamperCoeff { get { return _damperCoeff; } set { Set(ref _damperCoeff, value); } }
+        public int DamperCoeff
+        {
+            get { return _damperCoeff; }
+            set { if (_damperCoeff == value) return; Set(ref _damperCoeff, value); OnChanged(nameof(BaseDamperPct)); }
+        }
+        public double BaseDamperPct { get { return DamperCoeff / 100.0; } set { DamperCoeff = (int)Math.Round(Math.Max(0, Math.Min(100, value)) * 100); } }
+        public int BaseSpringPct { get { return _baseSpringPct; } set { Set(ref _baseSpringPct, value); } }
+        public int BaseFrictionPct { get { return _baseFrictionPct; } set { Set(ref _baseFrictionPct, value); } }
+        public int BaseInertiaPct { get { return _baseInertiaPct; } set { Set(ref _baseInertiaPct, value); } }
         public int DetentResistPct { get { return _detentResistPct; } set { Set(ref _detentResistPct, value); } }
         public int DetentPullPct { get { return _detentPullPct; } set { Set(ref _detentPullPct, value); } }
         public int DetentHoldPct { get { return _detentHoldPct; } set { Set(ref _detentHoldPct, value); } }
@@ -948,6 +992,10 @@ namespace AB9ActiveShifter
 
                 InvertConstantX = InvertConstantX,
                 InvertConstantY = InvertConstantY,
+                InvertSpringX = InvertSpringX,
+                InvertSpringY = InvertSpringY,
+                BaseSpringPolarityConfirmed = BaseSpringPolarityConfirmed,
+                BaseEffectsViaDirectInput = true,
                 MirrorColumns = MirrorColumns,
                 MirrorSlots = MirrorSlots,
                 FreeStick = FreeStick,
@@ -1042,6 +1090,9 @@ namespace AB9ActiveShifter
                     }
                     : null,
                 DamperCoeff = DamperCoeff,
+                BaseSpringPct = BaseSpringPct,
+                BaseFrictionPct = BaseFrictionPct,
+                BaseInertiaPct = BaseInertiaPct,
                 DetentResistPct = DetentResistPct,
                 DetentPullPct = DetentPullPct,
                 DetentHoldPct = DetentHoldPct,
@@ -1092,17 +1143,9 @@ namespace AB9ActiveShifter
             {
                 OverallGainPct = d.OverallGainPct;
                 LockoutForcePct = d.LockoutForcePct;
-                LockoutHalfWidth = d.LockoutHalfWidth;
-                LockoutPlacement = d.LockoutPlacement;
-                LockoutGapDirection = d.LockoutGapDirection;
-                LockoutSlotGear = d.LockoutSlotGear;
-                LockoutSlotDirection = d.LockoutSlotDirection;
                 LockoutMode = d.LockoutMode;
-                PrndLockoutGap = d.PrndLockoutGap;
-                PrndLockoutDirection = d.PrndLockoutDirection;
                 PrndLockoutMode = d.PrndLockoutMode;
                 PrndLockoutForcePct = d.PrndLockoutForcePct;
-                PrndLockoutHalfWidth = d.PrndLockoutHalfWidth;
                 ColumnPinForcePct = d.ColumnPinForcePct;
                 ChannelWallForcePct = d.ChannelWallForcePct;
                 ChannelGuideForcePct = d.ChannelGuideForcePct;
@@ -1110,29 +1153,22 @@ namespace AB9ActiveShifter
                 PatternEdgeForcePct = d.PatternEdgeForcePct;
                 BarrierForcePct = d.BarrierForcePct;
                 HomeSpringPct = d.HomeSpringPct;
-                MouthShape = d.MouthShape;
-                MouthDepth = d.MouthDepth;
-                MouthOpenPct = d.MouthOpenPct;
-                WallRamp = d.WallRamp;
                 WallAttackMs = d.WallAttackMs;
-                BarrierWidth = d.BarrierWidth;
-                WallBlend = d.WallBlend;
-                SlotHalfWidth = d.SlotHalfWidth;
-                ChannelFreeDepth = d.ChannelFreeDepth;
-                SeqPulseMs = d.SeqPulseMs;
-                SeqOvertravel = d.SeqOvertravel;
                 SeqStopForcePct = d.SeqStopForcePct;
                 SeqClickPct = d.SeqClickPct;
-                PrndLaneHalfLength = d.PrndLaneHalfLength;
                 PrndDetentForcePct = d.PrndDetentForcePct;
-                PrndNotchHalfWidth = d.PrndNotchHalfWidth;
                 PrndStopForcePct = d.PrndStopForcePct;
                 DamperCoeff = d.DamperCoeff;
+                BaseSpringPct = d.BaseSpringPct;
+                BaseFrictionPct = d.BaseFrictionPct;
+                BaseInertiaPct = d.BaseInertiaPct;
+                NativeTorquePct = d.NativeTorquePct;
+                NativeOverallIntensityPct = d.NativeOverallIntensityPct;
+                NativeGameGainPct = d.NativeGameGainPct;
                 DetentResistPct = d.DetentResistPct;
                 DetentPullPct = d.DetentPullPct;
                 DetentHoldPct = d.DetentHoldPct;
                 SlotStopForcePct = d.SlotStopForcePct;
-                SlotOvertravel = d.SlotOvertravel;
                 DampingPct = d.DampingPct;
                 WallFrictionPct = d.WallFrictionPct;
                 WallYieldPct = d.WallYieldPct;
@@ -1140,6 +1176,28 @@ namespace AB9ActiveShifter
 
             if (scope == ResetScope.Geometry || scope == ResetScope.Everything)
             {
+                MirrorColumns = d.MirrorColumns;
+                MirrorSlots = d.MirrorSlots;
+                LockoutHalfWidth = d.LockoutHalfWidth;
+                LockoutPlacement = d.LockoutPlacement;
+                LockoutGapDirection = d.LockoutGapDirection;
+                LockoutSlotGear = d.LockoutSlotGear;
+                LockoutSlotDirection = d.LockoutSlotDirection;
+                PrndLockoutGap = d.PrndLockoutGap;
+                PrndLockoutDirection = d.PrndLockoutDirection;
+                PrndLockoutHalfWidth = d.PrndLockoutHalfWidth;
+                MouthShape = d.MouthShape;
+                MouthDepth = d.MouthDepth;
+                MouthOpenPct = d.MouthOpenPct;
+                WallRamp = d.WallRamp;
+                BarrierWidth = d.BarrierWidth;
+                WallBlend = d.WallBlend;
+                SlotHalfWidth = d.SlotHalfWidth;
+                ChannelFreeDepth = d.ChannelFreeDepth;
+                SeqOvertravel = d.SeqOvertravel;
+                PrndLaneHalfLength = d.PrndLaneHalfLength;
+                PrndNotchHalfWidth = d.PrndNotchHalfWidth;
+                SlotOvertravel = d.SlotOvertravel;
                 ChannelHalfEnter = d.ChannelHalfEnter;
                 ChannelHalfExit = d.ChannelHalfExit;
                 ColumnEdgeEnter = d.ColumnEdgeEnter;
@@ -1150,7 +1208,6 @@ namespace AB9ActiveShifter
                 ReleaseDepth = d.ReleaseDepth;
                 DetentHysteresis = d.DetentHysteresis;
                 MinEngageTicks = d.MinEngageTicks;
-                TickHz = d.TickHz;
             }
 
             if (scope == ResetScope.Effects || scope == ResetScope.Everything)
@@ -1201,13 +1258,16 @@ namespace AB9ActiveShifter
                 InvertConstantX = d.InvertConstantX;
                 InvertConstantY = d.InvertConstantY;
                 PolarityConfirmed = d.PolarityConfirmed;
+                InvertSpringX = d.InvertSpringX;
+                InvertSpringY = d.InvertSpringY;
+                BaseSpringPolarityConfirmed = d.BaseSpringPolarityConfirmed;
                 CalibrationForcePct = d.CalibrationForcePct;
             }
 
             if (scope == ResetScope.Everything)
             {
-                MirrorColumns = d.MirrorColumns;
-                MirrorSlots = d.MirrorSlots;
+                TickHz = d.TickHz;
+                SeqPulseMs = d.SeqPulseMs;
                 FreeStick = d.FreeStick;
                 VJoyDeviceId = d.VJoyDeviceId;
                 VendorId = d.VendorId;

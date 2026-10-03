@@ -9,7 +9,7 @@ through the lever: a clutch grind that can refuse the gear, engine vibration, a 
 ABS and traction control, curbs. The selected gear comes out as **vJoy buttons**, so any game
 binds it like an ordinary shifter.
 
-![The plugin's Setup tab, with the profile and pattern pickers](docs/img/setup-tab.png)
+Main brings the profile, pattern and live monitor together; Geometry, Feel and Effects open as focused editors.
 
 ## Read this first
 
@@ -40,16 +40,46 @@ meant to feel that way.
 ### 1. What you need
 
 - **SimHub** — developed against 9.11.21
-- A **MOZA AB9** base on firmware **1.1.3.4 or newer** — developed and tested against **1.1.5.2**
-- **MOZA Pit House** and **MOZA Cockpit**, for the one-time base configuration below
-- [**vJoy**](https://sourceforge.net/projects/vjoystick/) with a device exposing at least
+- A DirectInput FFB flight stick. The **MOZA AB9** is the tested base; its extra onboard controls require firmware **1.1.5.2 or newer**
+- **MOZA Pit House** and **MOZA Cockpit** for firmware updates or manual setup on older firmware.
+  On AB9 firmware **1.1.5.2 or newer**, the plugin can configure the base directly
+- [**vJoy**](https://sourceforge.net/projects/vjoystick/) for virtual gear output, with a device exposing at least
   **14 buttons** — 1–8 carry the H patterns, 9 and 10 the sequential up/down, 11–14 the automatic's
-  P, R, N and D. Fewer still works for whatever fits. The Setup tab lists
+  P, R, N and D. Fewer still works for whatever fits. The output picker lists
   the devices vJoy reports with their button counts, so you can check this without guessing; the
   gate itself works without vJoy, you just get no gear output
 - .NET Framework 4.8, already present if SimHub runs
 
-### 2. Put the base in flight mode — MOZA Pit House
+Generic virtual profiles also work with other DirectInput FFB flight sticks: set their vendor
+and product ids under **Base device identity**, remove hardware self-centring using their own
+configuration tools, and measure polarity. Only the AB9 has been tested on this rig. The extra
+AB9 native controls never probe or write to another stick.
+
+### 2. Choose the operating mode
+
+First-run **Setup** guides you through the base, output and polarity measurement. Once complete,
+**Main** shows the working shifter; those rig controls remain in **Options**. You do not repeat
+setup after a restart or a temporary disconnect.
+
+- **Generic FFB Stick** runs the virtual gate with DirectInput base effects. Configure the
+  stick's own centring and other background effects off, then choose vJoy and measure polarity.
+- **AB9-native** runs the same virtual gate, custom effects and vJoy output, with Cockpit's
+  basic effects controlled onboard. The plugin prepares flight mode and the initial base
+  settings, then leaves virtual forces off for polarity measurement. It uses the same profiles,
+  presets and effect percentages as Generic FFB Stick.
+- **AB9 H-pattern** hands the gate and gear buttons to MOZA's firmware. Plugin profiles,
+  tuning and vJoy output are unavailable; only mode and device status remain. Bind the AB9's
+  physical buttons in the game, making it visible through HidHide if necessary.
+
+Both AB9 choices become available only after a genuine AB9 with firmware **1.1.5.2 or newer**
+answers its configuration reads. Close Cockpit, Pit House and AZOM's AB9 connection to free the
+port, then refresh if needed. Mode changes select the effect provider without splitting or
+retuning profiles. In AB9-native mode, base-effect and hardware-gain edits apply automatically
+after a short pause. Successful ordinary changes preserve the force-feedback toggle; mode
+changes, setup and failed writes leave virtual forces off. See
+[native configuration](docs/native-ab9.md) for the protocol and hardware verification limits.
+
+### Manual flight setup on older AB9 firmware — MOZA Pit House
 
 The AB9 has two firmware modes, and the switch lives in **Pit House**, under **AB9 Mode**. Set it
 to **Flight Simulation Base**.
@@ -66,12 +96,12 @@ effect of its own. What it has no notion of is the rest of a game's telemetry �
 ABS, traction control, curbs and the clutch grind below are all things this plugin adds. None of
 it has any bearing on anything once the base is in flight mode.
 
-### 3. Set up the force feedback — MOZA Cockpit
+### 3. Manual force feedback setup on older firmware — MOZA Cockpit
 
-**Also not optional**, and it is a different app from the last step. The AB9 self-centres in
+For manual Generic FFB Stick setup, disable the onboard base effects so the plugin owns them. The AB9 self-centres in
 firmware, and DirectInput's request to switch that off is ignored — measured, across five
-configurations. Cockpit's **Spring** is the only place it can be turned off; Pit House has no
-Spring setting in flight mode at all. Skip this and the base fights the gate everywhere with its
+configurations. The plugin's virtual setup writes the same onboard **Spring** setting that
+Cockpit uses; Pit House has no Spring setting in flight mode. Skip this and the base fights the gate everywhere with its
 own centring.
 
 ![MOZA Cockpit basic settings: DirectInput mode, Spring 0, Damper 15%](docs/img/moza-cockpit.png)
@@ -80,7 +110,7 @@ own centring.
 | --- | --- |
 | Force Feedback Mode | **DirectInput** |
 | Spring | **0%** |
-| Damper | **15%** |
+| Damper | **0%** when preparing Generic FFB Stick; AB9-native applies the profile percentage |
 | Maximum Torque Output | 100% |
 | Overall Force Feedback Intensity | 100% |
 | Game Force Feedback Gain | 100% |
@@ -89,7 +119,7 @@ own centring.
 **Spring 0** is the one that matters most — it is the base's centring, and the gate cannot work
 around it.
 
-**Damper 15%** is optional but recommended. It is real damping applied in the base's own servo
+**Onboard damping is available in AB9-native.** It is real damping applied in the base's own servo
 loop, ahead of the USB round trip that everything this plugin renders has to cross, and it
 settles the last bit of flutter a hand can provoke by leaning hard on a wall. It is the one kind
 of damping that does not make the lever feel thick — the plugin's own damping dial is a last
@@ -147,12 +177,11 @@ Building it yourself instead, and the `install.ps1` script that does all of the 
 
 Some AB9 firmware revisions apply DirectInput effects backwards, which would turn a centring
 force into one that throws the stick at its stops. Until this is measured the plugin **caps its
-force output at 10%**, and **only Setup and Options are shown** — there is no point offering force
-dials before it is known which way the base pushes. This step is what unlocks the shifter.
+force output at 10%**. Complete first-run Setup before tuning the working shifter.
 
-The other tabs appear once polarity is measured *and* a vJoy device is available. Everything
-needed to satisfy both is on the Setup tab, including the vJoy picker and the base's vendor and
-product ids, so the gate can never hide the control that opens it.
+Setup includes the vJoy picker and base identity, so every control needed to finish it is
+available immediately. Once complete, the working screen stays in place through disconnects;
+Options retains output selection and recalibration.
 
 On the **Setup** tab press **Measure polarity**, take your hands off the stick, and wait about
 ten seconds. The plugin pushes the stick briefly each way, on each axis, for each effect family,
@@ -164,12 +193,11 @@ and an inverted one just feels like a weaker hold. Each probe is scored on wheth
 moved the direction it was commanded, and summing the pair cancels any resting bias. A probe
 stops the moment its direction is certain, so an inverted effect never reaches the stops.
 
-Four probes run — a push and a spring on each axis — but only the two push results become
-settings, because every wall in this gate is a push. The spring probes are a device check: all
-four have to give a definite answer before the cap lifts, since a base that answers
-unpredictably on either kind of effect is not one to trust at full force. This unit shows why
-they are measured separately rather than assumed alike — its push is inverted left/right but
-correct fore/aft, while its spring is the other way round.
+Four probes run: a push and a spring on each axis. All four must answer conclusively before
+the cap lifts. Their signs are stored separately because this unit inverts constant force on X
+and spring on Y. Gate walls always use constant force; Generic FFB Stick's optional global
+spring uses its own measured signs. Older calibration records remain valid for the gate, but
+the new global spring stays off until spring polarity has been measured and saved.
 
 If a probe reports the stick **barely moved**, the cap deliberately stays on: an unmeasured
 direction is exactly the case it exists for. Check that nothing is touching the stick, then
@@ -185,7 +213,7 @@ changes or the gate starts pushing the wrong way.
 
 The shifter **starts off**. Enabling it takes the base exclusively and begins applying force, so
 do it deliberately: put a hand on the stick, then tick *Shifter force feedback enabled* on the
-Setup tab.
+Main screen.
 
 Raise the overall gain slowly from there. This is a 12 Nm base.
 
@@ -254,7 +282,7 @@ the way a real H lever rests at the 3/4 gate.
 
 ## Patterns
 
-Six, selectable per **profile** on the Setup tab:
+Six, selectable per **profile** on Main:
 
 | Pattern | |
 | --- | --- |
@@ -268,7 +296,7 @@ Six, selectable per **profile** on the Setup tab:
 **How wide the pattern stands is a dial too.** By default the columns are spread over the whole
 stick, which is right for 7+R and a lot of reach for the three-column patterns — 5+R and the truck
 6 put half as many columns across the same travel, so each shift crosses half again the distance.
-*Pattern width* on the Geometry tab squeezes the pattern in from both sides, keeping its middle
+*Pattern width* in Geometry squeezes the pattern in from both sides, keeping its middle
 where it is, with the live gate above the slider showing it happen. Around 67% gives a
 three-column pattern the same reach a 7+R has.
 
@@ -281,17 +309,17 @@ A profile stores every dial together with its pattern, so each pattern keeps its
 switching between them is one dropdown. *Next profile* and *Previous profile* are bindable actions
 if you would rather not use the dropdown.
 
-**A profile can also claim cars.** Under *Vehicle models (optional)* on the Setup tab, list the ids
-your game reports for the cars that should bring that profile up — a five-speed car gets the 5+R
-profile without your touching anything. **Add last used vehicle** fills in whatever the running game
-last reported, which saves guessing at the exact string. Empty means the profile never
-auto-activates, which is how every shipped profile starts.
+**A profile can also claim cars.** Open **Automatic profile switching** on Main and enter one
+vehicle ID per line. **Add last vehicle** uses the ID the game last reported. A matching vehicle
+activates that profile when the car changes; leave the list empty for manual selection.
+**Sharing and button mapping** is a separate, compact help section.
 
 **Profiles can be exported and imported**, so a tune can be shared as a file. What travels is the
 tuning only: your measured polarity, your device and vJoy numbers, your loop rate and your car
 mappings stay as they are on your machine. An import always *adds* a profile, numbering the name if
 it is taken, so someone else's file can never land on top of yours — and it always arrives with
-forces off, with every value range-checked on the way in.
+virtual forces off, with every value range-checked on the way in. In AB9-native mode, the
+imported profile's onboard base settings apply automatically while virtual output stays off.
 
 ## Game effects
 
@@ -311,22 +339,19 @@ reports the clutch pedal.
 
 ## Tuning
 
-- **Feel** — master gain; the gate and slot walls with their bite distance, attack, rebound
-  absorption and friction; the lockout gate and the humps; the slot mouths; the three
-  slot-detent forces (resistance, pull, seated hold). Each section **draws the force curve its
-  dials produce**, sampled from the force code itself and with your stick position tracked live
-  on it, so a change can be seen before it is felt. Dials bounded by the geometry rather than by
-  their slider print what the gate will actually use, and every slider has its own undo.
-- **Effects** — the telemetry effects above, each with volume and frequency.
-- **Geometry** — the positions the gate is built from: how wide the neutral tunnel and the
-  columns are, how far a push must travel to engage a gear, the loop rate, and
-  scoped resets.
-- **Monitor** — a live drawing of the gate with the stick position and the shaded lockout band,
-  plus a trace recorder that logs every tick to CSV so a feel problem can be replayed.
+- **Feel** — master gain, base effects, wall and detent strengths, lockout resistance, attack,
+  rebound absorption and software stability. Force curves come from the actual force model,
+  with the live stick position shown; each slider supports undo.
+- **Effects** — SimHub's telemetry-effect editor, including gain, frequency, filters and groups.
+- **Geometry** — pattern size, travel, corridor and mouth shapes, lockout placement and widths,
+  and gear detection. The live monitor stays above its controls while you scroll.
+- **Main** — the live gate beside the profile, pattern and force controls. **Options → Diagnostics**
+  holds the trace recorder and loop rate.
 
-![The Feel tab: master gain, the walls and their bite, the slot mouths, and the forces met sliding along the neutral tunnel](docs/img/feel-tab.png)
-
-Changes apply on the next FFB tick; nothing needs restarting.
+Software changes apply on the next FFB tick. AB9-native's seven onboard dials apply after
+500 ms without another edit, pausing output until the latest settings are verified. An enabled
+session resumes after a successful update; turning it off or pressing panic always takes
+precedence. No Apply button or restart is needed.
 
 **[docs/tuning.md](docs/tuning.md) is the guide** — every dial, and a symptom-to-dial table for
 when something feels wrong.
@@ -349,7 +374,7 @@ Available for dashboards and formulas:
 | `StickX`, `StickY` | axis positions, 0–65535 |
 | `DeviceConnected`, `VJoyConnected`, `DeviceName` | connection state |
 | `LoopHz` | measured FFB loop rate |
-| `StatusMessage` | the same text shown on the Setup tab |
+| `StatusMessage` | the same working status shown on Main |
 
 Events: `GearEngaged`, `GearReleased`, `LockoutEngaged`, `LockoutReleased`. A `LockoutEngaged`
 property says whether a hard-mode lockout is currently armed (always true when no hard mode is
@@ -366,13 +391,13 @@ configured).
 | `ToggleLockout` | Release or re-engage a hard-mode lockout — the one-button key. Does nothing in push-through mode. |
 | `EngageLockout` / `ReleaseLockout` | The same as an explicit pair, for a two-position switch that a toggle would fall out of step with. |
 
-**Bind them on the Setup tab**, next to the thing they control: the profile keys under *Profile
+**Bind them in Options**, under *Profile
 hotkeys*, the force toggle and the panic release under *Enable*. Click the row, press the wheel
 button or key, done. SimHub's own **Controls and events** page shows the same bindings if you
 prefer to manage them all in one place — they are the same actions either way, listed there as
 `AB9ShifterPlugin.NextProfile` and so on.
 
-Which profiles `NextProfile` walks through is set on the plugin's **Setup** tab under *Profile
+Which profiles `NextProfile` walks through is set on the plugin's **Options** tab under *Profile
 hotkeys* — tick the ones you want in the ring, or tick none and it walks through all of them.
 Switching releases any held gear and clears a sequential pulse in flight before the new gate is
 applied, so it is safe to press while driving.
@@ -414,13 +439,12 @@ program has it. The message lists what was detected.
 occasionally a game. Close them; the plugin retries automatically.
 
 **"vJoy device 1 is owned by another program"** — the message names the owning process. Close it,
-or pick a different device from the **vJoy output** list on the Setup tab, which shows every device
+or pick a different device from the **vJoy output** list in Options, which shows every device
 vJoy reports along with its button count and whether anything already holds it.
 
 **The stick fights you everywhere, or drifts to the stops** — polarity has not been measured, so
 the gate's forces are pushing the opposite way. Run *Measure polarity*. To check whether the
-resistance is coming from the plugin at all, tick *Release all forces (free stick)* on the Setup
-tab: anything you still feel with that on is the hardware, so re-check Spring 0 in Cockpit.
+resistance is coming from the plugin at all, tick *Release all forces (free stick)* on Main: anything you still feel with that on is the hardware, so re-check Spring 0 in Cockpit.
 
 **A wall buzzes, or kicks back like ABS** — see [docs/tuning.md](docs/tuning.md). Short answer:
 adjust *wall bite distance* first, then *wall attack*.

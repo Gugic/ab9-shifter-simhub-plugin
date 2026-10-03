@@ -54,6 +54,30 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void EveryPresetUsesTheFullHardwareTorqueRangeAfterPolarityIsMeasured()
+        {
+            foreach (ShifterProfile profile in DefaultProfiles.Presets())
+            {
+                Assert.Equal(100, profile.Settings.NativeTorquePct);
+                Assert.Equal(10, profile.Settings.ToNativeSettings().Torque);
+                profile.Settings.PolarityConfirmed = true;
+                Assert.Equal(100, profile.Settings.ToNativeSettings().Torque);
+            }
+        }
+
+        [Fact]
+        public void BareAndResetHardwareTorqueAreFullRangeWithoutBypassingTheUnmeasuredCap()
+        {
+            var settings = new ShifterSettings();
+            Assert.Equal(100, settings.NativeTorquePct);
+            Assert.Equal(10, settings.ToNativeSettings().Torque);
+            settings.NativeTorquePct = 25;
+            settings.ResetToDefaults(ShifterSettings.ResetScope.Forces);
+            Assert.Equal(100, settings.NativeTorquePct);
+            Assert.Equal(10, settings.ToNativeSettings().Torque);
+        }
+
+        [Fact]
         public void NoShippedProfileNeedsItsReleaseDepthRepaired()
         {
             // GateGeometry quietly repairs a release depth that is not deeper than engage, to
