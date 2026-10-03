@@ -129,7 +129,10 @@ namespace AB9ActiveShifter.Core
             output.RevMatch = _revMatch.Step(cfg, t, ageMs, approachingSlot ? targetGear : 0, heldGear);
 
             bool fresh = t != null && t.GameRunning && ageMs >= 0 && ageMs <= StaleAfterMs;
-            if (!fresh)
+            bool invalidShift = cfg.FloatShiftingEnabled && approachingSlot && !output.RevMatch.Matched
+                && t != null && (!RevMatchModel.Finite(t.Rpms) || !RevMatchModel.Finite(t.SpeedKmh)
+                    || !RevMatchModel.Finite(t.Clutch));
+            if (!fresh || invalidShift)
             {
                 // Everything transient dies with the telemetry, and the gear edge detector
                 // re-adopts on the next fresh frame so a game start never fires a phantom pulse.
@@ -144,9 +147,10 @@ namespace AB9ActiveShifter.Core
                 // Float permission must not turn into a free shift when RPM telemetry dies.
                 // Keep the carriers silent; a new latch waits for fresh telemetry (or the
                 // independently read pedal), while a held gear remains untouched.
+                bool pressedClutch = t != null && (fresh || cfg.ClutchSource == ClutchSource.Pedal)
+                    && RevMatchModel.Finite(t.Clutch) && ClutchEngagement(cfg, t.Clutch) == 0;
                 if (cfg.FloatShiftingEnabled && cfg.GrindEnabled && cfg.GrindRejectsGear && approachingSlot
-                    && t != null && t.GameRunning && (cfg.ClutchSource != ClutchSource.Pedal
-                        || ClutchEngagement(cfg, t.Clutch) > 0))
+                    && t != null && t.GameRunning && !pressedClutch)
                 {
                     output.BlockEngage = true;
                     output.MuteDetent = true;
@@ -279,7 +283,7 @@ namespace AB9ActiveShifter.Core
             double engagement = ClutchEngagement(cfg, t.Clutch);
             if (cfg.GrindEnabled && approachingSlot
                 && engagement > 0
-                && t.SpeedKmh >= cfg.GrindMinSpeedKmh
+                && (cfg.FloatShiftingEnabled ? Math.Abs(t.SpeedKmh) : t.SpeedKmh) >= cfg.GrindMinSpeedKmh
                 && t.Rpms > MinEngineRpm
                 && !output.RevMatch.Matched)
             {

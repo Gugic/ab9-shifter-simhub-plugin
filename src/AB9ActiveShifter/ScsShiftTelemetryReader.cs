@@ -107,6 +107,7 @@ namespace AB9ActiveShifter
                     float[] table = selected > 0 ? ratios : reverse;
                     int index = Math.Abs(selected) - 1;
                     if (table == null || index >= table.Length || !RevMatchModel.Finite(table[index])) continue;
+                    if (selected > 0 ? table[index] <= 0 : table[index] >= 0) continue;
                     double rpm = wheelSpeed * table[index];
                     if (RevMatchModel.FinitePositive(rpm)) targets[button] = rpm;
                 }

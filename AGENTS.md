@@ -47,7 +47,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-691 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+697 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 

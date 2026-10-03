@@ -84,6 +84,22 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(7200, t.TargetRpms[7]);
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void InvalidRatioSignsCannotMatchTheOppositeDirection(bool reverse)
+        {
+            var raw = new Root();
+            if (reverse) raw.TruckValues.ConstantsValues.MotorValues.GearRatiosReverse[0] = 10;
+            else
+            {
+                raw.TruckValues.ConstantsValues.MotorValues.GearRatiosForward[0] = -10;
+                raw.TruckValues.CurrentValues.WheelsValues.Velocity = new float[] { 0, 0, -2, -4 };
+            }
+            var t = new ScsShiftTelemetryReader().ReadScs(raw, reverse ? "1" : "2", 0);
+            Assert.Equal(0, t.TargetRpms[0]);
+        }
+
         [Fact]
         public void RepeatedRawFramesKeepTheirCaptureTimeEvenWhenBindingsOrSelectorsChange()
         {

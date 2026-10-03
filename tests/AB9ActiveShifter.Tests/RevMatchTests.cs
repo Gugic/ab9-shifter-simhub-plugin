@@ -156,6 +156,33 @@ namespace AB9ActiveShifter.Tests
             Assert.False(fx.Step(cfg, t, 501, 1, true, 1, 3).BlockEngage);
         }
 
+        [Theory]
+        [InlineData("rpm")]
+        [InlineData("speed")]
+        [InlineData("clutch")]
+        public void InvalidReadingsCannotSkipTheClutchRequirementForAnUnknownTarget(string field)
+        {
+            var t = Driving();
+            if (field == "rpm") t.Rpms = double.NaN;
+            if (field == "speed") t.SpeedKmh = double.NaN;
+            if (field == "clutch") t.Clutch = double.NaN;
+            var o = new EffectComposer().Step(Config(), t, 0, 1, true, 1, 5);
+            Assert.False(o.RevMatch.Matched);
+            Assert.True(o.BlockEngage && o.MuteDetent);
+            Assert.Equal(0, o.VibY);
+            t.Clutch = 100;
+            Assert.False(new EffectComposer().Step(Config(), t, 0, 1, true, 1, 5).BlockEngage);
+        }
+
+        [Fact]
+        public void SignedReverseSpeedDoesNotBypassTheGenericClutchRequirement()
+        {
+            var t = Driving(); t.SpeedKmh = -60;
+            var o = new EffectComposer().Step(Config(), t, 0, 1, true, 1, 8);
+            Assert.True(o.BlockEngage);
+            Assert.False(o.RevMatch.Matched);
+        }
+
         [Fact]
         public void LearningNeedsConfirmedReleasedClutchAndFreshDistinctFrames()
         {
