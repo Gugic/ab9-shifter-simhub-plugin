@@ -593,6 +593,10 @@ runners cannot load, so anything worth testing must not touch it.
 
 ## Conventions
 
+**UI styling.** Use the existing SimHub controls and inherited text colours. Reuse panel
+treatments already in the plugin; reference screenshots guide behaviour and layout, not a new
+colour scheme.
+
 **Commits.** Subject is imperative and says the *why*, not the file list — "Make the lockout
 one-way, because an over-centre gate refunds a flick". Body is prose that records the reasoning
 and any measurement behind the change, because the measurements are the expensive part and this

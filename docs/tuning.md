@@ -33,6 +33,8 @@ and shows a previously dismissed version again. **Release channel: Stable** excl
 the installed version, check status and **Last checked** time appear here too.
 
 The banner above every tab offers **Install update**, **Open release notes**, and **Dismiss**.
+It uses the plugin's existing neutral panel styling and inherited text colour; its buttons use
+the same SimHub controls as the rest of the settings page.
 The same controls and **What's new in v…** release notes appear on Options. Install verifies and
 replaces the plugin DLL while the current version keeps running, then changes the action to
 **Restart SimHub**. Restart when you are ready to stop the current session; it saves settings
