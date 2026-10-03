@@ -459,6 +459,8 @@ namespace AB9ActiveShifter.UI
                 Plugin.ProfileChanged += OnProfileChanged;
             }
 
+            AttachUpdates();
+
             BindActiveProfile();
             RefreshStatus();
             RefreshLockoutSummary();
@@ -484,6 +486,7 @@ namespace AB9ActiveShifter.UI
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
             _timer.Stop();
+            DetachUpdates();
 
             if (Plugin != null) Plugin.WatchCarModel(false);
 

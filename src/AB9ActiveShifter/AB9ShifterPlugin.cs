@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using AB9ActiveShifter.Core;
+using AB9ActiveShifter.Updates;
 using GameReaderCommon;
 using SimHub.Plugins;
 
@@ -25,6 +26,7 @@ namespace AB9ActiveShifter
         /// and dropping force feedback every time the user switches game would be wrong.
         /// </summary>
         private static ShifterEngine _engine;
+        private static UpdateService _updates;
 
         private static readonly object EngineSync = new object();
         private bool _processExitHooked;
@@ -83,9 +85,11 @@ namespace AB9ActiveShifter
         }
 
         public static ShifterEngine Engine { get { return _engine; } }
+        public UpdateService Updates { get { return _updates; } }
 
         public void Init(PluginManager pluginManager)
         {
+            PluginManager = pluginManager;
             Log.Info("Init (plugin instance created).");
 
             // The factory runs only when there is nothing saved, which is the signal that this is
@@ -200,6 +204,13 @@ namespace AB9ActiveShifter
 
             if (Settings.Enabled) _engine.Start();
             else Log.Info("Plugin is disabled in settings; engine not started.");
+
+            lock (EngineSync)
+            {
+                if (_updates == null)
+                    _updates = new UpdateService(typeof(AB9ShifterPlugin).Assembly.Location, PluginInfo.Version);
+                _updates.Configure(Store.CheckUpdatesAutomatically);
+            }
         }
 
         /// <summary>
@@ -306,10 +317,13 @@ namespace AB9ActiveShifter
             SaveStore();
 
             ShifterEngine engine;
+            UpdateService updates;
             lock (EngineSync)
             {
                 engine = _engine;
                 _engine = null;
+                updates = _updates;
+                _updates = null;
             }
 
             if (engine != null)
@@ -322,6 +336,8 @@ namespace AB9ActiveShifter
                 engine.Dispose();
             }
 
+            updates?.Dispose();
+
             if (_processExitHooked)
             {
                 AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
@@ -332,6 +348,23 @@ namespace AB9ActiveShifter
         public System.Windows.Controls.Control GetWPFSettingsControl(PluginManager pluginManager)
         {
             return new UI.SettingsControl(this);
+        }
+
+        /// <summary>The user chose Restart SimHub after an update; use the normal teardown.</summary>
+        public bool RestartAfterUpdate()
+        {
+            if (Updates == null || !Updates.State.RestartRequired || PluginManager == null) return false;
+            SaveStore();
+            try
+            {
+                PluginManager.RequestApplicationExit(true);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Could not request SimHub restart after update", ex);
+                return false;
+            }
         }
 
         /// <summary>
@@ -491,7 +524,7 @@ namespace AB9ActiveShifter
         /// <summary>
         /// Writes the profile store out. Internal rather than private because the settings page
         /// edits the store directly for things that are not per-profile settings - which profiles
-        /// a hotkey cycles through being the only one so far.
+        /// a hotkey cycles through and the app's update preferences among them.
         /// </summary>
         internal void SaveStore()
         {

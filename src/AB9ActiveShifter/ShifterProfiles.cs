@@ -31,6 +31,10 @@ namespace AB9ActiveShifter
         public List<ShifterProfile> Profiles { get; set; }
         public string ActiveProfile { get; set; }
 
+        /// <summary>App preferences: switching or importing a profile cannot change update behaviour.</summary>
+        public bool CheckUpdatesAutomatically { get; set; } = true;
+        public string DismissedUpdateVersion { get; set; }
+
         /// <summary>
         /// Whether the shifter is running, and whether the stick is free. These are the only two
         /// switches that describe the <em>session</em> rather than a gate, and they live here

@@ -147,7 +147,7 @@ Building it yourself instead, and the `install.ps1` script that does all of the 
 
 Some AB9 firmware revisions apply DirectInput effects backwards, which would turn a centring
 force into one that throws the stick at its stops. Until this is measured the plugin **caps its
-force output at 10%**, and **only the Setup tab is shown** — there is no point offering force
+force output at 10%**, and **only Setup and Options are shown** — there is no point offering force
 dials before it is known which way the base pushes. This step is what unlocks the shifter.
 
 The other tabs appear once polarity is measured *and* a vJoy device is available. Everything
@@ -376,6 +376,22 @@ Which profiles `NextProfile` walks through is set on the plugin's **Setup** tab 
 hotkeys* — tick the ones you want in the ring, or tick none and it walks through all of them.
 Switching releases any held gear and clears a sequential pulse in flight before the new gate is
 applied, so it is safe to press while driving.
+
+## Updating the plugin
+
+The **Options** tab checks this repository's latest stable GitHub release on startup and every
+six hours. **Check now** checks immediately; **Check for updates automatically** turns scheduled
+checks on or off. Both work before hardware setup is complete.
+
+When a newer release is available, a banner above the tabs offers **Install update**, **Open
+release notes**, and **Dismiss**. Install downloads and verifies the DLL, then offers **Restart
+SimHub** to load it when you are ready. Profiles and calibration stay saved. Dismiss hides that
+version's banner; the Options tab still shows it, and a newer release appears again.
+
+The updater requires the release's standalone `AB9ActiveShifter.dll` asset and its GitHub
+SHA-256 checksum. If the release has no installable asset, use Open release notes to install
+manually. If SimHub cannot write to its install folder, run it as administrator or copy the
+release DLL there with SimHub closed. Offline checks leave the plugin running and can be retried.
 
 ## Safety
 
