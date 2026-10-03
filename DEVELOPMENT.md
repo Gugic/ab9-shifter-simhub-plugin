@@ -201,8 +201,10 @@ src/AB9ActiveShifter/
     SettingsControl.Updates.cs App update preferences, shared banner and install/restart actions
     SettingsControl.Native.cs Native setup actions, status and control availability
     SettingsControl.Outputs.cs Output selector, pattern-specific native role pickers and readiness
+    ControlMapperFeatureSettings.cs Guarded public host feature setting, explicit enable/restart
 tests/AB9ActiveShifter.Tests/
   ControlMapperOutputTests.cs Role lifetimes, cleanup, mapping validation and rig-owned settings
+  ControlMapperFeatureTests.cs Fake host model: activation isolation, restart rollback and fallback
   NativeSettingsDebounceTests.cs Pending edits survive busy reads; latest tune wins each batch
   NativeWritePauseTests.cs Ordinary updates preserve Enabled; failures/off/panic cannot resume
   OperatingModeTests.cs    Shared providers, calibration caps and store migration

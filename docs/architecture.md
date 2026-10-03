@@ -287,6 +287,21 @@ with role lists from the same interface. No controller is registered or acquired
 Control Mapper's own configuration decides whether those roles produce keys, vJoy buttons,
 Arduino bridge buttons, or internal SimHub controls.
 
+Feature readiness uses the public `PluginManager.GetPlugin<ControlMapperPlugin>()`, not an
+empty role list or the presence of Controls and events. UI and output connection share the
+same availability/mapping policy, distinguishing a missing feature from an enabled mapper
+without roles. `ShowPluginUI<ControlMapperPlugin>()` opens its native configuration page.
+
+The SDK has no public activation method. `ControlMapperFeatureSettings` checks the public host
+model's `MainModel.EnabledPlugins` collection for the exact Control Mapper class and its public
+`IsEnabled` setter. On an explicit enable/restart click only, it sets that feature and calls
+`RequestApplicationExit(true)`; SimHub persists the model through its normal exit, including
+its own settings backups. No private activation method or JSON write is used. An unavailable
+host shape falls back to Add/remove features, kiosk lock blocks the action, and a throwing
+restart request restores the previous setting. Other feature flags, mapper output settings,
+and role definitions are untouched. The host shape was reflected from the installed SimHub;
+it remains outside the plugin SDK and is guarded rather than treated as a permanent contract.
+
 `ControlMapperGearOutput` keeps held H/PRND roles and sequential button lifetimes behind the
 same interface as vJoy. It owns one `ControlMapperInterface` for its lifetime: SimHub keys
 presses by an owner id, and a new interface cannot stop the previous owner's presses. Blank

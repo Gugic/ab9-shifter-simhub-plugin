@@ -82,6 +82,16 @@ namespace AB9ActiveShifter.Core
                    || before.Pattern != after.Pattern;
         }
 
+        public static string ControlMapperProblem(bool isAvailable, string[] roles, ICollection<string> available)
+        {
+            if (!isAvailable)
+                return "Control Mapper is not loaded. Enable it in Base and output, or in SimHub's Add/remove features, then restart SimHub.";
+            if (available == null || available.Count == 0)
+                return "Control Mapper is enabled, but no roles exist yet. Open Configure Control Mapper, choose Assign roles, and add keyboard, controller or SimHub control roles. Then refresh roles here. "
+                    + MappingProblem(roles, available);
+            return MappingProblem(roles, available);
+        }
+
         public static string MappingProblem(string[] roles, ICollection<string> available)
         {
             bool assigned = false;

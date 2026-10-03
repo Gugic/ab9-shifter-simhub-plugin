@@ -15,7 +15,9 @@ namespace AB9ActiveShifter.Tests
             public readonly HashSet<string> Available = new HashSet<string>(StringComparer.Ordinal);
             public bool RefuseRelease;
             public bool ThrowAfterPress;
-            public ICollection<string> GetRoles() { return Available; }
+            public bool IsAvailable { get; set; } = true;
+            public int RoleQueries;
+            public ICollection<string> GetRoles() { RoleQueries++; return Available; }
             public bool StartRole(string role)
             {
                 Calls.Add("press " + role);
@@ -41,6 +43,36 @@ namespace AB9ActiveShifter.Tests
             var output = new ControlMapperGearOutput(mapper, roles, neutral);
             Assert.True(output.Connect());
             return output;
+        }
+
+        [Fact]
+        public void ADisabledMapperIsReportedBeforeLookingForRolesAndCanConnectAfterEnabling()
+        {
+            var mapper = new Roles { IsAvailable = false };
+            mapper.Available.Add("gear one");
+            string[] roles = GearOutputConfig.CopyRoles(null);
+            roles[1] = "gear one";
+            var output = new ControlMapperGearOutput(mapper, roles, false);
+            Assert.False(output.Connect());
+            Assert.Contains("not loaded", output.LastError);
+            Assert.Equal(0, mapper.RoleQueries);
+            Assert.Empty(mapper.Calls);
+            mapper.IsAvailable = true;
+            Assert.True(output.Connect());
+            output.SetGear(1);
+            Assert.Equal(new[] { "press gear one" }, mapper.Calls);
+        }
+
+        [Fact]
+        public void AnEnabledMapperWithoutRolesNeedsConfigurationRatherThanActivation()
+        {
+            var mapper = new Roles();
+            var output = new ControlMapperGearOutput(mapper, null, false);
+            Assert.False(output.Connect());
+            Assert.Contains("enabled, but no roles", output.LastError);
+            Assert.Contains("Configure Control Mapper", output.LastError);
+            Assert.DoesNotContain("not loaded", output.LastError);
+            Assert.Equal(1, mapper.RoleQueries);
         }
 
         [Theory]

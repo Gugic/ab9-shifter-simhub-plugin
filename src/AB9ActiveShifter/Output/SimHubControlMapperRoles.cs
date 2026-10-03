@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SimHub.Plugins;
+using SimHub.Plugins.OutputPlugins.ControlRemapper;
 
 namespace AB9ActiveShifter.Output
 {
@@ -19,6 +20,10 @@ namespace AB9ActiveShifter.Output
             if (manager == null) throw new ArgumentNullException(nameof(manager));
             _manager = manager;
         }
+
+        // An interface can be created even when the feature is disabled. Empty role lists
+        // also occur on an enabled mapper with no configuration, so neither proves availability.
+        public bool IsAvailable { get { return _manager.GetPlugin<ControlMapperPlugin>() != null; } }
 
         private ControlMapperInterface Mapper
         {

@@ -228,11 +228,21 @@ Reverse is always button 8 wherever a pattern has one, and each later range sits
 so one set of bindings covers every pattern and no binding can ever mean two things (the truck
 pattern simply uses buttons 1–6 and nothing else).
 
-For **SimHub Control Mapper (native)**, enable SimHub's built-in Control Mapper in **Add/remove
-features**, configure its output, and create the roles you want to use. In **Setup → Base and
-output** (or **Options → Base and output** after setup), set **Output** to **SimHub Control
-Mapper (native)**, press **Refresh roles**, and assign a role to each gear, sequential
-direction, or PRND position shown. Bind the resulting keys or controller buttons in your game.
+For **SimHub Control Mapper (native)**, in **Setup → Base and output** (or **Options → Base and
+output** after setup), set **Output** to **SimHub Control Mapper (native)**. The status checks
+whether the feature is loaded, separately from whether roles exist. **Controls and events** is
+a different SimHub page and does not mean Control Mapper is enabled. If disabled, use
+**Enable Control Mapper and restart SimHub**; if already enabled but not loaded, use
+**Restart SimHub to load Control Mapper**. These actions change SimHub's own feature setting
+and use its normal restart. If the host version cannot expose that setting, enable it manually
+in **Add/remove features** and restart.
+
+Use **Configure Control Mapper**, choose **Assign roles**, and create the roles you want.
+For keyboard output, add roles under **Keyboard** and choose each simulated key. For controller
+buttons, configure Control Mapper's vJoy or Arduino bridge output. Return here, press
+**Refresh roles**, and assign an existing role to each gear, sequential direction, or PRND
+position shown. Typing a name here does not create a role. Bind the resulting keys or controller
+buttons in your game.
 Blank mappings send nothing, and missing roles are reported. The output choice and mappings
 belong to your rig: switching profiles keeps them, and shared profiles never replace them.
 The output choice is independent of **Generic FFB Stick** versus **AB9-native**. Firmware
@@ -471,8 +481,10 @@ adjust *wall bite distance* first, then *wall attack*.
 Confirm *Measure polarity* reported a result for both push axes rather than "barely moved", and
 that overall gain is not near zero.
 
-**Control Mapper sends nothing** — enable it, configure its output, and check that each assigned
-role still exists. Press **Refresh roles** after editing its configuration. For keyboard output,
+**Control Mapper sends nothing** — check its feature status in **Base and output**. Use
+**Enable Control Mapper and restart SimHub** if disabled, then **Configure Control Mapper**
+to configure its output and check that each assigned role still exists. An enabled mapper
+without roles needs configuration. Press **Refresh roles** after editing its configuration. For keyboard output,
 check the game's keyboard bindings and neutral behavior; for controller output, inspect its
 vJoy or bridge device in `joy.cpl`.
 

@@ -205,8 +205,13 @@
                                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0" Text="Choose a dedicated virtual device that carries gears into your game. Create or resize it in vJoyConf, then refresh. H patterns use up to 8 buttons, sequential uses 9–10, and PRND uses 11–14. If Control Mapper also uses vJoy, give it a different device." />
                                         </StackPanel>
                                         <StackPanel x:Name="ControlMapperPanel" Visibility="Collapsed">
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" Text="Enable Control Mapper in SimHub’s Add/remove features, configure its output and roles, then assign those roles below. Control Mapper can send keyboard keys, vJoy or Arduino bridge buttons, or SimHub controls. This output choice is separate from the AB9 operating mode." />
-                                            <styles:SHButtonSecondary Content="Refresh roles" Click="OnRefreshControlMapperRoles" Padding="10,3" HorizontalAlignment="Left" Margin="0,0,0,8" />
+                                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" Text="Control Mapper is a separate SimHub feature from Controls and events. Enable it below if needed, configure its output and roles, then assign existing roles here. Control Mapper can send keyboard keys, vJoy or Arduino bridge buttons, or SimHub controls. This output choice is separate from the AB9 operating mode." />
+                                            <TextBlock x:Name="ControlMapperStatus" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                            <WrapPanel Margin="0,0,0,8">
+                                                <styles:SHButtonSecondary x:Name="EnableControlMapperButton" Content="Enable Control Mapper and restart SimHub" Click="OnEnableControlMapper" Padding="10,3" Margin="0,0,8,4" />
+                                                <styles:SHButtonSecondary x:Name="ConfigureControlMapperButton" Content="Configure Control Mapper" Click="OnConfigureControlMapper" Padding="10,3" Margin="0,0,8,4" />
+                                                <styles:SHButtonSecondary Content="Refresh roles" Click="OnRefreshControlMapperRoles" Padding="10,3" Margin="0,0,0,4" />
+                                            </WrapPanel>
                                             <ItemsControl x:Name="ControlMapperMappings">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>

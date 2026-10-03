@@ -36,7 +36,9 @@ namespace AB9ActiveShifter.Output
             {
                 try
                 {
-                    LastError = GearOutputConfig.MappingProblem(_roles, _mapper.GetRoles());
+                    bool available = _mapper.IsAvailable;
+                    LastError = GearOutputConfig.ControlMapperProblem(available, _roles,
+                        available ? _mapper.GetRoles() : null);
                     if (LastError != null) { _connected = false; return false; }
                     if (!ClearRoles()) return false;
                     _heldButton = -1;

@@ -8,6 +8,16 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using GameReaderCommon;
 
+namespace SimHub.Plugins.OutputPlugins.ControlRemapper
+{
+    public class ControlMapperPlugin : SimHub.Plugins.IPlugin
+    {
+        public SimHub.Plugins.PluginManager PluginManager { get; set; }
+        public void Init(SimHub.Plugins.PluginManager pluginManager) { }
+        public void End(SimHub.Plugins.PluginManager pluginManager) { }
+    }
+}
+
 namespace SimHub.Plugins
 {
     /// <summary>SimHub's plugin host: the property bridge and the supported restart hook.</summary>
@@ -18,6 +28,8 @@ namespace SimHub.Plugins
         public void RequestApplicationExit(bool restart) { }
         // Public instance surface reflected against the installed SimHub assembly.
         public ControlMapperInterface GetControlMapperInterface() { return null; }
+        public T GetPlugin<T>() where T : IPlugin { return default(T); }
+        public void ShowPluginUI<T>() { }
     }
 
     public class ControlMapperInterface

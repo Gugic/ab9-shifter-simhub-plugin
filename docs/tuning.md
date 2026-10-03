@@ -56,9 +56,19 @@ Firmware **AB9 H-pattern** uses the base's own buttons and hides plugin output c
 
 Direct vJoy uses the **Device** picker and **Refresh** to choose its virtual controller;
 14 buttons cover all patterns. Keep its device separate from any vJoy device used by Control
-Mapper. The native choice shows mappings for the current profile's pattern and **Refresh roles**.
-Enable Control Mapper in SimHub's Add/remove features, configure its output and roles, then
-choose or type each role here. Blank mappings send nothing. Roles can drive keyboard keys,
+Mapper. The native choice shows mappings for the current profile's pattern, a feature status,
+and **Refresh roles**. The status checks whether Control Mapper is loaded; an enabled mapper
+with no roles is reported separately from a disabled feature. **Controls and events** is a
+separate SimHub page. If disabled, **Enable Control Mapper and restart SimHub** enables the
+feature and requests SimHub's normal restart. If its feature setting is already enabled but
+the plugin is not loaded, the button reads **Restart SimHub to load Control Mapper**. On a host
+that does not expose its feature setting, use SimHub's **Add/remove features** and restart;
+unlock kiosk mode first if it is locked.
+
+**Configure Control Mapper** opens SimHub's mapper page once loaded. Choose **Assign roles**
+and create roles there, including simulated keys under **Keyboard** for keyboard output.
+Choose its output, then return and **Refresh roles**. Choose or type an existing role here;
+typing does not create a role. Blank mappings send nothing. Roles can drive keyboard keys,
 controller buttons through Control Mapper's vJoy or Arduino bridge, or SimHub controls.
 
 The H rows are **Gear 1** through the pattern's highest forward gear and **Reverse** where it
@@ -69,7 +79,7 @@ roles, and sequential uses Main's **Sequential pulse length (ms)**. Verify keybo
 and neutral bindings in the game. Missing roles are reported under the mappings.
 
 First-run **Finish setup** requires measured polarity and an available direct vJoy device or
-at least one available Control Mapper role for the active pattern. Role availability does not
+the loaded Control Mapper feature with at least one available role for the active pattern. Role availability does not
 prove that Control Mapper's external device or game bindings work; check those there and in the
 game. Once setup is complete, output loss leaves Main available and updates its connection status.
 Main's **Sharing and button mapping** follows the selected output.

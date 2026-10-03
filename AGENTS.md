@@ -42,7 +42,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-594 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+603 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -148,6 +148,7 @@ src/AB9ActiveShifter/
     SettingsControl.Updates.cs Update banner, app preferences, release notes and install/restart
     SettingsControl.Native.cs Native setup actions and control availability
     SettingsControl.Outputs.cs Output selector, pattern-specific native role pickers and readiness
+    ControlMapperFeatureSettings.cs Guarded public host feature setting, explicit enable/restart
     GateVisualizer.cs      The gate plan view with the live stick position, on Monitor and again
                            at the top of Geometry. Draws the gate's real free space, the mouths
                            and the engage/release notches, so every geometry dial moves something
@@ -223,6 +224,7 @@ tests/AB9ActiveShifter.Tests/
                            app preferences outside profiles; no HTTP or filesystem access
   ControlMapperOutputTests.cs Held-role lifetimes, neutral, shared roles, failed writes and cleanup,
                            machine facts and compatibility defaults; a fake API, no I/O
+  ControlMapperFeatureTests.cs Fake host model: activation isolation, restart rollback and fallback
 build/refs/                Reference-only stubs of SimHub's assemblies, so the plugin builds
                            on a machine with no SimHub. Read build/refs/README.md before
                            touching one - a wrong signature builds green and throws on the rig
@@ -559,6 +561,10 @@ runners cannot load, so anything worth testing must not touch it.
   an id; recreating one cannot release another owner's roles. Keep it for the output's lifetime,
   release only our roles, and attempt cleanup even after failed writes. Changing output releases
   the old backend before pressing on the new one, without reopening the force-feedback base.
+- **Control Mapper feature availability is not role availability.** Use the loaded plugin
+  lookup; an empty list also describes an enabled mapper with no roles, and Controls and events
+  is independent. Enable/restart is an explicit UI action through the guarded public host model
+  and normal SimHub restart; do not invoke private activation or edit running host JSON.
 - **The pedals are opened NON-exclusively, and nothing but the base is ever taken exclusive.**
   The base is exclusive because creating force feedback effects requires it. A pedal set is not:
   the game is reading those pedals too, and an exclusive grab would silently take the clutch away
