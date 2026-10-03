@@ -152,7 +152,7 @@ SimHub's property system only ever read a snapshot; nothing else touches DirectI
 src/AB9ActiveShifter/
   AB9ShifterPlugin.cs      SimHub shell: lifecycle, properties, events, actions, profiles,
                            settings load/save, DataUpdate -> TelemetryState
-  AB9ShifterPlugin.Native.cs Optional AB9 setup, native profile eligibility and engine suppression
+  AB9ShifterPlugin.Native.cs Three operating modes and verified AB9 onboard configuration
   ShifterSettings.cs       Persisted POCO -> ToEngineConfig()
   ShifterProfiles.cs       Named profiles, legacy migration, cloning, the preset fork
   DefaultProfiles.cs       The five presets, as deltas from bare defaults, and their reserved
@@ -165,6 +165,8 @@ src/AB9ActiveShifter/
     Ab9NativeProtocol.cs   CDC frame codec, parameters and firmware eligibility
     Ab9NativeSettings.cs   Native read/write snapshots and validated configuration plans
     NativeProfilePolicy.cs Native profile and virtual engine eligibility
+    BaseEffectComposer.cs  Optional generic spring/friction/inertia, capped and polarity-aware
+    OperatingMode.cs       Rig-wide effect provider; shared profiles keep the same percentages
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
     GateGeometry.cs        Column targets, hysteresis bands, gear map, unit conversions
     GateStateMachine.cs    Neutral / Traveling / Engaged
@@ -183,11 +185,11 @@ src/AB9ActiveShifter/
   Device/                  DirectInput and Win32
     Ab9NativeDevice.cs     Separate CDC worker, exact AB9 discovery and checked transactions
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
-  Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the Setup tab's picker (query-only)
+  Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the device/output picker (query-only)
   Updates/                 ReleaseInfo (pure policy), UpdateService (background GitHub checks),
                            UpdateInstaller (validated, atomic DLL replacement)
-  UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor/Options), the
-                           GateVisualizer plan view and the Feel tab's force-curve graphs, all
+  UI/                      SettingsControl.xaml (first-run Setup, Main/Options, tuning modals), the
+                           GateVisualizer plan view and the Feel modal's force-curve graphs, all
                            on ForceGraphVisualizerBase and each sampling ForceComposer itself
     SettingsControl.Updates.cs App update preferences, shared banner and install/restart actions
     SettingsControl.Native.cs Native setup actions, status and control availability
@@ -288,7 +290,7 @@ You are iterating on software that drives a 12 Nm servo, usually with a hand on 
   add a path around that cap.
 - Test a force change at low gain first, and keep the base's power switch reachable.
 - A build that fails to load is silent; a build that loads with a sign error is not. If the stick
-  fights you everywhere after a change, tick *Release all forces (free stick)* on the Setup tab —
+  fights you everywhere after a change, tick *Release all forces (free stick)* in Options —
   anything still resisting is the hardware, not your code.
 - Ad-hoc hardware probes belong in a scratch project outside this repo, run with SimHub stopped so
   the device is free.

@@ -79,6 +79,14 @@ namespace AB9ActiveShifter.Core
             };
         }
 
+        /// <summary>DI owns every basic effect in Generic mode and during polarity probes.</summary>
+        public static Ab9NativeSettings GenericSetup()
+        {
+            Ab9NativeSettings settings = VirtualSetup();
+            settings.Damper = 0;
+            return settings;
+        }
+
         public IEnumerable<KeyValuePair<Ab9Parameter, int>> TransactionWrites(int? inputMode)
         {
             var tune = Writes(inputMode != 0);

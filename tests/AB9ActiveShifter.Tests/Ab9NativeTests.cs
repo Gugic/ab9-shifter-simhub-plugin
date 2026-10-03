@@ -137,24 +137,25 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void NativeProfilesRequireSupportedAb9AndNativeModeWhileGenericProfilesWorkWithoutEither()
+        public void Ab9NativeRequiresSupportedAb9InFlightModeWhileGenericWorksWithoutEither()
         {
             var native = new Ab9NativeSnapshot("native", "COM11", new Version(1, 1, 5, 2), 1, new Ab9NativeSettings(), true);
             var flight = new Ab9NativeSnapshot("flight", "COM11", new Version(1, 1, 5, 2), 0, new Ab9NativeSettings(), true);
-            Assert.True(NativeProfilePolicy.CanActivate(true, 0x346E, 0x1000, native));
-            Assert.False(NativeProfilePolicy.CanActivate(true, 0x346E, 0x1000, flight));
-            Assert.False(NativeProfilePolicy.CanActivate(true, 0x1234, 0x5678, native));
-            Assert.False(NativeProfilePolicy.CanActivate(true, 0x346E, 0x1000, null));
-            Assert.True(NativeProfilePolicy.CanActivate(false, 0x1234, 0x5678, null));
-            Assert.False(NativeProfilePolicy.CanRunVirtual(true, 0x346E, 0x1000, false));
-            Assert.False(NativeProfilePolicy.CanRunVirtual(false, 0x346E, 0x1000, true));
-            Assert.True(NativeProfilePolicy.CanRunVirtual(false, 0x1234, 0x5678, true));
+            Assert.False(NativeProfilePolicy.CanRunVirtual(OperatingMode.Ab9Native, 0x346E, 0x1000, native, false));
+            Assert.True(NativeProfilePolicy.CanRunVirtual(OperatingMode.Ab9Native, 0x346E, 0x1000, flight, false));
+            Assert.False(NativeProfilePolicy.CanRunVirtual(OperatingMode.Ab9Native, 0x1234, 0x5678, flight, false));
+            Assert.False(NativeProfilePolicy.CanRunVirtual(OperatingMode.Ab9Native, 0x346E, 0x1000, null, false));
+            Assert.True(NativeProfilePolicy.CanActivate(OperatingMode.GenericFfbStick));
+            Assert.True(NativeProfilePolicy.CanActivate(OperatingMode.Ab9Native));
+            Assert.False(NativeProfilePolicy.CanRunVirtual(OperatingMode.Ab9HPattern, 0x346E, 0x1000, flight, false));
+            Assert.False(NativeProfilePolicy.CanRunVirtual(OperatingMode.GenericFfbStick, 0x346E, 0x1000, flight, true));
+            Assert.True(NativeProfilePolicy.CanRunVirtual(OperatingMode.GenericFfbStick, 0x1234, 0x5678, null, true));
         }
 
         [Fact]
         public void NativeDialsCloneIndependentlyAndKeepTheVirtualPolarityCap()
         {
-            var native = new ShifterSettings { Ab9NativeProfile = true, NativeTorquePct = 100, OverallGainPct = 100 };
+            var native = new ShifterSettings { NativeTorquePct = 100, OverallGainPct = 100 };
             var copy = SettingsCloner.Clone(native);
             copy.NativeTorquePct = 5;
             Assert.Equal(100, native.NativeTorquePct);
@@ -164,42 +165,45 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void NativeProfileFilesCarryTheirTypeAndClampEveryNativeDialWithoutArmingAnything()
+        public void SharedProfilesCarryOneSetOfBasePercentagesWithoutArmingAnything()
         {
-            var profile = new ShifterProfile { Name = "Native", Settings = new ShifterSettings { Ab9NativeProfile = true, NativeLayout = 9 } };
+            var profile = new ShifterProfile { Name = "Shared", Settings = new ShifterSettings { BaseSpringPct = 22, BaseDamperPct = 15 } };
             var file = JObject.Parse(ProfileTransfer.Export(profile));
-            Assert.Equal(2, (int)file["FormatVersion"]);
+            Assert.Equal(1, (int)file["FormatVersion"]);
             file["Settings"]["NativeTorquePct"] = 500;
-            file["Settings"]["NativeFfbMode"] = 500;
-            file["Settings"]["NativeLayout"] = 500;
+            file["Settings"]["BaseSpringPct"] = 500;
+            file["Settings"]["BaseFrictionPct"] = 500;
             file["Settings"]["Enabled"] = true;
             var imported = ProfileTransfer.Import(file.ToString(), new ShifterSettings()).Profile.Settings;
-            Assert.True(imported.Ab9NativeProfile);
+            Assert.False(imported.Ab9NativeProfile);
             Assert.Equal(100, imported.NativeTorquePct);
-            Assert.Equal(2, imported.NativeFfbMode);
-            Assert.Equal(9, imported.NativeLayout);
+            Assert.Equal(100, imported.BaseSpringPct);
+            Assert.Equal(100, imported.BaseFrictionPct);
+            Assert.Equal(15, imported.BaseDamperPct);
             Assert.False(imported.Enabled);
-
-            var legacy = JObject.Parse(ProfileTransfer.Export(new ShifterProfile { Name = "Virtual", Settings = new ShifterSettings() }));
-            ((JObject)legacy["Settings"]).Remove("Ab9NativeProfile");
-            Assert.False(ProfileTransfer.Import(legacy.ToString(), profile.Settings).Profile.Settings.Ab9NativeProfile);
+            Assert.Null(file["Settings"]["Ab9NativeProfile"]);
+            Assert.Null(file["Settings"]["NativeSpringPct"]);
         }
 
         [Fact]
-        public void CyclingSkipsIneligibleNativeProfilesInBothDirections()
+        public void TheSameProfileCycleIsAvailableInBothVirtualModes()
         {
             var store = new ProfileStore
             {
                 Profiles = new List<ShifterProfile>
             {
                 new ShifterProfile { Name = "A", Settings = new ShifterSettings() },
-                new ShifterProfile { Name = "Native", Settings = new ShifterSettings { Ab9NativeProfile = true } },
+                new ShifterProfile { Name = "Shared", Settings = new ShifterSettings() },
                 new ShifterProfile { Name = "B", Settings = new ShifterSettings() }
             }
             };
-            Func<ShifterProfile, bool> eligible = p => NativeProfilePolicy.CanActivate(p.Settings.Ab9NativeProfile, 0x1234, 0x5678, null);
-            Assert.Equal("B", store.NextInCycle("A", 1, eligible));
-            Assert.Equal("A", store.NextInCycle("B", -1, eligible));
+            foreach (var mode in new[] { OperatingMode.GenericFfbStick, OperatingMode.Ab9Native })
+            {
+                Func<ShifterProfile, bool> eligible = p => NativeProfilePolicy.CanActivate(mode);
+                Assert.Equal("Shared", store.NextInCycle("A", 1, eligible));
+                Assert.Equal("Shared", store.NextInCycle("B", -1, eligible));
+            }
+            Assert.Null(store.NextInCycle("A", 1, p => NativeProfilePolicy.CanActivate(OperatingMode.Ab9HPattern)));
         }
     }
 }

@@ -1,16 +1,19 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using AB9ActiveShifter.Core;
 
 namespace AB9ActiveShifter.UI
 {
     public partial class SettingsControl
     {
         private int _nativePollTicks;
+        private bool _refreshingMode;
 
         private async void RefreshNativeHardware()
         {
-            if (Plugin == null) return;
+            if (Plugin == null || _preparingCalibration || _stopAfterCalibration
+                || (AB9ShifterPlugin.Engine != null && AB9ShifterPlugin.Engine.IsCalibrating)) return;
             try { await Plugin.RefreshNativeAsync(); }
             catch (Exception ex) { Log.Error("Could not refresh AB9 native controls", ex); }
             RefreshNativeUi();
@@ -19,49 +22,76 @@ namespace AB9ActiveShifter.UI
         private void RefreshNativeUi()
         {
             if (Plugin == null || _boundSettings == null) return;
-            var snapshot = Plugin.NativeSnapshot;
-            NativeStatusText.Text = snapshot.Status;
+            bool calibrating = _preparingCalibration || (AB9ShifterPlugin.Engine != null && AB9ShifterPlugin.Engine.IsCalibrating);
+            NativeStatusText.Text = Plugin.NativeSnapshot.Status;
             NativeOperationText.Text = Plugin.NativeOperationStatus ?? "";
-            ProfileSection.IsEnabled = !Plugin.NativeWriteBusy;
-            NativeRefreshButton.IsEnabled = !Plugin.NativeBusy;
-            NativeControlPanel.Visibility = snapshot.CanManage ? Visibility.Visible : Visibility.Collapsed;
-            NativeControlPanel.IsEnabled = Plugin.CanConfigureNative;
-            NativeTunePanel.Visibility = _boundSettings.Ab9NativeProfile && snapshot.CanManage && snapshot.IsNative
+            NativeApplyStatus.Text = NativeOperationText.Text;
+            NativeRefreshButton.IsEnabled = !Plugin.NativeBusy && !calibrating;
+            PrepareBaseButton.IsEnabled = !Plugin.NativeBusy && !calibrating;
+            ProfileSection.IsEnabled = !Plugin.NativeWriteBusy && !calibrating;
+            OperatingModeCombo.IsEnabled = !Plugin.NativeBusy && !calibrating;
+            _refreshingMode = true;
+            try
+            {
+                foreach (ComboBoxItem item in OperatingModeCombo.Items)
+                {
+                    OperatingMode mode;
+                    if (!Enum.TryParse(item.Tag as string, out mode)) continue;
+                    item.IsEnabled = mode == OperatingMode.GenericFfbStick || Plugin.Ab9ModesAvailable;
+                    if (mode == Plugin.CurrentOperatingMode) OperatingModeCombo.SelectedItem = item;
+                }
+            }
+            finally { _refreshingMode = false; }
+
+            bool onboard = Plugin.CurrentOperatingMode == OperatingMode.Ab9Native;
+            NativeHardwareExpander.Visibility = onboard ? Visibility.Visible : Visibility.Collapsed;
+            NativeTunePanel.IsEnabled = Plugin.Ab9ModesAvailable && !Plugin.NativeBusy;
+            ApplyBaseEffectsButton.Visibility = onboard ? Visibility.Visible : Visibility.Collapsed;
+            ApplyBaseEffectsButton.IsEnabled = Plugin.Ab9ModesAvailable && !Plugin.NativeBusy;
+            BaseEffectsHeading.Text = onboard ? "Base-driven effects" : "DirectInput base effects";
+            BaseEffectsDescription.Text = onboard
+                ? "The AB9 computes spring, damper, friction and inertia internally, avoiding the USB round trip. The custom gate, software stability and telemetry effects still use DirectInput. Apply sends these values to the base."
+                : "DirectInput renders spring, damper, friction and inertia. This profile keeps the same values when you change between virtual modes.";
+            BaseSpringSlider.IsEnabled = onboard || _boundSettings.BaseSpringPolarityConfirmed;
+            BaseSpringCalibrationHint.Visibility = !onboard && !_boundSettings.BaseSpringPolarityConfirmed
                 ? Visibility.Visible : Visibility.Collapsed;
-            NativeTunePanel.IsEnabled = Plugin.CanConfigureNative;
-            ProfileKindText.Text = _boundSettings.Ab9NativeProfile
-                ? "AB9 native profile" + (Plugin.CanActivateProfile(Plugin.Store.FindActive())
-                    ? " - firmware gate and onboard settings." : " - unavailable: connect a compatible AB9 and enable native mode.")
-                : "Generic virtual profile - software gate for a DirectInput FFB stick.";
+            ProfileKindText.Text = "This profile is shared by both virtual modes.";
             foreach (ComboBoxItem item in ProfileCombo.Items)
             {
                 string name = item.Tag as string;
                 var profile = Plugin.Store.Profiles.Find(p => p != null && p.Name == name);
                 item.IsEnabled = Plugin.CanActivateProfile(profile);
             }
-            UpdateTabGate();
+            RefreshWorkspace();
+            RefreshUpdates();
         }
 
         private void OnNativeRefresh(object sender, RoutedEventArgs e) { RefreshNativeHardware(); }
 
-        private async void OnNativeSetup(object sender, RoutedEventArgs e)
+        private async void OnOperatingModeSelected(object sender, SelectionChangedEventArgs e)
         {
-            if (Plugin == null) return;
-            await Plugin.SetupNativeAsync();
+            if (_refreshingMode || Plugin == null) return;
+            var item = OperatingModeCombo.SelectedItem as ComboBoxItem;
+            OperatingMode mode;
+            if (item == null || !Enum.TryParse(item.Tag as string, out mode) || mode == Plugin.CurrentOperatingMode) return;
+            try { await Plugin.ChangeOperatingModeAsync(mode); }
+            catch (Exception ex) { Log.Error("Could not change operating mode", ex); }
             RefreshNativeUi();
         }
 
-        private async void OnVirtualSetup(object sender, RoutedEventArgs e)
+        private async void OnPrepareSelectedMode(object sender, RoutedEventArgs e)
         {
             if (Plugin == null) return;
-            await Plugin.SetupVirtualAsync();
+            try { await Plugin.PrepareSelectedModeAsync(); }
+            catch (Exception ex) { Log.Error("Could not prepare the base", ex); }
             RefreshNativeUi();
         }
 
         private async void OnNativeApply(object sender, RoutedEventArgs e)
         {
             if (Plugin == null) return;
-            await Plugin.ApplyNativeProfileAsync();
+            try { await Plugin.ApplyNativeProfileAsync(); }
+            catch (Exception ex) { Log.Error("Could not apply onboard settings", ex); }
             RefreshNativeUi();
         }
     }

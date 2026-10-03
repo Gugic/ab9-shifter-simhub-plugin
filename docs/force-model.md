@@ -16,6 +16,22 @@ All of this lives in `Core/ForceComposer.cs`, which is pure and fully unit-teste
   once, at the very end. The yield and shaping stages compare force sign against velocity sign, so
   flipping earlier would make them compare unlike things.
 
+## Optional base effects
+
+The gate's force shapes are shared by Generic FFB Stick and AB9-native. Their extra software
+damping, wall friction, home spring and telemetry effects stay in the constant-force path.
+Only global base effects change provider: generic mode adds DirectInput spring, damper,
+friction and inertia; AB9-native uses the corresponding onboard settings.
+
+`BaseEffectComposer` decorates a completed normal gate frame. It never changes the constant
+forces or runs on polarity probe frames. The optional global spring has a fixed center and
+its own measured per-axis signs, not a moving wall anchor or reused constant-force polarity.
+It defaults off and remains off on rigs whose older calibration did not save spring signs.
+Friction and inertia also default off; these are optional background feel controls, not a new
+attempt to stabilize stiff gate walls with weak device condition effects. Their coefficients
+share effective gain and go to zero in free-stick mode. Spring follows the profile-transition
+ramp; passive damping, friction and inertia remain whole through that transition.
+
 ## The gate, in three kinds of force
 
 ```
@@ -486,7 +502,7 @@ all still the raw counts they were set to, so each becomes a larger share of a n
 is deliberate — a dial that silently rescaled a tune would make every stored count mean something
 different depending on a second dial — but it means the geometric ceilings tighten as the pattern
 narrows. `WallRampCeiling` is computed from `ColumnSpacing/2 − corridor − hysteresis`, so it is the
-first to bite, and the Feel tab already prints it. `MinPatternWidthPct` (25) is where a four-column
+first to bite, and Geometry prints it. `MinPatternWidthPct` (25) is where a four-column
 gate has 5461 counts between columns, which a shipped 2400-count corridor and its wall no longer
 fit inside; below that the answer stops being "narrow" and starts being "broken", so the geometry
 clamps and the slider stops at 30.
@@ -601,7 +617,7 @@ everywhere-restoring. It joins the composition beside the telemetry carrier, aft
 the attack — it assists motion by definition, so the absorber would eat it, and a 15 ms attack
 would blunt most of a 25 ms hit — and inside the final clamp, the polarity signs, and the
 effective gain with its 10% polarity cap. The actuation point itself is a dial in the sequential
-frame (`SeqThrow` on the Feel tab: counts from centre to the firing line, the same stored fact as
+frame (`SeqThrow` in Geometry: counts from centre to the firing line, the same stored fact as
 `EngageDepth` re-expressed); moving it moves the re-arm line with it, keeping the hysteresis gap,
 because shortening only the firing line would eventually let a lever resting on the threshold
 machine-gun shifts.
@@ -642,7 +658,7 @@ boundary indefinitely, the case that actually happens.
 **The lane's lockout.** One chosen gap — P–R for an out-of-park interlock, R–N for a reverse
 guard, N–D — can carry a gate band that **replaces** that gap's cosine hump, the exact precedent
 of the H gate's own dispatch. It is centred on the gap's crest and its width is clamped to end
-before both neighbouring notch edges (`PrndLockoutHalfWidthCeiling`, reported on the Feel tab):
+before both neighbouring notch edges (`PrndLockoutHalfWidthCeiling`, reported in Geometry):
 a position stays a free region whatever is asked for. The crest deliberately carries the band's
 flat core — that *is* the toll — and the nearest-position flip there is free for the band because
 it is one continuous function of the crest offset, not a nearest-field. The gap is label-relative,
@@ -854,7 +870,7 @@ should never have let the lever there.
 
 None of this is new behaviour; the clamp has always been there. What was new is that nothing
 *said* so, and a slider that goes to 6000 while the gate renders 4061 is a slider that lies. The
-Feel tab now prints the effective bite beside the dial and marks when it has been capped down. If
+Geometry now prints the effective bite beside the dial and marks when it has been capped down. If
 you are changing either dial, the useful question is not "what did I ask for" but "what is the gate
 rendering, and is there any flat divider left".
 
@@ -876,7 +892,7 @@ wrong way round, enter 7200 against exit 5200:
 Full scale across **one axis count in 65535**. Park the lever there and a single count of sensor
 dither commands a ±12 Nm square wave at the report rate, for as long as it sits. It is the most
 violent thing this codebase has ever been able to ask the base for, and it was reachable by typing
-one number into the wrong box — the two dials sit adjacent on the Geometry tab and differ by one
+one number into the wrong box — the two dials sit adjacent on the Geometry modal and differ by one
 word.
 
 The repair is now `enter + GateGeometry.MinBandSpan` (1000 counts), which bounds the gradient at 10
@@ -922,10 +938,11 @@ profile switch that silently never took effect. Arriving firm beats not arriving
 Only a change of *geometry* starts this. Dragging a force slider does not come through the
 rebuild path, so live dials stay live — which is the whole point of having them.
 
-The scale multiplies the finished frame's constant forces only. Springs are untouched because
-every frame ships them `Off`, and the damper is untouched because it opposes motion by
-construction: winding a stabiliser in alongside the force it stabilises is backwards, and would
-leave the ramp least damped exactly where it is changing fastest.
+The scale multiplies the gate's finished constant forces. Gate spring fields remain `Off`;
+the optional generic base spring is added separately with the same transition scale. Passive
+damper, friction and inertia coefficients remain whole through the transition because they
+oppose motion: winding a stabiliser in alongside its force would leave the ramp least damped
+exactly where it is changing fastest.
 
 `ProfileSwitchTransitionTests` pins the shape — zero throughout the settle, monotonic ramp, the
 timeout, the pulse count, and that pulses never play while the ramp is still winding.
@@ -1022,7 +1039,7 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **A column selection band narrower than the wall's mouth** | The wall opens over the column's free width and blends shut across `WallBlend`; capture wanted the lever inside `ColumnInnerHalfEnter`. Between them the gate is passable with no gear to select, and beyond them the wall is only 12 Nm. Measured: two pushes to **full deflection**, 896 ms and 616 ms, ~2400 counts off the column, state Neutral, gear 0 - the lever shoved home and the game told nothing. Every position belongs to the column it is nearest now. |
 | **Mouth shaping confined to the channel band** | 1000 counts deep, against a 1500-2000 count round-trip distance: zero corrected samples landed inside it at shift speed. Peak 946 DI at gain 100, 197 DI at the default - the latter equal to the static-hold floor, i.e. a mode that did nothing. The shaping spans the withdrawal stroke instead. |
 | **A circular fillet for the rounded mouth** | Its flank goes vertical where it meets the slot wall - an unbounded gradient at exactly the depth a hand dwells. A raised cosine leaves at zero slope on both ends. |
-| **A separate "lockout shading starts at" setting** | A second copy of the gate's position, which did nothing once the gate moved itself, and drifted from the truth. The Monitor tab asks the geometry. |
+| **A separate "lockout shading starts at" setting** | A second copy of the gate's position, which did nothing once the gate moved itself, and drifted from the truth. The Main monitor asks the geometry. |
 | **Adjacent-tick velocity differencing** | Under write contention distinct positions arrive at ~500 Hz, so half the 1 kHz polls repeat and the per-tick difference alternates ~2:1 — a smooth 17000 count/s pull read as 10000↔25000. Invisible until something keyed force on speed. Positions are differenced across a 4 ms window now. |
 | **Closing the slot wall dynamically while the grind balks a gear** | The honest render of a balk would be the wall refusing to open, but a wall that appears under a moving lever is a step of full wall force at whatever depth the lever happens to be, keyed on a 60 Hz telemetry bit — and "a missing slot is a fact of the gear map" exists precisely because holes encoded anywhere else go wrong. The balk is rendered as resist-only detent plus a refused latch instead; geometry never moves at runtime. |
 | **An absorber that follows the speed estimate both ways** | The estimate's ripple swept the yield scale across its blend range at 250–500 Hz: a 25–50% force ripple felt as *grinding against a running gear* the moment the lever moved under pressure — instantly, needing no oscillation to start. Cuts stay instant; recovery is slewed over `YieldRecoveryMs`. More EMA smoothing instead was considered and rejected: smoothing is phase lag at every frequency, and lag is force given back after the launch the yield exists to catch, while the window nulls the one artifact frequency outright. |

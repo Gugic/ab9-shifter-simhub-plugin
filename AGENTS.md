@@ -42,7 +42,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-531 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+560 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 and the pure release parser in `Updates/ReleaseInfo.cs`. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -81,7 +81,7 @@ src/AB9ActiveShifter/
   AB9ShifterPlugin.cs      SimHub shell: IPlugin/IDataPlugin/IWPFSettingsV2/IReusable,
                            properties, events, actions, profile management, settings load/save,
                            DataUpdate -> TelemetryState for the effects
-  AB9ShifterPlugin.Native.cs Optional AB9 setup, native profile eligibility and engine suppression
+  AB9ShifterPlugin.Native.cs Three operating modes and verified AB9 onboard configuration
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
   ShifterProfiles.cs       ProfileStore (named settings + active + the rig's own facts), legacy
                            migration, cloning, the preset fork
@@ -96,6 +96,8 @@ src/AB9ActiveShifter/
     Ab9NativeProtocol.cs   CDC codec, parameter ids and firmware eligibility
     Ab9NativeSettings.cs   Read/write snapshots and validated configuration plans
     NativeProfilePolicy.cs Native profile and virtual engine eligibility
+    BaseEffectComposer.cs  Optional generic spring/friction/inertia, capped and polarity-aware
+    OperatingMode.cs       Rig-wide effect provider; shared profiles keep the same percentages
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
     GateGeometry.cs        Column targets, hysteresis bands, gear map, unit conversions
     GateStateMachine.cs    Neutral / Traveling / Engaged with hysteresis and resync
@@ -128,14 +130,14 @@ src/AB9ActiveShifter/
     FfbDevice.cs           Open by VID/PID, exclusive+background, poll
     PedalDevice.cs         The clutch pedal's own handle. NON-exclusive by design - the game
                            needs those pedals too - and read-only; it never creates an effect
-    EffectSet.cs           The five effects; one force write per tick, fault handling
+    EffectSet.cs           Gate and optional base effects; one force write per tick, fault handling
     NativeMethods.cs       timeBeginPeriod + high-resolution waitable timer
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
   Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the picker. The one vJoy caller off the
                            engine thread, and query-only - read its comment before adding another
   Updates/                 ReleaseInfo (pure release/version/asset policy), UpdateService
                            (background checks), UpdateInstaller (verified atomic DLL replacement)
-  UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor/Options)
+  UI/                      SettingsControl.xaml (first-run Setup, Main/Options, tuning modals)
     SettingsControl.Updates.cs Update banner, app preferences, release notes and install/restart
     SettingsControl.Native.cs Native setup actions and control availability
     GateVisualizer.cs      The gate plan view with the live stick position, on Monitor and again
@@ -153,7 +155,7 @@ src/AB9ActiveShifter/
     InverseBooleanToVisibilityConverter.cs  The negation the raw/percent toggle needs
 tests/AB9ActiveShifter.Tests/
   Ab9NativeTests.cs        Wire captures, escaping, firmware order, transaction ordering,
-                           native profile eligibility, imports and generic-stick independence
+                           mode eligibility, shared profiles, imports and generic-stick independence
   ForceComposerTests.cs    Force shape, stability properties, polarity, clamps
   EffectComposerTests.cs   Carrier amplitudes and gain cap, staleness cut, grind conditions
   NativeEffectTests.cs     Native tone budgets, phases, freshness, profile epochs and safe import
@@ -232,12 +234,11 @@ runners cannot load, so anything worth testing must not touch it.
   of `Compose`.** The yield and shaping stages compare force sign against velocity sign; doing
   the flip earlier makes them compare unlike things.
 - Polarity is **per axis, not one global flag** — this unit inverts constant force on X and not
-  on Y. Only the two constant-force flags exist, because every wall is a constant force and every
-  frame ships both springs as `Off`. The calibration still probes all four (constant/spring × X/Y)
-  and all four must read conclusively before the cap lifts: the spring probes are a device sanity
-  check, not settings. The measured pattern on this unit is genuinely mixed — spring inverted on Y
-  where constant force is not — so if a spring ever drives the gate again it needs its own flags
-  back, not a reuse of the constant ones.
+  on Y. The gate itself keeps both spring fields `Off`; the optional generic base spring is added
+  separately using its own measured flags and confirmation. The calibration still probes all four (constant/spring × X/Y)
+  and all four must read conclusively before the cap lifts. Spring signs are rig facts; old
+  constant-only calibration never enables a newly configured DirectInput base spring. The measured pattern on this unit is genuinely mixed — spring inverted on Y
+  where constant force is not — so the optional base spring must never reuse the constant-force signs.
 - **Overall gain is capped at 10% until polarity is confirmed.** That cap is the safety story
   for an unmeasured base; do not add a path around it.
 - Damping joins **after** the yield and the time shaping, and is never slewed. It opposes motion
@@ -466,10 +467,11 @@ runners cannot load, so anything worth testing must not touch it.
 - **Native AB9 setup stays off the force loop.** A separate CDC worker requires the exact AB9
   USB identity and firmware 1.1.5.2 or newer, re-checks before writing, and reads each write
   back. The virtual engine is torn down first; hardware torque is muted and verified before
-  configuration and restored last. Native profiles never drive the virtual engine or vJoy,
-  and cannot activate without an eligible AB9 already in native mode. An uncertain mode after
+  configuration and restored last. AB9-native runs the virtual gate and vJoy in flight mode,
+  with only basic base effects onboard; firmware AB9 H-pattern runs neither. Both AB9 modes
+  require compatible connected hardware; profiles and percentages are shared between virtual modes. An uncertain mode after
   a failed write blocks virtual output on that AB9 until readback; other sticks remain generic.
-  Profiles cannot switch during a write. Native onboard tuning is per profile, while connected
+  Profiles cannot switch during a write. Base-effect tuning is per profile, while connected
   hardware, firmware and port are runtime facts. See [docs/native-ab9.md](docs/native-ab9.md).
 - Gear change: **buttons before forces.** A game must see the gear at least as early as the hand
   feels it. Sequential pulses obey the same order, and re-firing a button that is still down
@@ -507,7 +509,7 @@ runners cannot load, so anything worth testing must not touch it.
   the held gear alone: the lever has not moved, so dropping the button would turn a loss of feel
   into a loss of drive. And a fault must **put the status back on recovery** — writing only the
   fault sentence left it outliving the fault and hiding every status after it.
-- **A picture of the gate samples `ForceComposer`, never a copy of its arithmetic.** The Feel tab's
+- **A picture of the gate samples `ForceComposer`, never a copy of its arithmetic.** The Feel modal's
   curves and the gate plan view both exist to answer "what will this dial actually do", so a
   drawing that re-derives the shape is the one place it can quietly stop matching the gate — and it
   would mislead precisely when someone is using it to diagnose a feel problem. That covers plan
@@ -521,13 +523,11 @@ runners cannot load, so anything worth testing must not touch it.
   saying a graph calls it — `Saturating`, `LateralGuide`, `BarrierForceIn`, `DetentMagnitude` and
   `SlotCorridorHalfWidthAt` are all public for exactly that reason. One copy already drifted into
   the codebase and was removed; do not reintroduce one because it is only three lines.
-- **The tuning tabs are hidden until polarity is measured and a vJoy device is available**, and
-  everything needed to satisfy both conditions lives on the Setup tab *by construction* — the vJoy
-  picker and the base's vendor and product ids among them. Moving one of those behind the gate
-  would lock a user out of the control that opens it: a base that enumerates differently cannot be
-  calibrated, and the ids that would fix it would be on a tab that calibration is what reveals.
-  Before putting anything on Feel, Effects, Geometry or Monitor, ask whether a user could need it
-  in order to finish setup.
+- **First-run setup must expose everything needed to finish it.** Device identity, output and
+  polarity controls remain reachable before tuning is available. Completion is a persisted rig
+  fact: a disconnect shows working-state status, not a fresh onboarding flow. Main opens the
+  Geometry, Feel and Effects modals; Options retains setup and rig controls. Firmware H-pattern
+  exposes only the mode control and device status, while both virtual modes share plugin tuning.
 - **The pedals are opened NON-exclusively, and nothing but the base is ever taken exclusive.**
   The base is exclusive because creating force feedback effects requires it. A pedal set is not:
   the game is reading those pedals too, and an exclusive grab would silently take the clutch away
@@ -616,7 +616,7 @@ the assembly is `AB9ActiveShifter`. None of them carry a manufacturer's brand an
 start to. Name the hardware freely in prose — a reader has to know which base this is for — but
 not in a product name, and never in a way that reads as endorsement. Four places carry the same
 three disclaimers (risk, unofficial, early software): `README.md`'s *Read this first*,
-`NOTICE.md`, the Setup tab's `ABOUT` section, and the notes block in
+`NOTICE.md`, Options' `ABOUT` section, and the notes block in
 `.github/workflows/release.yml`. They are deliberately redundant, because each catches a reader
 the others miss — change them together or they drift.
 

@@ -60,7 +60,7 @@ namespace AB9ActiveShifter.UI
                 "Restarts SimHub to load the installed update." : "Downloads and installs the release. Restart SimHub afterward to load it.";
             OptionsDismissButton.Visibility = actionable && !dismissed ? Visibility.Visible : Visibility.Collapsed;
             OptionsDismissButton.IsEnabled = !state.Busy;
-            UpdateBanner.Visibility = actionable && !dismissed ? Visibility.Visible : Visibility.Collapsed;
+            UpdateBanner.Visibility = actionable && !dismissed && Plugin.CurrentOperatingMode != Core.OperatingMode.Ab9HPattern ? Visibility.Visible : Visibility.Collapsed;
             UpdateBannerText.Text = state.Status;
             ReleaseNotesButton.IsEnabled = release != null;
             ReleaseNotesPanel.Visibility = release != null ? Visibility.Visible : Visibility.Collapsed;

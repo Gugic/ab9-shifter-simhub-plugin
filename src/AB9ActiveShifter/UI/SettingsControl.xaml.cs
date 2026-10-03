@@ -33,6 +33,7 @@ namespace AB9ActiveShifter.UI
             _sliderContextMenu.Opened += OnSliderContextMenuOpened;
 
             IndexSliders();
+            BindGeometryUnits();
 
             VersionText.Text = "Version " + PluginInfo.Version;
             AboutVersionText.Text = "AB9 Active Shifter " + PluginInfo.Version;
@@ -142,6 +143,7 @@ namespace AB9ActiveShifter.UI
             // on the current profile.
             if (!ReferenceEquals(previous, _boundSettings)) RefreshProfileBaseline();
             BindEffectsEditor();
+            RefreshWorkspace();
         }
 
         private void BindEffectsEditor()
@@ -399,26 +401,22 @@ namespace AB9ActiveShifter.UI
             Adorner existing;
             if (_dirtyAdorners.TryGetValue(slider, out existing))
             {
-                AdornerLayer layer = AdornerLayer.GetAdornerLayer(slider);
+                AdornerLayer layer = VisualTreeHelper.GetParent(existing) as AdornerLayer;
                 if (layer != null) layer.Remove(existing);
                 _dirtyAdorners.Remove(slider);
             }
 
+            slider.Title = original;
             if (dirty)
             {
-                slider.Title = string.Empty;
-
                 AdornerLayer layer = AdornerLayer.GetAdornerLayer(slider);
                 if (layer != null)
                 {
+                    slider.Title = string.Empty;
                     Adorner adorner = new DirtyMarkerAdorner(slider, "* " + original, DirtyBrush);
                     layer.Add(adorner);
                     _dirtyAdorners[slider] = adorner;
                 }
-            }
-            else
-            {
-                slider.Title = original;
             }
         }
 
@@ -508,6 +506,13 @@ namespace AB9ActiveShifter.UI
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
             _timer.Stop();
+            if (_tuningWindow != null) _tuningWindow.Close();
+            if (_stopAfterCalibration && Plugin != null)
+            {
+                AB9ShifterPlugin.Engine?.CancelCalibration();
+                _stopAfterCalibration = false;
+                Plugin.Settings.Enabled = false;
+            }
             DetachUpdates();
 
             if (Plugin != null) Plugin.WatchCarModel(false);
@@ -534,7 +539,7 @@ namespace AB9ActiveShifter.UI
                     if (p == null) continue;
                     var item = new ComboBoxItem
                     {
-                        Content = p.Name + (p.Settings != null && p.Settings.Ab9NativeProfile ? " [AB9 native]" : ""),
+                        Content = p.Name,
                         Tag = p.Name,
                         IsEnabled = Plugin.CanActivateProfile(p)
                     };
@@ -1055,56 +1060,10 @@ namespace AB9ActiveShifter.UI
             Plugin.SaveStore();
         }
 
-        /// <summary>
-        /// Everything except Setup stays hidden until the shifter can actually do its job:
-        /// polarity measured, so a force dial cannot be turned up on a base that might push the
-        /// wrong way, and a vJoy device present, so a gear has somewhere to go. Both are things a
-        /// user does once, and neither is discoverable from a page full of sliders.
-        /// <para>
-        /// Everything needed to satisfy those two conditions is on the Setup tab by construction -
-        /// the vJoy picker and the base's vendor and product ids included - so the gate can never
-        /// hide the control that opens it.
-        /// </para>
-        /// </summary>
+        /// <summary>Setup is a persisted milestone, not a live connection gate.</summary>
         private void UpdateTabGate()
         {
-            if (FeelTab == null || _boundSettings == null) return;
-
-            bool polarity = _boundSettings.PolarityConfirmed;
-            bool virtualAvailable = Plugin == null || Plugin.VirtualControlsAvailable;
-            bool ready = virtualAvailable && polarity && _vjoyReady;
-
-            VirtualPatternPanel.IsEnabled = virtualAvailable;
-            VirtualSequentialPulse.IsEnabled = virtualAvailable;
-            ConfirmSwitchCheck.IsEnabled = virtualAvailable;
-            VirtualEnableSection.IsEnabled = virtualAvailable;
-            VirtualFreeStickSection.IsEnabled = virtualAvailable;
-            VirtualVJoySection.IsEnabled = virtualAvailable;
-            VirtualClutchSection.IsEnabled = virtualAvailable;
-            VirtualChecklistSection.IsEnabled = virtualAvailable;
-            VirtualCalibrationSection.IsEnabled = virtualAvailable;
-
-            Visibility visibility = ready ? Visibility.Visible : Visibility.Collapsed;
-            FeelTab.Visibility = visibility;
-            EffectsTab.Visibility = visibility;
-            GeometryTab.Visibility = visibility;
-            MonitorTab.Visibility = visibility;
-
-            // Collapsing the selected tab would leave the page blank, so come home first.
-            if (!ready)
-            {
-                TabControl tabs = FeelTab.Parent as TabControl;
-                if (tabs != null && tabs.SelectedIndex != 0) tabs.SelectedIndex = 0;
-            }
-
-            TabGateText.Text = !virtualAvailable
-                ? "Virtual gate controls are disabled for an AB9 native profile or while the selected AB9 is in native mode. Use Set up virtual gate to return. Native profiles use the base's own buttons."
-                : ready
-                ? ""
-                : "Feel, Effects, Geometry and Monitor appear once two things are true: " +
-                  (polarity ? "polarity is measured (done)" : "polarity is measured (not yet - see below)") +
-                  ", and " +
-                  (_vjoyReady ? "a vJoy device is available (done)." : "a vJoy device is available (not yet - see above).");
+            RefreshWorkspace();
         }
 
         /// <summary>
@@ -1258,7 +1217,7 @@ namespace AB9ActiveShifter.UI
             // half a file is how someone ends up debugging a feel they never chose.
             string message = "Imported as '" + name + "'" + (Plugin.Store.ActiveProfile == name
                 ? " and made active.\n\n"
-                : ". Saved for use with a compatible AB9 in native mode.\n\n") +
+                : ". Saved for later use.\n\n") +
                              result.Applied + " settings applied.";
             if (result.Clamped > 0)
             {
@@ -1269,9 +1228,8 @@ namespace AB9ActiveShifter.UI
             {
                 message += "\n" + result.Unknown + " were not recognised by this version and were ignored.";
             }
-            message += result.Profile.Settings.Ab9NativeProfile
-                ? "\n\nNative settings were saved as a draft. Apply native profile writes them when the AB9 is available. Virtual forces are off."
-                : "\n\nForces are off, and your own measured polarity has been kept.";
+            message += "\n\nForces are off, and your own measured polarity has been kept. " +
+                "In AB9-native mode, apply base effects from Feel when you are ready.";
 
             MessageBox.Show(message, "AB9 Active Shifter", MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -1319,9 +1277,19 @@ namespace AB9ActiveShifter.UI
             RefreshLastCarModelButton();
 
             bool calibrating = engine != null && engine.IsCalibrating;
-            CalibrateButton.IsEnabled = !calibrating;
+            CalibrateButton.IsEnabled = !calibrating && !_preparingCalibration && (Plugin == null || (!Plugin.NativeBusy && Plugin.VirtualControlsAvailable));
+            if (_stopAfterCalibration)
+            {
+                if (calibrating) _calibrationStarted = true;
+                else if (_calibrationStarted)
+                {
+                    _stopAfterCalibration = false;
+                    CompleteCalibrationSetup();
+                }
+            }
             CancelCalibrationButton.IsEnabled = calibrating;
 
+            MainRecordStatus.Text = RecordStatus.Text;
             RefreshCalibrationResults();
             RefreshPedalStatus();
             RefreshNativeUi();
@@ -1369,7 +1337,7 @@ namespace AB9ActiveShifter.UI
                 : "  Gain is capped at " + EngineConfig.UnconfirmedGainCapPct +
                   "% until polarity is measured, so everything will feel light.";
 
-            string hardNote = " (hard - released by the key bound on Setup)";
+            string hardNote = " (hard - released by the key bound in Options)";
             double toll = cfg.EffectiveGain * (s.IsLockoutHardMode ? 100 : s.LockoutForcePct);
 
             if (!s.IsHPattern)
@@ -1635,30 +1603,82 @@ namespace AB9ActiveShifter.UI
             PrndLaneSummary.Text = text;
         }
 
-        private void OnCalibrate(object sender, RoutedEventArgs e)
+        private async void OnCalibrate(object sender, RoutedEventArgs e)
         {
-            ShifterEngine engine = AB9ShifterPlugin.Engine;
-            if (engine == null || !engine.IsRunning)
+            if (Plugin == null || _preparingCalibration) return;
+            _preparingCalibration = true;
+            CalibrateButton.IsEnabled = false;
+            try
             {
-                MessageBox.Show(
-                    "The force feedback engine is not running. Enable the plugin on the Setup tab and wait for the base to connect.",
-                    "AB9 Active Shifter", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
+                if (!await Plugin.PrepareCalibrationAsync()) return;
+                ShifterEngine engine = AB9ShifterPlugin.Engine;
+                if (engine == null) return;
+                Plugin.LastCalibration.Clear();
+                _renderedCalibrationCount = -1;
+                CalibrationResultBorder.Visibility = Visibility.Collapsed;
+                _stopAfterCalibration = true;
+                _calibrationStarted = false;
+                // Queue the probes before Start: acquiring the device must never run the
+                // previous profile's ordinary forces while this first-run action waits.
+                engine.RequestCalibration();
+                Plugin.Settings.Enabled = true;
+                Plugin.PushSettingsToEngine();
+                // Device acquisition remains on the engine thread. The UI stays responsive
+                // while the same Measure action opens the base for a first-run calibration.
+                for (int attempt = 0; attempt < 30 && (engine == null || !engine.IsRunning || !engine.Snapshot.DeviceConnected); attempt++)
+                {
+                    await System.Threading.Tasks.Task.Delay(200);
+                    engine = AB9ShifterPlugin.Engine;
+                }
+                if (engine == null || !engine.IsRunning || !engine.Snapshot.DeviceConnected)
+                {
+                    if (engine != null) engine.CancelCalibration();
+                    _stopAfterCalibration = false;
+                    Plugin.Settings.Enabled = false;
+                    MessageBox.Show("The base could not be opened. Check its connection and close other applications using it.",
+                        "AB9 Active Shifter", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
             }
-
-            if (!engine.Snapshot.DeviceConnected)
+            catch (Exception ex)
             {
-                MessageBox.Show(
-                    "The base is not connected yet:\n\n" + engine.Snapshot.StatusMessage,
-                    "AB9 Active Shifter", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
+                AB9ShifterPlugin.Engine?.CancelCalibration();
+                _stopAfterCalibration = false;
+                Plugin.Settings.Enabled = false;
+                Log.Error("Could not measure polarity", ex);
+                CalibrationResultPanel.Children.Add(new TextBlock { Text = ex.Message, TextWrapping = TextWrapping.Wrap });
+                CalibrationResultBorder.Visibility = Visibility.Visible;
             }
+            finally
+            {
+                _preparingCalibration = false;
+                RefreshWorkspace();
+            }
+        }
 
-            if (Plugin != null) Plugin.LastCalibration.Clear();
-            _renderedCalibrationCount = -1;
-            CalibrationResultBorder.Visibility = Visibility.Collapsed;
-
-            engine.RequestCalibration();
+        private async void CompleteCalibrationSetup()
+        {
+            if (Plugin == null) return;
+            Plugin.Settings.Enabled = false;
+            bool measured = true;
+            foreach (CalibrationTarget target in (CalibrationTarget[])Enum.GetValues(typeof(CalibrationTarget)))
+            {
+                CalibrationResult result;
+                if (!Plugin.LastCalibration.TryGetValue(target, out result) ||
+                    (result.Outcome != CalibrationOutcome.Correct && result.Outcome != CalibrationOutcome.Inverted))
+                    measured = false;
+            }
+            if (measured && Plugin.CurrentOperatingMode == OperatingMode.Ab9Native)
+            {
+                // Calibration temporarily removed onboard resistance. Restore this profile's
+                // shared percentages as the final setup action, keeping virtual output off.
+                _preparingCalibration = true;
+                try { await Plugin.ApplyNativeProfileAsync(); }
+                catch (Exception ex) { Log.Error("Could not restore base effects after calibration", ex); }
+                finally { _preparingCalibration = false; }
+            }
+            RefreshNativeUi();
+            UpdateCalibrationSection();
         }
 
         private void OnCancelCalibration(object sender, RoutedEventArgs e)
@@ -1790,6 +1810,12 @@ namespace AB9ActiveShifter.UI
             }
 
             Plugin.Settings.ResetToDefaults(scope);
+            if (scope == ShifterSettings.ResetScope.Everything)
+            {
+                Plugin.Store.SetupCompleted = false;
+                Plugin.SaveStore();
+                RefreshWorkspace();
+            }
             if (scope == ShifterSettings.ResetScope.Effects || scope == ShifterSettings.ResetScope.Everything)
             {
                 if (Plugin.Effects != null) Plugin.Effects.Reset();

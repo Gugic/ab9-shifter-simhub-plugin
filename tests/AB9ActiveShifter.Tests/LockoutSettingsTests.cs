@@ -43,7 +43,7 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void ResettingForcesPutsTheWholeLockoutConfigurationBack()
+        public void ResettingFeelChangesLockoutStrengthAndBehaviorButPreservesItsDimensions()
         {
             var s = new ShifterSettings
             {
@@ -62,16 +62,16 @@ namespace AB9ActiveShifter.Tests
             s.ResetToDefaults(ShifterSettings.ResetScope.Forces);
             var d = new ShifterSettings();
 
-            Assert.Equal(d.LockoutPlacement, s.LockoutPlacement);
-            Assert.Equal(d.LockoutGapDirection, s.LockoutGapDirection);
-            Assert.Equal(d.LockoutSlotGear, s.LockoutSlotGear);
-            Assert.Equal(d.LockoutSlotDirection, s.LockoutSlotDirection);
+            Assert.Equal(LockoutPlacement.Slot, s.LockoutPlacement);
+            Assert.Equal(LockoutGapDirection.TowardLow, s.LockoutGapDirection);
+            Assert.Equal(2, s.LockoutSlotGear);
+            Assert.Equal(LockoutSlotDirection.Both, s.LockoutSlotDirection);
             Assert.Equal(d.LockoutMode, s.LockoutMode);
-            Assert.Equal(d.PrndLockoutGap, s.PrndLockoutGap);
-            Assert.Equal(d.PrndLockoutDirection, s.PrndLockoutDirection);
+            Assert.Equal(PrndLockoutGap.ND, s.PrndLockoutGap);
+            Assert.Equal(PrndLockoutDirection.Both, s.PrndLockoutDirection);
             Assert.Equal(d.PrndLockoutMode, s.PrndLockoutMode);
             Assert.Equal(d.PrndLockoutForcePct, s.PrndLockoutForcePct);
-            Assert.Equal(d.PrndLockoutHalfWidth, s.PrndLockoutHalfWidth);
+            Assert.Equal(3333, s.PrndLockoutHalfWidth);
         }
 
         [Fact]

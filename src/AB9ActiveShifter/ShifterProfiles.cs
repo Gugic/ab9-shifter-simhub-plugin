@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using AB9ActiveShifter.Core;
 
 namespace AB9ActiveShifter
 {
@@ -30,6 +31,22 @@ namespace AB9ActiveShifter
     {
         public List<ShifterProfile> Profiles { get; set; }
         public string ActiveProfile { get; set; }
+
+        /// <summary>Machine-wide effect provider. Null identifies stores from before the three modes.</summary>
+        public OperatingMode? SelectedOperatingMode { get; set; }
+        public bool SetupCompleted { get; set; }
+
+        public void MigrateOperatingMode()
+        {
+            if (SelectedOperatingMode.HasValue) return;
+            ShifterProfile active = FindActive();
+            if (Profiles != null)
+                Profiles.RemoveAll(profile => profile?.Settings?.Ab9NativeProfile == true);
+            SelectedOperatingMode = OperatingMode.GenericFfbStick;
+            // Existing measured rigs have already completed the original setup. A transient
+            // disconnect must not turn their ordinary working screen back into first-run setup.
+            SetupCompleted = SetupCompleted || (Machine ?? active?.Settings)?.PolarityConfirmed == true;
+        }
 
         /// <summary>App preferences: switching or importing a profile cannot change update behaviour.</summary>
         public bool CheckUpdatesAutomatically { get; set; } = true;

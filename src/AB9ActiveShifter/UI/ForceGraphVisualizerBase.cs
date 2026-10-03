@@ -90,7 +90,9 @@ namespace AB9ActiveShifter.UI
         protected override Size MeasureOverride(Size availableSize)
         {
             double width = double.IsInfinity(availableSize.Width) ? 460 : Math.Min(availableSize.Width, 620);
-            return new Size(width, GraphHeight);
+            // Compact pinned monitors must measure to their available height; returning the
+            // full graph height makes WPF clip the drawing instead of resizing its axes.
+            return new Size(width, Math.Min(availableSize.Height, GraphHeight));
         }
 
         protected override void OnRender(DrawingContext dc)

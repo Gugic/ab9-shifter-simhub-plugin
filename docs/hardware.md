@@ -110,7 +110,7 @@ That last number is why `DetentHoldPct` defaults to 55 and why a light seated ho
 the argument and the gear falls back out.
 
 The real control is the onboard **Spring** setting — exposed by **MOZA Cockpit**, and now by the
-plugin's **Set up virtual gate** on supported AB9 firmware. Pit House has no Spring setting in
+plugin's **Prepare base** action in AB9-native mode on supported AB9 firmware. Pit House has no Spring setting in
 flight mode. Required, once:
 
 **Firmware 1.1.5.2 or newer can be configured directly in the plugin.** The two-app procedure

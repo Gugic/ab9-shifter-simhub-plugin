@@ -1,51 +1,60 @@
 # Native AB9 configuration
 
-Generic virtual profiles render their gate through DirectInput and send gears through vJoy.
-They remain usable with other FFB flight sticks; device ids and polarity still belong to the
-rig. An **AB9 native** profile instead stores the base's own settings and uses its firmware gate
-and physical gear buttons. Virtual force geometry, telemetry effects, calibration and vJoy are
-disabled for that profile. Native engine/shift vibration streaming is not implemented here.
-Bind the AB9's own gear buttons in the game. If HidHide hides the base for virtual use, make
-it visible to the game when using its native gate.
+The mode switch belongs to the rig, while the gate tune belongs to a profile:
+
+| Mode | Gate and gear output | Basic base effects |
+| --- | --- | --- |
+| **Generic FFB Stick** | Plugin geometry, DirectInput forces and vJoy buttons | DirectInput spring, damper, friction and inertia |
+| **AB9-native** | The same plugin geometry, forces, telemetry effects and vJoy buttons | Cockpit-compatible onboard settings |
+| **AB9 H-pattern** | MOZA's firmware gate and physical AB9 buttons | Managed outside the plugin; plugin tuning is unavailable |
+
+Both virtual modes keep the plugin's additional effects: wall damping and friction, detents,
+lockouts, home spring and game-driven feedback. Only the basic effects supported by Cockpit
+change provider. DirectInput base effects are suppressed in AB9-native so they do not double
+its onboard effects. AB9 H-pattern releases the virtual engine and vJoy output entirely.
+If HidHide hides the AB9, make it visible to the game to bind its firmware gear buttons.
 
 ## Setup and profiles
 
-On **Setup**, **AB9 NATIVE SETUP** shows native controls only after a successful read from a
-live `usbser` interface with VID `346E`, PID `1000`, and firmware **1.1.5.2 or newer**. AB6,
-wheelbases, unknown devices, unknown firmware and older firmware are excluded. The selected
-virtual device ids must also identify the AB9. Multiple connected AB9s are refused rather than
-choosing one arbitrarily. Close Cockpit, Pit House and AZOM's AB9 connection to release the COM
-port. The serial port is released after each read or write transaction.
-The initial mode check runs before virtual output starts; the open Setup page refreshes
-hardware status every five seconds. Profile switches and profile-list edits wait for writes
-to finish.
+First-run Setup gathers the mode, base identity, output device and measured polarity. After
+completion, Main shows the working shifter and Options retains those rig settings. A temporary
+disconnect does not reset setup completion. Geometry, Feel and Effects open from Main; the
+Geometry monitor remains above its scrolling controls.
 
-**Set up native H pattern** performs setup and creates a marked native profile in one action:
-7+R layout 1, torque 25%, overall intensity and game gain 100%, spring 50%, damper 15%, inertia
-and friction 0%, mechanical resistance 50%. These are conservative starting settings, pending
-feel verification on the rig. If a native profile is already selected, its saved values are used.
+Both AB9 choices require a successful read from a live `usbser` interface with VID `346E`,
+PID `1000`, and firmware **1.1.5.2 or newer**. AB6, wheelbases, unknown firmware and older
+firmware are excluded. Multiple connected AB9s are refused rather than choosing one arbitrarily.
+Close Cockpit, Pit House and AZOM's AB9 connection to release the COM port. Each transaction
+releases the port afterward. Generic FFB Stick remains usable with other DirectInput bases.
 
-**Set up virtual gate** selects flight mode, DirectInput, Spring 0%, Damper 15%, Inertia and
-Friction 0%, and torque/intensity/game gain 100%. It returns to the previous virtual profile
-when possible. Forces remain off: measure polarity, then deliberately enable the virtual engine.
-The existing 10% unconfirmed-polarity cap still applies to every virtual force.
+AB9-native uses flight input mode and DirectInput feedback mode. Preparing calibration
+neutralizes onboard conditions so the probes measure DirectInput alone. Calibration leaves
+virtual forces off. Until polarity is confirmed, profile application also limits onboard
+torque and leaves the onboard spring off; calibration uses its own bounded probe forces.
 
-Native profiles carry **Maximum Torque Output (%)**, **Overall Force Feedback Intensity (%)**,
-**Spring (%)**, **Damper (%)**, **Inertia (%)**, **Friction (%)**, **Game Force Feedback Gain (%)**,
-**Gear Shift Mechanical Resistance (%)**, and **Native layout**. Edits autosave as a profile
-draft. **Apply native profile** writes them; selecting an existing eligible native profile also
-applies it. Layouts are the ten documented MOZA layouts, including sequential.
+## One profile, two effect providers
 
-The dropdown marks these profiles **[AB9 native]**. They cannot activate without a compatible
-AB9 selected and already in native shifter mode. Hotkey cycling skips unavailable native
-profiles; vehicle auto-selection obeys the same check. A saved native profile without eligible
-hardware stays a saved, unavailable profile and never falls back to driving another stick.
+Profiles and presets are shared. The same spring, damper, friction and inertia percentages
+are sent either to DirectInput or to the AB9, depending on the rig's mode. Changing provider
+does not clone profiles, retune percentages or create a second set of presets. The existing
+device damper coefficient of 800 is represented as 8%; spring, friction and inertia default off.
+Equal percentages are retained as requested, without claiming equal physical strength across
+different hardware implementations.
 
-Native exports use profile format 2, which older plugin builds refuse. Generic exports keep
-format 1. Imports are range checked and never send native writes or arm virtual output. A native
-import without eligible hardware is saved without activation. Firmware, port and connected state
-are runtime facts and never travel in a profile. The native tuning dials do travel and clone
-independently; they are intentionally per profile, unlike measured polarity and device ids.
+Feel labels the onboard controls **Base-driven effects** and explains that the AB9 processes
+them internally, avoiding the USB round trip. Hardware torque, overall intensity and game gain
+are additional AB9-only controls; Generic FFB Stick ignores those hardware settings. The rest
+of the profile always uses the plugin's DirectInput gate and extra effects. Firmware H-pattern
+exposes no plugin profiles or tuning.
+
+Onboard edits save a draft until applied. Selecting a saved profile in AB9-native can also
+apply its base settings. Every write stops virtual output and leaves it off; enabling it again
+is deliberate. Free stick releases DirectInput effects, but onboard resistance can remain.
+
+Imports are range checked, never write hardware and never arm virtual output. Mode choice,
+firmware, connection state, port and measured polarity never travel in a profile. Experimental
+native-only profiles from the earlier unshipped iteration are discarded when adopting the
+three-mode store; existing generic profiles and presets are retained.
 
 ## Protocol evidence
 

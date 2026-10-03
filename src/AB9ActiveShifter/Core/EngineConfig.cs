@@ -275,13 +275,13 @@ namespace AB9ActiveShifter.Core
         // this unit inverts constant force on X and not on Y - so these are two independent
         // facts, not one flag.
         //
-        // Spring polarity is measured too, but has nowhere to apply: every wall in this gate is
-        // a constant force (a DirectInput spring cannot make a wall on this base at any
-        // coefficient - see docs/force-model.md), so every frame ships SpringX/SpringY as Off.
-        // The spring probes survive as a device sanity check that gates the force cap, not as
-        // settings. Reinstate the flags here if a spring ever drives the gate again.
+        // Gate walls remain constant forces. The optional global base spring is a separate
+        // typed condition effect and needs the independently measured spring signs.
         public bool InvertConstantX;
         public bool InvertConstantY;
+        public bool InvertSpringX;
+        public bool InvertSpringY;
+        public bool BaseSpringPolarityConfirmed;
 
         /// <summary>
         /// Gear layout preference: which end of the gate is first gear. These relabel the gear map
@@ -670,6 +670,16 @@ namespace AB9ActiveShifter.Core
 
         /// <summary>The device's own damper condition effect. Largely decorative on this base.</summary>
         public int DamperCoeff = 800;
+
+        /// <summary>
+        /// Typed global base effects in Generic FFB Stick mode. These supplement the gate;
+        /// they never replace its shaped walls, damping or wall friction. AB9-native mode
+        /// applies the corresponding settings onboard and disables these DI conditions.
+        /// </summary>
+        public bool BaseEffectsViaDirectInput = true;
+        public int BaseSpringPct;
+        public int BaseFrictionPct;
+        public int BaseInertiaPct;
 
         // Slot detent, on the same percent-of-full-force scale as the walls so the two can be
         // compared at a glance.

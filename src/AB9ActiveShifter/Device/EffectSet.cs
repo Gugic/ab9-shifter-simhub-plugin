@@ -6,7 +6,7 @@ using SharpDX.DirectInput;
 namespace AB9ActiveShifter.Device
 {
     /// <summary>
-    /// The five DirectInput effects that make up the gate. They are created and downloaded
+    /// The DirectInput effects for the gate and optional global base conditions. Created and downloaded
     /// once, started once, and from then on only their type-specific parameters are
     /// rewritten - restarting an effect every tick would audibly stutter and floods the
     /// device's USB pipe.
@@ -28,17 +28,20 @@ namespace AB9ActiveShifter.Device
         private Effect _constantX;
         private Effect _constantY;
         private Effect _damper;
+        private Effect _friction;
+        private Effect _inertia;
 
         private EffectParameters _pSpringX;
         private EffectParameters _pSpringY;
         private EffectParameters _pConstantX;
         private EffectParameters _pConstantY;
         private EffectParameters _pDamper;
+        private EffectParameters _pFriction;
+        private EffectParameters _pInertia;
 
         // Held so the arrays the ConditionSets reference are the ones being mutated.
         private readonly Condition[] _condX = new Condition[1];
         private readonly Condition[] _condY = new Condition[1];
-        private readonly Condition[] _condDamper = new Condition[2];
         private readonly ConstantForce _forceX = new ConstantForce();
         private readonly ConstantForce _forceY = new ConstantForce();
 
@@ -57,10 +60,14 @@ namespace AB9ActiveShifter.Device
         private bool _lastContendedWriteWasY;
 
         private int _lastDamper = -1;
+        private int _lastFriction = -1;
+        private int _lastInertia = -1;
 
         private int _strikes;
 
         public bool HasDamper { get; private set; }
+        public bool HasFriction { get { return _friction != null; } }
+        public bool HasInertia { get { return _inertia != null; } }
 
         /// <summary>Consecutive parameter-update failures. The engine reopens the device at 3.</summary>
         public int Strikes { get { return _strikes; } }
@@ -106,22 +113,36 @@ namespace AB9ActiveShifter.Device
             _pConstantY = BuildConstantParameters(JoystickOffset.Y, _forceY);
             _constantY = CreateAndStart(EffectGuid.ConstantForce, _pConstantY);
 
-            // The damper only suppresses oscillation. If the device will not take it on both
-            // axes, fall back to Y alone; if it will not take it at all, the gate still works.
-            if (!TryBuildDamper(damperCoefficient, true) && !TryBuildDamper(damperCoefficient, false))
-            {
-                HasDamper = false;
-            }
+            // These conditions are optional: unsupported types must not prevent the virtual
+            // gate from working. Try both axes, then Y alone, once per device acquisition.
+            HasDamper = TryBuildOptionalCondition(EffectGuid.Damper, "damper", damperCoefficient,
+                out _damper, out _pDamper);
+            _lastDamper = damperCoefficient;
+            TryBuildOptionalCondition(EffectGuid.Friction, "friction", 0, out _friction, out _pFriction);
+            _lastFriction = 0;
+            TryBuildOptionalCondition(EffectGuid.Inertia, "inertia", 0, out _inertia, out _pInertia);
+            _lastInertia = 0;
         }
 
-        private bool TryBuildDamper(int coefficient, bool bothAxes)
+        private bool TryBuildOptionalCondition(Guid guid, string name, int coefficient,
+            out Effect effect, out EffectParameters parameters)
         {
+            return TryBuildCondition(guid, name, coefficient, true, out effect, out parameters)
+                || TryBuildCondition(guid, name, coefficient, false, out effect, out parameters);
+        }
+
+        private bool TryBuildCondition(Guid guid, string name, int coefficient, bool bothAxes,
+            out Effect effect, out EffectParameters parameters)
+        {
+            effect = null;
+            parameters = null;
             try
             {
                 int axisCount = bothAxes ? 2 : 1;
+                var conditions = new Condition[axisCount];
                 for (int i = 0; i < axisCount; i++)
                 {
-                    _condDamper[i] = new Condition
+                    conditions[i] = new Condition
                     {
                         Offset = 0,
                         PositiveCoefficient = coefficient,
@@ -132,10 +153,7 @@ namespace AB9ActiveShifter.Device
                     };
                 }
 
-                var conditions = new Condition[axisCount];
-                Array.Copy(_condDamper, conditions, axisCount);
-
-                _pDamper = new EffectParameters
+                parameters = new EffectParameters
                 {
                     Flags = EffectFlags.Cartesian | EffectFlags.ObjectOffsets,
                     Duration = -1,
@@ -148,23 +166,21 @@ namespace AB9ActiveShifter.Device
                     Parameters = new ConditionSet { Conditions = conditions }
                 };
 
-                _pDamper.Axes = bothAxes
+                parameters.Axes = bothAxes
                     ? new[] { (int)JoystickOffset.X, (int)JoystickOffset.Y }
                     : new[] { (int)JoystickOffset.Y };
-                _pDamper.Directions = bothAxes ? new[] { 1, 1 } : new[] { 1 };
+                parameters.Directions = bothAxes ? new[] { 1, 1 } : new[] { 1 };
 
-                _damper = CreateAndStart(EffectGuid.Damper, _pDamper);
-                _lastDamper = coefficient;
-                HasDamper = true;
+                effect = CreateAndStart(guid, parameters);
 
-                if (!bothAxes) Log.Warn("Two-axis damper unavailable; damping the Y axis only.");
+                if (!bothAxes) Log.Warn("Two-axis " + name + " unavailable; applying it to the Y axis only.");
                 return true;
             }
             catch (Exception ex)
             {
-                Log.Debug("Damper creation failed (bothAxes=" + bothAxes + "): " + ex.Message);
-                _damper = null;
-                _pDamper = null;
+                Log.Debug(name + " creation failed (bothAxes=" + bothAxes + "): " + ex.Message);
+                DisposeEffect(ref effect);
+                parameters = null;
                 return false;
             }
         }
@@ -233,8 +249,16 @@ namespace AB9ActiveShifter.Device
                 effect = new Effect(_joystick, guid, parameters);
             }
 
-            effect.Start(1, EffectPlayFlags.None);
-            return effect;
+            try
+            {
+                effect.Start(1, EffectPlayFlags.None);
+                return effect;
+            }
+            catch
+            {
+                effect.Dispose();
+                throw;
+            }
         }
 
         /// <summary>
@@ -257,17 +281,19 @@ namespace AB9ActiveShifter.Device
 
             if (!_springsPrimed || !frame.SpringX.Equals(_lastSpringX))
             {
-                ok &= WriteCondition(_springX, _pSpringX, _condX, frame.SpringX, "springX");
-                _lastSpringX = frame.SpringX;
+                if (WriteCondition(_springX, _pSpringX, _condX, frame.SpringX, "springX"))
+                    _lastSpringX = frame.SpringX;
+                else ok = false;
             }
 
             if (!_springsPrimed || !frame.SpringY.Equals(_lastSpringY))
             {
-                ok &= WriteCondition(_springY, _pSpringY, _condY, frame.SpringY, "springY");
-                _lastSpringY = frame.SpringY;
+                if (WriteCondition(_springY, _pSpringY, _condY, frame.SpringY, "springY"))
+                    _lastSpringY = frame.SpringY;
+                else ok = false;
             }
 
-            _springsPrimed = true;
+            _springsPrimed = ok;
 
             bool wantX = !_constantXPrimed || WantsConstantWrite(frame.ConstantX, _lastConstantX);
             bool wantY = !_constantYPrimed || WantsConstantWrite(frame.ConstantY, _lastConstantY);
@@ -301,7 +327,22 @@ namespace AB9ActiveShifter.Device
 
             if (_damper != null && frame.DamperCoefficient != _lastDamper)
             {
-                if (WriteDamper(frame.DamperCoefficient)) _lastDamper = frame.DamperCoefficient;
+                if (WriteScalarCondition(_damper, _pDamper, frame.DamperCoefficient, "damper", false))
+                    _lastDamper = frame.DamperCoefficient;
+                else ok = false;
+            }
+
+            if (_friction != null && frame.FrictionCoefficient != _lastFriction)
+            {
+                if (WriteScalarCondition(_friction, _pFriction, frame.FrictionCoefficient, "friction", true))
+                    _lastFriction = frame.FrictionCoefficient;
+                else ok = false;
+            }
+
+            if (_inertia != null && frame.InertiaCoefficient != _lastInertia)
+            {
+                if (WriteScalarCondition(_inertia, _pInertia, frame.InertiaCoefficient, "inertia", true))
+                    _lastInertia = frame.InertiaCoefficient;
                 else ok = false;
             }
 
@@ -336,18 +377,24 @@ namespace AB9ActiveShifter.Device
             return SetParameters(effect, parameters, name);
         }
 
-        private bool WriteDamper(int coefficient)
+        private bool WriteScalarCondition(Effect effect, EffectParameters parameters, int coefficient,
+            string name, bool capSaturation)
         {
-            var set = _pDamper.Parameters as ConditionSet;
+            var set = parameters.Parameters as ConditionSet;
             if (set == null || set.Conditions == null) return true;
 
             for (int i = 0; i < set.Conditions.Length; i++)
             {
                 set.Conditions[i].PositiveCoefficient = coefficient;
                 set.Conditions[i].NegativeCoefficient = coefficient;
+                if (capSaturation)
+                {
+                    set.Conditions[i].PositiveSaturation = coefficient;
+                    set.Conditions[i].NegativeSaturation = coefficient;
+                }
             }
 
-            return SetParameters(_damper, _pDamper, "damper");
+            return SetParameters(effect, parameters, name);
         }
 
         private bool WriteConstant(Effect effect, EffectParameters parameters, ConstantForce force,
@@ -413,7 +460,8 @@ namespace AB9ActiveShifter.Device
         public bool AnyStillDownloaded()
         {
             return IsDownloaded(_springX) || IsDownloaded(_springY) || IsDownloaded(_constantX)
-                   || IsDownloaded(_constantY) || IsDownloaded(_damper);
+                   || IsDownloaded(_constantY) || IsDownloaded(_damper)
+                   || IsDownloaded(_friction) || IsDownloaded(_inertia);
         }
 
         private static bool IsDownloaded(Effect effect)
@@ -442,6 +490,8 @@ namespace AB9ActiveShifter.Device
             StopEffect(_constantX);
             StopEffect(_constantY);
             StopEffect(_damper);
+            StopEffect(_friction);
+            StopEffect(_inertia);
         }
 
         private static void StopEffect(Effect effect)
@@ -458,6 +508,8 @@ namespace AB9ActiveShifter.Device
             DisposeEffect(ref _constantX);
             DisposeEffect(ref _constantY);
             DisposeEffect(ref _damper);
+            DisposeEffect(ref _friction);
+            DisposeEffect(ref _inertia);
         }
 
         private static void DisposeEffect(ref Effect effect)

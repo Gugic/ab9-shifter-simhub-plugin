@@ -124,8 +124,12 @@ namespace AB9ActiveShifter.Core
         private long _lastTickStamp;
 
         private int _calibrationRequest;
+        private volatile bool _calibrationPendingOrActive;
         private PolarityCalibrator _calibrator;
         private readonly Queue<CalibrationTarget> _calibrationQueue = new Queue<CalibrationTarget>();
+        // Finishing a measurement is not permission to run the gate. Keep its last probe
+        // neutralised until a deliberate stop/start, independently of the UI refresh timer.
+        private volatile bool _calibrationOutputHeld;
 
         // --- the clutch pedal, when it is read directly rather than from the game -------------
         //
@@ -305,6 +309,7 @@ namespace AB9ActiveShifter.Core
             lock (_deviceLock)
             {
                 if (_running) return;
+                _calibrationOutputHeld = false;
                 _running = true;
                 _phase = EnginePhase.SearchDevice;
                 _status = "Starting";
@@ -335,6 +340,7 @@ namespace AB9ActiveShifter.Core
             {
                 if (!_running && _thread == null)
                 {
+                    ClearCalibration();
                     Teardown();
                     return;
                 }
@@ -351,6 +357,7 @@ namespace AB9ActiveShifter.Core
 
             lock (_deviceLock)
             {
+                ClearCalibration();
                 Teardown();
             }
 
@@ -367,10 +374,13 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public void RequestCalibration()
         {
+            _calibrationPendingOrActive = true;
             Interlocked.Exchange(ref _calibrationRequest, 1);
         }
 
-        public bool IsCalibrating { get { return _calibrator != null; } }
+        // Remains true between probes and while acquisition is pending. A UI poll in the
+        // one-tick gap between targets must not mistake that gap for completion.
+        public bool IsCalibrating { get { return _calibrationPendingOrActive; } }
 
         /// <summary>
         /// Kills output now. Called by the watchdog and at process exit. Buttons are always
@@ -772,6 +782,8 @@ namespace AB9ActiveShifter.Core
                     }
                 }
 
+                frame = BaseEffectComposer.Apply(frame, cfg,
+                    _transition.Active ? _transition.ForceScale : 1.0);
                 _effects.Apply(frame, nowMs);
 
                 // After Apply, so what is recorded is what was actually sent.
@@ -942,8 +954,8 @@ namespace AB9ActiveShifter.Core
         private const double ConfirmPulseHz = 28.0;
 
         /// <summary>
-        /// Scales a finished frame. Springs are untouched because every frame ships them Off, and
-        /// the damper is untouched because it opposes motion by construction - winding a
+        /// Scales the virtual gate frame before optional base conditions are added. The
+        /// damper is untouched because it opposes motion by construction - winding a
         /// stabiliser in alongside the force it stabilises would be backwards.
         /// </summary>
         private static ForceFrame ScaleFrame(ForceFrame frame, double scale)
@@ -988,6 +1000,7 @@ namespace AB9ActiveShifter.Core
         {
             if (Interlocked.Exchange(ref _calibrationRequest, 0) == 1)
             {
+                _calibrationOutputHeld = false;
                 _calibrationQueue.Clear();
                 _calibrationQueue.Enqueue(CalibrationTarget.ConstantX);
                 _calibrationQueue.Enqueue(CalibrationTarget.ConstantY);
@@ -1011,7 +1024,14 @@ namespace AB9ActiveShifter.Core
                 Log.Info("Polarity calibration requested (probe force " + cfg.CalibrationForcePct + "%).");
             }
 
-            if (_calibrator == null && _calibrationQueue.Count == 0) return false;
+            if (_calibrator == null && _calibrationQueue.Count == 0)
+            {
+                if (!_calibrationOutputHeld) return false;
+                if (_output != null) _output.SetGear(0);
+                _effects.Apply(ForceComposer.FreeFrame(), nowMs);
+                PublishSnapshot(x, y, loopHz);
+                return true;
+            }
 
             if (_calibrator == null)
             {
@@ -1039,16 +1059,17 @@ namespace AB9ActiveShifter.Core
 
                 if (_calibrationQueue.Count == 0)
                 {
-                    // Back to a known state before the gate takes over again. In sequential
-                    // the resync arms without firing, and no gear button is ever held; in PRND
-                    // the lever is always somewhere, so the adopted position goes straight back.
+                    // A measurement can move the lever anywhere. Clear its output and leave
+                    // the gate held off until the user explicitly starts it again.
+                    _calibrationOutputHeld = true;
                     _effects.Apply(ForceComposer.FreeFrame(), nowMs);
 
                     _stateMachine.Resync(x, y);
                     _seqMachine.Resync(y);
                     _prndMachine.Resync(y);
-                    if (_output != null) _output.SetGear(CurrentHeldButton(cfg));
+                    if (_output != null) _output.SetGear(0);
 
+                    _calibrationPendingOrActive = false;
                     RaiseCalibrationFinished();
                 }
             }
@@ -1073,15 +1094,22 @@ namespace AB9ActiveShifter.Core
             catch (Exception ex) { Log.Error("Calibration finished handler threw", ex); }
         }
 
-        /// <summary>Abandons any calibration in progress and returns to the gate.</summary>
+        /// <summary>Abandons calibration and holds output off until the next deliberate start.</summary>
         public void CancelCalibration()
         {
-            Interlocked.Exchange(ref _calibrationRequest, 0);
             lock (_deviceLock)
             {
-                _calibrationQueue.Clear();
-                _calibrator = null;
+                ClearCalibration();
+                _calibrationOutputHeld = true;
             }
+        }
+
+        private void ClearCalibration()
+        {
+            _calibrationPendingOrActive = false;
+            Interlocked.Exchange(ref _calibrationRequest, 0);
+            _calibrationQueue.Clear();
+            _calibrator = null;
         }
 
         private bool TryOpenDevice(EngineConfig cfg, long nowMs)
@@ -1111,7 +1139,7 @@ namespace AB9ActiveShifter.Core
                     return false;
                 }
 
-                EffectSet effects = device.CreateEffects(_composer.DamperCoefficient, out error);
+                EffectSet effects = device.CreateEffects(0, out error);
                 if (effects == null)
                 {
                     device.Dispose();
@@ -1501,6 +1529,8 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         private int CurrentHeldButton(EngineConfig cfg)
         {
+            if (_calibrationOutputHeld || _calibrator != null || _calibrationQueue.Count != 0
+                || Volatile.Read(ref _calibrationRequest) != 0) return 0;
             if (cfg == null) return 0;
             if (cfg.Pattern == GatePattern.Sequential) return 0;
             if (cfg.Pattern == GatePattern.Prnd) return _prndMachine != null ? _prndMachine.CurrentButton : 0;
@@ -1715,7 +1745,7 @@ namespace AB9ActiveShifter.Core
                 DisposeEffects();
 
                 string error;
-                _effects = _device.CreateEffects(_composer.DamperCoefficient, out error);
+                _effects = _device.CreateEffects(0, out error);
 
                 if (_effects == null) Log.Warn("Force output: could not rebuild the effects - " + error);
                 else Log.Info("Force output: effects rebuilt on the open device.");
