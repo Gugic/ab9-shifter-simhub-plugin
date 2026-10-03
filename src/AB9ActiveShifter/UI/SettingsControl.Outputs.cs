@@ -32,6 +32,11 @@ namespace AB9ActiveShifter.UI
             if (_boundSettings == null || VJoyPanel == null) return;
             VJoyPanel.Visibility = UsesControlMapper ? Visibility.Collapsed : Visibility.Visible;
             ControlMapperPanel.Visibility = UsesControlMapper ? Visibility.Visible : Visibility.Collapsed;
+            ControlMapperPatternHint.Text = _boundSettings.Pattern == GatePattern.Prnd
+                ? "Assign existing Control Mapper roles to P, R, N and D below. If you need additional roles, you can create custom ones such as PRND.P, PRND.R, PRND.N and PRND.D. The selected position holds its assigned role, including N. Configure each role's key or controller button in Control Mapper."
+                : _boundSettings.Pattern == GatePattern.Sequential
+                    ? "Map Sequential up to ShiftUp and Sequential down to ShiftDown, or choose your own roles. Each shift pulses its role."
+                    : "Map the gears to Gear1, Gear2 and so on, and Reverse to GearR, or choose your own roles. Returning to H-pattern neutral releases the held gear role. Leave H-pattern neutral (optional) blank unless your game needs a separate neutral key; create a custom role for that key if needed.";
             OutputBindingSummary.Text = UsesControlMapper
                 ? "Control Mapper roles: configure this pattern's assignments in Options → Base and output, then bind the resulting keys or controller buttons in your game. Blank mappings send nothing."
                 : "vJoy buttons: gears 1–7 → 1–7, reverse → 8; sequential up/down → 9/10; P/R/N/D → 11/12/13/14. The truck pattern uses buttons 1–6.";

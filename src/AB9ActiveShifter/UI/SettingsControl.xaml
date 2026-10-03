@@ -212,6 +212,7 @@
                                                 <styles:SHButtonSecondary x:Name="ConfigureControlMapperButton" Content="Configure Control Mapper" Click="OnConfigureControlMapper" Padding="10,3" Margin="0,0,8,4" />
                                                 <styles:SHButtonSecondary Content="Refresh roles" Click="OnRefreshControlMapperRoles" Padding="10,3" Margin="0,0,0,4" />
                                             </WrapPanel>
+                                            <TextBlock x:Name="ControlMapperPatternHint" TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" />
                                             <ItemsControl x:Name="ControlMapperMappings">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>

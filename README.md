@@ -257,8 +257,15 @@ The output choice is independent of **Generic FFB Stick** versus **AB9-native**.
 **AB9 H-pattern** uses the base's own buttons and disables both plugin output choices.
 
 H gears and PRND positions hold their roles; sequential shifts use the existing pulse length.
+For **Automatic (P R N D)**, assign existing Control Mapper roles to **PRND: P**, **PRND: R**,
+**PRND: N** and **PRND: D**. If you need additional roles, you can create custom ones such as
+`PRND.P`, `PRND.R`, `PRND.N` and `PRND.D`. Configure their keys or controller buttons and press
+**Refresh roles** to make newly created roles available. The selected
+position's role stays held until the lever moves to another position; N has its own held role.
+The mapping panel shows instructions for the selected pattern.
 **H-pattern neutral (optional)** holds a separate role while an H gate is in neutral, for games
-that need an explicit neutral key. Keyboard bindings depend on the game: verify direct gear
+that need an explicit neutral key. Leave it blank for controller bindings that use released
+gear buttons as neutral. Keyboard bindings depend on the game: verify direct gear
 selection and the return to neutral. Controller buttons remain available through Control
 Mapper's vJoy or Arduino bridge. If using both direct vJoy and Control Mapper elsewhere, give
 them different vJoy devices so they do not compete for one output.

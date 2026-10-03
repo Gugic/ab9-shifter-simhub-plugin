@@ -88,6 +88,15 @@ neutral key. Sequential shows **Sequential up** and **Sequential down**; the sel
 roles, and sequential uses Main's **Sequential pulse length (ms)**. Verify keyboard direct-gear
 and neutral bindings in the game. Missing roles are reported under the mappings.
 
+The mapping panel's instructions follow the selected **Pattern**. For **Automatic (P R N D)**,
+assign existing Control Mapper roles to each position's row. Custom roles such as `PRND.P`,
+`PRND.R`, `PRND.N` and `PRND.D` are optional if you need additional assignments; configure
+their keys or controller buttons in Control Mapper, then **Refresh roles**.
+N holds its own role until the selector moves to another position. In an H pattern, returning
+to neutral releases the gear role; leave **H-pattern neutral (optional)** blank when released
+gear buttons represent neutral in the game. For sequential output, the guide suggests
+`ShiftUp` and `ShiftDown` for **Sequential up** and **Sequential down**.
+
 First-run **Finish setup** requires measured polarity and an available direct vJoy device or
 the loaded Control Mapper feature with at least one available role for the active pattern. Role availability does not
 prove that Control Mapper's external device or game bindings work; check those there and in the
