@@ -10,6 +10,23 @@ light — that is the safety cap doing its job, not a tuning problem. The Feel, 
 Monitor tabs stay hidden until polarity is measured and a vJoy device is available, so if this
 guide describes a tab you cannot see, that is why.
 
+## Options and plugin updates
+
+**Options → UPDATES** is available before calibration or vJoy setup, and its preferences belong
+to the app rather than any profile. **Check for updates automatically** defaults on and checks
+the latest stable GitHub release at startup and every six hours. **Check now** checks immediately
+and shows a previously dismissed version again. **Release channel: Stable** excludes previews;
+the installed version, check status and **Last checked** time appear here too.
+
+The banner above every tab offers **Install update**, **Open release notes**, and **Dismiss**.
+The same controls and **What's new in v…** release notes appear on Options. Install verifies and
+replaces the plugin DLL while the current version keeps running, then changes the action to
+**Restart SimHub**. Restart when you are ready to stop the current session; it saves settings
+and uses SimHub's usual shutdown. Profiles, pedal binding and measured polarity survive.
+Dismiss hides only that version's banner, and a later release gets a new banner. The update
+remains accessible from Options. A failed check or download appears in the status so it can be
+retried; a release with no verified DLL can still be opened for manual installation.
+
 ## What the Feel tab shows you while you turn a dial
 
 Four things worth knowing before working through the rest of this guide, because they answer

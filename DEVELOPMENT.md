@@ -26,6 +26,7 @@ dotnet test tests/AB9ActiveShifter.Tests
 ```
 
 The suite covers `Core/` plus the settings POCO's derived-dial arithmetic, and touches no I/O.
+It also tests the pure GitHub release parser and version/asset policy in `Updates/ReleaseInfo.cs`.
 Keep it that way — it is the only automated check on the force arithmetic. `Core/` is deliberately
 I/O-free for a second reason as well: the vJoy wrapper is a 32-bit native DLL that test runners
 cannot load, so anything worth testing must not reach it.
@@ -169,9 +170,12 @@ src/AB9ActiveShifter/
   Device/                  DirectInput and Win32
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
   Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the Setup tab's picker (query-only)
-  UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor), the
+  Updates/                 ReleaseInfo (pure policy), UpdateService (background GitHub checks),
+                           UpdateInstaller (validated, atomic DLL replacement)
+  UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor/Options), the
                            GateVisualizer plan view and the Feel tab's force-curve graphs, all
                            on ForceGraphVisualizerBase and each sampling ForceComposer itself
+    SettingsControl.Updates.cs App update preferences, shared banner and install/restart actions
 tests/AB9ActiveShifter.Tests/
 build/refs/                Reference-only stubs of SimHub's assemblies
 tools/Verify-StubBuild.ps1 Proves a stub-built DLL binds against the real SimHub
@@ -203,6 +207,14 @@ the **last** two minutes and never stops itself, so for a fault that arrives at 
 the move is to start it, drive, and stop it once the fault has happened.
 
 ## CI and releases
+
+The in-plugin updater uses the latest stable release from this repository. Keep publishing
+`AB9ActiveShifter.dll` as a standalone release asset: installation checks GitHub's asset size
+and SHA-256 digest and the DLL's assembly name/version. A ZIP-only release can be announced
+but requires manual installation. Release versions come from the workflow's `-p:Version`;
+build metadata is ignored for update comparison, and a stable release can replace a preview
+of the same numeric version. For a local development deployment, stamp an appropriate version
+explicitly to avoid the bare `0.1.0` development default advertising an older published build.
 
 `.github/workflows/ci.yml` runs on every push and pull request: format check, build against the
 stubs, tests, and the DLL uploaded as an artifact. If you change how the plugin uses SimHub's API,

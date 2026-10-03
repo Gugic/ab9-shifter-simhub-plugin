@@ -10,10 +10,12 @@ using GameReaderCommon;
 
 namespace SimHub.Plugins
 {
-    /// <summary>SimHub's plugin host. Only the property bridge is used by this plugin.</summary>
+    /// <summary>SimHub's plugin host: the property bridge and the supported restart hook.</summary>
     public class PluginManager
     {
         public object GetPropertyValue(string name) { return null; }
+        // Reflected against the installed assembly: public instance Void(Boolean).
+        public void RequestApplicationExit(bool restart) { }
     }
 
     /// <summary>Handle returned when an event is registered. Never inspected by this plugin.</summary>

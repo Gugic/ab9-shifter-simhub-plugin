@@ -42,8 +42,9 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-454 tests, all green, none touching I/O — `Core/` plus the settings POCO's derived-dial
-arithmetic. Keep them that way — they are the only automated check on force arithmetic, and a
+492 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+and the pure release parser in `Updates/ReleaseInfo.cs`. Keep them that way — they are the only
+automated check on force arithmetic, and a
 sign error here drives a 12 Nm base the wrong way.
 
 CI runs exactly this plus `dotnet format whitespace --verify-no-changes`, on every push and
@@ -125,7 +126,10 @@ src/AB9ActiveShifter/
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
   Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the picker. The one vJoy caller off the
                            engine thread, and query-only - read its comment before adding another
-  UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor)
+  Updates/                 ReleaseInfo (pure release/version/asset policy), UpdateService
+                           (background checks), UpdateInstaller (verified atomic DLL replacement)
+  UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor/Options)
+    SettingsControl.Updates.cs Update banner, app preferences, release notes and install/restart
     GateVisualizer.cs      The gate plan view with the live stick position, on Monitor and again
                            at the top of Geometry. Draws the gate's real free space, the mouths
                            and the engage/release notches, so every geometry dial moves something
@@ -190,6 +194,8 @@ tests/AB9ActiveShifter.Tests/
   ProfileSwitchTransitionTests.cs  Easing the new gate in, and the confirmation thump's count
   ForceOutputHealthTests.cs  What the base's status flags mean, and what it takes to convict
   VJoyDeviceInfoTests.cs   What the device picker says, including the too-few-buttons trap
+  UpdateReleaseTests.cs   Numeric stable versions, repository-bound DLL assets, required checksum,
+                           app preferences outside profiles; no HTTP or filesystem access
 build/refs/                Reference-only stubs of SimHub's assemblies, so the plugin builds
                            on a machine with no SimHub. Read build/refs/README.md before
                            touching one - a wrong signature builds green and throws on the rig
@@ -446,6 +452,13 @@ runners cannot load, so anything worth testing must not touch it.
   with the held gear.
 - Shutdown, device loss, disable, `FinalizePlugin`: **buttons off → stop forces → unacquire**, in
   that order, always. A gear must never stay stuck down.
+- **Updating never runs on the force or telemetry threads.** GitHub checks and DLL staging use
+  the thread pool; installation verifies the release asset and atomically replaces only the DLL.
+  The current image stays loaded until the user selects Restart SimHub, which uses SimHub's own
+  `RequestApplicationExit(true)` and normal finalisation. Keep the `.previous` backup until the
+  next process starts; game-change `Init` must not clean it or reset a pending update. Update
+  preferences live on `ProfileStore`, not a per-profile tune. Options remains available before
+  calibration and vJoy setup.
 - The watchdog (500 ms timer, 1 s staleness) calls `EmergencyStop`. `StopForces` is the only
   device method callable off the engine thread, and it swallows everything.
 - **A device another application has taken is released, not reclaimed.** Exclusive+background is

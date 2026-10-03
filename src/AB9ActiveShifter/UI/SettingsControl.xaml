@@ -51,7 +51,23 @@
         </Style>
     </UserControl.Resources>
 
-    <styles:SHTabControl>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Border x:Name="UpdateBanner" Grid.Row="0" Visibility="Collapsed" Margin="8,8,8,4" Padding="12,8"
+                BorderBrush="#35B8C9" BorderThickness="1" CornerRadius="3">
+            <WrapPanel>
+                <TextBlock x:Name="UpdateBannerText" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="500"
+                           Foreground="#35B8C9" Margin="0,4,16,4" />
+                <styles:SHButtonSecondary x:Name="BannerInstallButton" Content="Install update" Click="OnInstallUpdate"
+                                          Padding="10,4" Margin="0,2,6,2" />
+                <styles:SHButtonSecondary Content="Open release notes" Click="OnOpenReleaseNotes" Padding="10,4" Margin="0,2,6,2" />
+                <styles:SHButtonSecondary Content="Dismiss" Click="OnDismissUpdate" Padding="10,4" Margin="0,2,0,2" />
+            </WrapPanel>
+        </Border>
+    <styles:SHTabControl Grid.Row="1">
 
         <!-- ============================ SETUP ============================ -->
         <styles:SHTabItem Header="Setup">
@@ -1108,5 +1124,46 @@
             </ScrollViewer>
         </styles:SHTabItem>
 
+        <!-- App preferences remain accessible before device setup is complete. -->
+        <styles:SHTabItem Header="Options">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="8">
+                    <styles:SHSection Title="UPDATES" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <TextBlock Text="AB9 Active Shifter" FontWeight="Bold" />
+                            <TextBlock x:Name="UpdateInstalledVersionText" Margin="0,4,0,12" Opacity="0.75" />
+                            <TextBlock x:Name="UpdateStatusText" TextWrapping="Wrap" Margin="0,0,0,8" />
+                            <WrapPanel Margin="0,0,0,12">
+                                <styles:SHButtonSecondary x:Name="OptionsInstallButton" Content="Install update" Click="OnInstallUpdate"
+                                                          Visibility="Collapsed" Padding="10,4" Margin="0,0,6,4" />
+                                <styles:SHButtonSecondary x:Name="ReleaseNotesButton" Content="Open release notes" Click="OnOpenReleaseNotes"
+                                                          IsEnabled="False" Padding="10,4" Margin="0,0,6,4" />
+                                <styles:SHButtonSecondary x:Name="OptionsDismissButton" Content="Dismiss" Click="OnDismissUpdate"
+                                                          Visibility="Collapsed" Padding="10,4" Margin="0,0,0,4" />
+                            </WrapPanel>
+                            <StackPanel x:Name="ReleaseNotesPanel" Visibility="Collapsed" Margin="0,0,0,16">
+                                <TextBlock x:Name="ReleaseNotesTitle" FontWeight="Bold" Margin="0,0,0,8" />
+                                <Border Background="#18202020" Padding="12" CornerRadius="3">
+                                    <RichTextBox x:Name="ReleaseNotesText" MaxHeight="300" IsReadOnly="True" IsDocumentEnabled="False"
+                                                 BorderThickness="0" Background="Transparent" VerticalScrollBarVisibility="Auto"
+                                                 Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}" />
+                                </Border>
+                            </StackPanel>
+                            <styles:SHToggleCheckbox x:Name="AutomaticUpdatesToggle" Content="Check for updates automatically"
+                                                     Checked="OnAutomaticUpdatesChanged" Unchecked="OnAutomaticUpdatesChanged" />
+                            <TextBlock Text="Release channel: Stable" Opacity="0.75" Margin="0,8,0,8" />
+                            <WrapPanel>
+                                <styles:SHButtonSecondary x:Name="CheckUpdatesButton" Content="Check now" Click="OnCheckUpdates"
+                                                          Padding="10,4" Margin="0,0,12,0" />
+                                <TextBlock x:Name="UpdateLastCheckedText" VerticalAlignment="Center" Opacity="0.65" />
+                            </WrapPanel>
+                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,12,0,0"
+                                       Text="Checks GitHub on startup and every six hours for a stable release. Install update downloads the plugin; Restart SimHub loads it when you are ready. Your profiles and calibration are kept." />
+                        </StackPanel>
+                    </styles:SHSection>
+                </StackPanel>
+            </ScrollViewer>
+        </styles:SHTabItem>
     </styles:SHTabControl>
+    </Grid>
 </UserControl>

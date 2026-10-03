@@ -6,10 +6,12 @@ One SimHub plugin assembly, `AB9ActiveShifter.dll`, plus a test project. The spl
 
 - **`Core/`** is pure — no DirectInput, no vJoy, no Win32, no clock it does not own. Everything
   worth testing lives here.
-- **`Device/`** and **`Output/`** are the only places with I/O. The vJoy wrapper is a 32-bit native
+- **`Device/`** and **`Output/`** own hardware I/O. The vJoy wrapper is a 32-bit native
   DLL that test runners cannot load, which is why gear output sits behind `IGearOutput` and why
   `Core/` must stay clean.
 - **`UI/`** binds directly to `ShifterSettings` and never talks to the device.
+- **`Updates/`** checks GitHub and replaces the plugin DLL, entirely away from the force loop.
+  `ReleaseInfo` is the pure parser and version policy tested without I/O.
 
 ## Threading
 
@@ -102,6 +104,37 @@ clutch, speed, gear string, ABS/TC flags, heave G, the sampled custom property) 
 through one volatile reference — no locks, one small allocation, nothing else on SimHub's critical
 path. The FFB loop still deliberately does not *run* off it, because the gate must work with no
 game running.
+
+## Plugin updates
+
+`UpdateService` is shared across `End`/`Init` at game change, like the engine, and is cancelled
+on `FinalizePlugin` after the engine's normal teardown. A thread-pool timer checks the latest
+stable release at startup and every six hours; manual checks share the same operation gate.
+Network requests have deadlines, bounded response sizes and no work on the FFB or telemetry
+threads. Immutable `UpdateState` snapshots notify the settings page through its dispatcher;
+the page unsubscribes while unloaded and reattaches when navigated back to.
+
+`ProfileStore.CheckUpdatesAutomatically` and `DismissedUpdateVersion` are app preferences,
+outside `ShifterSettings` and profile transfer. Dismissal applies to one release version and
+only the banner; Options retains the update actions and notes. Turning automatic checking off
+stops the timer; Check now still works. A failed check preserves any previously fetched release
+and shows the failure, without stopping the shifter.
+
+`ReleaseInfo` accepts stable numeric versions, ignores build metadata when comparing, and
+never offers a downgrade. Only the exact repository's matching standalone DLL asset is
+installable, with a valid size and GitHub SHA-256 digest. `UpdateInstaller` stages beside the
+installed DLL, checks the download size, checksum and assembly manifest name/version without
+executing it, then uses `File.Replace` to atomically install it and keep `.previous` as backup.
+A failed validation does not replace the DLL, and a failed swap leaves the original in place.
+Only the DLL changes; settings and hardware state are untouched during installation.
+
+The current image continues running until the user selects Restart SimHub. The plugin saves
+the store and calls the public `PluginManager.RequestApplicationExit(true)` hook, so SimHub's
+normal finalisation releases buttons and forces in their existing order. The signature was
+reflected from the installed SimHub assembly and added to the reference stub too. Backup cleanup
+runs only when the update service is first created, not on every game change. A second install
+is refused until restart. Windows replacement of a loaded image was verified using scratch
+copies; the automated tests continue to touch no files, network or hardware.
 
 ## Safety
 
@@ -283,7 +316,7 @@ vibration, limiter, ABS/TC, curbs, shift pulse, custom property — each with en
 frequency), **Geometry** (force shaping, hysteresis bands, vJoy device, loop rate, resets),
 **Monitor** (live drawing of the configured pattern — missing slots left blank, the lockout
 shaded where the geometry puts it and dimmed while a hard gate is released, or the sequential
-track).
+track), and **Options** (app update preferences, release notes and install/restart actions).
 
 ## Build
 
