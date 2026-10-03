@@ -9,7 +9,8 @@ One SimHub plugin assembly, `AB9ActiveShifter.dll`, plus a test project. The spl
 - **`Device/`** and **`Output/`** own hardware I/O. The vJoy wrapper is a 32-bit native
   DLL that test runners cannot load, which is why gear output sits behind `IGearOutput` and why
   `Core/` must stay clean.
-- **`UI/`** binds directly to `ShifterSettings` and never talks to the device.
+- **`UI/`** binds directly to `ShifterSettings`; force and output devices remain behind the engine.
+  The settings refresh worker queries attachment through `FfbDeviceProbe` without acquiring a device.
 - **`Updates/`** checks GitHub and replaces the plugin DLL, entirely away from the force loop.
   `ReleaseInfo` is the pure parser and version policy tested without I/O.
 - **`Effects/`** hosts SimHub's native ShakeIt editor and sources. Its output manager copies
@@ -18,15 +19,31 @@ One SimHub plugin assembly, `AB9ActiveShifter.dll`, plus a test project. The spl
 ## Threading
 
 **AB9 configuration** is an optional CDC worker, separate from the force and telemetry
-threads. The rig chooses Generic FFB Stick, AB9-native or AB9 H-pattern. Both virtual modes
-run the same gate and selected gear output; AB9-native replaces only the basic DirectInput base effects
+threads. The rig chooses Generic FFB stick, Moza AB9 or Moza AB9 native H-Pattern. Both virtual modes
+run the same gate and selected gear output; Moza AB9 replaces only the basic DirectInput base effects
 with onboard settings. Firmware H-pattern releases the virtual engine entirely.
 
 The worker uses exact USB identity, re-checks firmware at each session, reads every write back
-and releases the COM port afterward. Both AB9 choices require firmware 1.1.5.2 or newer.
+and releases the COM port afterward. Internal AB9 configuration requires firmware 1.1.5.2 or newer.
 Profiles are shared between virtual modes. The selected mode routes the same base-effect
 percentages to DirectInput or onboard controls; switching modes never clones or retunes a
 profile. Firmware H-pattern blocks profile activation and virtual output.
+
+All three mode preferences can be saved regardless of attachment or the master switch.
+Selection first turns plugin output off, cancels queued writes, and saves the provider; it does
+not use CDC. Newly selecting Moza AB9 marks preparation required, which blocks virtual forces
+until a checked base configuration succeeds. **Prepare base** performs that transaction;
+startup and profile application retain their checked synchronization paths. The preparation
+requirement is saved with the rig, so restarting SimHub or changing game cannot bypass it.
+Moza AB9 native H-Pattern is configured
+externally in Moza Pit House / AZOM and never starts plugin output.
+
+The open settings page polls attachment every five seconds on a worker, including while the
+master switch is off. `FfbDeviceProbe` enumerates attached DirectInput controllers and reads
+VID/PID only: it never acquires, changes properties, or creates effects. AB9 CDC presence also
+counts as attached. Failed enumeration means unknown rather than missing. Confirmed absence
+shows **Base is not found** on Setup/Options and Main and prevents finishing setup. Runtime
+forces and held gear presses still require the engine's acquired device and fresh samples.
 
 The initial read-only mode check is reserved before forces or gear presses can start, then dispatched so its
 completion can safely notify bound settings. A failed read preserves a generic setup; a known
@@ -52,9 +69,10 @@ imports and failures leave virtual output off. Mode/profile identity changes can
 outgoing edits; profile activation and list edits wait for a current write to finish. Setup
 recipes and failure behavior are detailed in [native-ab9.md](native-ab9.md).
 
-**One background thread, `AB9ShifterFFB`, owns every DirectInput, effect, and vJoy call.** No
-exceptions except `FfbDevice.StopForces()`, which the watchdog may call to kill output when the
-loop has stopped ticking, and which swallows everything because the device may already be gone.
+**One background thread, `AB9ShifterFFB`, owns base acquisition, effect writes, and gear output.**
+Query-only setup enumeration is separate and cannot acquire or render forces. The watchdog may
+call `FfbDevice.StopForces()` to kill output when the loop has stopped ticking; it swallows
+everything because the device may already be gone.
 
 The thread maintains selected output ownership before attempting the base. The base runs
 `SearchDevice → OpenDevice → Run`, with 1/2/5 s backoff on failure — **except when
@@ -94,7 +112,7 @@ knock out a gear you are currently holding.
 Calibration is queued before the engine starts, so acquisition cannot briefly run a normal
 profile. Pending acquisition and the gaps between individual probes remain part of one active
 calibration. Completion or cancellation holds all DirectInput forces and selected gear output off
-until a deliberate restart. Successful AB9-native setup then reapplies the shared base-effect
+until a deliberate restart. Successful Moza AB9 setup then reapplies the shared base-effect
 percentages while virtual output stays off. Navigating away cancels an unfinished measurement.
 
 ## Effect handling
@@ -106,11 +124,11 @@ repeated failures fault the effect set. Effects start at zero; ordinary frames s
 requested coefficients, while calibration frames remain unmodified.
 
 `ForceComposer` continues to render every gate wall as constant force, with both spring fields
-off. `BaseEffectComposer` adds Generic FFB Stick's optional global spring, friction and inertia
+off. `BaseEffectComposer` adds Generic FFB stick's optional global spring, friction and inertia
 after the gate is composed. The spring uses separately measured signs on each axis and is
 suppressed unless its own polarity confirmation is present. Its center is DirectInput offset
 zero, not a moving gate anchor. These effects share the effective gain and 10% unconfirmed cap,
-are zero in free-stick mode, and are excluded during calibration. AB9-native suppresses these
+are zero in free-stick mode, and are excluded during calibration. Moza AB9 suppresses these
 DirectInput base effects, including the legacy device damper, without removing software wall
 damping, wall friction, home spring or telemetry forces. Coefficients are written only when
 changed, and all created effects participate in download checks, stop and disposal.
@@ -154,7 +172,7 @@ SimHub **rebuilds plugins at game change**, so the engine must survive it:
 and output ownership. `NativeProfilePolicy.CanOwnGearOutput` permits either virtual mode even
 when the base is missing, but rejects selected or observed AB9 firmware H-pattern mode.
 The shell stamps `EngineConfig.VirtualDeviceEnabled` with the stricter existing force/setup
-eligibility. A pending native check or unavailable AB9-native snapshot can therefore keep an
+eligibility. A pending native check or unavailable Moza AB9 snapshot can therefore keep an
 output-only loop alive without touching DirectInput or publishing any gear/neutral role.
 A failed read alone no longer clears the user's master request; verified firmware H-pattern
 still does. Verified native reads resume an output-only loop when base eligibility returns;
@@ -357,7 +375,7 @@ Readiness establishes that the configured roles exist, not that the selected ext
 is connected or the game accepted them; those are checked in Control Mapper and in the game.
 
 The output choice is independent of `ProfileStore.SelectedOperatingMode`. Both Generic FFB
-Stick and AB9-native run either backend; firmware H-pattern stops the engine and hides plugin
+stick and Moza AB9 run either backend; firmware H-pattern stops the engine and hides plugin
 output settings. Native configuration clears buttons and releases the base before the CDC
 transaction while retaining output ownership, then resumes presses and forces only through the
 checked `NativeWritePause` path. Calibration
@@ -490,7 +508,7 @@ Geometry resets dimensions and placement, Feel resets strengths and response, an
 resets measured polarity or machine identity. Calibration and complete resets live in Options.
 
 All profiles share plugin geometry, extra effects and base-effect percentages between virtual
-modes. In AB9-native, onboard changes apply automatically after the quiet period. Profile
+modes. In Moza AB9, onboard changes apply automatically after the quiet period. Profile
 import validates tuning and preserves machine facts, then activates the new profile with
 virtual output disabled; its onboard values still synchronize automatically. Mode choice is
 a rig preference and never travels in a shared profile.

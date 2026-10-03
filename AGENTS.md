@@ -42,7 +42,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-625 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+630 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -131,6 +131,7 @@ src/AB9ActiveShifter/
   Device/                  DirectInput and Win32
     Ab9NativeDevice.cs     Separate CDC worker, exact AB9 discovery, checked transactions
     FfbDevice.cs           Open by VID/PID, exclusive+background, poll
+    FfbDeviceProbe.cs      Query-only attachment status for setup, even with the master switch off
     PedalDevice.cs         The clutch pedal's own handle. NON-exclusive by design - the game
                            needs those pedals too - and read-only; it never creates an effect
     EffectSet.cs           Gate and optional base effects; one force write per tick, fault handling
@@ -486,9 +487,13 @@ runners cannot load, so anything worth testing must not touch it.
 - **Native AB9 setup stays off the force loop.** A separate CDC worker requires the exact AB9
   USB identity and firmware 1.1.5.2 or newer, re-checks before writing, and reads each write
   back. The virtual engine is torn down first; hardware torque is muted and verified before
-  configuration and restored last. AB9-native runs the virtual gate and selected gear output in flight mode,
-  with only basic base effects onboard; firmware AB9 H-pattern runs neither. Both AB9 modes
-  require compatible connected hardware; profiles and percentages are shared between virtual modes. An uncertain mode after
+  configuration and restored last. Moza AB9 runs the virtual gate and selected gear output in flight mode,
+  with only basic base effects onboard; firmware Moza AB9 native H-Pattern runs neither. All three
+  mode preferences remain selectable offline or with the master switch off. Selection does no
+  CDC write and disables plugin output; Prepare base verifies internal AB9 settings before the
+  newly selected Moza AB9 provider can run. Firmware H-pattern is configured externally in
+  Moza Pit House / AZOM. Query-only attachment checks show Base is not found; absent input emits
+  no force or gear press. Profiles and percentages are shared between virtual modes. An uncertain mode after
   a failed write blocks virtual output on that AB9 until readback; other sticks remain generic.
   Profiles cannot switch during a write. The seven onboard dials apply after 500 ms without
   edits. Native settings refresh once per Feel opening or explicit Options refresh; the UI
@@ -621,7 +626,7 @@ runners cannot load, so anything worth testing must not touch it.
   `*Pct` to 0–100, positions to the 16-bit axis, the rest to their own envelope), an unreadable
   dial keeps the local value instead of failing the import, and `Enabled` and `FreeStick` are
   forced off whatever the file says — importing must never arm virtual force or gear output.
-  Activating the imported profile in AB9-native mode does synchronize its onboard settings,
+  Activating the imported profile in Moza AB9 mode does synchronize its onboard settings,
   using the same checked transaction while the virtual session remains disabled.
   The machine's own facts are never taken from a file either: measured polarity, the device and
   vJoy ids and the loop rate are not written on export and are kept from the receiving machine on

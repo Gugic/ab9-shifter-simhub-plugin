@@ -62,20 +62,24 @@ First-run **Setup** guides you through the base, output and polarity measurement
 **Main** shows the working shifter; those rig controls remain in **Options**. You do not repeat
 setup after a restart or a temporary disconnect.
 
-- **Generic FFB Stick** runs the virtual gate with DirectInput base effects. Configure the
-  stick's own centring and other background effects off, then configure your gear output and measure polarity.
-- **AB9-native** runs the same virtual gate, custom effects and selected gear output, with Cockpit's
-  basic effects controlled onboard. The plugin prepares flight mode and the initial base
+- **Moza AB9** runs the same virtual gate, custom effects and selected gear output, with Cockpit's
+  basic effects controlled onboard. **Prepare base** selects flight mode and the initial base
   settings, then leaves virtual forces off for polarity measurement. It uses the same profiles,
-  presets and effect percentages as Generic FFB Stick.
-- **AB9 H-pattern** hands the gate and gear buttons to MOZA's firmware. Plugin profiles,
+  presets and effect percentages as Generic FFB stick.
+- **Generic FFB stick** uses DirectInput only; choose it for a base other than the AB9. Configure
+  the stick's own centring and other background effects off, then configure output and measure polarity.
+- **Moza AB9 native H-Pattern** uses the firmware shifter configured in **Moza Pit House / AZOM**.
+  Plugin output is disabled. Plugin profiles,
   tuning and plugin gear output are unavailable; only mode and device status remain. Bind the AB9's
   physical buttons in the game, making it visible through HidHide if necessary.
 
-Both AB9 choices become available only after a genuine AB9 with firmware **1.1.5.2 or newer**
-answers its configuration reads. Close Cockpit, Pit House and AZOM's AB9 connection to free the
-port, then refresh if needed. Mode changes select the effect provider without splitting or
-retuning profiles. In AB9-native mode, base-effect and hardware-gain edits apply automatically
+All three choices can be saved while the base is connected or disconnected and the master switch
+is on or off. **Base is not found** appears on Setup/Options and Main when the selected base is
+missing; plugin forces and gear presses stay inactive until it reconnects. Mode selection does
+not write to the base. Use **Prepare base** to configure internal settings in Moza AB9 mode;
+that action requires a genuine AB9 with firmware **1.1.5.2 or newer**. Close Cockpit, Pit House
+and AZOM's AB9 connection to free the port, then use **Refresh base** if needed.
+Mode changes do not split or retune profiles. In Moza AB9 mode, base-effect and hardware-gain edits apply automatically
 after a short pause. Successful ordinary changes preserve the force-feedback toggle; mode
 changes, setup and failed writes leave virtual forces off. See
 [native configuration](docs/native-ab9.md) for the protocol and hardware verification limits.
@@ -99,7 +103,7 @@ it has any bearing on anything once the base is in flight mode.
 
 ### 3. Manual force feedback setup on older firmware — MOZA Cockpit
 
-For manual Generic FFB Stick setup, disable the onboard base effects so the plugin owns them. The AB9 self-centres in
+For manual Generic FFB stick setup, disable the onboard base effects so the plugin owns them. The AB9 self-centres in
 firmware, and DirectInput's request to switch that off is ignored — measured, across five
 configurations. The plugin's virtual setup writes the same onboard **Spring** setting that
 Cockpit uses; Pit House has no Spring setting in flight mode. Skip this and the base fights the gate everywhere with its
@@ -111,7 +115,7 @@ own centring.
 | --- | --- |
 | Force Feedback Mode | **DirectInput** |
 | Spring | **0%** |
-| Damper | **0%** when preparing Generic FFB Stick; AB9-native applies the profile percentage |
+| Damper | **0%** when preparing Generic FFB stick; Moza AB9 applies the profile percentage |
 | Maximum Torque Output | 100% |
 | Overall Force Feedback Intensity | 100% |
 | Game Force Feedback Gain | 100% |
@@ -120,7 +124,7 @@ own centring.
 **Spring 0** is the one that matters most — it is the base's centring, and the gate cannot work
 around it.
 
-**Onboard damping is available in AB9-native.** It is real damping applied in the base's own servo
+**Onboard damping is available in Moza AB9.** It is real damping applied in the base's own servo
 loop, ahead of the USB round trip that everything this plugin renders has to cross, and it
 settles the last bit of flutter a hand can provoke by leaning hard on a wall. It is the one kind
 of damping that does not make the lever feel thick — the plugin's own damping dial is a last
@@ -200,7 +204,7 @@ stops the moment its direction is certain, so an inverted effect never reaches t
 
 Four probes run: a push and a spring on each axis. All four must answer conclusively before
 the cap lifts. Their signs are stored separately because this unit inverts constant force on X
-and spring on Y. Gate walls always use constant force; Generic FFB Stick's optional global
+and spring on Y. Gate walls always use constant force; Generic FFB stick's optional global
 spring uses its own measured signs. Older calibration records remain valid for the gate, but
 the new global spring stays off until spring polarity has been measured and saved.
 
@@ -225,7 +229,7 @@ the selected vJoy device acquired through base disconnects and power cycles, inc
 waiting for the base to become available. Buttons clear while position is unavailable and
 resync when it returns. Lost vJoy ownership is checked and reacquired automatically; there is
 no need to reselect the output device. Turning the master off clears buttons and releases both
-devices. **AB9 H-pattern** mode also releases plugin output because the firmware owns its buttons.
+devices. **Moza AB9 native H-Pattern** mode also releases plugin output because the firmware owns its buttons.
 **Release all forces (free stick)** keeps the connections while removing the plugin's forces.
 
 Raise the overall gain slowly from there. This is a 12 Nm base.
@@ -259,8 +263,8 @@ create a role. Bind the resulting keys or controller
 buttons in your game.
 Blank mappings send nothing, and missing roles are reported. The output choice and mappings
 belong to your rig: switching profiles keeps them, and shared profiles never replace them.
-The output choice is independent of **Generic FFB Stick** versus **AB9-native**. Firmware
-**AB9 H-pattern** uses the base's own buttons and disables both plugin output choices.
+The output choice is independent of **Generic FFB stick** versus **Moza AB9**. Firmware
+**Moza AB9 native H-Pattern** uses the base's own buttons and disables both plugin output choices.
 
 H gears and PRND positions hold their roles; sequential shifts use the existing pulse length.
 For **Automatic (P R N D)**, assign existing Control Mapper roles to **PRND: P**, **PRND: R**,
@@ -368,7 +372,7 @@ activates that profile when the car changes; leave the list empty for manual sel
 tuning only: your measured polarity, your device and vJoy numbers, your loop rate and your car
 mappings stay as they are on your machine. An import always *adds* a profile, numbering the name if
 it is taken, so someone else's file can never land on top of yours — and it always arrives with
-virtual forces off, with every value range-checked on the way in. In AB9-native mode, the
+virtual forces off, with every value range-checked on the way in. In Moza AB9 mode, the
 imported profile's onboard base settings apply automatically while virtual output stays off.
 
 ## Game effects
@@ -398,7 +402,7 @@ reports the clutch pedal.
 - **Main** — the live gate beside the profile, pattern and force controls. **Options → Diagnostics**
   holds the trace recorder and loop rate.
 
-Software changes apply on the next FFB tick. AB9-native's seven onboard dials apply after
+Software changes apply on the next FFB tick. Moza AB9's seven onboard dials apply after
 500 ms without another edit, pausing output until the latest settings are verified. An enabled
 session resumes after a successful update; turning it off or pressing panic always takes
 precedence. No Apply button or restart is needed.

@@ -7,9 +7,9 @@ controls. **Options** holds mode, device/output, recalibration, pedals, hotkeys 
 Main's **Automatic profile switching** and **Sharing and button mapping** sections open
 independently; vehicle IDs stay separate from the compact action buttons.
 
-The rig's three-way mode switch chooses **Generic FFB Stick**, **AB9-native** or **AB9 H-pattern**.
+The rig's three-way mode switch chooses **Generic FFB stick**, **Moza AB9** or **Moza AB9 native H-Pattern**.
 Both virtual modes share the gate and all extra plugin effects. Generic uses DirectInput base
-effects; AB9-native uses the basic effects supported onboard by Cockpit. Firmware H-pattern
+effects; Moza AB9 uses the basic effects supported onboard by Cockpit. Firmware H-pattern
 exposes only device status and the mode switch, with plugin output and tuning unavailable.
 
 Opening **Feel** reads the AB9's native settings once. Leaving it open does not poll the base;
@@ -35,7 +35,7 @@ acquisition and recovery continue independently of the base connection. A base r
 buttons while its position is unavailable, retains the vJoy device, and resyncs gear output on
 reconnect. Silent loss of vJoy ownership is checked once per second and reacquired using the
 output retry schedule; no output-device reselection is needed. Turning the master off clears
-buttons and releases both devices. Firmware **AB9 H-pattern** also releases plugin output.
+buttons and releases both devices. Firmware **Moza AB9 native H-Pattern** also releases plugin output.
 **Release all forces (free stick)** removes plugin forces while keeping its connections.
 
 ## Options and plugin updates
@@ -62,7 +62,7 @@ retried; a release with no verified DLL can still be opened for manual installat
 **Setup → Base and output → Output** selects **vJoy (direct)** or **SimHub Control Mapper
 (native)**. After setup the same controls live under **Options → Base and output**. This choice
 is independent of the **OPERATING MODE** selector: both virtual modes support either output.
-Firmware **AB9 H-pattern** uses the base's own buttons and hides plugin output controls.
+Firmware **Moza AB9 native H-Pattern** uses the base's own buttons and hides plugin output controls.
 
 Direct vJoy uses the **Device** picker and **Refresh** to choose its virtual controller;
 14 buttons cover all patterns. Keep its device separate from any vJoy device used by Control
@@ -168,13 +168,21 @@ button changes hands.
 
 ### Base effects: one tune, two providers
 
-Both AB9 modes require a genuine connected base with firmware **1.1.5.2 or newer**. Refresh
-its status after closing Cockpit, Pit House or AZOM's AB9 connection. AB9-native selects flight
-mode and prepares the base; it still uses the plugin's virtual gate, calibration and selected gear output.
-AB9 H-pattern uses firmware buttons and exposes no plugin tuning.
+The **OPERATING MODE** selector offers **Moza AB9**, **Generic FFB stick**, and
+**Moza AB9 native H-Pattern** with the base connected or disconnected and the master switch on
+or off. Choosing a mode saves the preference and leaves plugin output off. **Base is not found**
+appears on Setup/Options and Main when the selected base is missing; forces and gear presses stay
+inactive until fresh input is available.
+
+**Moza AB9** uses internal AB9 base settings alongside the plugin's virtual gate, calibration and
+selected gear output. **Prepare base** selects flight mode and verifies those settings, requiring
+a genuine AB9 with firmware **1.1.5.2 or newer**. Use **Refresh base** after closing Cockpit,
+Pit House or AZOM's AB9 connection. **Generic FFB stick** uses DirectInput only; choose it for
+other bases and follow their manual setup checklist. **Moza AB9 native H-Pattern** uses firmware
+buttons, is configured in **Moza Pit House / AZOM**, and disables plugin output and tuning.
 
 Feel labels the AB9's basic effects **Base-driven effects**: they are processed internally by
-the base and avoid the plugin's USB round trip. Generic FFB Stick provides the same controls
+the base and avoid the plugin's USB round trip. Generic FFB stick provides the same controls
 through DirectInput. Profiles and presets keep exactly the same percentages in both modes;
 there are no native copies or separate preset sets. Physical strength can differ by provider.
 
@@ -185,7 +193,7 @@ there are no native copies or separate preset sets. Physical strength can differ
 | Base inertia (%) | 0% | Base inertia |
 | Base friction (%) | 0% | Base friction |
 
-AB9-native also exposes hardware torque, overall intensity and game gain, each defaulting to
+Moza AB9 also exposes hardware torque, overall intensity and game gain, each defaulting to
 100%. Generic mode ignores these hardware scales. The plugin's home spring, wall damping,
 wall friction and game effects remain separate and available in both virtual modes.
 
@@ -198,7 +206,7 @@ Onboard edits save and apply automatically after a short pause; there is no Appl
 An update keeps the force-feedback toggle as set, while a failed write leaves forces off.
 Setup and recalibration temporarily neutralize onboard conditions for the probes and leave
 virtual output off afterward. Free stick releases plugin forces, while onboard resistance can
-remain. Importing a profile applies its onboard values in AB9-native mode but keeps virtual
+remain. Importing a profile applies its onboard values in Moza AB9 mode but keeps virtual
 output disabled. [Native configuration](native-ab9.md) records the transaction ordering,
 protocol evidence and current hardware verification limits.
 

@@ -50,6 +50,7 @@
                         <Border Padding="0,0,0,12" Margin="0,0,0,16" BorderThickness="0,0,0,1" BorderBrush="#44505C" Grid.ColumnSpan="2">
                             <StackPanel x:Name="StatusPanel" Margin="0,4,0,8">
                                 <TextBlock FontWeight="SemiBold" Margin="0,0,0,8" x:Name="MainModeText" />
+                                <TextBlock x:Name="MainBaseConnectionWarning" TextWrapping="Wrap" Foreground="#F0B35A" Margin="0,0,0,8" Visibility="Collapsed" />
                                 <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,6" />
                                 <UniformGrid Columns="2">
                                     <TextBlock Text="{Binding DeviceText}" Margin="0,2" />
@@ -149,9 +150,9 @@
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" x:Name="MainRecordStatus" />
                             <styles:SHExpander Header="Using the master switch and free stick" Margin="0,4,0,8">
                                 <StackPanel Margin="0,4,0,4">
-                                    <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="Shifter enabled controls the base and selected gear output together. While enabled, the plugin keeps its output acquired through base disconnects and restarts. Buttons clear while the base is unavailable, then follow its position on reconnect. Turning this off clears buttons and releases both devices. AB9 H-pattern mode releases plugin output too." />
+                                    <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="Shifter enabled controls the base and selected gear output together. While enabled, the plugin keeps its output acquired through base disconnects and restarts. Buttons clear while the base is unavailable, then follow its position on reconnect. Turning this off clears buttons and releases both devices. Moza AB9 native H-Pattern mode releases plugin output too." />
                                     <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="This is a 12 Nm base and this is third-party software driving it: if the lever ever shakes, kicks or drives itself to a stop, untick this - and if it will not stop, cut the base's power. Keep your face and free hand clear the first time you enable a profile you have not felt before. See ABOUT in Options." />
-                                    <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="Releases the plugin’s forces while keeping its device connection. Onboard base effects can still resist movement in AB9-native mode." />
+                                    <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="Releases the plugin’s forces while keeping its device connection. Onboard base effects can still resist movement in Moza AB9 mode." />
                                 </StackPanel>
                             </styles:SHExpander>
                         </StackPanel>
@@ -167,23 +168,24 @@
                         </StackPanel>
                         <styles:SHSection Title="OPERATING MODE" ShowSeparator="True">
                             <StackPanel Margin="0,6,0,16">
-                                <ComboBox Width="300" HorizontalAlignment="Left" SelectionChanged="OnOperatingModeSelected" Margin="0,4,0,8" x:Name="OperatingModeCombo">
-                                    <ComboBoxItem Content="AB9-native" Tag="Ab9Native" />
-                                    <ComboBoxItem Content="Generic FFB Stick" Tag="GenericFfbStick" />
-                                    <ComboBoxItem Content="AB9 H-pattern" Tag="Ab9HPattern" />
+                                <ComboBox Width="360" HorizontalAlignment="Left" SelectionChanged="OnOperatingModeSelected" Margin="0,4,0,8" x:Name="OperatingModeCombo">
+                                    <ComboBoxItem Content="Moza AB9" Tag="Ab9Native" />
+                                    <ComboBoxItem Content="Generic FFB stick" Tag="GenericFfbStick" />
+                                    <ComboBoxItem Content="Moza AB9 native H-Pattern" Tag="Ab9HPattern" />
                                 </ComboBox>
-                                <TextBlock Text="AB9-native uses onboard base effects with our virtual shifter. Generic FFB Stick uses DirectInput base effects. AB9 H-pattern hands control to the firmware shifter." TextWrapping="Wrap" Margin="0,4,0,8" />
+                                <TextBlock Text="Moza AB9 allows the plugin to use internal AB9 base settings. Generic FFB stick uses DirectInput only; use it for other bases. Moza AB9 native H-Pattern uses the firmware shifter, configured in Moza Pit House / AZOM, with plugin output disabled. You can select any mode while the base is connected or disconnected and the master switch is on or off." TextWrapping="Wrap" Margin="0,4,0,8" />
+                                <TextBlock x:Name="BaseConnectionWarning" TextWrapping="Wrap" Foreground="#F0B35A" Margin="0,0,0,8" Visibility="Collapsed" />
                                 <TextBlock x:Name="NativeStatusText" TextWrapping="Wrap" Margin="0,0,0,6" />
-                                <styles:SHButtonSecondary Content="Refresh AB9" Click="OnNativeRefresh" Padding="14,6" Margin="0,4,8,4" x:Name="NativeRefreshButton" />
+                                <styles:SHButtonSecondary Content="Refresh base" Click="OnNativeRefresh" Padding="14,6" Margin="0,4,8,4" x:Name="NativeRefreshButton" />
                                 <TextBlock TextWrapping="Wrap" Margin="0,4,0,8" x:Name="NativeOperationText" />
-                                <TextBlock Text="The AB9 firmware owns the shifter and its buttons. Plugin profiles, tuning, gear output and effects are unavailable in this mode. Choose another mode to return." TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,8" x:Name="HPatternNotice" />
+                                <TextBlock Text="Set up the firmware H-pattern shifter in Moza Pit House / AZOM. Plugin forces, profiles, gear output and effects are disabled in this mode. Choose another mode to return." TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,8" x:Name="HPatternNotice" />
                             </StackPanel>
                         </styles:SHSection>
                         <StackPanel x:Name="VirtualOptionsPanel">
                             <styles:SHExpander x:Name="PrepareGroup" Header="Prepare the base" Margin="0,8,0,8">
                                 <styles:SHSection Title="" ShowSeparator="True" x:Name="PrepareSection">
                                     <StackPanel Margin="0,6,0,16">
-                                        <TextBlock Text="In AB9-native mode, Prepare base selects flight mode and configures base effects. In Generic FFB Stick mode, use the checklist below with your base’s settings app." TextWrapping="Wrap" Margin="0,4,0,8" />
+                                        <TextBlock Text="In Moza AB9 mode, Prepare base selects flight mode and configures internal base effects after checking the connected base. In Generic FFB stick mode, use the checklist below with your base’s settings app. Selecting a mode saves your preference; base preparation is a separate step." TextWrapping="Wrap" Margin="0,4,0,8" />
                                         <styles:SHButtonSecondary Content="Prepare base" Click="OnPrepareSelectedMode" Padding="14,6" Margin="0,4,8,4" x:Name="PrepareBaseButton" />
                                         <styles:SHSection x:Name="VirtualChecklistSection" Title="BEFORE YOU START" ShowSeparator="True">
                                             <TextBlock TextWrapping="Wrap">Use your base’s settings app to remove built-in centring and select DirectInput force feedback. Close any application holding the base exclusively. Choose direct vJoy or SimHub Control Mapper below, configure that output, then bind its buttons or keys in your game.</TextBlock>

@@ -676,8 +676,8 @@ namespace AB9ActiveShifter.Core
         public int DamperCoeff = 800;
 
         /// <summary>
-        /// Typed global base effects in Generic FFB Stick mode. These supplement the gate;
-        /// they never replace its shaped walls, damping or wall friction. AB9-native mode
+        /// Typed global base effects in Generic FFB stick mode. These supplement the gate;
+        /// they never replace its shaped walls, damping or wall friction. Moza AB9 mode
         /// applies the corresponding settings onboard and disables these DI conditions.
         /// </summary>
         public bool BaseEffectsViaDirectInput = true;

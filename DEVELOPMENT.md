@@ -190,6 +190,7 @@ src/AB9ActiveShifter/
                            be left running through a session and still hold the failure
   Device/                  DirectInput and Win32
     Ab9NativeDevice.cs     Separate CDC worker, exact AB9 discovery and checked transactions
+    FfbDeviceProbe.cs      Query-only attachment status, including with the master switch off
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
   Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the device/output picker (query-only)
   Output/ControlMapperGearOutput.cs Held native roles behind IGearOutput, including optional H neutral

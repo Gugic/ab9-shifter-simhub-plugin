@@ -1,20 +1,41 @@
 using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using AB9ActiveShifter.Core;
+using AB9ActiveShifter.Device;
 
 namespace AB9ActiveShifter.UI
 {
     public partial class SettingsControl
     {
         private bool _refreshingMode;
+        private bool _checkingBase;
+        private bool? _basePresent;
+        private int _probedVendor;
+        private int _probedProduct;
 
         private async void RefreshNativeHardware()
         {
-            if (Plugin == null || _preparingCalibration || _stopAfterCalibration
+            if (Plugin == null || _boundSettings == null || _checkingBase || _preparingCalibration || _stopAfterCalibration
                 || (AB9ShifterPlugin.Engine != null && AB9ShifterPlugin.Engine.IsCalibrating)) return;
-            try { await Plugin.RefreshNativeAsync(); }
-            catch (Exception ex) { Log.Error("Could not refresh AB9 native controls", ex); }
+            int vendor = _boundSettings.VendorId;
+            int product = _boundSettings.ProductId;
+            _checkingBase = true;
+            try
+            {
+                bool ab9 = vendor == Ab9NativeProtocol.VendorId && product == Ab9NativeProtocol.ProductId;
+                if (ab9) await Plugin.RefreshNativeAsync();
+                bool? present = await Task.Run(() => FfbDeviceProbe.IsPresent(vendor, product));
+                if (_boundSettings.VendorId == vendor && _boundSettings.ProductId == product)
+                {
+                    _probedVendor = vendor;
+                    _probedProduct = product;
+                    _basePresent = ab9 && Plugin.NativeSnapshot.Port != null ? true : present;
+                }
+            }
+            catch (Exception ex) { Log.Error("Could not refresh the selected base", ex); }
+            finally { _checkingBase = false; }
             RefreshNativeUi();
         }
 
@@ -22,13 +43,20 @@ namespace AB9ActiveShifter.UI
         {
             if (Plugin == null || _boundSettings == null) return;
             bool calibrating = _preparingCalibration || (AB9ShifterPlugin.Engine != null && AB9ShifterPlugin.Engine.IsCalibrating);
-            NativeStatusText.Text = Plugin.NativeSnapshot.Status;
+            bool matchesProbe = _probedVendor == _boundSettings.VendorId && _probedProduct == _boundSettings.ProductId;
+            bool missing = matchesProbe && _basePresent == false;
+            BaseConnectionWarning.Visibility = missing ? Visibility.Visible : Visibility.Collapsed;
+            BaseConnectionWarning.Text = "Base is not found. Connect and power on the selected base. Plugin forces and gear presses are inactive while it is disconnected.";
+            NativeStatusText.Text = Plugin.CurrentOperatingMode == OperatingMode.GenericFfbStick
+                ? !matchesProbe || !_basePresent.HasValue ? "Checking for the selected DirectInput base…"
+                    : _basePresent == true ? "DirectInput base found." : "Selected DirectInput base is disconnected."
+                : Plugin.NativeSnapshot.Status;
             NativeOperationText.Text = Plugin.NativeOperationStatus ?? "";
             NativeSettingsStatus.Text = NativeOperationText.Text + (Plugin.NativeSettingsPending ? " · Changes pending" : "");
             NativeRefreshButton.IsEnabled = !Plugin.NativeBusy && !calibrating;
             PrepareBaseButton.IsEnabled = !Plugin.NativeBusy && !calibrating;
             ProfileSection.IsEnabled = Plugin.CanActivateProfile(Plugin.Store.FindActive()) && !calibrating;
-            OperatingModeCombo.IsEnabled = !Plugin.NativeBusy && !calibrating;
+            OperatingModeCombo.IsEnabled = !Plugin.NativeWriteBusy && !calibrating;
             _refreshingMode = true;
             try
             {
@@ -36,7 +64,7 @@ namespace AB9ActiveShifter.UI
                 {
                     OperatingMode mode;
                     if (!Enum.TryParse(item.Tag as string, out mode)) continue;
-                    item.IsEnabled = mode == OperatingMode.GenericFfbStick || Plugin.Ab9ModesAvailable;
+                    item.IsEnabled = NativeProfilePolicy.CanSelect(mode);
                     if (mode == Plugin.CurrentOperatingMode) OperatingModeCombo.SelectedItem = item;
                 }
             }
@@ -48,7 +76,7 @@ namespace AB9ActiveShifter.UI
             NativeSettingsStatus.Visibility = onboard ? Visibility.Visible : Visibility.Collapsed;
             BaseEffectsHeading.Text = onboard ? "Base-driven effects" : "DirectInput base effects";
             BaseEffectsDescription.Text = onboard
-                ? "The AB9 computes spring, damper, friction and inertia internally, avoiding the USB round trip. The custom gate, software stability and telemetry effects still use DirectInput. Changes apply automatically after you pause editing; successful updates keep your force feedback toggle as set."
+                ? "The AB9 computes spring, damper, friction and inertia internally, avoiding the USB round trip. The custom gate, software stability and telemetry effects still use DirectInput. Changes apply automatically after you pause editing; successful updates keep the master switch as set."
                 : "DirectInput renders spring, damper, friction and inertia. This profile keeps the same values when you change between virtual modes.";
             BaseSpringSlider.IsEnabled = onboard || _boundSettings.BaseSpringPolarityConfirmed;
             BaseSpringCalibrationHint.Visibility = !onboard && !_boundSettings.BaseSpringPolarityConfirmed
