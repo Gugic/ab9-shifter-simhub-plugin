@@ -25,12 +25,12 @@ Virtual force percentages are scaled by **Overall gain**; until polarity is conf
 effective value is capped at 10%. Hardware gains and onboard resistance are separate scales;
 unconfirmed polarity also caps requested hardware torque at 10% and keeps the onboard spring off.
 
-Setup completion persists. Losing the base or vJoy shows connection status on the working
+Setup completion persists. Losing the base or selected output shows connection status on the working
 screen rather than reopening first-run Setup. Use Options to change the rig or measure again.
 
 ## Options and plugin updates
 
-**Options → UPDATES** is available before calibration or vJoy setup, and its preferences belong
+**Options → UPDATES** is available before calibration or output setup, and its preferences belong
 to the app rather than any profile. **Check for updates automatically** defaults on and checks
 the latest stable GitHub release at startup and every six hours. **Check now** checks immediately
 and shows a previously dismissed version again. **Release channel: Stable** excludes previews;
@@ -46,6 +46,39 @@ and uses SimHub's usual shutdown. Profiles, pedal binding and measured polarity 
 Dismiss hides only that version's banner, and a later release gets a new banner. The update
 remains accessible from Options. A failed check or download appears in the status so it can be
 retried; a release with no verified DLL can still be opened for manual installation.
+
+## Setup and gear output
+
+**Setup → Base and output → Output** selects **vJoy (direct)** or **SimHub Control Mapper
+(native)**. After setup the same controls live under **Options → Base and output**. This choice
+is independent of the **OPERATING MODE** selector: both virtual modes support either output.
+Firmware **AB9 H-pattern** uses the base's own buttons and hides plugin output controls.
+
+Direct vJoy uses the **Device** picker and **Refresh** to choose its virtual controller;
+14 buttons cover all patterns. Keep its device separate from any vJoy device used by Control
+Mapper. The native choice shows mappings for the current profile's pattern and **Refresh roles**.
+Enable Control Mapper in SimHub's Add/remove features, configure its output and roles, then
+choose or type each role here. Blank mappings send nothing. Roles can drive keyboard keys,
+controller buttons through Control Mapper's vJoy or Arduino bridge, or SimHub controls.
+
+The H rows are **Gear 1** through the pattern's highest forward gear and **Reverse** where it
+exists. **H-pattern neutral (optional)** sends a held neutral role for games that need a separate
+neutral key. Sequential shows **Sequential up** and **Sequential down**; the selector shows
+**PRND: P**, **PRND: R**, **PRND: N**, and **PRND: D**. H gears and selector positions hold their
+roles, and sequential uses Main's **Sequential pulse length (ms)**. Verify keyboard direct-gear
+and neutral bindings in the game. Missing roles are reported under the mappings.
+
+First-run **Finish setup** requires measured polarity and an available direct vJoy device or
+at least one available Control Mapper role for the active pattern. Role availability does not
+prove that Control Mapper's external device or game bindings work; check those there and in the
+game. Once setup is complete, output loss leaves Main available and updates its connection status.
+Main's **Sharing and button mapping** follows the selected output.
+
+The output choice and role assignments belong to the rig and survive profile and operating-mode
+changes. Editing mappings or changing backend releases the previous output before publishing the
+current lever state. Calibration clears every role, including optional H neutral. AB9 onboard
+configuration pauses the selected output along with the forces and resumes it through the same
+checked transaction as direct vJoy.
 
 ## What the tuning editors show you while you turn a dial
 
@@ -105,7 +138,7 @@ button changes hands.
 
 Both AB9 modes require a genuine connected base with firmware **1.1.5.2 or newer**. Refresh
 its status after closing Cockpit, Pit House or AZOM's AB9 connection. AB9-native selects flight
-mode and prepares the base; it still uses the plugin's virtual gate, calibration and vJoy.
+mode and prepares the base; it still uses the plugin's virtual gate, calibration and selected gear output.
 AB9 H-pattern uses firmware buttons and exposes no plugin tuning.
 
 Feel labels the AB9's basic effects **Base-driven effects**: they are processed internally by
@@ -166,7 +199,7 @@ protocol evidence and current hardware verification limits.
 
 The **pattern** lives on Main, per profile: 7+R (lockout), 6+R (no 7th slot — its divider
 just continues across), 5+R (three wider columns, no lockout), Sequential, Automatic (P R N D), or
-the truck 6 (three wider columns, six plain slots, no reverse at all). Forward gears map to vJoy
+the truck 6 (three wider columns, six plain slots, no reverse at all). In direct vJoy mode, forward gears map to vJoy
 buttons 1..N and **reverse — where the pattern has one — is always button 8** — so one set of game
 bindings covers every pattern and switching profiles never needs a rebind. (Reverse used to be the
 highest gear of the pattern, which put 5+R's R on button 6 — read by a game bound for 7+R as sixth
@@ -233,8 +266,8 @@ Set the throw first, then raise the end-stop until the bottom feels solid. Both 
 because the base is not self-centring: **MOZA Cockpit's Spring must be at 0**, which it has to be
 anyway. On a base still centring in firmware, leave the end-stop off.
 
-**Automatic (P R N D)** turns the fore/aft axis into a selector lane: four fixed positions, a vJoy
-button held at whichever one the lever is in, and nothing else. There is no neutral to come back
+**Automatic (P R N D)** turns the fore/aft axis into a selector lane: four fixed positions, with
+the selected output's button or role held at whichever one the lever is in. There is no neutral to come back
 through and no gear to engage — the lever is always somewhere, which is why the Main monitor reads
 *Engaged* the whole time. Its own section, **PRND LANE** controls are split between Geometry (travel, notches and placement) and Feel (forces and lockout behavior):
 
@@ -710,10 +743,10 @@ Nothing is lost and nothing is interrupted: you carry on turning the same dial, 
 just made is already in the new profile. The only visible sign is the name in the box.
 
 What does *not* fork: arming the shifter, freeing the stick, running polarity calibration, picking a
-vJoy device and binding the clutch pedal. Those describe your machine rather than a tune — a copy of
+gear output and its mappings, and binding the clutch pedal. Those describe your machine rather than a tune — a copy of
 the gate is not what you wanted when you pressed Calibrate.
 
-They are also not stored in the profile at all. Measured polarity, the device and vJoy ids, the loop
+They are also not stored in the profile at all. Measured polarity, the device and vJoy ids, output mode and role mappings, the loop
 rate and the clutch binding belong to the rig, so they are held once and stamped onto whichever
 profile you switch to. That is why selecting a preset does not throw away your calibration and drop
 you back to the 10% force cap, and why calibrating while a preset is selected is not lost when the

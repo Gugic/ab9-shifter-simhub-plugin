@@ -13,9 +13,9 @@ namespace AB9ActiveShifter
     /// <summary>
     /// SimHub entry point. Turns a MOZA AB9 in flight mode into an H-pattern shifter with a
     /// real 7+R gate, including the push-through lockout that the base's own shifter mode
-    /// does not provide, and publishes the selected gear as vJoy buttons.
+    /// does not provide, and publishes the selected gear through vJoy or Control Mapper roles.
     /// </summary>
-    [PluginDescription("Renders an H-pattern, sequential or PRND shift gate in force feedback on an AB9 flight base, plays telemetry effects through the lever, and outputs the selected gear as vJoy buttons. Unofficial third-party plugin, not affiliated with MOZA. Drives a 12 Nm device - see the Setup tab.")]
+    [PluginDescription("Renders an H-pattern, sequential or PRND shift gate in force feedback on an AB9 flight base, plays telemetry effects through the lever, and outputs the selected gear through vJoy or native SimHub Control Mapper roles. Unofficial third-party plugin, not affiliated with MOZA. Drives a 12 Nm device - see the Setup tab.")]
     [PluginAuthor("Gugic")]
     [PluginName("AB9 Active Shifter")]
     public partial class AB9ShifterPlugin : IPlugin, IDataPlugin, IWPFSettingsV2, IReusable
@@ -173,7 +173,11 @@ namespace AB9ActiveShifter
             {
                 if (_engine == null)
                 {
-                    _engine = new ShifterEngine();
+                    _engine = new ShifterEngine(cfg => cfg.OutputMode == GearOutputMode.ControlMapper
+                        ? (Output.IGearOutput)new Output.ControlMapperGearOutput(
+                            new Output.SimHubControlMapperRoles(pluginManager), GearOutputConfig.RolesForPattern(cfg.ControlMapperRoles, cfg.Pattern),
+                            cfg.Pattern != GatePattern.Sequential && cfg.Pattern != GatePattern.Prnd)
+                        : new Output.VJoyGearOutput(cfg.VJoyDeviceId));
                     Log.Info("FFB engine created.");
                 }
             }
@@ -933,6 +937,8 @@ namespace AB9ActiveShifter
             this.AttachDelegate("DeviceConnected", () => Snapshot().DeviceConnected);
             this.AttachDelegate("DeviceName", () => Snapshot().DeviceName);
             this.AttachDelegate("VJoyConnected", () => Snapshot().VJoyConnected);
+            this.AttachDelegate("OutputConnected", () => Snapshot().OutputConnected);
+            this.AttachDelegate("OutputError", () => Snapshot().OutputError ?? "");
             this.AttachDelegate("StickX", () => Snapshot().X);
             this.AttachDelegate("StickY", () => Snapshot().Y);
             this.AttachDelegate("LoopHz", () => (int)Math.Round(Snapshot().LoopHz));

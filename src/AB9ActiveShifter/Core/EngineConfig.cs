@@ -15,6 +15,8 @@ namespace AB9ActiveShifter.Core
         public int VendorId = 0x346E;
         public int ProductId = 0x1000;
         public uint VJoyDeviceId = 1;
+        public GearOutputMode OutputMode = GearOutputMode.VJoy;
+        public string[] ControlMapperRoles = GearOutputConfig.CopyRoles(null);
 
         /// <summary>
         /// Loop rate. Measured on this base: reads are free and fresh at ~1 kHz, and one

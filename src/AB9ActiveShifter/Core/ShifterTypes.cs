@@ -325,6 +325,9 @@ namespace AB9ActiveShifter.Core
         public EnginePhase Phase = EnginePhase.Stopped;
         public bool DeviceConnected;
         public bool VJoyConnected;
+        public GearOutputMode OutputMode;
+        public bool OutputConnected;
+        public string OutputError;
         public int RawX = GateGeometry.AxisCenter;
         public int RawY = GateGeometry.AxisCenter;
         public int X = GateGeometry.AxisCenter;

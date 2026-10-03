@@ -4,22 +4,28 @@ The mode switch belongs to the rig, while the gate tune belongs to a profile:
 
 | Mode | Gate and gear output | Basic base effects |
 | --- | --- | --- |
-| **Generic FFB Stick** | Plugin geometry, DirectInput forces and vJoy buttons | DirectInput spring, damper, friction and inertia |
-| **AB9-native** | The same plugin geometry, forces, telemetry effects and vJoy buttons | Cockpit-compatible onboard settings |
+| **Generic FFB Stick** | Plugin geometry, DirectInput forces and selected vJoy or Control Mapper output | DirectInput spring, damper, friction and inertia |
+| **AB9-native** | The same plugin geometry, forces, telemetry effects and selected gear output | Cockpit-compatible onboard settings |
 | **AB9 H-pattern** | MOZA's firmware gate and physical AB9 buttons | Managed outside the plugin; plugin tuning is unavailable |
 
 Both virtual modes keep the plugin's additional effects: wall damping and friction, detents,
 lockouts, home spring and game-driven feedback. Only the basic effects supported by Cockpit
 change provider. DirectInput base effects are suppressed in AB9-native so they do not double
-its onboard effects. AB9 H-pattern releases the virtual engine and vJoy output entirely.
+its onboard effects. AB9 H-pattern releases the virtual engine and either plugin gear output entirely.
 If HidHide hides the AB9, make it visible to the game to bind its firmware gear buttons.
 
 ## Setup and profiles
 
-First-run Setup gathers the mode, base identity, output device and measured polarity. After
+First-run Setup gathers the mode, base identity, output device or roles and measured polarity. After
 completion, Main shows the working shifter and Options retains those rig settings. A temporary
 disconnect does not reset setup completion. Geometry, Feel and Effects open from Main; the
 Geometry monitor remains above its scrolling controls.
+
+The **Output** choice under **Base and output** selects **vJoy (direct)** or **SimHub Control
+Mapper (native)** independently of the operating mode. It remains a rig preference across
+shared-profile and provider changes. Both backends participate in calibration cleanup and
+the pause/resume around onboard writes. Control Mapper dispatches roles asynchronously, so
+the engine submits releases before stopping forces without claiming when the game sees them.
 
 Both AB9 choices require a successful read from a live `usbser` interface with VID `346E`,
 PID `1000`, and firmware **1.1.5.2 or newer**. AB6, wheelbases, unknown firmware and older

@@ -6,8 +6,8 @@ An alternative to the MOZA AB9's own shifter mode. This SimHub plugin renders th
 itself in force feedback — including the **configurable lockout** (push-through or hotkey-released, guarding 7th and reverse out of the box) that
 the stock firmware has no setting for — and plays a **much wider range of telemetry effects**
 through the lever: a clutch grind that can refuse the gear, engine vibration, a rev limiter,
-ABS and traction control, curbs. The selected gear comes out as **vJoy buttons**, so any game
-binds it like an ordinary shifter.
+ABS and traction control, curbs. Choose **direct vJoy buttons** or **native SimHub Control Mapper
+roles** for the selected gear, and configure keyboard or controller bindings to suit your game.
 
 Main brings the profile, pattern and live monitor together; Geometry, Feel and Effects open as focused editors.
 
@@ -43,11 +43,12 @@ meant to feel that way.
 - A DirectInput FFB flight stick. The **MOZA AB9** is the tested base; its extra onboard controls require firmware **1.1.5.2 or newer**
 - **MOZA Pit House** and **MOZA Cockpit** for firmware updates or manual setup on older firmware.
   On AB9 firmware **1.1.5.2 or newer**, the plugin can configure the base directly
-- [**vJoy**](https://sourceforge.net/projects/vjoystick/) for virtual gear output, with a device exposing at least
+- **Gear output:** choose SimHub's built-in **Control Mapper** with configured roles, or
+  [**vJoy**](https://sourceforge.net/projects/vjoystick/) with a virtual device exposing
   **14 buttons** — 1–8 carry the H patterns, 9 and 10 the sequential up/down, 11–14 the automatic's
   P, R, N and D. Fewer still works for whatever fits. The output picker lists
   the devices vJoy reports with their button counts, so you can check this without guessing; the
-  gate itself works without vJoy, you just get no gear output
+  gate itself works without a configured output
 - .NET Framework 4.8, already present if SimHub runs
 
 Generic virtual profiles also work with other DirectInput FFB flight sticks: set their vendor
@@ -62,13 +63,13 @@ First-run **Setup** guides you through the base, output and polarity measurement
 setup after a restart or a temporary disconnect.
 
 - **Generic FFB Stick** runs the virtual gate with DirectInput base effects. Configure the
-  stick's own centring and other background effects off, then choose vJoy and measure polarity.
-- **AB9-native** runs the same virtual gate, custom effects and vJoy output, with Cockpit's
+  stick's own centring and other background effects off, then configure your gear output and measure polarity.
+- **AB9-native** runs the same virtual gate, custom effects and selected gear output, with Cockpit's
   basic effects controlled onboard. The plugin prepares flight mode and the initial base
   settings, then leaves virtual forces off for polarity measurement. It uses the same profiles,
   presets and effect percentages as Generic FFB Stick.
 - **AB9 H-pattern** hands the gate and gear buttons to MOZA's firmware. Plugin profiles,
-  tuning and vJoy output are unavailable; only mode and device status remain. Bind the AB9's
+  tuning and plugin gear output are unavailable; only mode and device status remain. Bind the AB9's
   physical buttons in the game, making it visible through HidHide if necessary.
 
 Both AB9 choices become available only after a genuine AB9 with firmware **1.1.5.2 or newer**
@@ -179,7 +180,7 @@ Some AB9 firmware revisions apply DirectInput effects backwards, which would tur
 force into one that throws the stick at its stops. Until this is measured the plugin **caps its
 force output at 10%**. Complete first-run Setup before tuning the working shifter.
 
-Setup includes the vJoy picker and base identity, so every control needed to finish it is
+Setup includes the output selector, its device or role pickers, and base identity, so every control needed to finish it is
 available immediately. Once complete, the working screen stays in place through disconnects;
 Options retains output selection and recalibration.
 
@@ -219,7 +220,7 @@ Raise the overall gain slowly from there. This is a 12 Nm base.
 
 ### 7. Bind the gears in your game
 
-Bind gears **1–7 and reverse to vJoy buttons 1–8**, the sequential up/down to **9 and 10**, and the
+For **vJoy (direct)**, bind gears **1–7 and reverse to vJoy buttons 1–8**, the sequential up/down to **9 and 10**, and the
 automatic's **P, R, N and D to 11–14**. Do **not** bind the AB9's own axes in the game — the plugin
 is what reads them.
 
@@ -227,14 +228,31 @@ Reverse is always button 8 wherever a pattern has one, and each later range sits
 so one set of bindings covers every pattern and no binding can ever mean two things (the truck
 pattern simply uses buttons 1–6 and nothing else).
 
+For **SimHub Control Mapper (native)**, enable SimHub's built-in Control Mapper in **Add/remove
+features**, configure its output, and create the roles you want to use. In **Setup → Base and
+output** (or **Options → Base and output** after setup), set **Output** to **SimHub Control
+Mapper (native)**, press **Refresh roles**, and assign a role to each gear, sequential
+direction, or PRND position shown. Bind the resulting keys or controller buttons in your game.
+Blank mappings send nothing, and missing roles are reported. The output choice and mappings
+belong to your rig: switching profiles keeps them, and shared profiles never replace them.
+The output choice is independent of **Generic FFB Stick** versus **AB9-native**. Firmware
+**AB9 H-pattern** uses the base's own buttons and disables both plugin output choices.
+
+H gears and PRND positions hold their roles; sequential shifts use the existing pulse length.
+**H-pattern neutral (optional)** holds a separate role while an H gate is in neutral, for games
+that need an explicit neutral key. Keyboard bindings depend on the game: verify direct gear
+selection and the return to neutral. Controller buttons remain available through Control
+Mapper's vJoy or Arduino bridge. If using both direct vJoy and Control Mapper elsewhere, give
+them different vJoy devices so they do not compete for one output.
+
 **If your game grabs the base itself, hide it.** Some games enumerate the AB9 as a force feedback
 device and take it exclusively. DirectInput gives the foreground application priority, so the game
 wins; the plugin now stands down rather than snatching it back, because snatching it back crashes
 the game. The fix is to stop the game seeing the base at all: install
 [HidHide](https://github.com/nefarius/HidHide), whitelist `SimHubWPF.exe` **first**, then hide the
 base's *HID-compliant game controller* entry — the `MI_02` interface. Leave the `MI_00` serial
-port (COM12) visible, because MOZA Pit House and Cockpit need it. Your game keeps seeing the vJoy
-device, which is the only thing it ever needed.
+port (COM12) visible, because MOZA Pit House and Cockpit need it. Your game receives the selected
+gear output; it does not need the base's axes.
 
 ## The gate
 
@@ -439,7 +457,7 @@ program has it. The message lists what was detected.
 occasionally a game. Close them; the plugin retries automatically.
 
 **"vJoy device 1 is owned by another program"** — the message names the owning process. Close it,
-or pick a different device from the **vJoy output** list in Options, which shows every device
+or pick a different device under **Options → Base and output → Device**, with **vJoy (direct)** selected, which shows every device
 vJoy reports along with its button count and whether anything already holds it.
 
 **The stick fights you everywhere, or drifts to the stops** — polarity has not been measured, so
@@ -453,7 +471,12 @@ adjust *wall bite distance* first, then *wall attack*.
 Confirm *Measure polarity* reported a result for both push axes rather than "barely moved", and
 that overall gain is not near zero.
 
-**Gears do not register in the game** — check `joy.cpl`: the vJoy device should light button *i*
+**Control Mapper sends nothing** — enable it, configure its output, and check that each assigned
+role still exists. Press **Refresh roles** after editing its configuration. For keyboard output,
+check the game's keyboard bindings and neutral behavior; for controller output, inspect its
+vJoy or bridge device in `joy.cpl`.
+
+**Direct vJoy gears do not register in the game** — check `joy.cpl`: the vJoy device should light button *i*
 while gear *i* is held. If it does, the binding is the problem, not the plugin.
 
 ## Documentation

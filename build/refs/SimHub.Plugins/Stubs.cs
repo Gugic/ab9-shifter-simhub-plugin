@@ -16,6 +16,17 @@ namespace SimHub.Plugins
         public object GetPropertyValue(string name) { return null; }
         // Reflected against the installed assembly: public instance Void(Boolean).
         public void RequestApplicationExit(bool restart) { }
+        // Public instance surface reflected against the installed SimHub assembly.
+        public ControlMapperInterface GetControlMapperInterface() { return null; }
+    }
+
+    public class ControlMapperInterface
+    {
+        public bool StartRole(string roleName) { return false; }
+        public bool StopRole(string roleName) { return false; }
+        public System.Collections.Generic.List<string> GetAvailableButtonRoles() { return null; }
+        public System.Collections.Generic.List<string> GetAvailableKeyboardSimulatedKeysRoles() { return null; }
+        public System.Collections.Generic.List<string> GetAvailableSimHubControlRoles() { return null; }
     }
 
     /// <summary>Handle returned when an event is registered. Never inspected by this plugin.</summary>

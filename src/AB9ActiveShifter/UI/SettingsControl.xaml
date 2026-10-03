@@ -43,7 +43,7 @@
                                 <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,6" />
                                 <UniformGrid Columns="2">
                                     <TextBlock Text="{Binding DeviceText}" Margin="0,2" />
-                                    <TextBlock Text="{Binding VJoyText}" Margin="0,2" />
+                                    <TextBlock Text="{Binding OutputText}" TextWrapping="Wrap" Margin="0,2" />
                                     <TextBlock Text="{Binding GearText}" Margin="0,2" />
                                     <TextBlock Text="{Binding LoopText}" Margin="0,2" />
                                 </UniformGrid>
@@ -119,7 +119,7 @@
                             <styles:SHExpander Header="Sharing and button mapping" Margin="0,0,0,8">
                                 <StackPanel Margin="0,8,0,0">
                                     <TextBlock Text="Duplicate creates an editable copy. Export shares the tune; Import adds a new profile with forces off and keeps this rig’s device settings and calibration." TextWrapping="Wrap" Opacity="0.8" Margin="0,0,0,8" />
-                                    <TextBlock Text="vJoy buttons: gears 1–7 → 1–7, reverse → 8; sequential up/down → 9/10; P/R/N/D → 11/12/13/14. The truck pattern uses buttons 1–6." TextWrapping="Wrap" Opacity="0.8" Margin="0" />
+                                    <TextBlock x:Name="OutputBindingSummary" TextWrapping="Wrap" Opacity="0.8" Margin="0" />
                                 </StackPanel>
                             </styles:SHExpander>
                         </StackPanel>
@@ -166,7 +166,7 @@
                                 <TextBlock x:Name="NativeStatusText" TextWrapping="Wrap" Margin="0,0,0,6" />
                                 <styles:SHButtonSecondary Content="Refresh AB9" Click="OnNativeRefresh" Padding="14,6" Margin="0,4,8,4" x:Name="NativeRefreshButton" />
                                 <TextBlock TextWrapping="Wrap" Margin="0,4,0,8" x:Name="NativeOperationText" />
-                                <TextBlock Text="The AB9 firmware owns the shifter and its buttons. Plugin profiles, tuning, vJoy output and effects are unavailable in this mode. Choose another mode to return." TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,8" x:Name="HPatternNotice" />
+                                <TextBlock Text="The AB9 firmware owns the shifter and its buttons. Plugin profiles, tuning, gear output and effects are unavailable in this mode. Choose another mode to return." TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,8" x:Name="HPatternNotice" />
                             </StackPanel>
                         </styles:SHSection>
                         <StackPanel x:Name="VirtualOptionsPanel">
@@ -176,21 +176,54 @@
                                         <TextBlock Text="In AB9-native mode, Prepare base selects flight mode and configures base effects. In Generic FFB Stick mode, use the checklist below with your base’s settings app." TextWrapping="Wrap" Margin="0,4,0,8" />
                                         <styles:SHButtonSecondary Content="Prepare base" Click="OnPrepareSelectedMode" Padding="14,6" Margin="0,4,8,4" x:Name="PrepareBaseButton" />
                                         <styles:SHSection x:Name="VirtualChecklistSection" Title="BEFORE YOU START" ShowSeparator="True">
-                                            <TextBlock>Use your base’s settings app to remove built-in centring and select DirectInput force feedback. Close any application holding the base exclusively. Create a vJoy device with the buttons your pattern needs (up to 14 for all patterns), then select it below. Bind the virtual device’s gear buttons in your game.</TextBlock>
+                                            <TextBlock TextWrapping="Wrap">Use your base’s settings app to remove built-in centring and select DirectInput force feedback. Close any application holding the base exclusively. Choose direct vJoy or SimHub Control Mapper below, configure that output, then bind its buttons or keys in your game.</TextBlock>
                                         </styles:SHSection>
                                     </StackPanel>
                                 </styles:SHSection>
                             </styles:SHExpander>
                             <styles:SHExpander x:Name="OutputGroup" Header="Base and output" Margin="0,8,0,8">
-                                <styles:SHSection x:Name="VirtualVJoySection" Title="" ShowSeparator="True">
+                                <styles:SHSection x:Name="VirtualOutputSection" Title="" ShowSeparator="True">
                                     <StackPanel Margin="0,4,0,8">
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                            <TextBlock Text="Device" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                            <ComboBox x:Name="VJoyCombo" Width="330" Margin="0,0,8,0" SelectionChanged="OnVJoyDeviceSelected" />
-                                            <styles:SHButtonSecondary Click="OnRefreshVJoyDevices" Content="Refresh" Padding="10,3" />
+                                        <Grid Margin="0,0,0,10" MaxWidth="650" HorizontalAlignment="Left">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Output" VerticalAlignment="Center" />
+                                            <ComboBox Grid.Column="1" Width="330" HorizontalAlignment="Left" SelectedIndex="{Binding OutputModeIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="vJoy (direct)" />
+                                                <ComboBoxItem Content="SimHub Control Mapper (native)" />
+                                            </ComboBox>
+                                        </Grid>
+                                        <StackPanel x:Name="VJoyPanel">
+                                            <WrapPanel Margin="0,0,0,6">
+                                                <TextBlock Text="Device" VerticalAlignment="Center" Width="80" />
+                                                <ComboBox x:Name="VJoyCombo" Width="330" Margin="0,0,8,0" SelectionChanged="OnVJoyDeviceSelected" />
+                                                <styles:SHButtonSecondary Click="OnRefreshVJoyDevices" Content="Refresh" Padding="10,3" />
+                                            </WrapPanel>
+                                            <TextBlock x:Name="VJoyHint" TextWrapping="Wrap" Opacity="0.85" Margin="0,2,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0" Text="Choose a dedicated virtual device that carries gears into your game. Create or resize it in vJoyConf, then refresh. H patterns use up to 8 buttons, sequential uses 9–10, and PRND uses 11–14. If Control Mapper also uses vJoy, give it a different device." />
                                         </StackPanel>
-                                        <TextBlock x:Name="VJoyHint" TextWrapping="Wrap" Opacity="0.85" Margin="0,2,0,0" />
-                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0" Text="Choose the virtual device that carries gears into your game. Create or resize it in vJoyConf, then refresh. H patterns need up to 8 buttons, sequential needs 10, and PRND needs 14. Requirements follow the current pattern." />
+                                        <StackPanel x:Name="ControlMapperPanel" Visibility="Collapsed">
+                                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" Text="Enable Control Mapper in SimHub’s Add/remove features, configure its output and roles, then assign those roles below. Control Mapper can send keyboard keys, vJoy or Arduino bridge buttons, or SimHub controls. This output choice is separate from the AB9 operating mode." />
+                                            <styles:SHButtonSecondary Content="Refresh roles" Click="OnRefreshControlMapperRoles" Padding="10,3" HorizontalAlignment="Left" Margin="0,0,0,8" />
+                                            <ItemsControl x:Name="ControlMapperMappings">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,3" MaxWidth="650" HorizontalAlignment="Stretch">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="210" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Label}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                            <ComboBox Grid.Column="1" MinWidth="180" IsEditable="True" ItemsSource="{Binding AvailableRoles}" Text="{Binding Role, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" ToolTip="Choose or type an existing Control Mapper role. Leave blank to send nothing." />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock x:Name="ControlMapperHint" TextWrapping="Wrap" Opacity="0.85" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0" Text="H gears and PRND positions hold their roles; sequential shifts use the pulse length on Main. H-pattern neutral is optional. Blank mappings send nothing. Check direct-gear and neutral keyboard bindings in your game. These assignments belong to the rig and survive profile switches." />
+                                        </StackPanel>
                                         <styles:SHExpander Header="Base device identity" Margin="0,8,0,0">
                                             <StackPanel Margin="0,8,0,0">
                                                 <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="The base is matched by USB vendor and product id, written in hex as Device Manager shows them. The AB9 is 346E / 1000; only change these if your base enumerates differently. This lives here rather than with the other advanced settings because a base that is not found is exactly the case where the tuning base is not yet ready." />
@@ -332,7 +365,7 @@
                                         <styles:SHExpander Header="Device and output">
                                             <StackPanel Margin="0,8,0,8">
                                                 <ui:TitledSlider Title="FFB loop rate (Hz)" Minimum="100" Maximum="1000" TickFrequency="50" ShowResetButton="True" ResetValue="1000" Value="{Binding TickHz, Mode=TwoWay}" />
-                                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="How often the gate is recomputed. Leave it at 1000: the base is the slow part of the loop, not this, so lowering it buys nothing and makes every wall arrive later. It is here to diagnose a struggling PC, not to tune feel. Which vJoy device carries the gears, and the base's vendor and product ids, are in Options." />
+                                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="How often the gate is recomputed. Leave it at 1000: the base is the slow part of the loop, not this, so lowering it buys nothing and makes every wall arrive later. It is here to diagnose a struggling PC, not to tune feel. Gear output and the base's vendor and product ids are under Base and output in Options." />
                                             </StackPanel>
                                         </styles:SHExpander>
                                     </StackPanel>
@@ -651,7 +684,7 @@
                                     <TextBlock x:Name="PrndLaneSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" />
                                     <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
                                         <StackPanel Margin="0,6,0,0">
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="An automatic's selector: one lane with four fixed positions in it, and a vJoy button held at whichever one the lever is in - P on button 11, R on 12, N on 13, D on 14. Above the gears and above the sequential up/down, so nothing a game already has bound can mean two things. There is no neutral to come back through and no gear to engage: the lever is always somewhere, and moving between positions is all there is." />
+                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="An automatic's selector: one lane with four fixed positions. Direct vJoy holds P/R/N/D on buttons 11/12/13/14; Control Mapper holds the role assigned to each position in Options. There is no neutral to come back through and no gear to engage: the lever is always somewhere, and moving between positions is all there is." />
                                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="The lane half-length puts P and D that far either side of centre, with the other two dividing the rest evenly - it is the lane's own dial, not the throw the H and sequential patterns share, because a selector lane is a fraction of the length a gear lever wants and sharing one would retune the other every time the pattern changed. The detent between positions is a smooth hump: nothing at a position, nothing again at the halfway point, one rise either side. That is deliberate rather than decorative - a force pulling toward the nearest position would reverse at every halfway point, and a reversal between two saturated forces is the worst step this hardware can produce. The free notch is what makes a selected position a place the lever rests rather than a point it is pulled to; zero turns each position into a line, which is stable only at moderate detent force, like the rail gate. Sideways the lever is railed to the middle at the slot wall strength." />
                                         </StackPanel>
                                     </styles:SHExpander>

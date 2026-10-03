@@ -72,10 +72,16 @@ namespace AB9ActiveShifter.Core
 
         private FfbDevice _device;
         private EffectSet _effects;
-        private VJoyGearOutput _output;
+        private IGearOutput _output;
+        private readonly Func<EngineConfig, IGearOutput> _outputFactory;
+
+        public ShifterEngine(Func<EngineConfig, IGearOutput> outputFactory = null)
+        {
+            _outputFactory = outputFactory ?? (cfg => new VJoyGearOutput(cfg.VJoyDeviceId));
+        }
 
         /// <summary>
-        /// How often a failing vJoy connect may be retried, once the base is already open.
+        /// How often a failing gear-output connect may be retried, once the base is already open.
         ///
         /// A `RetryBackoff` rather than a bare attempt per tick for the reason the pedal open
         /// records: this is I/O the loop can attempt and fail, and a throttled log line is not a
@@ -84,7 +90,7 @@ namespace AB9ActiveShifter.Core
         /// from instant to a person, and a driver that is simply not installed then costs one
         /// cheap status query per fifteen seconds for the life of the session.
         /// </summary>
-        private readonly RetryBackoff _vjoyConnectRetry = new RetryBackoff(1000, 2000, 5000, 15000);
+        private readonly RetryBackoff _outputConnectRetry = new RetryBackoff(1000, 2000, 5000, 15000);
 
         // Telemetry effects. The composer keeps carrier phases and lives on the engine
         // thread; the snapshot is written by SimHub's data thread and read here, whole.
@@ -382,6 +388,13 @@ namespace AB9ActiveShifter.Core
         // one-tick gap between targets must not mistake that gap for completion.
         public bool IsCalibrating { get { return _calibrationPendingOrActive; } }
 
+        // Neutral can be an assigned role. Calibration's idle hold means no output at all,
+        // and must survive output reconnects or config changes until a deliberate restart.
+        private bool CanPublishHeldOutput
+        {
+            get { return !IsCalibrating && !_calibrationOutputHeld && Volatile.Read(ref _calibrationRequest) == 0; }
+        }
+
         /// <summary>
         /// Kills output now. Called by the watchdog and at process exit. Buttons are always
         /// cleared first; the device teardown is best-effort because the loop may be wedged
@@ -475,7 +488,7 @@ namespace AB9ActiveShifter.Core
                     }
 
                     WatchForceOutput(nowMs);
-                    WatchVJoy(cfg, nowMs);
+                    WatchGearOutput(cfg, nowMs);
 
                     Tick(cfg, nowMs, tickCount, loopHz);
 
@@ -736,8 +749,8 @@ namespace AB9ActiveShifter.Core
 
                     if (t.GearChanged)
                     {
-                        // Buttons before forces: a game must see the gear change at least as
-                        // early as the hand feels it, never later.
+                        // Submit output before forces. Control Mapper processes the request
+                        // asynchronously; this order does not establish game delivery time.
                         if (_output != null) _output.SetGear(t.Gear);
 
                         Action<int, int> handler = GearChanged;
@@ -1012,8 +1025,7 @@ namespace AB9ActiveShifter.Core
                 // down through that would look to a game like a shift the user never made.
                 if (_output != null)
                 {
-                    _output.SetGear(0);
-                    if (_pulseButton != 0) _output.SetButton(_pulseButton, false);
+                    _output.ReleaseAll();
                 }
                 _pulseButton = 0;
                 _pulsePending = 0;
@@ -1027,7 +1039,7 @@ namespace AB9ActiveShifter.Core
             if (_calibrator == null && _calibrationQueue.Count == 0)
             {
                 if (!_calibrationOutputHeld) return false;
-                if (_output != null) _output.SetGear(0);
+                if (_output != null) _output.ReleaseAll();
                 _effects.Apply(ForceComposer.FreeFrame(), nowMs);
                 PublishSnapshot(x, y, loopHz);
                 return true;
@@ -1067,7 +1079,7 @@ namespace AB9ActiveShifter.Core
                     _stateMachine.Resync(x, y);
                     _seqMachine.Resync(y);
                     _prndMachine.Resync(y);
-                    if (_output != null) _output.SetGear(0);
+                    if (_output != null) _output.ReleaseAll();
 
                     _calibrationPendingOrActive = false;
                     RaiseCalibrationFinished();
@@ -1152,15 +1164,15 @@ namespace AB9ActiveShifter.Core
                 _device = device;
                 _effects = effects;
 
-                if (_output == null) _output = new VJoyGearOutput(cfg.VJoyDeviceId);
-                if (_output.Connect()) _vjoyConnectRetry.Succeeded();
+                if (_output == null) _output = _outputFactory(cfg);
+                if (_output.Connect()) _outputConnectRetry.Succeeded();
                 else
                 {
-                    // Forces are still useful without vJoy, so keep running and say why - and hand
+                    // Forces are still useful without output, so keep running and say why - and hand
                     // the retry to the loop, because this method is not called again once the base
-                    // is open. See WatchVJoy.
-                    Log.WarnThrottled("vjoy-connect", _output.LastError ?? "vJoy unavailable", 15);
-                    _vjoyConnectRetry.Failed(nowMs);
+                    // is open. See WatchGearOutput.
+                    Log.WarnThrottled("output-connect", _output.LastError ?? "Gear output unavailable", 15);
+                    _outputConnectRetry.Failed(nowMs);
                 }
 
                 int x, y;
@@ -1170,6 +1182,8 @@ namespace AB9ActiveShifter.Core
                     _stateMachine.Resync(x, y);
                     _seqMachine.Resync(y);
                     _prndMachine.Resync(y);
+                    if (_output.IsConnected && CanPublishHeldOutput)
+                        _output.SetGear(CurrentHeldButton(cfg));
                 }
 
                 Log.ResetThrottle("device-open");
@@ -1184,15 +1198,16 @@ namespace AB9ActiveShifter.Core
         private string BuildReadyStatus(EngineConfig cfg)
         {
             string deviceName = _device != null ? _device.ProductName : "device";
-            string vjoy = _output != null && _output.IsConnected
-                ? "vJoy " + cfg.VJoyDeviceId
-                : "no vJoy (" + (_output != null ? _output.LastError : "not connected") + ")";
+            string outputName = cfg.OutputMode == GearOutputMode.ControlMapper ? "Control Mapper" : "vJoy " + cfg.VJoyDeviceId;
+            string output = _output != null && _output.IsConnected
+                ? outputName
+                : "no " + outputName + " output (" + (_output != null ? _output.LastError : "not connected") + ")";
 
             string gain = cfg.PolarityConfirmed
                 ? cfg.OverallGainPct + "% gain"
                 : EngineConfig.UnconfirmedGainCapPct + "% gain (capped until polarity is confirmed)";
 
-            return "Running on " + deviceName + ", " + vjoy + ", " + gain + ".";
+            return "Running on " + deviceName + ", " + output + ", " + gain + ".";
         }
 
         /// <summary>
@@ -1233,7 +1248,7 @@ namespace AB9ActiveShifter.Core
                     "reopening it here would pull the device out from under that program. The " +
                     "gate will be picked up again once no game is running. To stop this happening " +
                     "at all, hide the base's HID interface from games with HidHide and whitelist " +
-                    "SimHubWPF.exe - games are meant to see the vJoy device, not the base.", 30);
+                    "SimHubWPF.exe - games are meant to receive the selected gear output, not the base's axes.", 30);
             }
             else
             {
@@ -1299,6 +1314,18 @@ namespace AB9ActiveShifter.Core
             EngineConfig previous = _activeConfig;
             _activeConfig = cfg;
 
+            bool outputChanged = GearOutputConfig.OutputChanged(previous, cfg);
+            if (outputChanged && _output != null)
+            {
+                // Release the previous backend and its mapping before publishing anything on
+                // the new one. Output changes never need to give up the force-feedback base.
+                _output.Disconnect();
+                _output = null;
+                _outputConnectRetry.Reset();
+                _pulseButton = 0;
+                _pulsePending = 0;
+            }
+
             _geometry = cfg.BuildGeometry();
             _composer = new ForceComposer(_geometry, cfg);
 
@@ -1333,14 +1360,15 @@ namespace AB9ActiveShifter.Core
                 }
 
                 // The rebuilt machine may disagree with what is currently held - new geometry
-                // can put the stick outside the gear it was in. Push the truth to vJoy now,
+                // can put the stick outside the gear it was in. Publish the truth now,
                 // or the old button would stay down with nothing left to release it. A pulse
                 // in flight is cleared the same way, or switching pattern mid-press would
                 // leave an up/down button held as a phantom gear.
                 if (_output != null)
                 {
                     if (_pulseButton != 0) _output.SetButton(_pulseButton, false);
-                    _output.SetGear(CurrentHeldButton(cfg));
+                    if (CanPublishHeldOutput)
+                        _output.SetGear(CurrentHeldButton(cfg));
                 }
 
                 _pulseButton = 0;
@@ -1361,8 +1389,7 @@ namespace AB9ActiveShifter.Core
             // applied on the next tick, so the sliders stay live.
             bool needsReopen = previous != null &&
                                (previous.VendorId != cfg.VendorId ||
-                                previous.ProductId != cfg.ProductId ||
-                                previous.VJoyDeviceId != cfg.VJoyDeviceId);
+                                previous.ProductId != cfg.ProductId);
 
             // A config change is the user's own hand on the plugin - re-picking a device, toggling
             // it off and on - so it is also the escape from standing down: take the base back even
@@ -1373,18 +1400,15 @@ namespace AB9ActiveShifter.Core
             if (needsReopen && _phase == EnginePhase.Run)
             {
                 Log.Info("Configuration change needs a device reopen.");
-                if (previous.VJoyDeviceId != cfg.VJoyDeviceId && _output != null)
-                {
-                    // A different device was picked, so the last failure says nothing about this
-                    // one - the same reason the pedal binding resets its own backoff.
-                    _vjoyConnectRetry.Reset();
-                    _output.Disconnect();
-                    _output = null;
-                }
-
                 DisposeEffects();
                 DisposeDevice();
                 _phase = EnginePhase.SearchDevice;
+            }
+            else if (outputChanged && _phase == EnginePhase.Run)
+            {
+                _output = _outputFactory(cfg);
+                WatchGearOutput(cfg, nowMs);
+                _status = BuildReadyStatus(cfg);
             }
         }
 
@@ -1521,10 +1545,10 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// What vJoy should be holding right now, for whichever pattern is configured. Sequential
+        /// What the output should be holding right now, for whichever pattern is configured. Sequential
         /// holds nothing - its shifts are timed pulses on their own buttons - the H gate holds its
         /// gear, and PRND holds its position. One answer, so the three places that have to push
-        /// the truth back to vJoy (a rebuilt gate, a finished calibration, a profile switch)
+        /// the truth back to the output (a rebuilt gate, a finished calibration, a profile switch)
         /// cannot each get a different pattern's version of it wrong.
         /// </summary>
         private int CurrentHeldButton(EngineConfig cfg)
@@ -1567,7 +1591,10 @@ namespace AB9ActiveShifter.Core
             {
                 Phase = _phase,
                 DeviceConnected = _device != null && _device.IsOpen,
-                VJoyConnected = _output != null && _output.IsConnected,
+                OutputMode = _activeConfig != null ? _activeConfig.OutputMode : GearOutputMode.VJoy,
+                OutputConnected = _output != null && _output.IsConnected,
+                OutputError = _output != null ? _output.LastError : null,
+                VJoyConnected = _activeConfig != null && _activeConfig.OutputMode == GearOutputMode.VJoy && _output != null && _output.IsConnected,
                 RawX = x,
                 RawY = y,
                 X = x,
@@ -1689,7 +1716,7 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// Keeps trying to pick vJoy up after a start where it was not there yet.
+        /// Keeps trying to connect gear output after a start where it was not available yet.
         ///
         /// The connect used to be attempted in exactly one place - <see cref="TryOpenDevice"/> -
         /// which the loop stops calling the moment the base opens. So the ordering at a cold boot
@@ -1700,29 +1727,31 @@ namespace AB9ActiveShifter.Core
         /// hand - which worked only because re-picking it is a config change, and a config change
         /// reopens everything.
         ///
-        /// Engine thread, gated by a backoff, and it does nothing at all once vJoy is connected.
+        /// Engine thread, gated by a backoff, and it does nothing once the selected output is connected.
         /// </summary>
-        private void WatchVJoy(EngineConfig cfg, long nowMs)
+        private void WatchGearOutput(EngineConfig cfg, long nowMs)
         {
-            VJoyGearOutput output = _output;
+            IGearOutput output = _output;
             if (output == null || output.IsConnected) return;
-            if (!_vjoyConnectRetry.Due(nowMs)) return;
+            if (!_outputConnectRetry.Due(nowMs)) return;
 
             if (!output.Connect())
             {
-                _vjoyConnectRetry.Failed(nowMs);
+                _outputConnectRetry.Failed(nowMs);
+                _status = BuildReadyStatus(cfg);
                 return;
             }
 
-            _vjoyConnectRetry.Succeeded();
+            _outputConnectRetry.Succeeded();
 
             // Buttons before forces is about ordering within a change; this is a device arriving
             // late, so what it needs is the truth it missed. Push the held gear straight out or
             // the game sees neutral until the next shift - and in a pattern that holds a position
             // rather than a gear, possibly for the whole session.
-            output.SetGear(CurrentHeldButton(cfg));
+            if (CanPublishHeldOutput)
+                output.SetGear(CurrentHeldButton(cfg));
 
-            Log.Info("vJoy connected on retry; the gear is being published again.");
+            Log.Info("Gear output connected on retry; the gear is being published again.");
             _status = BuildReadyStatus(cfg);
         }
 

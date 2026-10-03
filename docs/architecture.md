@@ -19,7 +19,7 @@ One SimHub plugin assembly, `AB9ActiveShifter.dll`, plus a test project. The spl
 
 **AB9 configuration** is an optional CDC worker, separate from the force and telemetry
 threads. The rig chooses Generic FFB Stick, AB9-native or AB9 H-pattern. Both virtual modes
-run the same gate and vJoy output; AB9-native replaces only the basic DirectInput base effects
+run the same gate and selected gear output; AB9-native replaces only the basic DirectInput base effects
 with onboard settings. Firmware H-pattern releases the virtual engine entirely.
 
 The worker uses exact USB identity, re-checks firmware at each session, reads every write back
@@ -74,7 +74,7 @@ Each tick:
    read off the state machine *before* its update — last tick's state, one millisecond old — so
    this tick's engage decision can depend on the answer.
 5. State machine update (with the grind's `allowEngage` refusal, if any).
-6. On a gear change: **vJoy buttons first**, then raise the event.
+6. On a gear change: **submit the selected output first**, then raise the event.
 7. Compose forces, passing position, velocity, the real elapsed time since the last composition
    (the attack shaping needs true `dt`, clamped so a stalled tick cannot dump a whole attack at
    once), and the effects' vibration and detent-mute.
@@ -91,7 +91,7 @@ knock out a gear you are currently holding.
 
 Calibration is queued before the engine starts, so acquisition cannot briefly run a normal
 profile. Pending acquisition and the gaps between individual probes remain part of one active
-calibration. Completion or cancellation holds all DirectInput forces and vJoy buttons off
+calibration. Completion or cancellation holds all DirectInput forces and selected gear output off
 until a deliberate restart. Successful AB9-native setup then reapplies the shared base-effect
 percentages while virtual output stays off. Navigating away cancels an unfinished measurement.
 
@@ -260,12 +260,12 @@ holds an index and hands it on at the crests with the same hysteresis bias `Gate
 uses; `ForceComposer.ComposePrnd` renders the sequential rail laterally and the lane's detents fore
 and aft, through the same pipeline and the same single polarity application.
 
-Its buttons (11–14) go out through `VJoyGearOutput.SetGear` rather than `SetButton`, which is what
+Its buttons (11–14) go out through `IGearOutput.SetGear` rather than `SetButton`, which is what
 gives a position the same release-before-press, the same watchdog clear and the same shutdown
 ordering a gear gets — `GearCount` therefore bounds what that method may press, not what a gear is.
 The one thing the engine must ask per pattern is what should currently be held, and `ShifterEngine`
 has exactly one answer for it (`CurrentHeldButton`), used by all four places that push the truth
-back to vJoy: a rebuilt gate, a finished calibration, a profile switch, and vJoy arriving late.
+back to the output: a rebuilt gate, a finished calibration, a profile switch, and output arriving late.
 
 **vJoy is retried for as long as it is missing, and the retry does not live in `TryOpenDevice`.**
 The connect used to be attempted only there, and the loop stops calling that method the moment the
@@ -273,10 +273,49 @@ base opens — so at a cold boot, where SimHub starts with the machine and the v
 or two behind it, the base won the race, the phase went to `Run`, and vJoy was never asked again.
 The gate rendered perfectly and no game was ever told what gear it was in, until someone re-picked
 the device in Options by hand — which worked only because re-picking it is a config change,
-and a config change reopens everything. `WatchVJoy` now runs each tick beside `WatchForceOutput`,
+and a config change used to reopen everything. `WatchGearOutput` now runs each tick beside `WatchForceOutput`,
 gated by a `RetryBackoff` (1/2/5/15 s) because this is I/O the tick can attempt and fail, and it
 pushes `CurrentHeldButton` out the instant it succeeds: a device that arrives late must be told the
 gear it missed, or the game sees neutral until the next shift — in PRND, possibly for the session.
+
+## Gear output backends
+
+`ShifterEngine` holds `IGearOutput`; the SimHub shell supplies its factory. Direct vJoy remains
+the default, including for old saved settings. Native Control Mapper uses
+`PluginManager.GetControlMapperInterface()` and its public `StartRole` / `StopRole` methods,
+with role lists from the same interface. No controller is registered or acquired by this path.
+Control Mapper's own configuration decides whether those roles produce keys, vJoy buttons,
+Arduino bridge buttons, or internal SimHub controls.
+
+`ControlMapperGearOutput` keeps held H/PRND roles and sequential button lifetimes behind the
+same interface as vJoy. It owns one `ControlMapperInterface` for its lifetime: SimHub keys
+presses by an owner id, and a new interface cannot stop the previous owner's presses. Blank
+roles are intentional no-ops. Shared roles count active logical buttons, so releasing one does
+not cancel another. Failed presses are retained for cleanup, since a call can throw after
+submitting; failed releases prevent pressing a replacement gear. Cleanup attempts releases
+even after the output reports disconnected. The optional role at index 0 is H neutral only;
+`ReleaseAll`, including calibration and the watchdog, clears it too.
+
+`GearOutputConfig` masks mappings by the current pattern and compares output configuration.
+Output mode, role assignments, and vJoy id are machine facts, excluded from shared profiles.
+Changing backend, active mapping, or native pattern disconnects the old output before creating
+the new one and republishing the held gear. Changing output does not reopen the AB9. Reconnect
+uses the existing 1/2/5/15 s backoff and republishes the current state, except during calibration.
+`OutputConnected` and `OutputError` describe either backend; the existing `VJoyConnected`
+property continues to mean direct vJoy specifically.
+
+Ordering at the engine remains release-before-press and output requests before force writes.
+Control Mapper queues roles for its own worker, so request ordering does **not** establish that
+the game's key/button arrived before the force. End-to-end timing, keyboard neutral semantics,
+and cleanup on game/profile/SimHub lifecycle changes still need verification on the rig.
+Readiness establishes that the configured roles exist, not that the selected external device
+is connected or the game accepted them; those are checked in Control Mapper and in the game.
+
+The output choice is independent of `ProfileStore.SelectedOperatingMode`. Both Generic FFB
+Stick and AB9-native run either backend; firmware H-pattern stops the engine and hides plugin
+output settings. Native configuration uses the same output teardown before the CDC transaction,
+then resumes the selected backend only through the checked `NativeWritePause` path. Calibration
+never publishes H neutral while probes run.
 
 ## Telemetry effects and the grind
 
@@ -369,7 +408,7 @@ reported from the settings page as "settings won't save".
 ## SimHub surface
 
 Properties: `CurrentGear`, `GearIndex`, `InGear`, `GateState`, `GateColumn`, `StickX`, `StickY`,
-`DeviceConnected`, `DeviceName`, `VJoyConnected`, `LoopHz`, `StatusMessage`, `LockoutEngaged`.
+`DeviceConnected`, `DeviceName`, `VJoyConnected`, `OutputConnected`, `OutputError`, `LoopHz`, `StatusMessage`, `LockoutEngaged`.
 Events: `GearEngaged`, `GearReleased`, `LockoutEngaged`, `LockoutReleased`.
 Actions: `ToggleShifterFFB`, `ReleaseAllGears`, `NextProfile`, `PreviousProfile`,
 `ToggleLockout`, `EngageLockout`, `ReleaseLockout`.
@@ -391,6 +430,12 @@ Options holds the mode switch, device/output settings, recalibration, pedals, ho
 diagnostics, resets, updates and About. Main uses one level of disclosure for automatic
 profile switching and sharing help; vehicle IDs never lengthen the action buttons. Firmware
 H-pattern exposes only mode and device status.
+
+`SettingsControl.Outputs` displays only mappings used by the active profile's pattern. First-run
+completion checks that backend's setup readiness; it never requires vJoy when Control Mapper is
+selected. Main reports the selected output and any runtime error, while periodic role/device
+checks update readiness without rebuilding an open picker. Completed setup persists through
+output loss. Firmware H-pattern skips both output probes entirely.
 
 All editor panels are created with the settings control so slider indexing, reset/undo state
 and namescope bindings remain intact when a panel is temporarily hosted by a modal. The existing
