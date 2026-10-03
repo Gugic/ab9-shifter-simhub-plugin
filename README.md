@@ -199,6 +199,15 @@ Reverse is always button 8 wherever a pattern has one, and each later range sits
 so one set of bindings covers every pattern and no binding can ever mean two things (the truck
 pattern simply uses buttons 1–6 and nothing else).
 
+**If your game grabs the base itself, hide it.** Some games enumerate the AB9 as a force feedback
+device and take it exclusively. DirectInput gives the foreground application priority, so the game
+wins; the plugin now stands down rather than snatching it back, because snatching it back crashes
+the game. The fix is to stop the game seeing the base at all: install
+[HidHide](https://github.com/nefarius/HidHide), whitelist `SimHubWPF.exe` **first**, then hide the
+base's *HID-compliant game controller* entry — the `MI_02` interface. Leave the `MI_00` serial
+port (COM12) visible, because MOZA Pit House and Cockpit need it. Your game keeps seeing the vJoy
+device, which is the only thing it ever needed.
+
 ## The gate
 
 ```

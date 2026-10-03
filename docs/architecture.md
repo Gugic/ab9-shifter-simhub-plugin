@@ -17,7 +17,16 @@ One SimHub plugin assembly, `AB9ActiveShifter.dll`, plus a test project. The spl
 exceptions except `FfbDevice.StopForces()`, which the watchdog may call to kill output when the
 loop has stopped ticking, and which swallows everything because the device may already be gone.
 
-The thread runs `SearchDevice → OpenDevice → Run`, with 1/2/5 s backoff on failure. Each tick:
+The thread runs `SearchDevice → OpenDevice → Run`, with 1/2/5 s backoff on failure — **except when
+the fault says another application has taken the base**, where it stands down instead. Exclusive
+access goes to the foreground app, so reopening is not a repair; it pulls the device out from under
+the game and crashes it. `DeviceFaults.Classify` reads the HRESULT, `HandleDeviceLoss` releases and
+sets `_yielded`, and `ReadyToReclaim` waits for SimHub to report no game running before looking
+again (5/15/30 s between looks, and the first look one whole wait after the loss so a game still
+starting up is not mistaken for one that has gone). Any config change clears the stand-down, which
+is what makes re-picking a device on Setup the deliberate "take it back anyway".
+
+Each tick:
 
 1. Poll position (cheap, and first, so every computation runs on data <1 ms old).
 2. If calibration is active, run that instead and return.
@@ -173,8 +182,19 @@ Its buttons (11–14) go out through `VJoyGearOutput.SetGear` rather than `SetBu
 gives a position the same release-before-press, the same watchdog clear and the same shutdown
 ordering a gear gets — `GearCount` therefore bounds what that method may press, not what a gear is.
 The one thing the engine must ask per pattern is what should currently be held, and `ShifterEngine`
-has exactly one answer for it (`CurrentHeldButton`), used by all three places that push the truth
-back to vJoy: a rebuilt gate, a finished calibration, and a profile switch.
+has exactly one answer for it (`CurrentHeldButton`), used by all four places that push the truth
+back to vJoy: a rebuilt gate, a finished calibration, a profile switch, and vJoy arriving late.
+
+**vJoy is retried for as long as it is missing, and the retry does not live in `TryOpenDevice`.**
+The connect used to be attempted only there, and the loop stops calling that method the moment the
+base opens — so at a cold boot, where SimHub starts with the machine and the vJoy device is a second
+or two behind it, the base won the race, the phase went to `Run`, and vJoy was never asked again.
+The gate rendered perfectly and no game was ever told what gear it was in, until someone re-picked
+the device on the Setup tab by hand — which worked only because re-picking it is a config change,
+and a config change reopens everything. `WatchVJoy` now runs each tick beside `WatchForceOutput`,
+gated by a `RetryBackoff` (1/2/5/15 s) because this is I/O the tick can attempt and fail, and it
+pushes `CurrentHeldButton` out the instant it succeeds: a device that arrives late must be told the
+gear it missed, or the game sees neutral until the next shift — in PRND, possibly for the session.
 
 ## Telemetry effects and the grind
 

@@ -74,6 +74,18 @@ namespace AB9ActiveShifter.Core
         private EffectSet _effects;
         private VJoyGearOutput _output;
 
+        /// <summary>
+        /// How often a failing vJoy connect may be retried, once the base is already open.
+        ///
+        /// A `RetryBackoff` rather than a bare attempt per tick for the reason the pedal open
+        /// records: this is I/O the loop can attempt and fail, and a throttled log line is not a
+        /// gate on the cost. Longer at the tail than the base's own schedule because nothing is
+        /// waiting on the millisecond - fifteen seconds after vJoy appears is indistinguishable
+        /// from instant to a person, and a driver that is simply not installed then costs one
+        /// cheap status query per fifteen seconds for the life of the session.
+        /// </summary>
+        private readonly RetryBackoff _vjoyConnectRetry = new RetryBackoff(1000, 2000, 5000, 15000);
+
         // Telemetry effects. The composer keeps carrier phases and lives on the engine
         // thread; the snapshot is written by SimHub's data thread and read here, whole.
         private readonly EffectComposer _gameEffects = new EffectComposer();
@@ -216,12 +228,26 @@ namespace AB9ActiveShifter.Core
             }
         }
 
-        /// <summary>Saves whatever has been recorded. Call off the engine thread.</summary>
+        /// <summary>
+        /// Saves whatever has been recorded. Call off the engine thread.
+        ///
+        /// The pause is not decoration. The buffer wraps now, so the slot the loop is about to
+        /// write is the OLDEST sample rather than one past the newest, and a tick that started
+        /// before <see cref="TraceRecorder.Stop"/> was seen would land a sample from now at the top
+        /// of the file. One tick is a millisecond; sleeping a few guarantees the loop has read the
+        /// volatile flag, and if it has not, it is not writing either.
+        /// </summary>
         public string SaveTrace(string note)
         {
             _trace.Stop();
+            Thread.Sleep(5);
             EngineConfig cfg = _activeConfig ?? _config;
-            return _trace.Save(TraceDirectory, cfg, note);
+            string path = _trace.Save(TraceDirectory, cfg, note);
+
+            // Only once it is safely on disk. A throw above leaves the buffer intact, so a failed
+            // write - a full disk, a locked file - costs a retry rather than the trace.
+            _trace.Clear();
+            return path;
         }
 
         public bool IsRunning { get { return _running; } }
@@ -388,9 +414,9 @@ namespace AB9ActiveShifter.Core
 
                     if (_phase != EnginePhase.Run)
                     {
-                        if (nowMs >= nextOpenAttemptMs)
+                        if (nowMs >= nextOpenAttemptMs && (!_yielded || ReadyToReclaim(nowMs)))
                         {
-                            if (TryOpenDevice(cfg))
+                            if (TryOpenDevice(cfg, nowMs))
                             {
                                 backoffIndex = 0;
                             }
@@ -410,6 +436,7 @@ namespace AB9ActiveShifter.Core
                     }
 
                     WatchForceOutput(nowMs);
+                    WatchVJoy(cfg, nowMs);
 
                     Tick(cfg, nowMs, tickCount, loopHz);
 
@@ -538,7 +565,7 @@ namespace AB9ActiveShifter.Core
                 string error;
                 if (!_device.TryPoll(out rawX, out rawY, out error))
                 {
-                    HandleDeviceLoss(error);
+                    HandleDeviceLoss(error, _device.LastFault, nowMs);
                     return;
                 }
 
@@ -729,7 +756,10 @@ namespace AB9ActiveShifter.Core
 
                 if (_effects.IsFaulted)
                 {
-                    HandleDeviceLoss("Effect updates failed repeatedly; reopening the device.");
+                    DeviceFault fault = _effects.LastFault;
+                    HandleDeviceLoss(fault == DeviceFault.TakenByAnotherApp
+                        ? "our exclusive acquisition was revoked"
+                        : "Effect updates failed repeatedly; reopening the device.", fault, nowMs);
                     return;
                 }
 
@@ -1025,7 +1055,7 @@ namespace AB9ActiveShifter.Core
             }
         }
 
-        private bool TryOpenDevice(EngineConfig cfg)
+        private bool TryOpenDevice(EngineConfig cfg, long nowMs)
         {
             lock (_deviceLock)
             {
@@ -1066,10 +1096,14 @@ namespace AB9ActiveShifter.Core
                 _effects = effects;
 
                 if (_output == null) _output = new VJoyGearOutput(cfg.VJoyDeviceId);
-                if (!_output.Connect())
+                if (_output.Connect()) _vjoyConnectRetry.Succeeded();
+                else
                 {
-                    // Forces are still useful without vJoy, so keep running and say why.
+                    // Forces are still useful without vJoy, so keep running and say why - and hand
+                    // the retry to the loop, because this method is not called again once the base
+                    // is open. See WatchVJoy.
                     Log.WarnThrottled("vjoy-connect", _output.LastError ?? "vJoy unavailable", 15);
+                    _vjoyConnectRetry.Failed(nowMs);
                 }
 
                 int x, y;
@@ -1082,6 +1116,8 @@ namespace AB9ActiveShifter.Core
                 }
 
                 Log.ResetThrottle("device-open");
+                Log.ResetThrottle("device-yield");
+                _yielded = false;
                 _phase = EnginePhase.Run;
                 _status = BuildReadyStatus(cfg);
                 return true;
@@ -1102,10 +1138,51 @@ namespace AB9ActiveShifter.Core
             return "Running on " + deviceName + ", " + vjoy + ", " + gain + ".";
         }
 
-        private void HandleDeviceLoss(string reason)
+        /// <summary>
+        /// Gives the device up, and decides whether to go looking for it again.
+        ///
+        /// For every fault but one the answer is yes, on the usual backoff. The exception is a
+        /// device another application has taken, where reopening is not a repair: DirectInput
+        /// hands exclusive access to the foreground app, so the game wins the moment it asks - and
+        /// the reconnect loop then takes it straight back, at which point the game loses its device
+        /// mid-frame and crashes. Measured on this rig with Forza and with Wreckfest 2, and visible
+        /// in the log as DIERR_NOTEXCLUSIVEACQUIRED followed one tenth of a second later by our own
+        /// "Opened 'MOZA AB9 FFB Base' exclusive+background" - us winning the tug of war.
+        ///
+        /// There is no cooperative level that beats this; exclusive+background is already the
+        /// strongest DirectInput offers, and exclusive is mandatory for creating effects at all.
+        /// The only real fix is for games not to see the base (HidHide), so the log says so.
+        /// </summary>
+        private void HandleDeviceLoss(string reason, DeviceFault fault, long nowMs)
         {
-            Log.WarnThrottled("device-loss", "Device lost: " + reason, 10);
-            _status = reason;
+            if (fault == DeviceFault.TakenByAnotherApp)
+            {
+                _yielded = true;
+
+                // Reset then immediately hold off, so the first look is one whole wait away. An
+                // instant re-check would land in the moment the game was still starting up and the
+                // telemetry had not caught up yet - which reads as "no game" and takes the device
+                // straight back, the exact thing being fixed.
+                _yieldedRetry.Reset();
+                _yieldedRetry.Failed(nowMs);
+
+                _status = "Another application has taken the base. Standing down rather than " +
+                          "taking it back - reclaiming it is what crashes the game. It will be " +
+                          "picked up again once no game is running.";
+
+                Log.WarnThrottled("device-yield",
+                    "Another application has taken the base (" + reason + "). Standing down: " +
+                    "DirectInput gives exclusive access to the foreground application, so " +
+                    "reopening it here would pull the device out from under that program. The " +
+                    "gate will be picked up again once no game is running. To stop this happening " +
+                    "at all, hide the base's HID interface from games with HidHide and whitelist " +
+                    "SimHubWPF.exe - games are meant to see the vJoy device, not the base.", 30);
+            }
+            else
+            {
+                Log.WarnThrottled("device-loss", "Device lost: " + reason, 10);
+                _status = reason;
+            }
 
             if (_output != null) _output.ReleaseAll();
 
@@ -1113,6 +1190,51 @@ namespace AB9ActiveShifter.Core
             DisposeDevice();
 
             _phase = EnginePhase.SearchDevice;
+        }
+
+        // --- standing down for another application ------------------------------------------
+        //
+        // Set when a fault says another process owns the base, cleared by a successful open or by
+        // any config change - which is what makes re-picking a device on the Setup tab, or toggling
+        // the plugin off and on, the deliberate "take it back anyway" escape.
+        private volatile bool _yielded;
+
+        /// <summary>
+        /// How often a stood-down engine may look to see whether the base is free again. Longer
+        /// than the ordinary reconnect because the answer is usually "still racing", and every
+        /// attempt that SUCCEEDS while a game is running is a crash rather than a recovery.
+        /// </summary>
+        private readonly RetryBackoff _yieldedRetry = new RetryBackoff(5000, 15000, 30000);
+
+        /// <summary>A game reported within this long counts as still running.</summary>
+        private const int GameLiveWindowMs = 2000;
+
+        /// <summary>
+        /// Whether to reach for the base again after standing down.
+        ///
+        /// The rule is "when it is actually free", not "in N seconds", because a timer that fires
+        /// mid-race takes the device off the game exactly as the old code did, just less often.
+        /// SimHub already knows whether a game is running and the engine already has that snapshot,
+        /// so the wait costs nothing to ask for. A game SimHub does not recognise is the hole in
+        /// this - it reads as no game - which is the other reason the log points at HidHide.
+        /// </summary>
+        private bool ReadyToReclaim(long nowMs)
+        {
+            if (!_yieldedRetry.Due(nowMs)) return false;
+
+            TelemetryState telemetry = _telemetry;
+            int age = unchecked(Environment.TickCount - telemetry.CapturedAtTick);
+
+            if (telemetry.GameRunning && age >= 0 && age <= GameLiveWindowMs)
+            {
+                _yieldedRetry.Failed(nowMs);
+                return false;
+            }
+
+            _yielded = false;
+            _yieldedRetry.Succeeded();
+            Log.Info("No game is holding the base now; picking it up again.");
+            return true;
         }
 
         private void ApplyConfigChange(EngineConfig cfg, long nowMs)
@@ -1185,11 +1307,20 @@ namespace AB9ActiveShifter.Core
                                 previous.ProductId != cfg.ProductId ||
                                 previous.VJoyDeviceId != cfg.VJoyDeviceId);
 
+            // A config change is the user's own hand on the plugin - re-picking a device, toggling
+            // it off and on - so it is also the escape from standing down: take the base back even
+            // if a game is holding it, because this time someone asked for it.
+            _yielded = false;
+            _yieldedRetry.Reset();
+
             if (needsReopen && _phase == EnginePhase.Run)
             {
                 Log.Info("Configuration change needs a device reopen.");
                 if (previous.VJoyDeviceId != cfg.VJoyDeviceId && _output != null)
                 {
+                    // A different device was picked, so the last failure says nothing about this
+                    // one - the same reason the pedal binding resets its own backoff.
+                    _vjoyConnectRetry.Reset();
                     _output.Disconnect();
                     _output = null;
                 }
@@ -1496,6 +1627,44 @@ namespace AB9ActiveShifter.Core
                 Log.Info("Force output: recovered, the base is producing force again.");
                 if (_activeConfig != null) _status = BuildReadyStatus(_activeConfig);
             }
+        }
+
+        /// <summary>
+        /// Keeps trying to pick vJoy up after a start where it was not there yet.
+        ///
+        /// The connect used to be attempted in exactly one place - <see cref="TryOpenDevice"/> -
+        /// which the loop stops calling the moment the base opens. So the ordering at a cold boot
+        /// decided the whole session: SimHub starts with the machine, the vJoy device is often a
+        /// second or two behind it, the base opens first, the phase goes to Run, and vJoy is never
+        /// asked again. The symptom is a shifter that renders its gate perfectly and tells no game
+        /// what gear it is in, until someone opens the settings page and re-picks the device by
+        /// hand - which worked only because re-picking it is a config change, and a config change
+        /// reopens everything.
+        ///
+        /// Engine thread, gated by a backoff, and it does nothing at all once vJoy is connected.
+        /// </summary>
+        private void WatchVJoy(EngineConfig cfg, long nowMs)
+        {
+            VJoyGearOutput output = _output;
+            if (output == null || output.IsConnected) return;
+            if (!_vjoyConnectRetry.Due(nowMs)) return;
+
+            if (!output.Connect())
+            {
+                _vjoyConnectRetry.Failed(nowMs);
+                return;
+            }
+
+            _vjoyConnectRetry.Succeeded();
+
+            // Buttons before forces is about ordering within a change; this is a device arriving
+            // late, so what it needs is the truth it missed. Push the held gear straight out or
+            // the game sees neutral until the next shift - and in a pattern that holds a position
+            // rather than a gear, possibly for the whole session.
+            output.SetGear(CurrentHeldButton(cfg));
+
+            Log.Info("vJoy connected on retry; the gear is being published again.");
+            _status = BuildReadyStatus(cfg);
         }
 
         /// <summary>

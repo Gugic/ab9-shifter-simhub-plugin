@@ -67,6 +67,9 @@ namespace AB9ActiveShifter.Device
 
         public bool IsFaulted { get { return _strikes >= MaxStrikes; } }
 
+        /// <summary>What the last failed write meant, as far as the driver would say.</summary>
+        public DeviceFault LastFault { get; private set; }
+
         private EffectSet(Joystick joystick)
         {
             _joystick = joystick;
@@ -302,7 +305,11 @@ namespace AB9ActiveShifter.Device
                 else ok = false;
             }
 
-            if (ok) _strikes = 0;
+            if (ok)
+            {
+                _strikes = 0;
+                LastFault = DeviceFault.Unknown;
+            }
         }
 
         private static bool WantsConstantWrite(int value, int last)
@@ -370,6 +377,14 @@ namespace AB9ActiveShifter.Device
                 catch (SharpDXException ex)
                 {
                     _strikes++;
+
+                    // DIERR_NOTEXCLUSIVEACQUIRED arrives here, not at the poll: a game that takes
+                    // the base foreground-exclusive revokes our acquisition, and the first thing
+                    // to notice is the next force write. The engine needs to know that is what
+                    // happened, because reopening the device would take it straight back off the
+                    // game - which is what crashes it.
+                    LastFault = DeviceFaults.Classify(ex.HResult);
+
                     Log.ErrorThrottled("effect-" + name,
                         "Failed to update " + name + " (strike " + _strikes + " of " + MaxStrikes + ")", ex);
                     return false;

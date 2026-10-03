@@ -152,11 +152,22 @@ namespace AB9ActiveShifter.Device
             }
         }
 
-        private static string DescribeAcquireFailure(SharpDXException ex)
+        /// <summary>
+        /// What the last failure meant, as far as the driver would say. Read by the engine right
+        /// after a false return, because the repair for a device someone else has taken is the
+        /// opposite of the repair for one that has gone.
+        /// </summary>
+        public DeviceFault LastFault { get; private set; }
+
+        private string DescribeAcquireFailure(SharpDXException ex)
         {
+            LastFault = DeviceFaults.Classify(ex.HResult);
+
             // DIERR_OTHERAPPHASPRIO is what an exclusive grab by another program looks like.
-            if (unchecked((uint)ex.HResult) == 0x80070005 || ex.Message.IndexOf("other", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (LastFault == DeviceFault.TakenByAnotherApp
+                || ex.Message.IndexOf("other", StringComparison.OrdinalIgnoreCase) >= 0)
             {
+                LastFault = DeviceFault.TakenByAnotherApp;
                 return "The stick is held exclusively by another program. Close MOZA Cockpit and any " +
                        "Pit House tuning page, and disable Steam Input for this device. (" + ex.Message + ")";
             }
@@ -195,16 +206,29 @@ namespace AB9ActiveShifter.Device
                         {
                             _joystick.Acquire();
                             _acquired = true;
+                            LastFault = DeviceFault.Unknown;
                             continue;
+                        }
+                        catch (SharpDXException reacquire)
+                        {
+                            // The poll's own code does not say who took the device - a focus
+                            // change and an unplugged cable both read as INPUTLOST. The failure of
+                            // the re-acquire does, so this is where the classification is made.
+                            LastFault = DeviceFaults.Classify(reacquire.HResult);
+                            error = "Lost the device and could not re-acquire it: " + reacquire.Message;
+                            _acquired = false;
+                            return false;
                         }
                         catch (Exception reacquire)
                         {
+                            LastFault = DeviceFault.Unknown;
                             error = "Lost the device and could not re-acquire it: " + reacquire.Message;
                             _acquired = false;
                             return false;
                         }
                     }
 
+                    LastFault = DeviceFaults.Classify(ex.HResult);
                     error = "Lost the device: " + ex.Message;
                     _acquired = false;
                     return false;
