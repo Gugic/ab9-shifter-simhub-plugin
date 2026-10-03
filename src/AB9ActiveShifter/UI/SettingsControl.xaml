@@ -15,9 +15,9 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <Border x:Name="UpdateBanner" Grid.Row="0" Visibility="Collapsed" Margin="8,8,8,4" Padding="12,8" BorderBrush="#35B8C9" BorderThickness="1" CornerRadius="3">
+        <Border x:Name="UpdateBanner" Grid.Row="0" Visibility="Collapsed" Margin="8,8,8,4" Padding="12,8" Background="#22FFFFFF" CornerRadius="3">
             <WrapPanel>
-                <TextBlock x:Name="UpdateBannerText" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="500" Foreground="#35B8C9" Margin="0,4,16,4" />
+                <TextBlock x:Name="UpdateBannerText" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="500" FontWeight="SemiBold" Margin="0,4,16,4" />
                 <styles:SHButtonSecondary x:Name="BannerInstallButton" Content="Install update" Click="OnInstallUpdate" Padding="10,4" Margin="0,2,6,2" />
                 <styles:SHButtonSecondary Content="Open release notes" Click="OnOpenReleaseNotes" Padding="10,4" Margin="0,2,6,2" />
                 <styles:SHButtonSecondary Content="Dismiss" Click="OnDismissUpdate" Padding="10,4" Margin="0,2,0,2" />
@@ -356,7 +356,7 @@
                                         </WrapPanel>
                                         <StackPanel x:Name="ReleaseNotesPanel" Visibility="Collapsed" Margin="0,0,0,16">
                                             <TextBlock x:Name="ReleaseNotesTitle" FontWeight="Bold" Margin="0,0,0,8" />
-                                            <Border Background="#18202020" Padding="12" CornerRadius="3">
+                                            <Border Background="#0C000000" Padding="12" CornerRadius="3">
                                                 <RichTextBox x:Name="ReleaseNotesText" MaxHeight="300" IsReadOnly="True" IsDocumentEnabled="False" BorderThickness="0" Background="Transparent" VerticalScrollBarVisibility="Auto" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}" />
                                             </Border>
                                         </StackPanel>
