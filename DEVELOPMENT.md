@@ -152,6 +152,7 @@ SimHub's property system only ever read a snapshot; nothing else touches DirectI
 src/AB9ActiveShifter/
   AB9ShifterPlugin.cs      SimHub shell: lifecycle, properties, events, actions, profiles,
                            settings load/save, DataUpdate -> TelemetryState
+  AB9ShifterPlugin.Native.cs Optional AB9 setup, native profile eligibility and engine suppression
   ShifterSettings.cs       Persisted POCO -> ToEngineConfig()
   ShifterProfiles.cs       Named profiles, legacy migration, cloning, the preset fork
   DefaultProfiles.cs       The five presets, as deltas from bare defaults, and their reserved
@@ -161,6 +162,9 @@ src/AB9ActiveShifter/
   Effects/                 Native ShakeIt service/editor, Lever output adapter and four sources
   PluginInfo.cs            The build's version string
   Core/                    Pure, no I/O, fully unit-tested
+    Ab9NativeProtocol.cs   CDC frame codec, parameters and firmware eligibility
+    Ab9NativeSettings.cs   Native read/write snapshots and validated configuration plans
+    NativeProfilePolicy.cs Native profile and virtual engine eligibility
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
     GateGeometry.cs        Column targets, hysteresis bands, gear map, unit conversions
     GateStateMachine.cs    Neutral / Traveling / Engaged
@@ -177,6 +181,7 @@ src/AB9ActiveShifter/
     TraceRecorder.cs       Per-tick ring buffer -> CSV; keeps the LAST two minutes, so it can
                            be left running through a session and still hold the failure
   Device/                  DirectInput and Win32
+    Ab9NativeDevice.cs     Separate CDC worker, exact AB9 discovery and checked transactions
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
   Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the Setup tab's picker (query-only)
   Updates/                 ReleaseInfo (pure policy), UpdateService (background GitHub checks),
@@ -185,6 +190,7 @@ src/AB9ActiveShifter/
                            GateVisualizer plan view and the Feel tab's force-curve graphs, all
                            on ForceGraphVisualizerBase and each sampling ForceComposer itself
     SettingsControl.Updates.cs App update preferences, shared banner and install/restart actions
+    SettingsControl.Native.cs Native setup actions, status and control availability
 tests/AB9ActiveShifter.Tests/
 build/refs/                Reference-only stubs of SimHub's assemblies
 tools/Verify-StubBuild.ps1 Proves a stub-built DLL binds against the real SimHub

@@ -500,6 +500,7 @@ namespace AB9ActiveShifter.UI
             // Lets the data thread look up the current car even when no profile lists one yet,
             // which is the only way the "add last used vehicle" button has anything to offer.
             if (Plugin != null) Plugin.WatchCarModel(true);
+            RefreshNativeHardware();
 
             _timer.Start();
         }
@@ -530,9 +531,16 @@ namespace AB9ActiveShifter.UI
                 ProfileCombo.Items.Clear();
                 foreach (ShifterProfile p in Plugin.Store.Profiles)
                 {
-                    if (p != null) ProfileCombo.Items.Add(p.Name);
+                    if (p == null) continue;
+                    var item = new ComboBoxItem
+                    {
+                        Content = p.Name + (p.Settings != null && p.Settings.Ab9NativeProfile ? " [AB9 native]" : ""),
+                        Tag = p.Name,
+                        IsEnabled = Plugin.CanActivateProfile(p)
+                    };
+                    ProfileCombo.Items.Add(item);
+                    if (p.Name == Plugin.Store.ActiveProfile) ProfileCombo.SelectedItem = item;
                 }
-                ProfileCombo.SelectedItem = Plugin.Store.ActiveProfile;
                 ProfileCombo.Text = Plugin.Store.ActiveProfile;
             }
             finally
@@ -1063,7 +1071,18 @@ namespace AB9ActiveShifter.UI
             if (FeelTab == null || _boundSettings == null) return;
 
             bool polarity = _boundSettings.PolarityConfirmed;
-            bool ready = polarity && _vjoyReady;
+            bool virtualAvailable = Plugin == null || Plugin.VirtualControlsAvailable;
+            bool ready = virtualAvailable && polarity && _vjoyReady;
+
+            VirtualPatternPanel.IsEnabled = virtualAvailable;
+            VirtualSequentialPulse.IsEnabled = virtualAvailable;
+            ConfirmSwitchCheck.IsEnabled = virtualAvailable;
+            VirtualEnableSection.IsEnabled = virtualAvailable;
+            VirtualFreeStickSection.IsEnabled = virtualAvailable;
+            VirtualVJoySection.IsEnabled = virtualAvailable;
+            VirtualClutchSection.IsEnabled = virtualAvailable;
+            VirtualChecklistSection.IsEnabled = virtualAvailable;
+            VirtualCalibrationSection.IsEnabled = virtualAvailable;
 
             Visibility visibility = ready ? Visibility.Visible : Visibility.Collapsed;
             FeelTab.Visibility = visibility;
@@ -1078,7 +1097,9 @@ namespace AB9ActiveShifter.UI
                 if (tabs != null && tabs.SelectedIndex != 0) tabs.SelectedIndex = 0;
             }
 
-            TabGateText.Text = ready
+            TabGateText.Text = !virtualAvailable
+                ? "Virtual gate controls are disabled for an AB9 native profile or while the selected AB9 is in native mode. Use Set up virtual gate to return. Native profiles use the base's own buttons."
+                : ready
                 ? ""
                 : "Feel, Effects, Geometry and Monitor appear once two things are true: " +
                   (polarity ? "polarity is measured (done)" : "polarity is measured (not yet - see below)") +
@@ -1121,7 +1142,7 @@ namespace AB9ActiveShifter.UI
         {
             if (_refreshingProfiles || Plugin == null || Plugin.Store == null) return;
 
-            string name = ProfileCombo.SelectedItem as string;
+            string name = (ProfileCombo.SelectedItem as ComboBoxItem)?.Tag as string;
             if (!string.IsNullOrEmpty(name) && name != Plugin.Store.ActiveProfile)
             {
                 Plugin.ActivateProfile(name);
@@ -1235,7 +1256,9 @@ namespace AB9ActiveShifter.UI
 
             // Tell them what actually arrived. A silent import that quietly dropped or clamped
             // half a file is how someone ends up debugging a feel they never chose.
-            string message = "Imported as '" + name + "' and made active.\n\n" +
+            string message = "Imported as '" + name + "'" + (Plugin.Store.ActiveProfile == name
+                ? " and made active.\n\n"
+                : ". Saved for use with a compatible AB9 in native mode.\n\n") +
                              result.Applied + " settings applied.";
             if (result.Clamped > 0)
             {
@@ -1246,7 +1269,9 @@ namespace AB9ActiveShifter.UI
             {
                 message += "\n" + result.Unknown + " were not recognised by this version and were ignored.";
             }
-            message += "\n\nForces are off, and your own measured polarity has been kept.";
+            message += result.Profile.Settings.Ab9NativeProfile
+                ? "\n\nNative settings were saved as a draft. Apply native profile writes them when the AB9 is available. Virtual forces are off."
+                : "\n\nForces are off, and your own measured polarity has been kept.";
 
             MessageBox.Show(message, "AB9 Active Shifter", MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -1299,6 +1324,12 @@ namespace AB9ActiveShifter.UI
 
             RefreshCalibrationResults();
             RefreshPedalStatus();
+            RefreshNativeUi();
+            if (++_nativePollTicks >= 25)
+            {
+                _nativePollTicks = 0;
+                RefreshNativeHardware();
+            }
 
             // Another program can take the vJoy device while this page is open, so the gate has
             // to keep asking - but only every couple of seconds, and only about the one device

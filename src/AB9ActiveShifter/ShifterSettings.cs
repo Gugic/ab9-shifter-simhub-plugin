@@ -22,6 +22,63 @@ namespace AB9ActiveShifter
         }
 
         internal void SetNativeEffectsSilently(string json) { _nativeEffectsJson = json; }
+
+        private bool _ab9NativeProfile;
+        private int _nativeTorquePct = 25;
+        private int _nativeOverallIntensityPct = 100;
+        private int _nativeSpringPct = 50;
+        private int _nativeDamperPct = 15;
+        private int _nativeInertiaPct;
+        private int _nativeFrictionPct;
+        private int _nativeGameGainPct = 100;
+        private int _nativeFfbMode = 1;
+        private int _nativeLayout = 6;
+        private int _nativeMechanicalResistancePct = 50;
+
+        /// <summary>Uses the AB9's firmware gate. Old profiles remain generic virtual profiles.</summary>
+        public bool Ab9NativeProfile { get { return _ab9NativeProfile; } set { Set(ref _ab9NativeProfile, value); } }
+        public int NativeTorquePct { get { return _nativeTorquePct; } set { Set(ref _nativeTorquePct, value); } }
+        public int NativeOverallIntensityPct { get { return _nativeOverallIntensityPct; } set { Set(ref _nativeOverallIntensityPct, value); } }
+        public int NativeSpringPct { get { return _nativeSpringPct; } set { Set(ref _nativeSpringPct, value); } }
+        public int NativeDamperPct { get { return _nativeDamperPct; } set { Set(ref _nativeDamperPct, value); } }
+        public int NativeInertiaPct { get { return _nativeInertiaPct; } set { Set(ref _nativeInertiaPct, value); } }
+        public int NativeFrictionPct { get { return _nativeFrictionPct; } set { Set(ref _nativeFrictionPct, value); } }
+        public int NativeGameGainPct { get { return _nativeGameGainPct; } set { Set(ref _nativeGameGainPct, value); } }
+        public int NativeFfbMode { get { return _nativeFfbMode; } set { Set(ref _nativeFfbMode, value); } }
+        public int NativeLayout { get { return _nativeLayout; } set { Set(ref _nativeLayout, value); } }
+        public int NativeMechanicalResistancePct { get { return _nativeMechanicalResistancePct; } set { Set(ref _nativeMechanicalResistancePct, value); } }
+
+        public Ab9NativeSettings ToNativeSettings()
+        {
+            return new Ab9NativeSettings
+            {
+                Torque = NativeTorquePct,
+                OverallIntensity = NativeOverallIntensityPct,
+                Spring = NativeSpringPct,
+                Damper = NativeDamperPct,
+                Inertia = NativeInertiaPct,
+                Friction = NativeFrictionPct,
+                GameGain = NativeGameGainPct,
+                FfbMode = NativeFfbMode,
+                Layout = NativeLayout,
+                MechanicalResistance = NativeMechanicalResistancePct
+            };
+        }
+
+        public void ReadNativeSettings(Ab9NativeSettings settings)
+        {
+            NativeTorquePct = settings.Torque;
+            NativeOverallIntensityPct = settings.OverallIntensity;
+            NativeSpringPct = settings.Spring;
+            NativeDamperPct = settings.Damper;
+            NativeInertiaPct = settings.Inertia;
+            NativeFrictionPct = settings.Friction;
+            NativeGameGainPct = settings.GameGain;
+            NativeFfbMode = settings.FfbMode;
+            NativeLayout = settings.Layout;
+            NativeMechanicalResistancePct = settings.MechanicalResistance;
+        }
+
         // Off by default on purpose: enabling takes the base exclusively and starts applying
         // force. That must be a deliberate act, after the MOZA Cockpit setup and the rest of
         // the pre-flight steps, with the user at the stick.

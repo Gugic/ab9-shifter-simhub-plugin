@@ -41,15 +41,44 @@ meant to feel that way.
 
 - **SimHub** — developed against 9.11.21
 - A **MOZA AB9** base on firmware **1.1.3.4 or newer** — developed and tested against **1.1.5.2**
-- **MOZA Pit House** and **MOZA Cockpit**, for the one-time base configuration below
-- [**vJoy**](https://sourceforge.net/projects/vjoystick/) with a device exposing at least
+- **MOZA Pit House** and **MOZA Cockpit** for firmware updates or manual setup on older firmware.
+  On AB9 firmware **1.1.5.2 or newer**, the plugin can configure the base directly
+- [**vJoy**](https://sourceforge.net/projects/vjoystick/) for virtual gear output, with a device exposing at least
   **14 buttons** — 1–8 carry the H patterns, 9 and 10 the sequential up/down, 11–14 the automatic's
   P, R, N and D. Fewer still works for whatever fits. The Setup tab lists
   the devices vJoy reports with their button counts, so you can check this without guessing; the
   gate itself works without vJoy, you just get no gear output
 - .NET Framework 4.8, already present if SimHub runs
 
-### 2. Put the base in flight mode — MOZA Pit House
+Generic virtual profiles also work with other DirectInput FFB flight sticks: set their vendor
+and product ids under **Base device identity**, remove hardware self-centring using their own
+configuration tools, and measure polarity. Only the AB9 has been tested on this rig. The extra
+AB9 native controls never probe or write to another stick.
+
+Native profiles use the AB9's own gear buttons and do not need vJoy or virtual polarity
+calibration. Bind those buttons in your game; if HidHide hides the AB9, make it visible to the
+game for native use.
+
+### 2. Choose virtual or native setup in the plugin
+
+On the **Setup** tab, **AB9 NATIVE SETUP** shows controls when an actual AB9 on firmware
+**1.1.5.2 or newer** answers its configuration reads. Close Cockpit, Pit House and AZOM's AB9
+connection first, then click **Refresh AB9** if needed.
+
+- **Set up virtual gate** applies flight mode, DirectInput, Spring 0%, Damper 15%, Inertia and
+  Friction 0%, and torque, overall intensity and game gain 100%. Virtual forces stay off until
+  you measure polarity and enable them. Continue with vJoy and calibration below.
+- **Set up native H pattern** configures the firmware gate at a conservative 25% torque and
+  creates an **[AB9 native]** profile. Its onboard tuning dials and layout are saved per profile;
+  **Apply native profile** writes edits, and selecting an existing native profile applies it.
+  Use the AB9's own gear buttons. The plugin's virtual controls and vJoy output are disabled.
+
+Native profiles cannot activate without a compatible AB9 selected and already in native mode.
+Profile hotkeys skip unavailable native profiles. They remain saved when the hardware is absent,
+and importing one never sends hardware writes. See [native configuration](docs/native-ab9.md)
+for the dials, protocol evidence and current hardware verification limits.
+
+### Manual flight setup on older AB9 firmware — MOZA Pit House
 
 The AB9 has two firmware modes, and the switch lives in **Pit House**, under **AB9 Mode**. Set it
 to **Flight Simulation Base**.
@@ -66,12 +95,12 @@ effect of its own. What it has no notion of is the rest of a game's telemetry �
 ABS, traction control, curbs and the clutch grind below are all things this plugin adds. None of
 it has any bearing on anything once the base is in flight mode.
 
-### 3. Set up the force feedback — MOZA Cockpit
+### 3. Manual force feedback setup on older firmware — MOZA Cockpit
 
-**Also not optional**, and it is a different app from the last step. The AB9 self-centres in
+These settings are required whether applied by the plugin or manually. The AB9 self-centres in
 firmware, and DirectInput's request to switch that off is ignored — measured, across five
-configurations. Cockpit's **Spring** is the only place it can be turned off; Pit House has no
-Spring setting in flight mode at all. Skip this and the base fights the gate everywhere with its
+configurations. The plugin's virtual setup writes the same onboard **Spring** setting that
+Cockpit uses; Pit House has no Spring setting in flight mode. Skip this and the base fights the gate everywhere with its
 own centring.
 
 ![MOZA Cockpit basic settings: DirectInput mode, Spring 0, Damper 15%](docs/img/moza-cockpit.png)

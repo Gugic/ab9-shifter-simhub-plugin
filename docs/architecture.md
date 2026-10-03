@@ -17,6 +17,26 @@ One SimHub plugin assembly, `AB9ActiveShifter.dll`, plus a test project. The spl
 
 ## Threading
 
+**AB9 native configuration** is a separate, optional CDC worker; it never runs in the force tick
+or on SimHub's telemetry thread. It uses exact USB identity, re-checks firmware at each session,
+reads every write back and releases the COM port afterward. Generic virtual profiles do not
+write native settings. Native profiles have their own scalar tuning dials and require a
+compatible AB9 already in native mode; unavailable profiles cannot activate, including through
+hotkeys and car-model switching.
+
+On the first AB9 startup, a read-only mode check completes before virtual output can start.
+An unavailable port preserves the existing generic setup; a confirmed native mode suppresses
+virtual output. This check runs once per process, with subsequent reads on the open Setup page.
+
+A write action disables the virtual session first, using the existing teardown ordering, then
+temporarily mutes hardware torque while it configures the base. No action automatically
+restarts virtual forces. Native profiles and a known native-mode AB9 suppress the virtual
+engine even if an action tries to enable it. An uncertain mode after a failed write stays
+suppressed until a fresh read resolves it. Other FFB sticks remain independent. Protocol,
+setup recipes and partial-failure behavior are detailed in [native-ab9.md](native-ab9.md).
+Profile activation and profile-list edits are blocked during writes, so setup cannot finish
+against a different profile than the one it started from.
+
 **One background thread, `AB9ShifterFFB`, owns every DirectInput, effect, and vJoy call.** No
 exceptions except `FfbDevice.StopForces()`, which the watchdog may call to kill output when the
 loop has stopped ticking, and which swallows everything because the device may already be gone.
@@ -344,6 +364,12 @@ the four shifter source rows), **Geometry** (force shaping, hysteresis bands, vJ
 **Monitor** (live drawing of the configured pattern — missing slots left blank, the lockout
 shaded where the geometry puts it and dimmed while a hard gate is released, or the sequential
 track), and **Options** (app update preferences, release notes and install/restart actions).
+
+Setup also has **AB9 NATIVE SETUP**, with the one-action native/virtual setup and native profile
+tuning. In native mode the virtual tabs are hidden and their Setup controls disabled; native
+profiles use the physical AB9 buttons rather than vJoy. Profile imports remain drafts and
+never write native hardware; format 2 prevents older builds from treating a native profile as
+a virtual one.
 
 ## Build
 

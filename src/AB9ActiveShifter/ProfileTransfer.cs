@@ -53,7 +53,7 @@ namespace AB9ActiveShifter
         public const string FormatId = "AB9ActiveShifter.Profile";
 
         /// <summary>Bumped only when an older build could misread a newer file, not on every dial.</summary>
-        public const int FormatVersion = 1;
+        public const int FormatVersion = 2;
 
         public const string FileExtension = ".ab9profile.json";
 
@@ -204,7 +204,8 @@ namespace AB9ActiveShifter
 
             JObject root = new JObject();
             root.Add("Format", FormatId);
-            root.Add("FormatVersion", FormatVersion);
+            // Older plugins must refuse native profiles instead of interpreting them as virtual.
+            root.Add("FormatVersion", profile.Settings.Ab9NativeProfile ? FormatVersion : 1);
             root.Add("ExportedBy", PluginInfo.Version);
             root.Add("Name", profile.Name ?? "Profile");
             root.Add("Settings", dials);
@@ -269,6 +270,8 @@ namespace AB9ActiveShifter
             // An old shared file carries legacy dials. It must migrate those, rather than
             // inheriting the receiving profile's unrelated native effect tree.
             settings.NativeEffectsJson = null;
+            // A legacy virtual file imported while a native profile is selected stays virtual.
+            settings.Ab9NativeProfile = false;
             ProfileImportResult result = new ProfileImportResult();
 
             HashSet<string> known = new HashSet<string>(StringComparer.Ordinal);
@@ -424,6 +427,8 @@ namespace AB9ActiveShifter
         /// </summary>
         private static void RangeFor(string name, out int lo, out int hi)
         {
+            if (name == "NativeLayout") { lo = 0; hi = 9; return; }
+            if (name == "NativeFfbMode") { lo = 0; hi = 2; return; }
             if (name == "PatternWidthPct")
             {
                 // Not a torque scale despite the suffix - it is how wide the pattern stands, and

@@ -74,7 +74,7 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="8">
 
-                    <styles:SHSection Title="PROFILE &amp; PATTERN" ShowSeparator="True">
+                    <styles:SHSection x:Name="ProfileSection" Title="PROFILE &amp; PATTERN" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                 <TextBlock Text="Profile" VerticalAlignment="Center" Margin="0,0,8,0" />
@@ -89,7 +89,8 @@
                             <TextBlock x:Name="PresetNote" TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,6"
                                        Visibility="Collapsed"
                                        Text="This is a shipped preset, so it cannot be renamed, deleted or changed - it is here to stay a fixed starting point you can always come back to. Turn any dial and the edit moves to a profile of your own with the same name, leaving the preset as it was. Presets are the ones marked (Preset) and they sit at the end of the list." />
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock x:Name="ProfileKindText" TextWrapping="Wrap" Margin="0,0,0,6" />
+                            <StackPanel x:Name="VirtualPatternPanel" Orientation="Horizontal" Margin="0,0,0,4">
                                 <TextBlock Text="Pattern" VerticalAlignment="Center" Margin="0,0,8,0" />
                                 <ComboBox Width="220" SelectedIndex="{Binding PatternIndex, Mode=TwoWay}">
                                     <ComboBoxItem Content="H pattern, 7 gears + R (lockout)" />
@@ -100,7 +101,7 @@
                                     <ComboBoxItem Content="H pattern, 6 gears, no reverse (truck)" />
                                 </ComboBox>
                             </StackPanel>
-                            <ui:TitledSlider Title="Sequential pulse length (ms)" Minimum="20" Maximum="400"
+                            <ui:TitledSlider x:Name="VirtualSequentialPulse" Title="Sequential pulse length (ms)" Minimum="20" Maximum="400"
                                              TickFrequency="10" ShowResetButton="True" ResetValue="120"
                                              Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}"
                                              Value="{Binding SeqPulseMs, Mode=TwoWay}" />
@@ -129,6 +130,52 @@
                         </StackPanel>
                     </styles:SHSection>
 
+                    <styles:SHSection Title="AB9 NATIVE SETUP" ShowSeparator="True">
+                        <StackPanel Margin="0,4,0,8">
+                            <TextBlock x:Name="NativeStatusText" TextWrapping="Wrap" Margin="0,0,0,6" />
+                            <styles:SHButtonSecondary x:Name="NativeRefreshButton" Click="OnNativeRefresh"
+                                                       Content="Refresh AB9" Padding="10,3" HorizontalAlignment="Left" />
+                            <StackPanel x:Name="NativeControlPanel" Visibility="Collapsed" Margin="0,8,0,0">
+                                <WrapPanel>
+                                    <styles:SHButtonSecondary x:Name="NativeSetupButton" Click="OnNativeSetup"
+                                                               Content="Set up native H pattern" Padding="10,3" Margin="0,0,8,6" />
+                                    <styles:SHButtonSecondary x:Name="VirtualSetupButton" Click="OnVirtualSetup"
+                                                               Content="Set up virtual gate" Padding="10,3" Margin="0,0,8,6" />
+                                </WrapPanel>
+                                <TextBlock TextWrapping="Wrap" Opacity="0.75"
+                                           Text="Native setup configures the AB9's firmware gate at 25% torque and creates an AB9 native profile. Virtual setup selects flight mode and DirectInput, Spring 0%, Damper 15%, Inertia and Friction 0%, and all three hardware gains 100%. Both stop virtual forces before writing and verify the settings. Measure polarity before enabling the virtual gate." />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0"
+                                           Text="These controls require a connected AB9 on firmware 1.1.5.2 or newer. Close Cockpit, Pit House and AZOM's AB9 connection to free its serial port. Generic virtual profiles also work with other DirectInput FFB sticks; they never write AB9 settings." />
+                            </StackPanel>
+                            <TextBlock x:Name="NativeOperationText" TextWrapping="Wrap" Margin="0,6,0,0" />
+                            <StackPanel x:Name="NativeTunePanel" Visibility="Collapsed" Margin="0,10,0,0">
+                                <TextBlock Text="AB9 native profile settings" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8"
+                                           Text="These dials belong to this native profile. Apply writes them to the base; selecting an existing native profile also applies it. Bind the AB9's own gear buttons in your game; if HidHide hides it, make it visible for native use. Virtual gate geometry, polarity calibration, vJoy and the plugin's telemetry effects are disabled in native mode." />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="Native layout" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <ComboBox Width="220" SelectedIndex="{Binding NativeLayout, Mode=TwoWay}">
+                                        <ComboBoxItem Content="5+R, layout 1" /><ComboBoxItem Content="5+R, layout 2" />
+                                        <ComboBoxItem Content="R+5" /><ComboBoxItem Content="R+6" />
+                                        <ComboBoxItem Content="6+R, layout 1" /><ComboBoxItem Content="6+R, layout 2" />
+                                        <ComboBoxItem Content="7+R, layout 1" /><ComboBoxItem Content="7+R, layout 2" />
+                                        <ComboBoxItem Content="R+8" /><ComboBoxItem Content="Sequential" />
+                                    </ComboBox>
+                                </StackPanel>
+                                <ui:TitledSlider Title="Maximum Torque Output (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="25" Value="{Binding NativeTorquePct, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="Overall Force Feedback Intensity (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="100" Value="{Binding NativeOverallIntensityPct, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="Spring (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="50" Value="{Binding NativeSpringPct, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="Damper (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="15" Value="{Binding NativeDamperPct, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="Inertia (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="0" Value="{Binding NativeInertiaPct, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="Friction (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="0" Value="{Binding NativeFrictionPct, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="Game Force Feedback Gain (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="100" Value="{Binding NativeGameGainPct, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="Gear Shift Mechanical Resistance (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="50" Value="{Binding NativeMechanicalResistancePct, Mode=TwoWay}" />
+                                <styles:SHButtonSecondary x:Name="NativeApplyButton" Click="OnNativeApply"
+                                                           Content="Apply native profile" Padding="10,3" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                            </StackPanel>
+                        </StackPanel>
+                    </styles:SHSection>
+
                     <styles:SHSection Title="STATUS" ShowSeparator="True">
                         <StackPanel x:Name="StatusPanel" Margin="0,4,0,8">
                             <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,6" />
@@ -143,7 +190,7 @@
                         </StackPanel>
                     </styles:SHSection>
 
-                    <styles:SHSection Title="ENABLE" ShowSeparator="True">
+                    <styles:SHSection x:Name="VirtualEnableSection" Title="ENABLE" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <styles:SHToggleCheckbox IsChecked="{Binding Enabled, Mode=TwoWay}"
                                                      Content="Shifter force feedback enabled" />
@@ -178,15 +225,15 @@
                         </StackPanel>
                     </styles:SHSection>
 
-                    <styles:SHSection Title="FREE STICK" ShowSeparator="True">
+                    <styles:SHSection x:Name="VirtualFreeStickSection" Title="FREE STICK" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <styles:SHToggleCheckbox IsChecked="{Binding FreeStick, Mode=TwoWay}"
                                                      Content="Release all forces (free stick)" />
                             <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75"
-                                       Text="Holds the base but applies nothing, so you can feel how the stick moves on its own. Any resistance left with this on is coming from the hardware, not from the gate - almost always the base's own centring, which only MOZA Cockpit's Spring setting can switch off. This base centres in firmware and ignores DirectInput's request to stop." />
+                                       Text="Holds the base but applies nothing, so you can feel how the stick moves on its own. Any resistance left with this on comes from the hardware, usually its onboard spring. Set up virtual gate switches that spring off on a compatible AB9; other bases need their manufacturer's settings app." />
                         </StackPanel>
                     </styles:SHSection>
-                    <styles:SHSection Title="VJOY OUTPUT" ShowSeparator="True">
+                    <styles:SHSection x:Name="VirtualVJoySection" Title="VJOY OUTPUT" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                 <TextBlock Text="Device" VerticalAlignment="Center" Margin="0,0,8,0" />
@@ -213,7 +260,7 @@
                         </StackPanel>
                     </styles:SHSection>
 
-                    <styles:SHSection Title="CLUTCH" ShowSeparator="True">
+                    <styles:SHSection x:Name="VirtualClutchSection" Title="CLUTCH" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                 <TextBlock Text="Read from" VerticalAlignment="Center" Margin="0,0,8,0" />
@@ -282,10 +329,10 @@
                     </styles:SHSection>
 
 
-                    <styles:SHSection Title="BEFORE YOU START" ShowSeparator="True">
+                    <styles:SHSection x:Name="VirtualChecklistSection" Title="BEFORE YOU START" ShowSeparator="True">
                         <TextBlock TextWrapping="Wrap" Margin="0,4,0,8" Opacity="0.85">
-                            1. In MOZA Pit House, once: AB9 Mode = Flight Simulation Base. In Shifter mode the base runs its own gate and does not present the axes at all.<LineBreak />
-                            2. In MOZA Cockpit, once: Force Feedback Mode = DirectInput, Spring = 0, Damper = 15%, and Maximum Torque Output, Overall Force Feedback Intensity and Game Force Feedback Gain at 100%. Without this the base fights the gate with its own centring.<LineBreak />
+                            1. With a compatible AB9, click Set up virtual gate above. For older firmware, set AB9 Mode = Flight Simulation Base in MOZA Pit House. Other FFB sticks use their own configuration tools.<LineBreak />
+                            2. Virtual setup applies DirectInput, Spring 0%, Damper 15%, Inertia and Friction 0%, and hardware gains 100%. With older AB9 firmware, set these in MOZA Cockpit instead. Remove hardware self-centring on other sticks too.<LineBreak />
                             3. Fully exit both MOZA apps. They hold the stick exclusively and this plugin cannot open it while they do.<LineBreak />
                             4. Create a vJoy device with at least 10 buttons in vJoyConf (gears use 1-8, sequential up/down use 9-10), then pick it under vJoy output above.<LineBreak />
                             5. Run the polarity calibration below, before turning the force up.<LineBreak />
@@ -293,7 +340,7 @@
                         </TextBlock>
                     </styles:SHSection>
 
-                    <styles:SHSection Title="POLARITY CALIBRATION" ShowSeparator="True">
+                    <styles:SHSection x:Name="VirtualCalibrationSection" Title="POLARITY CALIBRATION" ShowSeparator="True">
                         <StackPanel Margin="0,4,0,8">
 
                             <!-- Done: the measurement is a one-off, so once it has been made this

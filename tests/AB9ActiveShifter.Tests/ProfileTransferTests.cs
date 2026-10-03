@@ -316,7 +316,7 @@ namespace AB9ActiveShifter.Tests
             JObject root = JObject.Parse(ProfileTransfer.Export(Sample()));
 
             Assert.Equal(ProfileTransfer.FormatId, (string)root["Format"]);
-            Assert.Equal(ProfileTransfer.FormatVersion, (int)root["FormatVersion"]);
+            Assert.Equal(1, (int)root["FormatVersion"]); // Generic files remain readable by older builds.
             Assert.Equal("Truck gate", (string)root["Name"]);
             Assert.Equal("H5R", (string)root["Settings"]["Pattern"]);
             Assert.Equal("Angled", (string)root["Settings"]["MouthShape"]);

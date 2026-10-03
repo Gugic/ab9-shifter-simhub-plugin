@@ -18,7 +18,7 @@ namespace AB9ActiveShifter
     [PluginDescription("Renders an H-pattern, sequential or PRND shift gate in force feedback on an AB9 flight base, plays telemetry effects through the lever, and outputs the selected gear as vJoy buttons. Unofficial third-party plugin, not affiliated with MOZA. Drives a 12 Nm device - see the Setup tab.")]
     [PluginAuthor("Gugic")]
     [PluginName("AB9 Active Shifter")]
-    public class AB9ShifterPlugin : IPlugin, IDataPlugin, IWPFSettingsV2, IReusable
+    public partial class AB9ShifterPlugin : IPlugin, IDataPlugin, IWPFSettingsV2, IReusable
     {
         private const string SettingsKey = "GeneralSettings";
 
@@ -219,8 +219,8 @@ namespace AB9ActiveShifter
                 _processExitHooked = true;
             }
 
-            if (Settings.Enabled) _engine.Start();
-            else Log.Info("Plugin is disabled in settings; engine not started.");
+            DetectNativeAtStartup();
+            PushSettingsToEngine();
 
             lock (EngineSync)
             {
@@ -400,12 +400,12 @@ namespace AB9ActiveShifter
         /// handles the swap like any config change - gears release if the new geometry says
         /// the stick is not in one, and a sequential pulse in flight is cleared.
         /// </summary>
-        public void ActivateProfile(string name)
+        public void ActivateProfile(string name, bool applyNative = true)
         {
             var app = System.Windows.Application.Current;
             if (app != null && !app.Dispatcher.CheckAccess())
             {
-                OnUiThread(() => ActivateProfile(name));
+                OnUiThread(() => ActivateProfile(name, applyNative));
                 return;
             }
             if (Store == null || Store.Profiles == null) return;
@@ -416,6 +416,7 @@ namespace AB9ActiveShifter
                 if (p != null && p.Name == name && p.Settings != null) { target = p; break; }
             }
             if (target == null || target.Settings == Settings) return;
+            if (!CanActivateProfile(target)) return;
             // Flush before detaching the outgoing settings, so a native edit made just before
             // a hotkey switch still forks its preset and belongs to the outgoing profile.
             if (_nativeEffects != null) _nativeEffects.SaveIfChanged(true);
@@ -443,6 +444,7 @@ namespace AB9ActiveShifter
             SaveStore();
             RaiseProfileChanged();
             Log.Info("Profile '" + target.Name + "' activated.");
+            if (Settings.Ab9NativeProfile && applyNative) ApplyNativeProfileInBackground();
         }
 
         /// <summary>
@@ -457,7 +459,7 @@ namespace AB9ActiveShifter
             {
                 if (Store == null) return;
 
-                string next = Store.NextInCycle(Store.ActiveProfile, direction);
+                string next = Store.NextInCycle(Store.ActiveProfile, direction, CanActivateProfile);
                 if (string.IsNullOrEmpty(next)) return;
 
                 ActivateProfile(next);
@@ -490,8 +492,8 @@ namespace AB9ActiveShifter
         /// <summary>Adds a copy of the current profile under the given name and makes it live.</summary>
         public void AddProfileFromCurrent(string requestedName)
         {
+            if (Store == null || NativeWriteBusy) return;
             if (_nativeEffects != null) _nativeEffects.SaveIfChanged(true);
-            if (Store == null) return;
             if (Store.Profiles == null) Store.Profiles = new System.Collections.Generic.List<ShifterProfile>();
 
             var profile = new ShifterProfile
@@ -502,6 +504,11 @@ namespace AB9ActiveShifter
 
             Store.Profiles.Add(profile);
             ActivateProfile(profile.Name);
+            if (Store.ActiveProfile != profile.Name)
+            {
+                SaveStore();
+                RaiseProfileChanged();
+            }
         }
 
         /// <summary>
@@ -511,12 +518,16 @@ namespace AB9ActiveShifter
         /// </summary>
         public string AddImportedProfile(ShifterProfile imported)
         {
-            if (Store == null || imported == null || imported.Settings == null) return null;
+            if (Store == null || NativeWriteBusy || imported == null || imported.Settings == null) return null;
             if (Store.Profiles == null) Store.Profiles = new System.Collections.Generic.List<ShifterProfile>();
 
             imported.Name = Store.UniqueName(imported.Name);
             Store.Profiles.Add(imported);
-            ActivateProfile(imported.Name);
+            Settings.Enabled = false;
+            // Importing saves a draft; it must never write someone else's native forces.
+            ActivateProfile(imported.Name, false);
+            SaveStore();
+            RaiseProfileChanged();
 
             Log.Info("Imported profile '" + imported.Name + "'.");
             return imported.Name;
@@ -529,15 +540,16 @@ namespace AB9ActiveShifter
         /// </summary>
         public void DeleteActiveProfile()
         {
-            if (Store == null || Store.Profiles == null || Store.Profiles.Count <= 1) return;
+            if (Store == null || NativeWriteBusy || Store.Profiles == null || Store.Profiles.Count <= 1) return;
             if (DefaultProfiles.IsPreset(Store.ActiveProfile)) return;
 
             ShifterProfile active = Store.FindActive();
             if (active == null) return;
 
+            ShifterProfile next = Store.Profiles.Find(p => p != active && CanActivateProfile(p));
+            if (next == null) return;
             Store.Profiles.Remove(active);
-            ShifterProfile next = Store.FindActive();
-            if (next != null) ActivateProfile(next.Name);
+            ActivateProfile(next.Name);
         }
 
         /// <summary>
@@ -548,7 +560,7 @@ namespace AB9ActiveShifter
         /// </summary>
         public void RenameActiveProfile(string newName)
         {
-            if (Store == null || string.IsNullOrWhiteSpace(newName)) return;
+            if (Store == null || NativeWriteBusy || string.IsNullOrWhiteSpace(newName)) return;
             if (DefaultProfiles.IsPreset(Store.ActiveProfile)) return;
 
             ShifterProfile active = Store.FindActive();
@@ -600,8 +612,9 @@ namespace AB9ActiveShifter
 
             engine.ApplyConfig(cfg);
 
-            if (Settings.Enabled && !engine.IsRunning) engine.Start();
-            else if (!Settings.Enabled && engine.IsRunning) engine.Stop(TimeSpan.FromSeconds(2));
+            bool run = Settings.Enabled && VirtualControlsAvailable;
+            if (run && !engine.IsRunning) engine.Start();
+            else if (!run && engine.IsRunning) engine.Stop(TimeSpan.FromSeconds(2));
         }
 
         private void OnSettingsChanged(object sender, PropertyChangedEventArgs e)
@@ -924,6 +937,7 @@ namespace AB9ActiveShifter
         {
             this.AddAction("ToggleShifterFFB", (a, b) =>
             {
+                if (!VirtualControlsAvailable) return;
                 Settings.Enabled = !Settings.Enabled;
                 Log.Info("Shifter FFB toggled " + (Settings.Enabled ? "on" : "off") + ".");
             });
@@ -937,8 +951,8 @@ namespace AB9ActiveShifter
             // Bindable to a wheel button or a key in SimHub's own Controls page, which is the
             // point: switching between an H gate and a sequential lever is a thing done between
             // sessions, or between cars, without reaching for a mouse.
-            this.AddAction("NextProfile", (a, b) => CycleProfile(1));
-            this.AddAction("PreviousProfile", (a, b) => CycleProfile(-1));
+            this.AddAction("NextProfile", (a, b) => OnUiThread(() => CycleProfile(1)));
+            this.AddAction("PreviousProfile", (a, b) => OnUiThread(() => CycleProfile(-1)));
 
             // The hard lockout's keys. Toggle is the one-button binding; the explicit pair
             // exists for a two-position switch, which an edge-triggered toggle would desync

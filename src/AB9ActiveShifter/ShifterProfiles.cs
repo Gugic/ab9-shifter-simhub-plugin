@@ -123,9 +123,11 @@ namespace AB9ActiveShifter
         /// silently did nothing would be blamed on the binding rather than on the stale entry.
         /// </para>
         /// </summary>
-        public string NextInCycle(string current, int direction)
+        public string NextInCycle(string current, int direction, Func<ShifterProfile, bool> available = null)
         {
             List<string> ring = CycleOrder();
+            if (available != null)
+                ring.RemoveAll(name => !Profiles.Exists(p => p != null && p.Name == name && available(p)));
             if (ring.Count == 0) return null;
 
             int index = ring.IndexOf(current ?? "");

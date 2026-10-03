@@ -2,10 +2,11 @@
 
 The dials are spread over the plugin's **Setup**, **Feel**, **Effects** and **Geometry** tabs —
 feel lives on Feel, the telemetry buzzes on Effects, and the positions the gate is built from on
-Geometry. All of them apply on the next FFB tick, so nothing needs restarting. Forces are percentages of what the base can produce *before* the master
+Geometry. Virtual dials apply on the next FFB tick, so nothing needs restarting. Native AB9
+dials are profile drafts until applied with **Apply native profile**. Virtual forces are percentages of what the base can produce *before* the master
 gain, so raising overall gain lifts the whole gate together and keeps tuned ratios intact.
 
-Run **Measure polarity** first. Until it succeeds, gain is capped at 10% and everything feels
+For virtual profiles, run **Measure polarity** first. Until it succeeds, gain is capped at 10% and everything feels
 light — that is the safety cap doing its job, not a tuning problem. The Feel, Effects, Geometry and
 Monitor tabs stay hidden until polarity is measured and a vJoy device is available, so if this
 guide describes a tab you cannot see, that is why.
@@ -80,6 +81,38 @@ show the four positions, with the one currently held lit, and a dashed mark at e
 button changes hands.
 
 ## Start here
+
+### AB9 native profiles
+
+**AB9 NATIVE SETUP** on Setup requires a connected, selected AB9 on firmware **1.1.5.2 or
+newer**. **Refresh AB9** reads it. **Set up native H pattern** configures a conservative native
+gate and creates a marked profile in one action; **Set up virtual gate** applies the required
+flight settings and leaves virtual forces off for calibration. Close Cockpit, Pit House and
+AZOM's AB9 connection first. Generic virtual profiles remain independent of these capabilities.
+
+**AB9 native profile settings** are per profile and apply through **Apply native profile**, or
+by selecting an existing eligible native profile. Edits autosave as a draft. Native profiles
+cannot be used on another stick, older/unknown firmware, or with the AB9 in flight mode. The
+virtual tuning tabs and their Setup controls are disabled in native mode. These onboard forces
+are separate from every similarly named virtual force dial elsewhere in this guide.
+
+| Native control | New native profile | Meaning |
+| --- | --- | --- |
+| Native layout | 7+R, layout 1 | One of MOZA's ten firmware layouts, including sequential |
+| Maximum Torque Output (%) | 25% | Hardware torque limit; kept low for first native setup |
+| Overall Force Feedback Intensity (%) | 100% | Hardware intensity scale |
+| Spring (%) | 50% | Firmware spring; virtual setup instead writes 0% |
+| Damper (%) | 15% | Servo-loop damping |
+| Inertia (%) | 0% | Firmware inertia |
+| Friction (%) | 0% | Firmware friction |
+| Game Force Feedback Gain (%) | 100% | Hardware game-force scale |
+| Gear Shift Mechanical Resistance (%) | 50% | Firmware gate resistance |
+
+The native defaults still need feel verification. Native haptic streaming from game telemetry
+has not been added. [Native configuration](native-ab9.md) records the read-only hardware
+measurements, write ordering and profile rules.
+
+### Generic virtual profiles
 
 | Dial | Default | What it does |
 | --- | --- | --- |

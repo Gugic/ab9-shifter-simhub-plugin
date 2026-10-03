@@ -42,7 +42,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-511 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+531 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 and the pure release parser in `Updates/ReleaseInfo.cs`. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -81,6 +81,7 @@ src/AB9ActiveShifter/
   AB9ShifterPlugin.cs      SimHub shell: IPlugin/IDataPlugin/IWPFSettingsV2/IReusable,
                            properties, events, actions, profile management, settings load/save,
                            DataUpdate -> TelemetryState for the effects
+  AB9ShifterPlugin.Native.cs Optional AB9 setup, native profile eligibility and engine suppression
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
   ShifterProfiles.cs       ProfileStore (named settings + active + the rig's own facts), legacy
                            migration, cloning, the preset fork
@@ -92,6 +93,9 @@ src/AB9ActiveShifter/
   Effects/                 Native ShakeIt host/editor, Lever output adapter and shifter sources
   PluginInfo.cs            The build's version string, for the UI and for exported files
   Core/                    Pure, no I/O, fully unit-tested
+    Ab9NativeProtocol.cs   CDC codec, parameter ids and firmware eligibility
+    Ab9NativeSettings.cs   Read/write snapshots and validated configuration plans
+    NativeProfilePolicy.cs Native profile and virtual engine eligibility
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
     GateGeometry.cs        Column targets, hysteresis bands, gear map, unit conversions
     GateStateMachine.cs    Neutral / Traveling / Engaged with hysteresis and resync
@@ -120,6 +124,7 @@ src/AB9ActiveShifter/
                            at capacity again
     VJoyDeviceInfo.cs      One vJoy device as the picker shows it, and the sentence describing it
   Device/                  DirectInput and Win32
+    Ab9NativeDevice.cs     Separate CDC worker, exact AB9 discovery, checked transactions
     FfbDevice.cs           Open by VID/PID, exclusive+background, poll
     PedalDevice.cs         The clutch pedal's own handle. NON-exclusive by design - the game
                            needs those pedals too - and read-only; it never creates an effect
@@ -132,6 +137,7 @@ src/AB9ActiveShifter/
                            (background checks), UpdateInstaller (verified atomic DLL replacement)
   UI/                      SettingsControl.xaml (Setup/Feel/Effects/Geometry/Monitor/Options)
     SettingsControl.Updates.cs Update banner, app preferences, release notes and install/restart
+    SettingsControl.Native.cs Native setup actions and control availability
     GateVisualizer.cs      The gate plan view with the live stick position, on Monitor and again
                            at the top of Geometry. Draws the gate's real free space, the mouths
                            and the engage/release notches, so every geometry dial moves something
@@ -146,6 +152,8 @@ src/AB9ActiveShifter/
     PrndLaneVisualizer.cs         The selector lane's force across the whole of travel
     InverseBooleanToVisibilityConverter.cs  The negation the raw/percent toggle needs
 tests/AB9ActiveShifter.Tests/
+  Ab9NativeTests.cs        Wire captures, escaping, firmware order, transaction ordering,
+                           native profile eligibility, imports and generic-stick independence
   ForceComposerTests.cs    Force shape, stability properties, polarity, clamps
   EffectComposerTests.cs   Carrier amplitudes and gain cap, staleness cut, grind conditions
   NativeEffectTests.cs     Native tone budgets, phases, freshness, profile epochs and safe import
@@ -455,6 +463,14 @@ runners cannot load, so anything worth testing must not touch it.
 
 **Safety ordering**
 
+- **Native AB9 setup stays off the force loop.** A separate CDC worker requires the exact AB9
+  USB identity and firmware 1.1.5.2 or newer, re-checks before writing, and reads each write
+  back. The virtual engine is torn down first; hardware torque is muted and verified before
+  configuration and restored last. Native profiles never drive the virtual engine or vJoy,
+  and cannot activate without an eligible AB9 already in native mode. An uncertain mode after
+  a failed write blocks virtual output on that AB9 until readback; other sticks remain generic.
+  Profiles cannot switch during a write. Native onboard tuning is per profile, while connected
+  hardware, firmware and port are runtime facts. See [docs/native-ab9.md](docs/native-ab9.md).
 - Gear change: **buttons before forces.** A game must see the gear at least as early as the hand
   feels it. Sequential pulses obey the same order, and re-firing a button that is still down
   inserts a ≥20 ms released gap first — an off-and-on inside one tick reads to a game's input
