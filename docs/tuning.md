@@ -170,7 +170,8 @@ button changes hands.
 
 The **OPERATING MODE** selector offers **Moza AB9**, **Generic FFB stick**, and
 **Moza AB9 native H-Pattern** with the base connected or disconnected and the master switch on
-or off. Choosing a mode saves the preference and leaves plugin output off. **Base is not found**
+or off. **What does this mean?** expands a bulleted explanation of the three modes; it starts
+collapsed. Choosing a mode saves the preference and leaves plugin output off. **Base is not found**
 appears on Setup/Options and Main when the selected base is missing; forces and gear presses stay
 inactive until fresh input is available.
 
@@ -180,6 +181,16 @@ a genuine AB9 with firmware **1.1.5.2 or newer**. Use **Refresh base** after clo
 Pit House or AZOM's AB9 connection. **Generic FFB stick** uses DirectInput only; choose it for
 other bases and follow their manual setup checklist. **Moza AB9 native H-Pattern** uses firmware
 buttons, is configured in **Moza Pit House / AZOM**, and disables plugin output and tuning.
+The **Prepare base** button and its explanation appear only in **Moza AB9**. Generic mode
+shows **BEFORE YOU START** as five numbered steps: select DirectInput feedback, turn off
+built-in centring/background effects, close apps holding the base exclusively, configure the
+chosen output, and bind its buttons or keys in the game.
+
+**Measure polarity** is required for both virtual modes: **Moza AB9** still drives the custom
+gate through DirectInput while using onboard basic effects, and **Generic FFB stick** uses
+DirectInput throughout. Calibration measures push and spring direction on each axis; the 10%
+gain cap remains until confirmed. Firmware **Moza AB9 native H-Pattern** needs no plugin
+calibration and hides these controls because plugin output is disabled.
 
 Feel labels the AB9's basic effects **Base-driven effects**: they are processed internally by
 the base and avoid the plugin's USB round trip. Generic FFB stick provides the same controls

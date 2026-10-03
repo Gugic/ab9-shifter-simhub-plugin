@@ -173,7 +173,28 @@
                                     <ComboBoxItem Content="Generic FFB stick" Tag="GenericFfbStick" />
                                     <ComboBoxItem Content="Moza AB9 native H-Pattern" Tag="Ab9HPattern" />
                                 </ComboBox>
-                                <TextBlock Text="Moza AB9 allows the plugin to use internal AB9 base settings. Generic FFB stick uses DirectInput only; use it for other bases. Moza AB9 native H-Pattern uses the firmware shifter, configured in Moza Pit House / AZOM, with plugin output disabled. You can select any mode while the base is connected or disconnected and the master switch is on or off." TextWrapping="Wrap" Margin="0,4,0,8" />
+                                <styles:SHExpander Header="What does this mean?" IsExpanded="False" Margin="0,0,0,8">
+                                    <StackPanel Margin="0,6,0,4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="20" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Text="•" />
+                                            <TextBlock Grid.Column="1" TextWrapping="Wrap" Margin="0,0,0,8"><Run FontWeight="SemiBold" Text="Moza AB9" /> — Uses internal AB9 base settings alongside the plugin's virtual shifter.</TextBlock>
+                                            <TextBlock Grid.Row="1" Text="•" />
+                                            <TextBlock Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" Margin="0,0,0,8"><Run FontWeight="SemiBold" Text="Generic FFB stick" /> — Uses DirectInput only. Choose this for a base other than the AB9 and follow the manual checklist.</TextBlock>
+                                            <TextBlock Grid.Row="2" Text="•" />
+                                            <TextBlock Grid.Row="2" Grid.Column="1" TextWrapping="Wrap"><Run FontWeight="SemiBold" Text="Moza AB9 native H-Pattern" /> — Uses the firmware shifter configured in Moza Pit House / AZOM. Plugin output is disabled.</TextBlock>
+                                        </Grid>
+                                        <TextBlock Text="You can choose any mode with the base connected or disconnected and the master switch on or off." TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0" />
+                                    </StackPanel>
+                                </styles:SHExpander>
                                 <TextBlock x:Name="BaseConnectionWarning" TextWrapping="Wrap" Foreground="#F0B35A" Margin="0,0,0,8" Visibility="Collapsed" />
                                 <TextBlock x:Name="NativeStatusText" TextWrapping="Wrap" Margin="0,0,0,6" />
                                 <styles:SHButtonSecondary Content="Refresh base" Click="OnNativeRefresh" Padding="14,6" Margin="0,4,8,4" x:Name="NativeRefreshButton" />
@@ -185,10 +206,51 @@
                             <styles:SHExpander x:Name="PrepareGroup" Header="Prepare the base" Margin="0,8,0,8">
                                 <styles:SHSection Title="" ShowSeparator="True" x:Name="PrepareSection">
                                     <StackPanel Margin="0,6,0,16">
-                                        <TextBlock Text="In Moza AB9 mode, Prepare base selects flight mode and configures internal base effects after checking the connected base. In Generic FFB stick mode, use the checklist below with your base’s settings app. Selecting a mode saves your preference; base preparation is a separate step." TextWrapping="Wrap" Margin="0,4,0,8" />
-                                        <styles:SHButtonSecondary Content="Prepare base" Click="OnPrepareSelectedMode" Padding="14,6" Margin="0,4,8,4" x:Name="PrepareBaseButton" />
+                                        <StackPanel x:Name="Ab9PreparePanel" Visibility="Collapsed">
+                                            <TextBlock Text="Prepare base checks the connected AB9, then:" TextWrapping="Wrap" Margin="0,4,0,8" />
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="20" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Text="•" />
+                                                <TextBlock Grid.Column="1" Text="Selects flight mode." TextWrapping="Wrap" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="1" Text="•" />
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="Applies this profile's internal base settings." TextWrapping="Wrap" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="2" Text="•" />
+                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="Leaves plugin output off for setup." TextWrapping="Wrap" />
+                                            </Grid>
+                                            <styles:SHButtonSecondary Content="Prepare base" Click="OnPrepareSelectedMode" HorizontalAlignment="Left" Padding="14,6" Margin="0,8,0,4" x:Name="PrepareBaseButton" />
+                                        </StackPanel>
                                         <styles:SHSection x:Name="VirtualChecklistSection" Title="BEFORE YOU START" ShowSeparator="True">
-                                            <TextBlock TextWrapping="Wrap">Use your base’s settings app to remove built-in centring and select DirectInput force feedback. Close any application holding the base exclusively. Choose direct vJoy or SimHub Control Mapper below, configure that output, then bind its buttons or keys in your game.</TextBlock>
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="28" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Text="1." FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="Select DirectInput force feedback in your base's settings app." TextWrapping="Wrap" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="1" Text="2." FontWeight="SemiBold" />
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="Turn off built-in centring and other background effects." TextWrapping="Wrap" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="2" Text="3." FontWeight="SemiBold" />
+                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="Close any application holding the base exclusively." TextWrapping="Wrap" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="3" Text="4." FontWeight="SemiBold" />
+                                                <TextBlock Grid.Row="3" Grid.Column="1" Text="Choose vJoy (direct) or SimHub Control Mapper (native) below and configure its output." TextWrapping="Wrap" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="4" Text="5." FontWeight="SemiBold" />
+                                                <TextBlock Grid.Row="4" Grid.Column="1" Text="Bind the output's buttons or keys in your game." TextWrapping="Wrap" />
+                                            </Grid>
                                         </styles:SHSection>
                                     </StackPanel>
                                 </styles:SHSection>
@@ -268,7 +330,7 @@
                                             <styles:SHButtonSecondary Click="OnRecalibrate" Content="Measure again" Padding="14,4" HorizontalAlignment="Left" />
                                         </StackPanel>
                                         <StackPanel x:Name="CalibrationFullPanel">
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" Text="Some AB9 firmware versions apply DirectInput effects backwards, which would turn a centring spring into one that throws the stick at its stops. Until this is measured the plugin caps its force at 10%, and setup remains incomplete." />
+                                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" Text="Required in Moza AB9 and Generic FFB stick: the plugin drives the gate through DirectInput in both modes. Calibration checks push and spring direction on each axis. Incorrect polarity can push the stick toward its stops. Until confirmed, plugin gain stays capped at 10% and setup remains incomplete." />
                                             <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" Text="Calibration applies a short push each way and watches which way the stick actually moves, so it works even though the base holds itself centred. Take your hands off the stick and leave them off - anything resisting the stick will spoil the measurement. It takes about four seconds." />
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                                 <styles:SHButtonPrimary x:Name="CalibrateButton" Click="OnCalibrate" Content="Measure polarity" Margin="0,0,8,0" Padding="14,4" />

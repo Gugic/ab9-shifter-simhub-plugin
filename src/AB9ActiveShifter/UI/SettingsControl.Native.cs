@@ -54,7 +54,9 @@ namespace AB9ActiveShifter.UI
             NativeOperationText.Text = Plugin.NativeOperationStatus ?? "";
             NativeSettingsStatus.Text = NativeOperationText.Text + (Plugin.NativeSettingsPending ? " · Changes pending" : "");
             NativeRefreshButton.IsEnabled = !Plugin.NativeBusy && !calibrating;
-            PrepareBaseButton.IsEnabled = !Plugin.NativeBusy && !calibrating;
+            bool onboard = Plugin.CurrentOperatingMode == OperatingMode.Ab9Native;
+            Ab9PreparePanel.Visibility = onboard ? Visibility.Visible : Visibility.Collapsed;
+            PrepareBaseButton.IsEnabled = onboard && !Plugin.NativeBusy && !calibrating;
             ProfileSection.IsEnabled = Plugin.CanActivateProfile(Plugin.Store.FindActive()) && !calibrating;
             OperatingModeCombo.IsEnabled = !Plugin.NativeWriteBusy && !calibrating;
             _refreshingMode = true;
@@ -70,7 +72,6 @@ namespace AB9ActiveShifter.UI
             }
             finally { _refreshingMode = false; }
 
-            bool onboard = Plugin.CurrentOperatingMode == OperatingMode.Ab9Native;
             NativeHardwareExpander.Visibility = onboard ? Visibility.Visible : Visibility.Collapsed;
             NativeTunePanel.IsEnabled = Plugin.Ab9ModesAvailable && (!Plugin.NativeBusy || Plugin.NativeProfileUpdateInProgress) && !calibrating;
             NativeSettingsStatus.Visibility = onboard ? Visibility.Visible : Visibility.Collapsed;
@@ -106,7 +107,7 @@ namespace AB9ActiveShifter.UI
 
         private async void OnPrepareSelectedMode(object sender, RoutedEventArgs e)
         {
-            if (Plugin == null) return;
+            if (Plugin == null || Plugin.CurrentOperatingMode != OperatingMode.Ab9Native) return;
             try { await Plugin.PrepareSelectedModeAsync(); }
             catch (Exception ex) { Log.Error("Could not prepare the base", ex); }
             RefreshNativeUi();

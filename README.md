@@ -74,11 +74,13 @@ setup after a restart or a temporary disconnect.
   physical buttons in the game, making it visible through HidHide if necessary.
 
 All three choices can be saved while the base is connected or disconnected and the master switch
-is on or off. **Base is not found** appears on Setup/Options and Main when the selected base is
-missing; plugin forces and gear presses stay inactive until it reconnects. Mode selection does
+is on or off. Expand **What does this mean?** for the mode descriptions. **Base is not found**
+appears on Setup/Options and Main when the selected base is missing; plugin forces and gear
+presses stay inactive until it reconnects. Mode selection does
 not write to the base. Use **Prepare base** to configure internal settings in Moza AB9 mode;
-that action requires a genuine AB9 with firmware **1.1.5.2 or newer**. Close Cockpit, Pit House
-and AZOM's AB9 connection to free the port, then use **Refresh base** if needed.
+the button is shown only in that mode and requires a genuine AB9 with firmware **1.1.5.2 or newer**.
+Generic FFB stick instead shows the numbered **BEFORE YOU START** manual checklist. Close Cockpit,
+Pit House and AZOM's AB9 connection to free the port, then use **Refresh base** if needed.
 Mode changes do not split or retune profiles. In Moza AB9 mode, base-effect and hardware-gain edits apply automatically
 after a short pause. Successful ordinary changes preserve the force-feedback toggle; mode
 changes, setup and failed writes leave virtual forces off. See
