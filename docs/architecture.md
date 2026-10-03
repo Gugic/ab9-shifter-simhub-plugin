@@ -33,10 +33,20 @@ completion can safely notify bound settings. A failed read preserves a generic s
 firmware H-pattern mode or an uncertain mode after a failed write blocks virtual output on that
 AB9. Other FFB sticks remain independent. Subsequent reads refresh the open settings screen.
 
-Every write disables virtual output first, using the existing teardown ordering, then mutes
-hardware torque while configuring the base. Torque is restored last. No write automatically
-re-arms virtual forces. Profile activation and list edits wait for writes to finish. Setup
-recipes and partial-failure behavior are detailed in [native-ab9.md](native-ab9.md).
+Every write pauses virtual output first, using the existing teardown ordering, then mutes
+hardware torque while configuring the base. Torque is restored last. A pure
+`NativeSettingsDebounce` holds the latest copied values for the seven onboard dials until
+500 ms after the last edit; busy reads and in-flight writes do not lose a newer edit. The
+UI dispatcher drains the queue, while the CDC work stays on its separate worker. A batch
+keeps one pause until its final requested values pass readback.
+
+`NativeWritePause` preserves the user's enabled switch during ordinary tuning and profile
+activation, without leaving output running during configuration. Only a successful final
+readback may resume an already-enabled session. Off and panic revoke resume immediately,
+including when their dispatcher update has not arrived yet. Setup, mode changes, calibration,
+imports and failures leave virtual output off. Mode/profile identity changes cancel queued
+outgoing edits; profile activation and list edits wait for a current write to finish. Setup
+recipes and failure behavior are detailed in [native-ab9.md](native-ab9.md).
 
 **One background thread, `AB9ShifterFFB`, owns every DirectInput, effect, and vJoy call.** No
 exceptions except `FfbDevice.StopForces()`, which the watchdog may call to kill output when the
@@ -375,7 +385,9 @@ through disconnects and restarts; existing measured rigs adopt the completed sta
 the setup summary, profiles, pattern, force enable/free-stick and live monitor. Geometry, Feel
 and Effects open as modal windows. Geometry keeps a second live monitor outside its scroller.
 Options holds the mode switch, device/output settings, recalibration, pedals, hotkeys,
-diagnostics, resets, updates and About. Firmware H-pattern exposes only mode and device status.
+diagnostics, resets, updates and About. Main uses one level of disclosure for automatic
+profile switching and sharing help; vehicle IDs never lengthen the action buttons. Firmware
+H-pattern exposes only mode and device status.
 
 All editor panels are created with the settings control so slider indexing, reset/undo state
 and namescope bindings remain intact when a panel is temporarily hosted by a modal. The existing
@@ -384,8 +396,10 @@ Geometry resets dimensions and placement, Feel resets strengths and response, an
 resets measured polarity or machine identity. Calibration and complete resets live in Options.
 
 All profiles share plugin geometry, extra effects and base-effect percentages between virtual
-modes. In AB9-native, onboard settings are drafts until applied; imports never write hardware.
-Mode choice is a rig preference and never travels in a shared profile.
+modes. In AB9-native, onboard changes apply automatically after the quiet period. Profile
+import validates tuning and preserves machine facts, then activates the new profile with
+virtual output disabled; its onboard values still synchronize automatically. Mode choice is
+a rig preference and never travels in a shared profile.
 
 ## Build
 

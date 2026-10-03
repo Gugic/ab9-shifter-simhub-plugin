@@ -47,14 +47,20 @@ are additional AB9-only controls; Generic FFB Stick ignores those hardware setti
 of the profile always uses the plugin's DirectInput gate and extra effects. Firmware H-pattern
 exposes no plugin profiles or tuning.
 
-Onboard edits save a draft until applied. Selecting a saved profile in AB9-native can also
-apply its base settings. Every write stops virtual output and leaves it off; enabling it again
-is deliberate. Free stick releases DirectInput effects, but onboard resistance can remain.
+The seven onboard dials apply automatically after 500 ms without another edit: spring,
+damper, friction, inertia, torque, overall intensity and game gain. A drag sends the latest
+values after the pause; it does not need an Apply button. Selecting a profile also applies
+its onboard values. Ordinary edits and profile changes preserve the force-feedback toggle:
+virtual output pauses during the transaction and resumes only after the latest values have
+been read back successfully, if it was enabled and no later off or panic action cancelled it.
+Free stick releases DirectInput effects, but onboard resistance can remain.
 
-Imports are range checked, never write hardware and never arm virtual output. Mode choice,
-firmware, connection state, port and measured polarity never travel in a profile. Experimental
-native-only profiles from the earlier unshipped iteration are discarded when adopting the
-three-mode store; existing generic profiles and presets are retained.
+Imports are range checked and activate as a new profile with virtual output disabled.
+In AB9-native mode, activation automatically applies the imported onboard values while keeping
+virtual output off. Mode choice, firmware, connection state, port and measured polarity never
+travel in a profile. Experimental native-only profiles from the earlier unshipped iteration
+are discarded when adopting the three-mode store; existing generic profiles and presets are
+retained.
 
 ## Protocol evidence
 
@@ -108,9 +114,17 @@ CDC work runs on a separate worker under a semaphore, never on the 1 kHz force l
 telemetry thread. Settings are copied and fully validated before a transaction. Firmware and
 mode are re-read after opening the exact AB9 port, before any write.
 
-Every write action first disables virtual output through the existing teardown: buttons off,
-forces off, unacquire. Hardware torque is then set to 0 and read back, the other settings are
-written/read back, the mode is written/read back, and requested torque is restored last. A
-failure stops the transaction and reports partial configuration; no automatic rollback or
-virtual restart occurs. Uncertain mode blocks virtual output on the selected AB9 until a fresh
-read establishes its mode. This restriction never blocks an unrelated FFB stick.
+Every write pauses virtual output through the existing teardown: buttons off, forces off,
+unacquire. Hardware torque is then set to 0 and read back, the other settings and mode are
+written/read back, and requested torque is restored last. `NativeSettingsDebounce` retains
+only the latest copied tune after 500 ms of quiet. A busy read does not consume it; edits made
+during a write become a follow-up transaction under the same output pause.
+
+`NativeWritePause` separates that pause from the user's force-feedback toggle. Ordinary tuning
+and profile activation can resume an already-enabled session only after the final readback.
+Turning forces off or pressing panic cancels that permission immediately; completion never
+restores an earlier enabled state over a newer off request. Setup, mode changes, calibration,
+imports and failed transactions leave virtual output off. A failure discards the queued batch,
+reports partial configuration and performs no automatic rollback. Uncertain mode blocks virtual
+output on the selected AB9 until a fresh read establishes its mode. This restriction never
+blocks an unrelated FFB stick.

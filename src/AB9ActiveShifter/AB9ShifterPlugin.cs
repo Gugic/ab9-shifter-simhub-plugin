@@ -92,6 +92,7 @@ namespace AB9ActiveShifter
 
         public void Init(PluginManager pluginManager)
         {
+            StartNativeSettingsUpdates();
             PluginManager = pluginManager;
             Log.Info("Init (plugin instance created).");
 
@@ -222,6 +223,7 @@ namespace AB9ActiveShifter
             }
 
             DetectNativeAtStartup();
+            ReplayPendingNativeSettings();
             PushSettingsToEngine();
 
             lock (EngineSync)
@@ -335,6 +337,7 @@ namespace AB9ActiveShifter
         /// <summary>IReusable: the genuine shutdown, when SimHub is really done with us.</summary>
         public void FinalizePlugin()
         {
+            StopNativeSettingsUpdates();
             Log.Info("FinalizePlugin (shutting the engine down).");
 
             // Flush any edit the debounce was still holding; a duplicate save is harmless.
@@ -423,34 +426,43 @@ namespace AB9ActiveShifter
             // a hotkey switch still forks its preset and belongs to the outgoing profile.
             if (_nativeEffects != null) _nativeEffects.SaveIfChanged(true);
 
-            // Hardware-backed profiles change the base itself. Stop the outgoing gate before
-            // presenting the incoming tune, and leave re-arming as an explicit user action.
-            if (CurrentOperatingMode == OperatingMode.Ab9Native) Settings.Enabled = false;
+            // Reserve the output pause before rebinding: the incoming virtual gate must not
+            // run against the outgoing onboard tune. The session toggle remains the user's.
+            bool applyOnboard = CurrentOperatingMode == OperatingMode.Ab9Native && applyNative;
+            if (applyOnboard && !BeginNativeOperation(true)) return;
+            CancelPendingNativeSettings();
+            try
+            {
+                // The session's switches, not the outgoing profile's: an activation must never be the
+                // thing that decides whether the shifter is running. Applied before the swap so the
+                // engine sees one coherent config rather than the new gate with the old switch.
+                target.Settings.ApplyLiveSwitches(Store.SessionEnabled, Store.SessionFreeStick);
 
-            // The session's switches, not the outgoing profile's: an activation must never be the
-            // thing that decides whether the shifter is running. Applied before the swap so the
-            // engine sees one coherent config rather than the new gate with the old switch.
-            target.Settings.ApplyLiveSwitches(Store.SessionEnabled, Store.SessionFreeStick);
+                // And the machine's own facts, for the same reason and at the same moment. Without
+                // this, activating a profile that was never calibrated here - every preset, by design -
+                // re-arms the 10% force cap and unbinds the clutch pedal, purely as a side effect of
+                // choosing a different gate.
+                ProfileTransfer.CopyMachineFacts(Store.Machine, target.Settings);
 
-            // And the machine's own facts, for the same reason and at the same moment. Without
-            // this, activating a profile that was never calibrated here - every preset, by design -
-            // re-arms the 10% force cap and unbinds the clutch pedal, purely as a side effect of
-            // choosing a different gate.
-            ProfileTransfer.CopyMachineFacts(Store.Machine, target.Settings);
+                if (Settings != null) Settings.PropertyChanged -= OnSettingsChanged;
 
-            if (Settings != null) Settings.PropertyChanged -= OnSettingsChanged;
+                Settings = target.Settings;
+                Settings.PropertyChanged += OnSettingsChanged;
+                Store.ActiveProfile = target.Name;
 
-            Settings = target.Settings;
-            Settings.PropertyChanged += OnSettingsChanged;
-            Store.ActiveProfile = target.Name;
+                if (_nativeEffects != null) _nativeEffects.SelectProfile(Settings);
 
-            if (_nativeEffects != null) _nativeEffects.SelectProfile(Settings);
-
-            PushSettingsToEngine();
-            SaveStore();
-            RaiseProfileChanged();
-            Log.Info("Profile '" + target.Name + "' activated.");
-            if (CurrentOperatingMode == OperatingMode.Ab9Native && applyNative) ApplyNativeProfileInBackground();
+                PushSettingsToEngine();
+                SaveStore();
+                RaiseProfileChanged();
+                Log.Info("Profile '" + target.Name + "' activated.");
+                if (applyOnboard) ApplyNativeProfileInBackground();
+            }
+            catch
+            {
+                if (applyOnboard) EndNativeOperation();
+                throw;
+            }
         }
 
         /// <summary>
@@ -498,7 +510,7 @@ namespace AB9ActiveShifter
         /// <summary>Adds a copy of the current profile under the given name and makes it live.</summary>
         public void AddProfileFromCurrent(string requestedName)
         {
-            if (Store == null || NativeWriteBusy || CurrentOperatingMode == OperatingMode.Ab9HPattern) return;
+            if (Store == null || !CanActivateProfile(Store.FindActive())) return;
             if (_nativeEffects != null) _nativeEffects.SaveIfChanged(true);
             if (Store.Profiles == null) Store.Profiles = new System.Collections.Generic.List<ShifterProfile>();
 
@@ -524,14 +536,14 @@ namespace AB9ActiveShifter
         /// </summary>
         public string AddImportedProfile(ShifterProfile imported)
         {
-            if (Store == null || NativeWriteBusy || CurrentOperatingMode == OperatingMode.Ab9HPattern || imported == null || imported.Settings == null) return null;
+            if (Store == null || !CanActivateProfile(imported)) return null;
             if (Store.Profiles == null) Store.Profiles = new System.Collections.Generic.List<ShifterProfile>();
 
             imported.Name = Store.UniqueName(imported.Name);
             Store.Profiles.Add(imported);
             Settings.Enabled = false;
-            // Importing saves a draft; it must never write someone else's native forces.
-            ActivateProfile(imported.Name, false);
+            // Imported profiles follow the same provider routing, with virtual output off.
+            ActivateProfile(imported.Name);
             SaveStore();
             RaiseProfileChanged();
 
@@ -602,7 +614,7 @@ namespace AB9ActiveShifter
         public void PushSettingsToEngine()
         {
             ShifterEngine engine = _engine;
-            if (engine == null || Settings == null) return;
+            if (engine == null || Settings == null || _nativeUpdatesStopped) return;
 
             EngineConfig cfg = Settings.ToEngineConfig();
             cfg.BaseEffectsViaDirectInput = CurrentOperatingMode == OperatingMode.GenericFfbStick;
@@ -657,7 +669,7 @@ namespace AB9ActiveShifter
             }
 
             ForkActivePresetIfTuned(e == null ? null : e.PropertyName);
-
+            ScheduleNativeSettings(e == null ? null : e.PropertyName);
             PushSettingsToEngine();
             ScheduleSave();
         }
@@ -954,15 +966,23 @@ namespace AB9ActiveShifter
         {
             this.AddAction("ToggleShifterFFB", (a, b) =>
             {
-                if (!VirtualControlsAvailable) return;
-                Settings.Enabled = !Settings.Enabled;
-                Log.Info("Shifter FFB toggled " + (Settings.Enabled ? "on" : "off") + ".");
+                if (Settings == null) return;
+                bool enable = !Settings.Enabled;
+                if (!enable) CancelNativeResume();
+                OnUiThread(() =>
+                {
+                    if (Settings == null || (enable && !VirtualControlsAvailable)) return;
+                    Settings.Enabled = enable;
+                    Log.Info("Shifter FFB toggled " + (enable ? "on" : "off") + ".");
+                });
             });
 
             this.AddAction("ReleaseAllGears", (a, b) =>
             {
+                CancelNativeResume();
                 ShifterEngine engine = _engine;
                 if (engine != null) engine.EmergencyStop("manual release requested");
+                OnUiThread(() => { if (Settings != null) Settings.Enabled = false; });
             });
 
             // Bindable to a wheel button or a key in SimHub's own Controls page, which is the

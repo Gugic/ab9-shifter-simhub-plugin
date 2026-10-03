@@ -42,7 +42,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-560 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+573 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 and the pure release parser in `Updates/ReleaseInfo.cs`. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -95,7 +95,9 @@ src/AB9ActiveShifter/
   Core/                    Pure, no I/O, fully unit-tested
     Ab9NativeProtocol.cs   CDC codec, parameter ids and firmware eligibility
     Ab9NativeSettings.cs   Read/write snapshots and validated configuration plans
-    NativeProfilePolicy.cs Native profile and virtual engine eligibility
+    NativeProfilePolicy.cs Operating-mode and virtual engine eligibility
+    NativeSettingsDebounce.cs Latest onboard tune after 500 ms without edits, no I/O
+    NativeWritePause.cs    Verified output pause; later off/panic requests cancel resume
     BaseEffectComposer.cs  Optional generic spring/friction/inertia, capped and polarity-aware
     OperatingMode.cs       Rig-wide effect provider; shared profiles keep the same percentages
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
@@ -155,7 +157,11 @@ src/AB9ActiveShifter/
     InverseBooleanToVisibilityConverter.cs  The negation the raw/percent toggle needs
 tests/AB9ActiveShifter.Tests/
   Ab9NativeTests.cs        Wire captures, escaping, firmware order, transaction ordering,
-                           mode eligibility, shared profiles, imports and generic-stick independence
+                           mode eligibility, imports and generic-stick independence
+  OperatingModeTests.cs    Shared profiles, provider selection, calibration caps and migration
+  BaseEffectComposerTests.cs Optional DI conditions, independent spring signs and safety caps
+  NativeSettingsDebounceTests.cs Quiet-period coalescing, busy reads, follow-ups and tick wrap
+  NativeWritePauseTests.cs Enabled preservation, off/panic precedence and verified resume
   ForceComposerTests.cs    Force shape, stability properties, polarity, clamps
   EffectComposerTests.cs   Carrier amplitudes and gain cap, staleness cut, grind conditions
   NativeEffectTests.cs     Native tone budgets, phases, freshness, profile epochs and safe import
@@ -471,8 +477,13 @@ runners cannot load, so anything worth testing must not touch it.
   with only basic base effects onboard; firmware AB9 H-pattern runs neither. Both AB9 modes
   require compatible connected hardware; profiles and percentages are shared between virtual modes. An uncertain mode after
   a failed write blocks virtual output on that AB9 until readback; other sticks remain generic.
-  Profiles cannot switch during a write. Base-effect tuning is per profile, while connected
-  hardware, firmware and port are runtime facts. See [docs/native-ab9.md](docs/native-ab9.md).
+  Profiles cannot switch during a write. The seven onboard dials apply after 500 ms without
+  edits; a busy read never loses a pending change. Ordinary tuning/profile changes preserve
+  the user's enabled switch while pausing output across the complete checked batch. Resume
+  requires its final readback and an uncancelled enabled request; off and panic always win.
+  Setup, mode changes, calibration, imports and failures leave virtual output off. Base-effect
+  tuning is per profile, while hardware, firmware and port are runtime facts. See
+  [docs/native-ab9.md](docs/native-ab9.md).
 - Gear change: **buttons before forces.** A game must see the gear at least as early as the hand
   feels it. Sequential pulses obey the same order, and re-firing a button that is still down
   inserts a ≥20 ms released gap first — an off-and-on inside one tick reads to a game's input
@@ -571,7 +582,9 @@ runners cannot load, so anything worth testing must not touch it.
   a stranger, so `ProfileTransfer.Import` treats it as hostile: every value is range-checked (any
   `*Pct` to 0–100, positions to the 16-bit axis, the rest to their own envelope), an unreadable
   dial keeps the local value instead of failing the import, and `Enabled` and `FreeStick` are
-  forced off whatever the file says — opening a file must never take the device or apply force.
+  forced off whatever the file says — importing must never arm virtual force or gear output.
+  Activating the imported profile in AB9-native mode does synchronize its onboard settings,
+  using the same checked transaction while the virtual session remains disabled.
   The machine's own facts are never taken from a file either: measured polarity, the device and
   vJoy ids and the loop rate are not written on export and are kept from the receiving machine on
   import. Someone else's polarity would drive the gate backwards, and their `PolarityConfirmed`

@@ -639,18 +639,11 @@ namespace AB9ActiveShifter.UI
             if (AddLastCarButton == null || Plugin == null) return;
 
             string last = Plugin.LastCarModel;
-            string caption = string.IsNullOrEmpty(last)
-                ? "Add last used vehicle (none seen yet)"
-                : "Add last used vehicle: " + last;
-
-            // Only when it actually changed. This runs on the status timer, and reassigning
-            // Content re-lays out the button every tick for a string that is the same one
-            // almost every time - the same reason the visualizations redraw only when something
-            // has moved.
-            if (!string.Equals(AddLastCarButton.Content as string, caption, StringComparison.Ordinal))
-            {
-                AddLastCarButton.Content = caption;
-            }
+            string detail = string.IsNullOrEmpty(last) ? "No vehicle reported yet." : "Last vehicle: " + last;
+            if (!string.Equals(LastCarModelText.Text, detail, StringComparison.Ordinal))
+                LastCarModelText.Text = detail;
+            AddLastCarButton.ToolTip = string.IsNullOrEmpty(last)
+                ? "Start a game so it can report a vehicle ID." : last;
 
             AddLastCarButton.IsEnabled = !string.IsNullOrEmpty(last);
         }
@@ -1228,8 +1221,9 @@ namespace AB9ActiveShifter.UI
             {
                 message += "\n" + result.Unknown + " were not recognised by this version and were ignored.";
             }
-            message += "\n\nForces are off, and your own measured polarity has been kept. " +
-                "In AB9-native mode, apply base effects from Feel when you are ready.";
+            message += "\n\nForces are off, and your own measured polarity has been kept.";
+            if (Plugin.CurrentOperatingMode == OperatingMode.Ab9Native)
+                message += " Base effects update automatically.";
 
             MessageBox.Show(message, "AB9 Active Shifter", MessageBoxButton.OK, MessageBoxImage.Information);
         }

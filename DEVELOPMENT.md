@@ -164,7 +164,9 @@ src/AB9ActiveShifter/
   Core/                    Pure, no I/O, fully unit-tested
     Ab9NativeProtocol.cs   CDC frame codec, parameters and firmware eligibility
     Ab9NativeSettings.cs   Native read/write snapshots and validated configuration plans
-    NativeProfilePolicy.cs Native profile and virtual engine eligibility
+    NativeProfilePolicy.cs Operating-mode and virtual engine eligibility
+    NativeSettingsDebounce.cs Latest onboard tune after a 500 ms quiet period
+    NativeWritePause.cs    Checked output suspension; off/panic always cancel resume
     BaseEffectComposer.cs  Optional generic spring/friction/inertia, capped and polarity-aware
     OperatingMode.cs       Rig-wide effect provider; shared profiles keep the same percentages
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
@@ -194,6 +196,10 @@ src/AB9ActiveShifter/
     SettingsControl.Updates.cs App update preferences, shared banner and install/restart actions
     SettingsControl.Native.cs Native setup actions, status and control availability
 tests/AB9ActiveShifter.Tests/
+  NativeSettingsDebounceTests.cs Pending edits survive busy reads; latest tune wins each batch
+  NativeWritePauseTests.cs Ordinary updates preserve Enabled; failures/off/panic cannot resume
+  OperatingModeTests.cs    Shared providers, calibration caps and store migration
+  BaseEffectComposerTests.cs Generic typed effects and separate spring-polarity safety
 build/refs/                Reference-only stubs of SimHub's assemblies
 tools/Verify-StubBuild.ps1 Proves a stub-built DLL binds against the real SimHub
 tools/Show-ProfileDeltas.ps1 Turns a tuned settings file back into DefaultProfiles.cs assignments
@@ -218,7 +224,7 @@ Arithmetic does not settle a feel question. The human at the stick is the instru
 change, deploy it, and say what to try and what to look for. Do not conclude a feel problem is
 fixed without that.
 
-`Monitor` → the trace recorder writes every tick to CSV, which is how a complaint like "it buzzes
+**Options → Diagnostics** → the trace recorder writes every tick to CSV, which is how a complaint like "it buzzes
 coming off the lockout" becomes a frequency and an amplitude instead of an adjective. It keeps
 the **last** two minutes and never stops itself, so for a fault that arrives at an unknown time
 the move is to start it, drive, and stop it once the fault has happened.

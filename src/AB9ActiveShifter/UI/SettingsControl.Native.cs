@@ -25,10 +25,10 @@ namespace AB9ActiveShifter.UI
             bool calibrating = _preparingCalibration || (AB9ShifterPlugin.Engine != null && AB9ShifterPlugin.Engine.IsCalibrating);
             NativeStatusText.Text = Plugin.NativeSnapshot.Status;
             NativeOperationText.Text = Plugin.NativeOperationStatus ?? "";
-            NativeApplyStatus.Text = NativeOperationText.Text;
+            NativeSettingsStatus.Text = NativeOperationText.Text + (Plugin.NativeSettingsPending ? " · Changes pending" : "");
             NativeRefreshButton.IsEnabled = !Plugin.NativeBusy && !calibrating;
             PrepareBaseButton.IsEnabled = !Plugin.NativeBusy && !calibrating;
-            ProfileSection.IsEnabled = !Plugin.NativeWriteBusy && !calibrating;
+            ProfileSection.IsEnabled = Plugin.CanActivateProfile(Plugin.Store.FindActive()) && !calibrating;
             OperatingModeCombo.IsEnabled = !Plugin.NativeBusy && !calibrating;
             _refreshingMode = true;
             try
@@ -45,17 +45,15 @@ namespace AB9ActiveShifter.UI
 
             bool onboard = Plugin.CurrentOperatingMode == OperatingMode.Ab9Native;
             NativeHardwareExpander.Visibility = onboard ? Visibility.Visible : Visibility.Collapsed;
-            NativeTunePanel.IsEnabled = Plugin.Ab9ModesAvailable && !Plugin.NativeBusy;
-            ApplyBaseEffectsButton.Visibility = onboard ? Visibility.Visible : Visibility.Collapsed;
-            ApplyBaseEffectsButton.IsEnabled = Plugin.Ab9ModesAvailable && !Plugin.NativeBusy;
+            NativeTunePanel.IsEnabled = Plugin.Ab9ModesAvailable && (!Plugin.NativeBusy || Plugin.NativeProfileUpdateInProgress) && !calibrating;
+            NativeSettingsStatus.Visibility = onboard ? Visibility.Visible : Visibility.Collapsed;
             BaseEffectsHeading.Text = onboard ? "Base-driven effects" : "DirectInput base effects";
             BaseEffectsDescription.Text = onboard
-                ? "The AB9 computes spring, damper, friction and inertia internally, avoiding the USB round trip. The custom gate, software stability and telemetry effects still use DirectInput. Apply sends these values to the base."
+                ? "The AB9 computes spring, damper, friction and inertia internally, avoiding the USB round trip. The custom gate, software stability and telemetry effects still use DirectInput. Changes apply automatically after you pause editing; successful updates keep your force feedback toggle as set."
                 : "DirectInput renders spring, damper, friction and inertia. This profile keeps the same values when you change between virtual modes.";
             BaseSpringSlider.IsEnabled = onboard || _boundSettings.BaseSpringPolarityConfirmed;
             BaseSpringCalibrationHint.Visibility = !onboard && !_boundSettings.BaseSpringPolarityConfirmed
                 ? Visibility.Visible : Visibility.Collapsed;
-            ProfileKindText.Text = "This profile is shared by both virtual modes.";
             foreach (ComboBoxItem item in ProfileCombo.Items)
             {
                 string name = item.Tag as string;
@@ -84,14 +82,6 @@ namespace AB9ActiveShifter.UI
             if (Plugin == null) return;
             try { await Plugin.PrepareSelectedModeAsync(); }
             catch (Exception ex) { Log.Error("Could not prepare the base", ex); }
-            RefreshNativeUi();
-        }
-
-        private async void OnNativeApply(object sender, RoutedEventArgs e)
-        {
-            if (Plugin == null) return;
-            try { await Plugin.ApplyNativeProfileAsync(); }
-            catch (Exception ex) { Log.Error("Could not apply onboard settings", ex); }
             RefreshNativeUi();
         }
     }

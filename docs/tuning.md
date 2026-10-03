@@ -4,17 +4,22 @@ After first-run **Setup**, **Main** holds your profile, pattern, status and live
 **Geometry** for positions, widths, travel and detection; **Feel** for strengths and resistance;
 **Effects** for game-driven feedback. Geometry keeps its live monitor fixed above the scrolling
 controls. **Options** holds mode, device/output, recalibration, pedals, hotkeys and diagnostics.
+Main's **Automatic profile switching** and **Sharing and button mapping** sections open
+independently; vehicle IDs stay separate from the compact action buttons.
 
 The rig's three-way mode switch chooses **Generic FFB Stick**, **AB9-native** or **AB9 H-pattern**.
 Both virtual modes share the gate and all extra plugin effects. Generic uses DirectInput base
 effects; AB9-native uses the basic effects supported onboard by Cockpit. Firmware H-pattern
 exposes only device status and the mode switch, with plugin output and tuning unavailable.
 
-Virtual dials apply on the next FFB tick. Onboard dials are profile drafts until explicitly
-applied, or until an eligible saved profile is selected. Applying onboard settings stops virtual
-forces and leaves them off. Virtual force percentages are scaled by **Overall gain**; until
-polarity is confirmed its effective value is capped at 10%. Hardware torque/intensity and
-onboard resistance are separate scales and do not pass through that software cap.
+Virtual dials apply on the next FFB tick. The seven onboard dials apply automatically after
+500 ms without another edit, and selecting a profile applies its onboard values too. Ordinary
+changes preserve the force-feedback toggle: output pauses for the write and resumes after the
+latest values pass readback, provided it was enabled and you have not turned it off or pressed
+panic. Setup, mode changes, calibration and failed writes leave output off.
+Virtual force percentages are scaled by **Overall gain**; until polarity is confirmed its
+effective value is capped at 10%. Hardware gains and onboard resistance are separate scales;
+unconfirmed polarity also caps requested hardware torque at 10% and keeps the onboard spring off.
 
 Setup completion persists. Losing the base or vJoy shows connection status on the working
 screen rather than reopening first-run Setup. Use Options to change the rig or measure again.
@@ -118,11 +123,13 @@ requires its own measured per-axis signs; rigs whose earlier calibration stored 
 force signs must measure again before it activates. The existing gate calibration remains
 valid and does not send the rig through first-run Setup again.
 
-Onboard edits are saved as drafts until applied. Applying them stops virtual forces and leaves
-them off; onboarding and recalibration temporarily neutralize onboard conditions for the
-probes. Free stick releases plugin forces, while onboard resistance can remain. Imports never
-write hardware. [Native configuration](native-ab9.md) records protocol evidence and current
-hardware verification limits.
+Onboard edits save and apply automatically after a short pause; there is no Apply button.
+An update keeps the force-feedback toggle as set, while a failed write leaves forces off.
+Setup and recalibration temporarily neutralize onboard conditions for the probes and leave
+virtual output off afterward. Free stick releases plugin forces, while onboard resistance can
+remain. Importing a profile applies its onboard values in AB9-native mode but keeps virtual
+output disabled. [Native configuration](native-ab9.md) records the transaction ordering,
+protocol evidence and current hardware verification limits.
 
 ### Generic virtual profiles
 
@@ -254,17 +261,17 @@ none and they walk through all of them. Switching releases any held gear and cle
 pulse in flight before the new gate is applied, so it is safe to press while driving — which is
 the point, if you keep an H profile and a sequential one for different cars.
 
-**Switching by car.** *Vehicle models (optional)* on Main takes one vehicle id per line —
+**Switching by car.** **Automatic profile switching** on Main takes one vehicle id per line —
 whatever the game's own telemetry reports for the current car. When the running car matches a line,
 that profile activates on its own. Leave the box empty to keep a profile out of it entirely, which
 is the default and what a fresh install does.
 
-- **Add last used vehicle** fills in whatever the running game most recently reported, which is the
+- **Add last vehicle** fills in whatever the running game most recently reported, which is the
   easy way to learn the exact string: start the game, sit in the car, come back and press it. It
   shows the raw telemetry value rather than a tidy name, because that is all a plugin can see. The
-  plugin only looks the car up while this page is open or some profile already lists one, so the
-  button reads *(none seen yet)* until a game is actually running.
-- **+ Add manually** opens a blank line to type an id into. The box commits when you click away
+  plugin only looks the car up while this page is open or some profile already lists one. The
+  separate status line says **No vehicle reported yet** until a game supplies an ID.
+- **Add manually** opens a blank line to type an id into. The box commits when you click away
   from it.
 - If two profiles claim the same car, the one **earlier in the list** wins. That is deliberate
   rather than clever: a genuine clash is yours to resolve.

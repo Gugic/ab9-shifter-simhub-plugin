@@ -161,7 +161,7 @@ namespace AB9ActiveShifter
             ShifterSettings fiveR = SettingsCloner.Clone(fiveRWide);
             fiveR.PatternWidthPct = NarrowWidthPct;
 
-            return new List<ShifterProfile>
+            var profiles = new List<ShifterProfile>
             {
                 new ShifterProfile { Name = Preset(SevenRName), Settings = sevenR },
                 new ShifterProfile { Name = Preset(ShortThrowName), Settings = ShortThrow() },
@@ -171,6 +171,12 @@ namespace AB9ActiveShifter
                 new ShifterProfile { Name = Preset(PrndName), Settings = Automatic() },
                 new ShifterProfile { Name = Preset(TruckName), Settings = Truck() }
             };
+
+            // The hardware's maximum is not the profile's virtual gate strength. Every shipped
+            // tune uses the full hardware range; its OverallGainPct still sets the gate's gain,
+            // and ToNativeSettings retains the 10% cap until this rig's polarity is confirmed.
+            foreach (ShifterProfile profile in profiles) profile.Settings.NativeTorquePct = 100;
+            return profiles;
         }
 
         /// <summary>One preset, freshly built, or null if that is not a preset name.</summary>

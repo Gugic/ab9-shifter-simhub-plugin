@@ -23,6 +23,7 @@ namespace AB9ActiveShifter.UI
             bool firmware = Plugin.CurrentOperatingMode == OperatingMode.Ab9HPattern;
             bool completed = Plugin.Store.SetupCompleted;
             bool virtualAvailable = Plugin.VirtualControlsAvailable;
+            bool tuningAvailable = virtualAvailable || Plugin.NativeProfileUpdateInProgress;
             bool calibrating = _preparingCalibration || (AB9ShifterPlugin.Engine != null && AB9ShifterPlugin.Engine.IsCalibrating);
             bool ready = virtualAvailable && _boundSettings.PolarityConfirmed && _vjoyReady;
             bool expandSetup = !completed || _reviewingSetup;
@@ -46,16 +47,16 @@ namespace AB9ActiveShifter.UI
             FinishSetupButton.IsEnabled = ready && !Plugin.NativeBusy && !calibrating;
             VirtualChecklistSection.Visibility = Plugin.CurrentOperatingMode == OperatingMode.GenericFfbStick
                 ? Visibility.Visible : Visibility.Collapsed;
-            VirtualEnableSection.IsEnabled = virtualAvailable && !Plugin.NativeWriteBusy;
+            VirtualEnableSection.IsEnabled = !calibrating && (virtualAvailable || _boundSettings.Enabled);
             VirtualFreeStickSection.IsEnabled = virtualAvailable && !Plugin.NativeWriteBusy;
             VirtualVJoySection.IsEnabled = !Plugin.NativeWriteBusy && !calibrating;
             VirtualClutchSection.IsEnabled = !Plugin.NativeWriteBusy;
             // Keep Cancel reachable while probes are running. The Measure button has its
             // own busy gate, while NativeWriteBusy also includes calibration itself.
             VirtualCalibrationSection.IsEnabled = virtualAvailable && !Plugin.NativeBusy;
-            TuningButtons.IsEnabled = virtualAvailable && _boundSettings.PolarityConfirmed && !Plugin.NativeWriteBusy && !calibrating;
+            TuningButtons.IsEnabled = tuningAvailable && _boundSettings.PolarityConfirmed && (!Plugin.NativeWriteBusy || Plugin.NativeProfileUpdateInProgress) && !calibrating;
             if (_tuningWindow != null && _tuningWindow.Content is Grid)
-                ((UIElement)((Grid)_tuningWindow.Content).Children[0]).IsEnabled = virtualAvailable && !Plugin.NativeWriteBusy;
+                ((UIElement)((Grid)_tuningWindow.Content).Children[0]).IsEnabled = tuningAvailable && (!Plugin.NativeWriteBusy || Plugin.NativeProfileUpdateInProgress) && !calibrating;
             if (MainTab.Visibility != Visibility.Visible) WorkspaceTabs.SelectedItem = OptionsTab;
             MainModeText.Text = "Mode: " + ModeLabel(Plugin.CurrentOperatingMode) + "   ·   Output: vJoy " + _boundSettings.VJoyDeviceId;
             TabGateText.Text = ready
@@ -108,7 +109,7 @@ namespace AB9ActiveShifter.UI
 
         private void ShowTuningDialog(string title, ContentControl holder)
         {
-            if (_tuningWindow != null || Plugin == null || !Plugin.VirtualControlsAvailable || !_boundSettings.PolarityConfirmed) return;
+            if (_tuningWindow != null || Plugin == null || (!Plugin.VirtualControlsAvailable && !Plugin.NativeProfileUpdateInProgress) || !_boundSettings.PolarityConfirmed) return;
             FrameworkElement panel = holder.Content as FrameworkElement;
             if (panel == null) return;
             holder.Content = null;

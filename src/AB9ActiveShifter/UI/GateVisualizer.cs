@@ -258,10 +258,26 @@ namespace AB9ActiveShifter.UI
                     {
                         labelled = true;
                         double x = MapX(geo.ColumnTarget(col), left, right);
-                        DrawLabel(dc, "engage", x + NotchReach(geo, composer, col, engageY, left, right) + 5,
-                                  MapY(engageY, top, bottom) - 6, TextAlign.Left);
-                        DrawLabel(dc, "release", x + NotchReach(geo, composer, col, releaseY, left, right) + 5,
-                                  MapY(releaseY, top, bottom) - 6, TextAlign.Left);
+                        double engageScreenY = MapY(engageY, top, bottom);
+                        double releaseScreenY = MapY(releaseY, top, bottom);
+                        double engageEndX = x + NotchReach(geo, composer, col, engageY, left, right);
+                        double releaseEndX = x + NotchReach(geo, composer, col, releaseY, left, right);
+                        if (releaseScreenY - engageScreenY < 18)
+                        {
+                            // Short throws can put the two real thresholds a pixel apart.
+                            // Spread the labels, with leaders preserving their exact positions.
+                            double middleY = (engageScreenY + releaseScreenY) / 2;
+                            double labelX = Math.Max(engageEndX, releaseEndX) + 15;
+                            dc.DrawLine(MarkPen, new Point(engageEndX, engageScreenY), new Point(labelX - 4, middleY - 9));
+                            dc.DrawLine(MarkDashPen, new Point(releaseEndX, releaseScreenY), new Point(labelX - 4, middleY + 9));
+                            DrawLabel(dc, "engage", labelX, middleY - 15, TextAlign.Left);
+                            DrawLabel(dc, "release", labelX, middleY + 3, TextAlign.Left);
+                        }
+                        else
+                        {
+                            DrawLabel(dc, "engage", engageEndX + 5, engageScreenY - 6, TextAlign.Left);
+                            DrawLabel(dc, "release", releaseEndX + 5, releaseScreenY - 6, TextAlign.Left);
+                        }
                     }
                 }
             }
@@ -477,7 +493,8 @@ namespace AB9ActiveShifter.UI
             }
 
             DrawLabel(dc, "shifts here", cx + 30, MapY(geo.EngageDepth, top, bottom) - 6, TextAlign.Left);
-            DrawLabel(dc, "re-arms here", cx + 30, MapY(geo.ReleaseDepth, top, bottom) - 6, TextAlign.Left);
+            // Opposite sides stay readable even when the two thresholds nearly coincide.
+            DrawLabel(dc, "re-arms here", cx - 30, MapY(geo.ReleaseDepth, top, bottom) - 6, TextAlign.Right);
 
             DrawGearLabel(dc, "+", cx, top - 17, snap.GearLabel == "+");
             DrawGearLabel(dc, "-", cx, bottom + 4, snap.GearLabel == "-");
@@ -507,6 +524,10 @@ namespace AB9ActiveShifter.UI
                 dc.DrawLine(MarkDashPen, new Point(cx - 14, sy), new Point(cx + 14, sy));
             }
 
+            double firstY = MapY(lane.PositionY(0), top, bottom);
+            double lastY = MapY(lane.PositionY(PrndLane.PositionCount - 1), top, bottom);
+            double labelSpacing = Math.Max(22, (lastY - firstY) / (PrndLane.PositionCount - 1));
+            double labelTop = (firstY + lastY - labelSpacing * (PrndLane.PositionCount - 1)) / 2;
             for (int i = 0; i < PrndLane.PositionCount; i++)
             {
                 double sy = MapY(lane.PositionY(i), top, bottom);
@@ -516,7 +537,10 @@ namespace AB9ActiveShifter.UI
                 dc.DrawLine(MarkPen, new Point(cx - 26, sy), new Point(cx + 26, sy));
 
                 FormattedText text = Text(label, 15, lit ? ActiveBrush : LabelBrush, lit);
-                dc.DrawText(text, new Point(cx + 32, sy - (text.Height / 2)));
+                double labelY = labelTop + i * labelSpacing;
+                bool displaced = Math.Abs(labelY - sy) > 0.5;
+                if (displaced) dc.DrawLine(MarkPen, new Point(cx + 26, sy), new Point(cx + 38, labelY));
+                dc.DrawText(text, new Point(cx + (displaced ? 42 : 32), labelY - (text.Height / 2)));
             }
 
             DrawLabel(dc, "positions", cx - 32 - 54, MapY(lane.PositionY(0), top, bottom) - 6, TextAlign.Left);

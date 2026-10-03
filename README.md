@@ -74,8 +74,10 @@ setup after a restart or a temporary disconnect.
 Both AB9 choices become available only after a genuine AB9 with firmware **1.1.5.2 or newer**
 answers its configuration reads. Close Cockpit, Pit House and AZOM's AB9 connection to free the
 port, then refresh if needed. Mode changes select the effect provider without splitting or
-retuning profiles. Imports never write hardware. See [native configuration](docs/native-ab9.md) for the protocol and
-hardware verification limits.
+retuning profiles. In AB9-native mode, base-effect and hardware-gain edits apply automatically
+after a short pause. Successful ordinary changes preserve the force-feedback toggle; mode
+changes, setup and failed writes leave virtual forces off. See
+[native configuration](docs/native-ab9.md) for the protocol and hardware verification limits.
 
 ### Manual flight setup on older AB9 firmware — MOZA Pit House
 
@@ -307,17 +309,17 @@ A profile stores every dial together with its pattern, so each pattern keeps its
 switching between them is one dropdown. *Next profile* and *Previous profile* are bindable actions
 if you would rather not use the dropdown.
 
-**A profile can also claim cars.** Under *Vehicle models (optional)* on Main, list the ids
-your game reports for the cars that should bring that profile up — a five-speed car gets the 5+R
-profile without your touching anything. **Add last used vehicle** fills in whatever the running game
-last reported, which saves guessing at the exact string. Empty means the profile never
-auto-activates, which is how every shipped profile starts.
+**A profile can also claim cars.** Open **Automatic profile switching** on Main and enter one
+vehicle ID per line. **Add last vehicle** uses the ID the game last reported. A matching vehicle
+activates that profile when the car changes; leave the list empty for manual selection.
+**Sharing and button mapping** is a separate, compact help section.
 
 **Profiles can be exported and imported**, so a tune can be shared as a file. What travels is the
 tuning only: your measured polarity, your device and vJoy numbers, your loop rate and your car
 mappings stay as they are on your machine. An import always *adds* a profile, numbering the name if
 it is taken, so someone else's file can never land on top of yours — and it always arrives with
-forces off, with every value range-checked on the way in.
+virtual forces off, with every value range-checked on the way in. In AB9-native mode, the
+imported profile's onboard base settings apply automatically while virtual output stays off.
 
 ## Game effects
 
@@ -337,22 +339,19 @@ reports the clutch pedal.
 
 ## Tuning
 
-- **Feel** — master gain; the gate and slot walls with their bite distance, attack, rebound
-  absorption and friction; the lockout gate and the humps; the slot mouths; the three
-  slot-detent forces (resistance, pull, seated hold). Each section **draws the force curve its
-  dials produce**, sampled from the force code itself and with your stick position tracked live
-  on it, so a change can be seen before it is felt. Dials bounded by the geometry rather than by
-  their slider print what the gate will actually use, and every slider has its own undo.
-- **Effects** — the telemetry effects above, each with volume and frequency.
-- **Geometry** — the positions the gate is built from: how wide the neutral tunnel and the
-  columns are, how far a push must travel to engage a gear, the loop rate, and
-  scoped resets.
-- **Monitor** — a live drawing of the gate with the stick position and the shaded lockout band,
-  plus a trace recorder that logs every tick to CSV so a feel problem can be replayed.
+- **Feel** — master gain, base effects, wall and detent strengths, lockout resistance, attack,
+  rebound absorption and software stability. Force curves come from the actual force model,
+  with the live stick position shown; each slider supports undo.
+- **Effects** — SimHub's telemetry-effect editor, including gain, frequency, filters and groups.
+- **Geometry** — pattern size, travel, corridor and mouth shapes, lockout placement and widths,
+  and gear detection. The live monitor stays above its controls while you scroll.
+- **Main** — the live gate beside the profile, pattern and force controls. **Options → Diagnostics**
+  holds the trace recorder and loop rate.
 
-Geometry groups positions and distances; Feel groups strengths and resistance. The live monitor stays visible above the Geometry controls while you scroll.
-
-Changes apply on the next FFB tick; nothing needs restarting.
+Software changes apply on the next FFB tick. AB9-native's seven onboard dials apply after
+500 ms without another edit, pausing output until the latest settings are verified. An enabled
+session resumes after a successful update; turning it off or pressing panic always takes
+precedence. No Apply button or restart is needed.
 
 **[docs/tuning.md](docs/tuning.md) is the guide** — every dial, and a symptom-to-dial table for
 when something feels wrong.

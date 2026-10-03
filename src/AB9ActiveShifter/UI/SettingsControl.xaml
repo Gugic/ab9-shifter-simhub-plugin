@@ -51,22 +51,32 @@
                             </StackPanel>
                         </Border>
                         <StackPanel x:Name="MainProfilePanel" Grid.Row="1" Grid.Column="0" Margin="0,0,16,0">
-                            <Border x:Name="ProfileSection" Padding="0,0,0,12">
-                                <StackPanel Margin="0,4,0,8">
+                            <Border x:Name="ProfileSection" Padding="0,0,0,4">
+                                <StackPanel Margin="0,0,0,4">
                                     <TextBlock Text="Profile and pattern" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10" />
-                                    <WrapPanel Margin="0,0,0,6">
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="52" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
                                         <TextBlock Text="Profile" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                        <ComboBox x:Name="ProfileCombo" Width="220" Margin="0,0,8,0" IsEditable="True" SelectionChanged="OnProfileSelected" />
-                                        <styles:SHButtonSecondary Click="OnAddProfile" Content="Duplicate" Padding="10,3" Margin="0,0,6,0" />
-                                        <styles:SHButtonSecondary x:Name="RenameProfileButton" Click="OnRenameProfile" Content="Rename" Padding="10,3" Margin="0,0,6,0" />
-                                        <styles:SHButtonSecondary x:Name="DeleteProfileButton" Click="OnDeleteProfile" Content="Delete" Padding="10,3" Margin="0,0,16,0" />
-                                        <styles:SHButtonSecondary Click="OnExportProfile" Content="Export..." Padding="10,3" Margin="0,0,6,0" />
-                                        <styles:SHButtonSecondary Click="OnImportProfile" Content="Import..." Padding="10,3" />
+                                        <ComboBox x:Name="ProfileCombo" Margin="0" IsEditable="True" SelectionChanged="OnProfileSelected" HorizontalAlignment="Stretch" Grid.Column="1" />
+                                    </Grid>
+                                    <WrapPanel Margin="0,0,0,12">
+                                        <styles:SHButtonSecondary Click="OnAddProfile" Content="Duplicate" Padding="8,3" Margin="0,4,6,0" />
+                                        <styles:SHButtonSecondary x:Name="RenameProfileButton" Click="OnRenameProfile" Content="Rename" Padding="8,3" Margin="0,4,6,0" ToolTip="Type a new name in the profile box, then click Rename." />
+                                        <styles:SHButtonSecondary x:Name="DeleteProfileButton" Click="OnDeleteProfile" Content="Delete" Padding="8,3" Margin="0,4,6,0" />
+                                        <styles:SHButtonSecondary Click="OnExportProfile" Content="Export..." Padding="8,3" Margin="0,4,6,0" />
+                                        <styles:SHButtonSecondary Click="OnImportProfile" Content="Import..." Padding="8,3" Margin="0,4,6,0" />
                                     </WrapPanel>
                                     <TextBlock x:Name="PresetNote" TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,6" Visibility="Collapsed" Text="Shipped preset. Changing a dial creates an editable copy; the preset stays available as a starting point." />
-                                    <StackPanel x:Name="VirtualPatternPanel" Orientation="Horizontal" Margin="0,0,0,4">
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="52" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
                                         <TextBlock Text="Pattern" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                        <ComboBox Width="220" SelectedIndex="{Binding PatternIndex, Mode=TwoWay}">
+                                        <ComboBox SelectedIndex="{Binding PatternIndex, Mode=TwoWay}" Grid.Column="1" HorizontalAlignment="Stretch">
                                             <ComboBoxItem Content="H pattern, 7 gears + R (lockout)" />
                                             <ComboBoxItem Content="H pattern, 6 gears + R (no 7th slot)" />
                                             <ComboBoxItem Content="H pattern, 5 gears + R" />
@@ -74,47 +84,42 @@
                                             <ComboBoxItem Content="Automatic (P R N D)" />
                                             <ComboBoxItem Content="H pattern, 6 gears, no reverse (truck)" />
                                         </ComboBox>
-                                    </StackPanel>
-                                    <ui:TitledSlider x:Name="VirtualSequentialPulse" Title="Sequential pulse length (ms)" Minimum="20" Maximum="400" TickFrequency="10" ShowResetButton="True" ResetValue="120" Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}" Value="{Binding SeqPulseMs, Mode=TwoWay}" />
+                                    </Grid>
+                                    <ui:TitledSlider x:Name="VirtualSequentialPulse" Title="Sequential pulse length (ms)" Minimum="20" Maximum="400" TickFrequency="10" ShowResetButton="True" ResetValue="120" Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}" Value="{Binding SeqPulseMs, Mode=TwoWay}" Margin="0,4,0,8" />
                                 </StackPanel>
                             </Border>
                             <StackPanel Margin="0,0,0,8">
-                                <Border x:Name="VirtualEnableSection" Margin="0,4,0,6" Padding="0">
-                                    <StackPanel>
-                                        <styles:SHToggleCheckbox IsChecked="{Binding Enabled, Mode=TwoWay}" Content="Shifter force feedback enabled" />
+                                <Border x:Name="VirtualEnableSection" Margin="0,4,0,4" Padding="0">
+                                    <StackPanel Margin="0">
+                                        <styles:SHToggleCheckbox IsChecked="{Binding Enabled, Mode=TwoWay}" Content="Shifter force feedback enabled" Margin="0" />
                                     </StackPanel>
                                 </Border>
-                                <Border x:Name="VirtualFreeStickSection" Margin="0,4,0,6" Padding="0">
-                                    <StackPanel Margin="0,4,0,8">
-                                        <styles:SHToggleCheckbox IsChecked="{Binding FreeStick, Mode=TwoWay}" Content="Release all forces (free stick)" />
+                                <Border x:Name="VirtualFreeStickSection" Margin="0,4,0,4" Padding="0">
+                                    <StackPanel Margin="0">
+                                        <styles:SHToggleCheckbox IsChecked="{Binding FreeStick, Mode=TwoWay}" Content="Release all forces (free stick)" Margin="0" />
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
-                            <WrapPanel Margin="0,8,0,10" x:Name="TuningButtons">
-                                <styles:SHButtonSecondary Content="Geometry…" Click="OnOpenGeometry" Padding="14,6" Margin="0,4,8,4" x:Name="OpenGeometryButton" />
-                                <styles:SHButtonSecondary Content="Feel…" Click="OnOpenFeel" Padding="14,6" Margin="0,4,8,4" x:Name="OpenFeelButton" />
-                                <styles:SHButtonSecondary Content="Effects…" Click="OnOpenEffects" Padding="14,6" Margin="0,4,8,4" x:Name="OpenEffectsButton" />
+                            <WrapPanel Margin="0,4,0,12" x:Name="TuningButtons">
+                                <styles:SHButtonSecondary Content="Geometry…" Click="OnOpenGeometry" Padding="14,6" Margin="0,0,8,0" x:Name="OpenGeometryButton" />
+                                <styles:SHButtonSecondary Content="Feel…" Click="OnOpenFeel" Padding="14,6" Margin="0,0,8,0" x:Name="OpenFeelButton" />
+                                <styles:SHButtonSecondary Content="Effects…" Click="OnOpenEffects" Padding="14,6" Margin="0,0,8,0" x:Name="OpenEffectsButton" />
                             </WrapPanel>
-                            <styles:SHExpander Header="Profile options and sharing" Margin="0,12,0,8">
+                            <styles:SHExpander Header="Automatic profile switching" Margin="0,4,0,8">
                                 <StackPanel>
-                                    <TextBlock x:Name="ProfileKindText" TextWrapping="Wrap" Margin="0,0,0,6" Text="This profile is shared by both virtual modes." />
-                                    <styles:SHExpander Header="Vehicle models (optional)" Margin="0,10,0,0">
-                                        <StackPanel Margin="0,8,0,0">
-                                            <TextBox x:Name="CarModelsBox" AcceptsReturn="True" Height="70" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" LostFocus="OnCarModelsChanged" />
-                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                <styles:SHButtonSecondary x:Name="AddLastCarButton" Click="OnAddLastCarModel" Content="Add last used vehicle" Padding="10,3" Margin="0,0,6,0" />
-                                                <styles:SHButtonSecondary Click="OnAddBlankCarModelLine" Content="+ Add manually" Padding="10,3" ToolTip="Adds a blank line to the box above so you can type an id by hand" />
-                                            </StackPanel>
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0" Text="One vehicle id per line - whatever the game's own car-model telemetry reports (SimHub's Available properties page shows the exact value, usually named something like DataCorePlugin.GameData.CarModel). When the current car matches a line here, this profile activates automatically; leave it empty to keep this profile out of auto-switching. If two profiles claim the same car the earlier one in the list wins, which is deliberate rather than clever - a real clash is yours to settle. 'Add last used vehicle' reads whatever the running game most recently reported - unlike SimHub's own car catalogue, this is the raw telemetry value, not a prettified name, because that is genuinely all a plugin can see." />
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0" Text="It only acts when the car itself changes, so picking a different profile by hand is never overridden until you change car again. The switch goes through the same path as the profile hotkey, which means changing car re-seats the gear the way switching by hand does - nothing at all in the pits, and the reason not to map two profiles to cars you swap between mid-session. The current car is only looked up while this page is open or some profile already lists one, so nothing is read from the game on your behalf until you have asked for it." />
-                                        </StackPanel>
-                                    </styles:SHExpander>
-                                    <styles:SHExpander Header="Profile sharing and button mapping" Margin="0,6,0,0">
-                                        <StackPanel Margin="0,6,0,0">
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0" Text="A profile holds every profile tuning dial, the pattern included, so each pattern can carry its own tuning. Duplicate makes a copy of the current profile to experiment in; to rename, type the new name in the box and click Rename. Gears map to vJoy buttons 1..N, and reverse - where the pattern has one - is always button 8; the 6-gear truck pattern has no reverse and uses buttons 1-6 only. Sequential pulses button 9 for upshift and button 10 for downshift - above every gear button, so no game binding can mean two things - and its push resistance and click are the detent dials on Feel." />
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0" Text="Export writes the current profile to a file you can share. Import always adds a new profile, numbering the name if it is taken, so someone else's tune can never land on top of yours. What travels is the tuning only: your measured polarity, your device and vJoy numbers and your loop rate stay as they are, values are range-checked on the way in, and an imported profile always arrives with forces off." />
-                                        </StackPanel>
-                                    </styles:SHExpander>
+                                    <TextBlock Text="Use this profile when the game changes to a matching vehicle. Enter one vehicle ID per line, or leave empty to select profiles manually." TextWrapping="Wrap" Opacity="0.8" Margin="0,0,0,8" />
+                                    <TextBox x:Name="CarModelsBox" AcceptsReturn="True" Height="82" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" LostFocus="OnCarModelsChanged" ToolTip="Use the vehicle ID reported by DataCorePlugin.GameData.CarModel in SimHub’s available properties. The first matching profile in the list wins." />
+                                    <WrapPanel Margin="0,6,0,4">
+                                        <styles:SHButtonSecondary x:Name="AddLastCarButton" Click="OnAddLastCarModel" Content="Add last vehicle" Padding="8,3" Margin="0,0,6,4" />
+                                        <styles:SHButtonSecondary Click="OnAddBlankCarModelLine" Content="Add manually" Padding="8,3" ToolTip="Adds a blank line to the box above so you can type an id by hand" Margin="0,0,6,4" />
+                                    </WrapPanel>
+                                    <TextBlock x:Name="LastCarModelText" TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,4" />
+                                </StackPanel>
+                            </styles:SHExpander>
+                            <styles:SHExpander Header="Sharing and button mapping" Margin="0,0,0,8">
+                                <StackPanel Margin="0,8,0,0">
+                                    <TextBlock Text="Duplicate creates an editable copy. Export shares the tune; Import adds a new profile with forces off and keeps this rig’s device settings and calibration." TextWrapping="Wrap" Opacity="0.8" Margin="0,0,0,8" />
+                                    <TextBlock Text="vJoy buttons: gears 1–7 → 1–7, reverse → 8; sequential up/down → 9/10; P/R/N/D → 11/12/13/14. The truck pattern uses buttons 1–6." TextWrapping="Wrap" Opacity="0.8" Margin="0" />
                                 </StackPanel>
                             </styles:SHExpander>
                         </StackPanel>
@@ -404,16 +409,14 @@
                                     <ui:TitledSlider Title="Base friction (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="0" Value="{Binding BaseFrictionPct, Mode=TwoWay}" />
                                     <ui:TitledSlider Title="Base inertia (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="0" Value="{Binding BaseInertiaPct, Mode=TwoWay}" />
                                     <TextBlock Text="Measure polarity again in Options to enable the DirectInput base spring. Other effects remain available." TextWrapping="Wrap" Margin="0,4,0,8" x:Name="BaseSpringCalibrationHint" />
-                                    <styles:SHButtonSecondary Content="Apply base effects" Click="OnNativeApply" x:Name="ApplyBaseEffectsButton" Padding="14,6" Margin="0,4,8,4" HorizontalAlignment="Left" />
+                                    <TextBlock TextWrapping="Wrap" Margin="0,6,0,4" x:Name="NativeSettingsStatus" />
                                 </StackPanel>
                                 <styles:SHExpander Header="AB9 hardware gains" x:Name="NativeHardwareExpander" Margin="0,8,0,8">
                                     <StackPanel x:Name="NativeTunePanel">
-                                        <TextBlock Text="These hardware gains multiply the force produced by the AB9. Apply sends the profile’s base effects and these gains to the base, then leaves virtual forces off." TextWrapping="Wrap" Margin="0,4,0,8" />
+                                        <TextBlock Text="These hardware gains multiply the force produced by the AB9. Changes apply automatically after you pause editing; successful updates keep your force feedback toggle as set." TextWrapping="Wrap" Margin="0,4,0,8" />
                                         <ui:TitledSlider Title="Maximum Torque Output (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="100" Value="{Binding NativeTorquePct, Mode=TwoWay}" />
                                         <ui:TitledSlider Title="Overall Force Feedback Intensity (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="100" Value="{Binding NativeOverallIntensityPct, Mode=TwoWay}" />
                                         <ui:TitledSlider Title="Game Force Feedback Gain (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="100" Value="{Binding NativeGameGainPct, Mode=TwoWay}" />
-                                        <styles:SHButtonSecondary Content="Apply onboard settings" Click="OnNativeApply" Padding="14,6" Margin="0,4,8,4" x:Name="NativeApplyButton" />
-                                        <TextBlock TextWrapping="Wrap" Margin="0,6,0,4" x:Name="NativeApplyStatus" />
                                     </StackPanel>
                                 </styles:SHExpander>
                             </StackPanel>

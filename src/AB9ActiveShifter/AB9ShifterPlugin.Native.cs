@@ -11,14 +11,23 @@ namespace AB9ActiveShifter
         private static readonly Ab9NativeDevice NativeDevice = new Ab9NativeDevice();
         private static volatile bool _ab9InNativeMode;
         private static volatile bool _ab9ModeUncertain;
-        private static volatile bool _nativeOperation;
+        private static readonly NativeWritePause NativePause = new NativeWritePause();
         private static volatile bool _nativeStartupCheck;
         private static bool _nativeStartupChecked;
+        private static AB9ShifterPlugin _nativeUpdateOwner;
+        private readonly NativeSettingsDebounce _nativeEdits = new NativeSettingsDebounce();
+        private System.Windows.Threading.DispatcherTimer _nativeEditTimer;
+        private ShifterSettings _nativeEditSettings;
+        private bool _nativeUpdatesStopped;
+        private bool _nativeProfileUpdate;
+        private bool _nativeReplayAfterHandoff;
 
         public Ab9NativeSnapshot NativeSnapshot { get { return NativeDevice.Snapshot; } }
-        public bool NativeBusy { get { return _nativeOperation || NativeDevice.IsBusy; } }
-        public bool NativeWriteBusy { get { return _nativeOperation || (_engine != null && _engine.IsCalibrating); } }
+        public bool NativeBusy { get { return NativePause.Active || NativeDevice.IsBusy; } }
+        public bool NativeWriteBusy { get { return NativePause.Active || (_engine != null && _engine.IsCalibrating); } }
         public string NativeOperationStatus { get; private set; }
+        public bool NativeProfileUpdateInProgress { get { return _nativeProfileUpdate && NativePause.Active; } }
+        public bool NativeSettingsPending { get { return _nativeEdits.Pending; } }
         public OperatingMode CurrentOperatingMode { get { return Store?.SelectedOperatingMode ?? OperatingMode.GenericFfbStick; } }
         public bool Ab9ModesAvailable { get { return NativeSnapshot.CanManage; } }
         public bool CanConfigureNative { get { return Settings != null && Ab9ModesAvailable && !NativeBusy && !_nativeStartupCheck; } }
@@ -27,7 +36,7 @@ namespace AB9ActiveShifter
         {
             get
             {
-                return Settings != null && !_nativeOperation && !_nativeStartupCheck
+                return Settings != null && !NativePause.Active && !_nativeStartupCheck && !_nativeReplayAfterHandoff
                     && NativeProfilePolicy.CanRunVirtual(CurrentOperatingMode,
                         Settings.VendorId, Settings.ProductId, NativeSnapshot, _ab9InNativeMode || _ab9ModeUncertain);
             }
@@ -53,19 +62,25 @@ namespace AB9ActiveShifter
 
         private async void CompleteNativeStartupCheck()
         {
-            try { await RefreshNativeAsync(); }
+            try
+            {
+                await RefreshNativeAsync();
+                if (CurrentOperatingMode == OperatingMode.Ab9Native && NativeSnapshot.CanManage
+                    && !_nativeUpdatesStopped && BeginNativeOperation(true))
+                    await CompleteNativeProfileApplyAsync();
+            }
             catch (Exception ex) { Log.Error("Could not check the AB9 mode at startup", ex); }
             finally
             {
                 _nativeStartupChecked = true;
                 _nativeStartupCheck = false;
-                PushSettingsToEngine();
+                (_nativeUpdateOwner ?? this).PushSettingsToEngine();
             }
         }
 
         public async Task RefreshNativeAsync()
         {
-            if (NativeBusy) return;
+            if (NativeBusy || (NativeSettingsPending && NativeSnapshot.CanManage)) return;
             ObserveNativeMode(await NativeDevice.RefreshAsync());
         }
 
@@ -170,7 +185,7 @@ namespace AB9ActiveShifter
             try
             {
                 bool ready = await WriteBaseAsync(Ab9NativeSettings.GenericSetup(), 0);
-                if (ready) NativeOperationStatus = "Onboard base effects are off for polarity measurement. Apply your base effects after calibration.";
+                if (ready) NativeOperationStatus = "Onboard base effects are off for polarity measurement. Your base effects will be restored after calibration.";
                 return ready;
             }
             finally { EndNativeOperation(); }
@@ -183,17 +198,60 @@ namespace AB9ActiveShifter
         public async Task ApplyNativeProfileAsync()
         {
             if (Settings == null || CurrentOperatingMode != OperatingMode.Ab9Native
-                || !CanActivateProfile(Store.FindActive()) || !BeginNativeOperation()) return;
-            try { await WriteBaseAsync(Settings.ToNativeSettings(), 0); }
+                || !CanActivateProfile(Store.FindActive()) || !BeginNativeOperation(true)) return;
+            CancelPendingNativeSettings();
+            await CompleteNativeProfileApplyAsync();
+        }
+
+        // Keep one pause across the batch: edits made during readback replace the pending
+        // tune, and only the final checked configuration may resume the user's session.
+        private async Task CompleteNativeProfileApplyAsync(Ab9NativeSettings tune = null)
+        {
+            bool verified = false;
+            ShifterSettings active = Settings;
+            try
+            {
+                tune = tune ?? active.ToNativeSettings();
+                while (true)
+                {
+                    if (!ReferenceEquals(active, Settings) || _nativeUpdatesStopped)
+                    {
+                        verified = false;
+                        break;
+                    }
+                    // Polarity can be revoked while an edit waits for the port. Rebuild at
+                    // the point of writing so a queued snapshot cannot bypass the 10% cap.
+                    tune = active.ToNativeSettings();
+                    verified = await WriteBaseAsync(tune, 0);
+                    if (!verified) break;
+                    tune = null;
+                    while (_nativeEdits.Pending && ReferenceEquals(active, Settings) && !_nativeUpdatesStopped)
+                    {
+                        if (_nativeEdits.TryTake(Environment.TickCount, true, out tune)) break;
+                        await Task.Delay(100);
+                    }
+                    if (!ReferenceEquals(active, Settings) || _nativeUpdatesStopped)
+                    {
+                        verified = false;
+                        break;
+                    }
+                    if (tune == null) break;
+                }
+            }
             catch (Exception ex)
             {
+                verified = false;
                 NativeOperationStatus = "AB9 configuration failed: " + ex.Message + ". Forces remain off.";
                 Log.Error("AB9 configuration failed", ex);
             }
-            finally { EndNativeOperation(); }
+            finally
+            {
+                if (!verified) CancelPendingNativeSettings();
+                EndNativeOperation(verified);
+            }
         }
 
-        private bool BeginNativeOperation()
+        private bool BeginNativeOperation(bool preserveEnabled = false)
         {
             lock (EngineSync)
             {
@@ -202,18 +260,138 @@ namespace AB9ActiveShifter
                     NativeOperationStatus = "AB9 configuration is busy; try again when the read finishes.";
                     return false;
                 }
-                _nativeOperation = true;
+                if (!NativePause.TryBegin(preserveEnabled, Settings.Enabled)) return false;
+                _nativeReplayAfterHandoff = false;
+                _nativeProfileUpdate = preserveEnabled;
             }
             // Stop performs buttons-off -> effects-off -> unacquire before any serial write.
-            Settings.Enabled = false;
+            if (!preserveEnabled)
+            {
+                CancelPendingNativeSettings();
+                Settings.Enabled = false;
+            }
             PushSettingsToEngine();
             return true;
         }
 
-        private void EndNativeOperation()
+        private void EndNativeOperation(bool verified = false)
         {
-            Settings.Enabled = false;
-            _nativeOperation = false;
+            lock (EngineSync)
+            {
+                // Failures/setup remain off. Successful ordinary applies keep the current
+                // request, never restore an earlier true over a later off or panic action.
+                if (!NativePause.CanResume(verified, Settings.Enabled)) Settings.Enabled = false;
+                _nativeProfileUpdate = false;
+                NativePause.End();
+                if (!_nativeUpdatesStopped) PushSettingsToEngine();
+                else if (_nativeUpdateOwner != null && !ReferenceEquals(_nativeUpdateOwner, this))
+                {
+                    // A game change can replace the plugin while readback is outstanding.
+                    // Do not let the old continuation restart a newly loaded session.
+                    if (_nativeUpdateOwner.Settings != null) _nativeUpdateOwner.Settings.Enabled = false;
+                    _nativeUpdateOwner.PushSettingsToEngine();
+                }
+            }
+        }
+
+        private void ScheduleNativeSettings(string property)
+        {
+            if (_nativeUpdatesStopped || CurrentOperatingMode != OperatingMode.Ab9Native) return;
+            switch (property)
+            {
+                case nameof(ShifterSettings.BaseSpringPct):
+                case nameof(ShifterSettings.DamperCoeff):
+                case nameof(ShifterSettings.BaseFrictionPct):
+                case nameof(ShifterSettings.BaseInertiaPct):
+                case nameof(ShifterSettings.NativeTorquePct):
+                case nameof(ShifterSettings.NativeOverallIntensityPct):
+                case nameof(ShifterSettings.NativeGameGainPct):
+                    break;
+                default: return;
+            }
+            QueueCurrentNativeSettings();
+        }
+
+        private void QueueCurrentNativeSettings()
+        {
+            ShifterSettings edited = Settings;
+            OnUiThread(() =>
+            {
+                if (_nativeUpdatesStopped || CurrentOperatingMode != OperatingMode.Ab9Native || Settings == null
+                    || !ReferenceEquals(edited, Settings)) return;
+                _nativeEditSettings = Settings;
+                _nativeEdits.Schedule(Settings.ToNativeSettings(), Environment.TickCount);
+                NativeOperationStatus = "Changes saved. Updating the AB9 after you pause editing...";
+                if (_nativeEditTimer == null)
+                {
+                    _nativeEditTimer = new System.Windows.Threading.DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromMilliseconds(100)
+                    };
+                    _nativeEditTimer.Tick += DrainNativeSettings;
+                }
+                _nativeEditTimer.Start();
+            });
+        }
+
+        private async void DrainNativeSettings(object sender, EventArgs e)
+        {
+            if (!_nativeEdits.Pending) { _nativeEditTimer.Stop(); return; }
+            if (_nativeUpdatesStopped || CurrentOperatingMode != OperatingMode.Ab9Native
+                || !ReferenceEquals(_nativeEditSettings, Settings)
+                || Settings.VendorId != Ab9NativeProtocol.VendorId || Settings.ProductId != Ab9NativeProtocol.ProductId)
+            {
+                CancelPendingNativeSettings();
+                return;
+            }
+            Ab9NativeSettings tune;
+            if (!_nativeEdits.TryTake(Environment.TickCount, CanConfigureNative && !NativeWriteBusy, out tune)) return;
+            if (!BeginNativeOperation(true))
+            {
+                _nativeEdits.Schedule(tune, Environment.TickCount);
+                return;
+            }
+            await CompleteNativeProfileApplyAsync(tune);
+        }
+
+        private void CancelPendingNativeSettings()
+        {
+            _nativeEditTimer?.Stop();
+            _nativeEdits.Cancel();
+            _nativeEditSettings = null;
+        }
+
+        private void StartNativeSettingsUpdates()
+        {
+            if (_nativeUpdateOwner != null)
+            {
+                _nativeReplayAfterHandoff = _nativeUpdateOwner.NativeSettingsPending
+                    || _nativeUpdateOwner.NativeProfileUpdateInProgress || _nativeStartupCheck;
+                _nativeUpdateOwner.StopNativeSettingsUpdates();
+            }
+            _nativeUpdateOwner = this;
+            _nativeUpdatesStopped = false;
+        }
+
+        private void ReplayPendingNativeSettings()
+        {
+            if (!_nativeReplayAfterHandoff) return;
+            if (CurrentOperatingMode == OperatingMode.Ab9Native) QueueCurrentNativeSettings();
+            else _nativeReplayAfterHandoff = false;
+        }
+
+        private void StopNativeSettingsUpdates()
+        {
+            _nativeUpdatesStopped = true;
+            CancelPendingNativeSettings();
+            CancelNativeResume();
+        }
+
+        private void CancelNativeResume()
+        {
+            // Action callbacks can arrive before their dispatcher update. Cancel the pending
+            // resume now, so completion cannot beat an off/panic request to the UI queue.
+            lock (EngineSync) NativePause.CancelResume();
         }
 
         private async Task<bool> WriteBaseAsync(Ab9NativeSettings tune, int mode)
@@ -236,7 +414,7 @@ namespace AB9ActiveShifter
 
         private async void ApplyNativeProfileInBackground()
         {
-            try { await ApplyNativeProfileAsync(); }
+            try { await CompleteNativeProfileApplyAsync(); }
             catch (Exception ex) { Log.Error("Could not apply the AB9-native profile", ex); }
         }
     }
