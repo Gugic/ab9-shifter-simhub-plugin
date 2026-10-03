@@ -18,6 +18,9 @@ namespace GameReaderCommon
 
     public class StatusDataBase
     {
+        public object GetRawDataObject() { return null; }
+        public string CarId { get; set; }
+        public string CarModel { get; set; }
         /// <summary>Engine speed, rpm.</summary>
         public double Rpms { get; set; }
 

@@ -89,6 +89,7 @@ namespace AB9ActiveShifter.Core
         private readonly NativeEffectMixer _nativeEffectMixer = new NativeEffectMixer();
         private double _grindEffectLevel;
         private int _biteEffectSequence;
+        private RevMatchResult _revMatchResult;
 
         public double GrindEffectLevel { get { return Volatile.Read(ref _grindEffectLevel); } }
         public int BiteEffectSequence { get { return Volatile.Read(ref _biteEffectSequence); } }
@@ -99,9 +100,10 @@ namespace AB9ActiveShifter.Core
         }
 
         private EffectOutput StepEffects(EngineConfig cfg, TelemetryState telemetry, int ageMs,
-                                         double dtMs, bool approaching, double depth = 1)
+                                         double dtMs, bool approaching, double depth = 1, int targetGear = 0, int heldGear = 0)
         {
-            EffectOutput output = _gameEffects.Step(cfg, telemetry, ageMs, dtMs, approaching, depth);
+            EffectOutput output = _gameEffects.Step(cfg, telemetry, ageMs, dtMs, approaching, depth, targetGear, heldGear);
+            _revMatchResult = output.RevMatch;
             Volatile.Write(ref _grindEffectLevel, output.GrindLevel);
             Volatile.Write(ref _biteEffectSequence, output.BiteSequence);
             if (cfg.NativeEffectsEnabled)
@@ -110,7 +112,8 @@ namespace AB9ActiveShifter.Core
                 bool fresh = telemetry != null && telemetry.GameRunning
                     && ageMs >= 0 && ageMs <= EffectComposer.StaleAfterMs;
                 output.VibY = _nativeEffectMixer.Step(native, cfg.NativeEffectsEpoch,
-                    unchecked(Environment.TickCount - native.CapturedAtTick), dtMs, cfg.EffectiveGain, fresh);
+                    unchecked(Environment.TickCount - native.CapturedAtTick), dtMs, cfg.EffectiveGain, fresh,
+                    !cfg.FloatShiftingEnabled || output.GrindActive);
             }
             return output;
         }
@@ -744,7 +747,8 @@ namespace AB9ActiveShifter.Core
                         ? _geometry.EngageFraction(_stateMachine.Direction, y)
                         : 0.0;
                     EffectOutput fx = StepEffects(
-                        cfg, telemetry, telemetryAge, dtMs, approaching, slotDepth);
+                        cfg, telemetry, telemetryAge, dtMs, approaching, slotDepth,
+                        _geometry.GearFor(_stateMachine.Column, _stateMachine.Direction), _stateMachine.CurrentGear);
 
                     // The hard lockout's refusal rides the same allowEngage the grind uses, and
                     // reads the machine BEFORE this tick's update - last tick's target, the
@@ -772,7 +776,7 @@ namespace AB9ActiveShifter.Core
 
                     frame = _composer.Compose(
                         t.State, t.Column, t.Direction, x, y, _velocity.X, _velocity.Y, dtMs,
-                        fx.VibY, fx.MuteDetent, lockoutReleased);
+                        fx.VibY, fx.MuteDetent, lockoutReleased, fx.GrindWallScale);
 
                     if (cfg.LockoutMode == LockoutMode.HotkeyAutoRearm && lockoutReleased)
                     {
@@ -1606,7 +1610,8 @@ namespace AB9ActiveShifter.Core
                 LoopHz = loopHz,
                 StatusMessage = _status,
                 DeviceName = _device != null ? (_device.ProductName ?? "") : "",
-                LockoutEngaged = !_lockoutReleased
+                LockoutEngaged = !_lockoutReleased,
+                RevMatch = _revMatchResult
             };
 
             _snapshot = snapshot;

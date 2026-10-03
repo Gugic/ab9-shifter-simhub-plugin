@@ -687,7 +687,7 @@ now how every wall behaves.
 
 **Free corridors.** A restoring force about an interior equilibrium is an oscillator: the stick
 overshoots, gets pushed back, and hunts. Slots and the neutral channel therefore have *width* with
-no force inside. This is why the outer columns were always stable while the middle ones shook �
+no force inside. This is why the outer columns were always stable while the middle ones shook —
 an outer column's force is one-sided against the end of travel, and one-sided force cannot hunt.
 That last part holds only at full pattern width; narrowed, an outer column has axis on both sides
 and is an interior equilibrium like any other. See *How wide the pattern stands*.
@@ -1004,6 +1004,36 @@ it). Press the clutch mid-push and the normal profile returns instantly — the 
 whole, like the snick it is — and the gear registers after the standard debounce. The lever
 *can* still be forced to the bottom of a slot it will never own; see the rejected table for why
 the wall is not closed over it.
+
+### Optional float shifting
+
+With float shifting enabled, the grind releases with the clutch up when engine RPM agrees with
+the target gear's shaft RPM. Range and splitter enter through the game's slot mapping. Default
+tolerance is ±100 RPM, clamped to 25–1000. A matched target stays matched out to 125% of that
+tolerance to prevent chatter. Changing targets, returning to neutral, or losing fresh data
+clears permission. RPM freshness is 150 ms, including the truck reader's original raw timestamp;
+unchanged raw frames cannot become fresh through SimHub updates.
+
+Outside the match band, disagreement ramps the grind source and extra `GrindWallPct` load from
+zero at the tolerance edge to full at five times the tolerance. Ordinary entry resistance stays.
+This only removes load from the existing balk curve; it adds no gradient, spring or moving
+geometry. The balk still gets attack shaping and the wall yield floor. Clutch fade does not
+scale the wall; an overlapping hard slot lockout still wins by max at its original full load.
+Refusal persists if a hand forces the softened balk through. A match restores the snick and
+permits the ordinary debounce, while a held gear cannot be dropped.
+
+Unknown target RPM retains the original full balk and clutch requirement. Stale game telemetry
+silences carriers, while float-enabled rejection waits for fresh telemetry or a directly read
+disengaged clutch. Native grind tones are gated on the engine tick when released, so a retained
+native filter envelope cannot buzz over a matched snick. Other tones and explicit tests retain
+their behavior, and all forces retain the measured polarity and effective-gain cap.
+
+Design alternatives considered here, without hardware claims: guessing an unreported ratio
+could falsely permit a shift; publishing SCS reader objects would race the data thread; closing
+the gate mouth would recreate the rejected geometry step below. Virtual throttle cuts and
+clutch-down shaft inertia need additional pedal/transmission integration and are outside this
+change. Arithmetic is verified; RPM tolerance, native envelope feel and game acceptance still
+need a road test.
 
 ## Rejected approaches
 

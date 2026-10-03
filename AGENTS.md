@@ -47,7 +47,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-630 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+691 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -96,6 +96,7 @@ src/AB9ActiveShifter/
   DefaultProfiles.SequentialStiffShort.cs Captured short sequential tune and its portable native Effects tree
   ProfileTransfer.cs       One profile as a shareable file: what travels, and what is refused
   NativeEffectsData.cs     Validates the portable native tree without constructing a transport
+  ScsShiftTelemetryReader.cs Optional cached raw-data adapter; copies truck target RPMs only
   Effects/                 Native ShakeIt host/editor, Lever output adapter and shifter sources
   PluginInfo.cs            The build's version string, for the UI and for exported files
   Core/                    Pure, no I/O, fully unit-tested
@@ -116,6 +117,7 @@ src/AB9ActiveShifter/
     PrndStateMachine.cs    Which position is held. No neutral, no travelling, no debounce
     ForceComposer.cs       The gate itself: position+velocity -> forces. The heart.
     EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
+    RevMatchModel.cs       Float-shift RPM comparison, target hysteresis and session-only learning
     NativeEffectMixer.cs   Native envelopes -> independent sine carriers at 1 kHz, no native I/O
     TelemetryState.cs      Immutable game-telemetry snapshot, data thread -> engine thread
     ClutchTypes.cs         Where the clutch is read from, and how it decides the grind
@@ -293,6 +295,15 @@ runners cannot load, so anything worth testing must not touch it.
   A profile epoch rejects outgoing tones immediately. Preserve whole native trees on transfer,
   strip transports before deserialization, and keep both the settings object and the native
   editor alive when a preset forks mid-drag.
+- **Float shifting grants permission only for a known, fresh target.** The target is the
+  mapped vJoy gear, not the physical column or transmission gear. SCS selector/mapping changes
+  invalidate the match; repeated raw timestamps never renew freshness. Generic learning needs
+  distinct stable frames, a released clutch and agreement between the game and the held button.
+  Learned ratios stay on the engine thread and never write settings. A vehicle/game/profile
+  change clears them. Unknown or stale RPMs cannot grant float permission. Only RPM mismatch
+  scales the extra grind wall; clutch engagement never does, and hard slot balks still take
+  the max at their full strength. Native grind tones stop the same tick a match releases the
+  balk, while native tests and unrelated effects keep their ordinary controls and budgets.
 - **Velocity is never an adjacent-tick difference, and the absorber's scale is one-way in time.**
   Under write contention the device delivers distinct positions at only ~500 Hz, so per-tick
   differencing alternates ~2:1 and anything keying force on it renders a 250–500 Hz ripple —
@@ -775,6 +786,8 @@ output, the settings UI, and the reset/free-stick escapes.
 
 Telemetry effects shipped in v1 form — the clutch grind with gear rejection, engine vibration,
 rev limiter, ABS/TC, the shift pulse, and the custom-property bridge to ShakeIt — awaiting
-verification against a real game. Still open: end-to-end vJoy verification in a game, a safety
-soak (forced-hang watchdog test and reconnect cycling), and a synchro/rev-match model for the
-grind (today it is a threshold on the clutch, not a speed-difference model).
+verification against a real game. Optional float shifting now compares target shaft RPM with
+engine RPM: truck raw telemetry, configured road-speed ratios, or conservative session learning.
+Its matching and force arithmetic are tested; feel and actual game acceptance still need a human
+road test. Still open: end-to-end vJoy verification in a game and a safety soak (forced-hang
+watchdog test and reconnect cycling).

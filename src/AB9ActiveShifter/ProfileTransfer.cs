@@ -436,6 +436,7 @@ namespace AB9ActiveShifter
         /// </summary>
         private static void RangeFor(string name, out int lo, out int hi)
         {
+            if (name == "FloatToleranceRpm") { lo = 25; hi = 1000; return; }
             if (name == "PatternWidthPct")
             {
                 // Not a torque scale despite the suffix - it is how wide the pattern stands, and

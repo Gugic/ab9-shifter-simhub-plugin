@@ -122,6 +122,22 @@ The grind uses either the game's clutch reading or a pedal bound under **Options
 
 ![Effects editor: profile gain, clutch behavior and SimHub's native effect rows](img/effects.png)
 
+### Float shifting
+
+Optional **float shifting** works with every H pattern. In **Effects → Float shifting**, enable
+**Allow rev-matched shifts without the clutch**, then enable **Clutch grind** and **Reject the
+gear while grinding** in its native row. Match engine RPM to the target shown while approaching
+a gear: the balk softens and the normal snick returns when matched. Default tolerance is 100 RPM.
+The game must support clutchless shifts too; the plugin does not cut throttle or route pedals.
+
+ETS2/ATS supply target RPM through wheel speed, gear ratios and the current range/splitter state.
+Check **Truck game bindings** against your game's H-shifter positions, especially for a six-slot
+truck gate. Other games can learn each gear during steady driving with the clutch released, or
+use entered **RPM at 100 km/h, gears 1-7 (optional)** values. Unknown targets retain the clutch
+requirement; session learning is cleared when the vehicle, game or profile changes. Generic
+reverse still needs the clutch. Float shifting ships off; see [tuning](tuning.md#float-shifting-h-patterns-only)
+for setup and limitations. Game acceptance and feel still need road testing.
+
 ## Tuning
 
 - **Feel** — master gain, base effects, wall and detent strengths, lockout resistance, attack,

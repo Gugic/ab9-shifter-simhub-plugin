@@ -193,6 +193,14 @@ namespace AB9ActiveShifter.Core
         /// the gear refuses to register until the clutch goes down. H patterns only.
         /// </summary>
         public bool GrindEnabled;
+        /// <summary>Optional RPM-based permission on the existing H-pattern grind/refusal path.
+        /// Configured ratios are RPM at 100 km/h; runtime learning never edits this snapshot.</summary>
+        public bool FloatShiftingEnabled;
+        public int FloatToleranceRpm = 100;
+        public bool FloatLearnRatios = true;
+        public string FloatRpmAt100KmhText = "";
+        public double[] FloatRpmAt100Kmh = new double[8];
+        public string FloatProfileKey;
         public int GrindGainPct = 60;
         public int GrindFreqHz = 33;
 

@@ -416,7 +416,7 @@ Lever, leave **Mute effects** off and **Release all forces (free stick)** off to
 
 | Effect | Fires when | Notes |
 | --- | --- | --- |
-| Clutch grind | Pushing into an H-pattern gear with the clutch up while the engine turns | **Reject the gear while grinding (registers only once the clutch is down)** keeps the gear from registering and replaces the snick with the entry resistance plus **Balk wall (%)**. The core decision and wall remain immediate. Native response/gain/frequency shape the tone at the data rate. An engaged gear never grinds; sequential and PRND are exempt. |
+| Clutch grind | Pushing into an H-pattern gear with the clutch up while the engine turns | **Reject the gear while grinding** keeps the gear from registering and replaces the snick with the entry resistance plus **Balk wall (%)**. Press the clutch, or match RPM with **Float shifting** enabled, to release it. The core decision and wall remain immediate. Native response/gain/frequency shape the tone at the data rate. An engaged gear never grinds; sequential and PRND are exempt. |
 | RPMs | Native RPM telemetry | Native RPM/response curve and low/high frequencies replace the former frequency-at-1000-rpm dial. Rendered frequencies are limited to 4–130 Hz. |
 | Rev limiter | Revs ≥ **Starts at (% of redline)** | Silent when the game reports no plausible redline. |
 | ABS Active / TC Active | The game's active flags | Native **Pulse duration (ms)** can extend a short event. Existing pitches migrate. |
@@ -431,6 +431,41 @@ native models, so those need a feel retune; the old **Full volume at (G)** dial 
 equivalent. Grind uses the native sine tone instead of the old jittered square wave. Ordinary
 sources come directly from ShakeIt; four shifter sources appear under **AB9 shifter** in
 **Add effect**. Native effects can also be grouped, reordered, copied and deleted.
+
+### Float shifting (H patterns)
+
+Open **Float shifting** above the native effect list and enable **Allow rev-matched shifts
+without the clutch**. Enable the **Clutch grind** row and **Reject the gear while grinding**
+inside it. **RPM match tolerance** defaults to 100 RPM; lower it for a narrower window, raise it
+if the game accepts the shift but telemetry makes matching difficult. A matched window stays
+open to 125% of this value for the current target only. The status line reports target RPM,
+signed RPM error and source while approaching a slot. The extra balk and grinding soften as
+the revs approach the target; the normal snick returns on a match. An unknown ratio needs
+the clutch. The plugin cannot make a game accept a clutchless shift against its own rules.
+
+ETS2/ATS use powered-wheel speed, differential and transmission ratios automatically, including
+the game's range/splitter toggles. In **Truck game bindings**, **SCS handle positions for buttons
+1-7, R** must agree with your game bindings. Default: `2,3,4,5,6,7,8,1`, with reverse at SCS
+position 1 and forward gears at 2–8. Enter 0 for an unused button. Six-slot truck layouts may
+need a different mapping depending on the game positions bound. Missing or ambiguous game slot
+entries refuse to guess. Reverse float permission requires backward powered-wheel rotation.
+
+For another game, **Learn ratios while driving in gear** collects ratios with the clutch fully
+released and the game confirming the lever's gear. Give each gear at least a second above
+10 km/h. Learning stays in this session and clears on vehicle, game, profile or manual-ratio
+changes. Use another profile for a different gearbox on the same vehicle. ABS/TC, partial clutch,
+telemetry gaps and unstable ratios prevent learning. Wheel slip without a reported TC event can
+still make a learned ratio inaccurate; check the status and use configured values if necessary.
+
+**RPM at 100 km/h, gears 1-7 (optional)** takes comma-separated values in gear order, such as
+`12000,8000,5500,4000,3200,2700`. Measure steady RPM/speed with the clutch released and enter
+`RPM × 100 / speed in km/h`. Blank, zero or invalid entries stay unknown. Configured values
+override learning for other games; truck telemetry takes priority. Generic float matching needs
+at least 5 km/h; reverse uses the clutch because normalized road speed commonly loses direction.
+These dials and truck bindings travel with a shared profile; learned ratios do not. **Reset
+effects to defaults** disables float shifting and restores its default ratios/bindings. Float
+shifting ships off in every preset. There are no throttle cuts or virtual pedal routing;
+unloading a truck transmission remains the driver's and game's job.
 
 Symptoms:
 

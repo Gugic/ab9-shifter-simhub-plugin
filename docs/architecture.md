@@ -425,7 +425,39 @@ takes the full `MinEngageTicks`), and `ForceComposer` renders the slot detent as
 while balked — entry resistance plus `GrindWallPct`, no crossover, attack-shaped and
 full-absorbed like the wall it has become. Geometry is never touched at runtime, an engaged gear is never dropped, and everything
 else — buttons before forces, the release path, the watchdog — is unchanged. Both flags are
-plumbed per tick, so a settings change or telemetry loss reverts on the next millisecond.
+plumbed per tick. With float shifting off, telemetry loss retains the original inert behavior.
+With float shifting on, stale telemetry cannot bypass rejection for a new shift; the directly
+read pedal can still release it. No telemetry loss drops an engaged gear.
+
+### Float shifting
+
+`ScsShiftTelemetryReader` runs only on the data thread, and only when float shifting is enabled
+for an H pattern. `StatusDataBase.GetRawDataObject()` supplies optional truck telemetry. Cached
+property reflection isolates SimHub's reader version; unsupported schemas produce an unknown
+truck frame. Powered, simulated wheel velocities (rotations/sec), differential and signed gear
+ratios produce eight copied target RPMs. The game's slot table plus current selector bits and the
+profile's handle mapping decide which transmission gear each vJoy button selects. No mutable
+reader objects cross to the engine. The raw timestamp must advance to renew RPM freshness.
+
+`TelemetryState` carries that snapshot and a game/vehicle/session identity, including through
+the direct-pedal scratch copy. `RevMatchModel` owns comparison hysteresis and learned ratios on
+the engine thread. It allocates nothing per tick. Target changes, neutral, stale data and SCS
+mapping/selector changes revoke a match. Learning requires confirmed held gear, clutch ≤1%,
+speed ≥10 km/h, no ABS/TC event, and ratios within 1.5% for 750 ms of distinct frames no more
+than 150 ms apart. Vehicle/game/profile changes, disabling float shifting and manual ratio edits
+clear learning. It never edits settings or causes a preset fork. Configured ratios override
+learning; SCS telemetry overrides both and never falls back when its target is unknown. Generic
+matching starts at 5 km/h; generic reverse keeps requiring the clutch because normalized road
+speed commonly loses direction. Use separate profiles for different generic transmissions.
+
+`EffectComposer` compares the geometry's mapped target before the state machine update. A match
+releases grind/refusal and restores the normal snick. An RPM mismatch scales the native grind
+source and only the extra grind-wall load. Its attack, yield, final clamp and measured polarity
+remain in `ForceComposer`. Hard lockout refusal stays independent. `NativeEffectMixer` immediately
+gates outgoing grind tones at a match without waiting for the next native envelope; frequency,
+filters and gain remain native. Explicit tests retain their normal behavior. This model neither
+intercepts pedals nor operates the game's throttle, and does not claim to model clutch-down
+input-shaft spin or gearbox torque unloading.
 
 ### The clutch pedal, and what a failing open costs
 

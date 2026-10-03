@@ -83,7 +83,7 @@ namespace AB9ActiveShifter.Effects
         public override void SetAudioDefaults(SingleToneOutput output) { output.Frequency = 33; }
         protected override UserControl GetEditControl()
         {
-            var reject = new SHToggleCheckbox { Content = "Reject the gear while grinding (registers only once the clutch is down)" };
+            var reject = new SHToggleCheckbox { Content = "Reject the gear while grinding" };
             reject.SetBinding(CheckBox.IsCheckedProperty, new Binding("GrindRejectsGear") { Mode = BindingMode.TwoWay });
             var mode = new ComboBox { Width = 260, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 4) };
             mode.Items.Add("One threshold - grind or no grind");
@@ -93,7 +93,7 @@ namespace AB9ActiveShifter.Effects
             void refresh() { threshold.Visibility = Owner != null && Owner.GrindClutchMode == GrindClutchMode.Progressive ? Visibility.Collapsed : Visibility.Visible; }
             mode.SelectionChanged += delegate { refresh(); };
             threshold.Loaded += delegate { refresh(); };
-            return Editor(Note("H-pattern only. Push into a gear with the clutch up to feel the grind. Gear rejection and the balk wall follow the lever immediately; volume, frequency and priority are tuned in this effect row. The fading mode uses the bite point on Setup."),
+            return Editor(Note("H-pattern only. Push into a gear with the clutch up to feel the grind. Press the clutch to engage, or match RPM with Float shifting enabled above. Gear rejection and the balk wall follow the lever immediately; volume, frequency and priority are tuned in this effect row. The fading mode uses the profile's clutch bite point."),
                 reject, Slider("Balk wall (%)", "GrindWallPct", 0, 100), Note("How the clutch decides"), mode,
                 threshold, Slider("Only grind above (km/h)", "GrindMinSpeedKmh", 0, 40));
         }

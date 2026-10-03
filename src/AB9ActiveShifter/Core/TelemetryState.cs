@@ -33,6 +33,9 @@ namespace AB9ActiveShifter.Core
         /// <summary>The game's own gear string ("N", "R", "1"...), for the shift pulse edge.</summary>
         public string Gear;
 
+        public string VehicleKey;
+        public ShiftTelemetry Shift;
+
         public bool AbsActive;
         public bool TcActive;
 
@@ -62,6 +65,8 @@ namespace AB9ActiveShifter.Core
             MaxRpm = source.MaxRpm;
             SpeedKmh = source.SpeedKmh;
             Gear = source.Gear;
+            VehicleKey = source.VehicleKey;
+            Shift = source.Shift;
             AbsActive = source.AbsActive;
             TcActive = source.TcActive;
             HeaveG = source.HeaveG;
