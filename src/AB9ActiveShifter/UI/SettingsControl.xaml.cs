@@ -498,7 +498,6 @@ namespace AB9ActiveShifter.UI
             // Lets the data thread look up the current car even when no profile lists one yet,
             // which is the only way the "add last used vehicle" button has anything to offer.
             if (Plugin != null) Plugin.WatchCarModel(true);
-            RefreshNativeHardware();
 
             _timer.Start();
         }
@@ -1286,12 +1285,8 @@ namespace AB9ActiveShifter.UI
             MainRecordStatus.Text = RecordStatus.Text;
             RefreshCalibrationResults();
             RefreshPedalStatus();
+            // Render the last checked native snapshot; the status timer never opens its port.
             RefreshNativeUi();
-            if (++_nativePollTicks >= 25)
-            {
-                _nativePollTicks = 0;
-                RefreshNativeHardware();
-            }
 
             // Another program can take the vJoy device while this page is open, so the gate has
             // to keep asking - but only every couple of seconds, and only about the one device

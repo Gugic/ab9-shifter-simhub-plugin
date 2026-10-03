@@ -31,7 +31,10 @@ profile. Firmware H-pattern blocks profile activation and virtual output.
 The initial read-only mode check is reserved before output can start, then dispatched so its
 completion can safely notify bound settings. A failed read preserves a generic setup; a known
 firmware H-pattern mode or an uncertain mode after a failed write blocks virtual output on that
-AB9. Other FFB sticks remain independent. Subsequent reads refresh the open settings screen.
+AB9. Other FFB sticks remain independent. The UI reads native settings once when Feel opens,
+or when the user requests Refresh AB9 in Options. Its status timer only renders the cached snapshot;
+opening Main/Options or leaving an editor open does not poll the configuration port. Startup
+checks and the fresh checks/readbacks required by a configuration transaction remain in place.
 
 Every write pauses virtual output first, using the existing teardown ordering, then mutes
 hardware torque while configuring the base. Torque is restored last. A pure
