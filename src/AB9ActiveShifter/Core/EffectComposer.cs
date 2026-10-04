@@ -22,9 +22,9 @@ namespace AB9ActiveShifter.Core
         public bool MuteDetent;
 
         /// <summary>
-        /// How hard the teeth are disagreeing, 0..1. Always 1 while grinding in
-        /// <see cref="GrindClutchMode.Threshold"/>, which is what makes that mode exactly the
-        /// behaviour that shipped before the mode existed. Reported for the Monitor tab and for
+        /// How hard the teeth are disagreeing, 0..1. With float shifting off, always 1 while
+        /// grinding in <see cref="GrindClutchMode.Threshold"/>, preserving the original
+        /// threshold behavior. Reported for the Monitor tab and for
         /// tests. The wall does not scale by clutch engagement; only a known RPM mismatch can
         /// soften its extra load through <see cref="GrindWallScale"/>.
         /// </summary>

@@ -1285,7 +1285,9 @@ namespace AB9ActiveShifter.UI
                     ? "Push toward a gear to compare RPM. Learned gears this session: " + match.LearnedGears
                     : (!match.Available ? "Target RPM unavailable - use the clutch."
                         : string.Format(CultureInfo.InvariantCulture, "{0}: target {1:0} RPM, error {2:+0;-0;0} RPM - {3}",
-                            match.Source, match.TargetRpm, match.ErrorRpm, match.Matched ? "matched" : "match the revs")));
+                            match.Source == RevMatchSource.GameTelemetry ? "Game telemetry"
+                                : (match.Source == RevMatchSource.Configured ? "Configured ratio" : "Learned ratio"),
+                            match.TargetRpm, match.ErrorRpm, match.Matched ? "matched" : "match the revs")));
             RefreshLastCarModelButton();
 
             bool calibrating = engine != null && engine.IsCalibrating;

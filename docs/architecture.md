@@ -440,15 +440,22 @@ profile's handle mapping decide which transmission gear each vJoy button selects
 reader objects cross to the engine. The raw timestamp must advance to renew RPM freshness.
 
 `TelemetryState` carries that snapshot and a game/vehicle/session identity, including through
-the direct-pedal scratch copy. `RevMatchModel` owns comparison hysteresis and learned ratios on
-the engine thread. It allocates nothing per tick. Target changes, neutral, stale data and SCS
-mapping/selector changes revoke a match. Learning requires confirmed held gear, clutch ≤1%,
+the direct-pedal scratch copy. `ShiftTargetResolver` chooses game-reported targets, configured
+ratios or session-learned ratios by data capability. `RevMatchModel` only compares the resulting
+target RPM with engine RPM and applies the common tolerance, hysteresis and mismatch envelope.
+Neither branches on vehicle category. Both run on the engine thread without per-tick allocation.
+A context version revokes comparison hysteresis whenever the source's vehicle, profile or
+transmission identity changes. Target changes, neutral and stale data also revoke a match.
+Learning requires confirmed held gear, clutch ≤1%,
 speed ≥10 km/h, no ABS/TC event, and ratios within 1.5% for 750 ms of distinct frames no more
 than 150 ms apart. Vehicle/game/profile changes, disabling float shifting and manual ratio edits
 clear learning. It never edits settings or causes a preset fork. Configured ratios override
-learning; SCS telemetry overrides both and never falls back when its target is unknown. Generic
-matching starts at 5 km/h; generic reverse keeps requiring the clutch because normalized road
-speed commonly loses direction. Use separate profiles for different generic transmissions.
+learning when a game supplies no drivetrain target data. A reported target is authoritative:
+an unknown mapping never falls back to a ratio that may belong to a different gear. This rule
+applies to every adapter, not just SCS. A reported target needs no normalized road speed; the
+adapter already established shaft RPM and direction. Road-speed matching starts at 5 km/h and
+cannot grant reverse permission because normalized road speed commonly loses direction. Use
+separate profiles for different transmissions when using configured or learned ratios.
 
 `EffectComposer` compares the geometry's mapped target before the state machine update. A match
 releases grind/refusal and restores the normal snick. An RPM mismatch scales the native grind

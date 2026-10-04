@@ -255,7 +255,7 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void TruckTelemetryWinsAndCannotFallBackWhenItsMappingIsMissing()
+        public void ReportedTargetsWinAndCannotFallBackWhenTheirMappingIsMissing()
         {
             var model = new RevMatchModel();
             var cfg = Config();

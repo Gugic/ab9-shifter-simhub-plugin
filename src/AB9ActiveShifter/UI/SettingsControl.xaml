@@ -882,15 +882,15 @@
                     <styles:SHExpander Header="Float shifting" Margin="0,0,0,8" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                         <StackPanel>
                             <styles:SHToggleCheckbox Content="Allow rev-matched shifts without the clutch" IsChecked="{Binding FloatShiftingEnabled, Mode=TwoWay}" />
-                            <TextBlock Text="Enable the Clutch grind effect and Reject the gear while grinding below. A matched shift releases the balk and seats normally; an unknown target still needs the clutch. The game must also accept clutchless shifts." TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,8" />
+                            <TextBlock Text="One RPM-matching model for every H-pattern gearbox. Enable Clutch grind and Reject the gear while grinding below. A match releases the balk and seats normally; an unknown target still needs the clutch. The game must also accept clutchless shifts." TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,8" />
                             <ui:TitledSlider Title="RPM match tolerance" Minimum="25" Maximum="1000" ResetValue="100" Value="{Binding FloatToleranceRpm, Mode=TwoWay}" />
                             <TextBlock x:Name="FloatShiftStatus" TextWrapping="Wrap" Margin="0,4,0,8" />
                             <styles:SHToggleCheckbox Content="Learn ratios while driving in gear" IsChecked="{Binding FloatLearnRatios, Mode=TwoWay}" />
-                            <TextBlock Text="For other H-pattern games, drive in each gear with the clutch fully released for at least a second. Learning needs the game to report the same gear as the lever, and resets on vehicle, game or profile changes. Reverse still needs the clutch when road speed has no direction." TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,8" />
+                            <TextBlock Text="Targets use game telemetry when available. Otherwise, drive in each gear with the clutch fully released for at least a second to learn its ratio. The game must report the same gear as the lever. Learning resets on vehicle, game or profile changes. Road-speed ratios cannot confirm reverse direction, so reverse still needs the clutch." TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,8" />
                             <TextBlock Text="RPM at 100 km/h, gears 1-7 (optional)" />
                             <TextBox Text="{Binding FloatRpmAt100Kmh, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,4" />
-                            <TextBlock Text="Comma-separated values, for example 12000,8000,5500,4000,3200,2700. Blank or zero entries are unknown. These values override learning for other games; truck telemetry takes priority." TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" />
-                            <styles:SHExpander Header="Truck game bindings">
+                            <TextBlock Text="Comma-separated values, for example 12000,8000,5500,4000,3200,2700. Blank or zero entries are unknown. These values override learning when the game does not report targets; game telemetry takes priority." TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" />
+                            <styles:SHExpander Header="ETS2 / ATS H-shifter bindings">
                                 <StackPanel>
                                     <TextBlock Text="SCS handle positions for buttons 1-7, R" />
                                     <TextBox Text="{Binding FloatScsHandlePositions, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,4" />

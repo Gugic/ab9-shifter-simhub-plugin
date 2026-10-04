@@ -130,13 +130,16 @@ gear while grinding** in its native row. Match engine RPM to the target shown wh
 a gear: the balk softens and the normal snick returns when matched. Default tolerance is 100 RPM.
 The game must support clutchless shifts too; the plugin does not cut throttle or route pedals.
 
-ETS2/ATS supply target RPM through wheel speed, gear ratios and the current range/splitter state.
-Check **Truck game bindings** against your game's H-shifter positions, especially for a six-slot
-truck gate. Other games can learn each gear during steady driving with the clutch released, or
-use entered **RPM at 100 km/h, gears 1-7 (optional)** values. Unknown targets retain the clutch
-requirement; session learning is cleared when the vehicle, game or profile changes. Generic
-reverse still needs the clutch. Float shifting ships off; see [tuning](tuning.md#float-shifting-h-patterns-only)
-for setup and limitations. Game acceptance and feel still need road testing.
+Cars and trucks use the same RPM matching and force behavior. Targets come from game-reported
+drivetrain RPM, configured **RPM at 100 km/h, gears 1-7 (optional)** values, or session learning
+from steady driving with the clutch released. ETS2/ATS currently supply drivetrain targets from
+wheel speed, gear ratios and range/splitter state; check **ETS2/ATS bindings** against the game's
+H-shifter positions. Other games currently use configured or learned ratios. Unknown targets
+retain the clutch requirement; vehicle, game, profile and transmission changes clear session
+learning. Road-speed ratios cannot confirm reverse direction, so reverse still needs the clutch
+unless a game adapter reports a valid target. Float shifting ships off; see
+[tuning](tuning.md#float-shifting-h-patterns) for setup and limitations. Game acceptance and feel
+still need road testing.
 
 ## Tuning
 

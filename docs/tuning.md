@@ -443,14 +443,19 @@ signed RPM error and source while approaching a slot. The extra balk and grindin
 the revs approach the target; the normal snick returns on a match. An unknown ratio needs
 the clutch. The plugin cannot make a game accept a clutchless shift against its own rules.
 
+There is one float-shifting model for every H-pattern gearbox. The RPM source changes with
+available data; tolerance, refusal, balk and snick behavior are identical for reported,
+configured and learned targets. The status names the source **Game telemetry**, **Configured
+ratio** or **Learned ratio**. No truck mode needs to be selected.
+
 ETS2/ATS use powered-wheel speed, differential and transmission ratios automatically, including
-the game's range/splitter toggles. In **Truck game bindings**, **SCS handle positions for buttons
+the game's range/splitter toggles. In **ETS2 / ATS H-shifter bindings**, **SCS handle positions for buttons
 1-7, R** must agree with your game bindings. Default: `2,3,4,5,6,7,8,1`, with reverse at SCS
 position 1 and forward gears at 2–8. Enter 0 for an unused button. Six-slot truck layouts may
 need a different mapping depending on the game positions bound. Missing or ambiguous game slot
 entries refuse to guess. Reverse float permission requires backward powered-wheel rotation.
 
-For another game, **Learn ratios while driving in gear** collects ratios with the clutch fully
+When a game has no reported targets, **Learn ratios while driving in gear** collects ratios with the clutch fully
 released and the game confirming the lever's gear. Give each gear at least a second above
 10 km/h. Learning stays in this session and clears on vehicle, game, profile or manual-ratio
 changes. Use another profile for a different gearbox on the same vehicle. ABS/TC, partial clutch,
@@ -460,8 +465,11 @@ still make a learned ratio inaccurate; check the status and use configured value
 **RPM at 100 km/h, gears 1-7 (optional)** takes comma-separated values in gear order, such as
 `12000,8000,5500,4000,3200,2700`. Measure steady RPM/speed with the clutch released and enter
 `RPM × 100 / speed in km/h`. Blank, zero or invalid entries stay unknown. Configured values
-override learning for other games; truck telemetry takes priority. Generic float matching needs
-at least 5 km/h; reverse uses the clutch because normalized road speed commonly loses direction.
+override learning when the game does not report targets; game telemetry takes priority.
+Road-speed matching needs at least 5 km/h; reverse uses the clutch because normalized road
+speed commonly loses direction. Reported shaft-RPM targets can cover reverse in any game
+whose adapter confirms the correct direction. An unknown reported mapping never falls back
+to a ratio that might belong to a different gear.
 These dials and truck bindings travel with a shared profile; learned ratios do not. **Reset
 effects to defaults** disables float shifting and restores its default ratios/bindings. Float
 shifting ships off in every preset. There are no throttle cuts or virtual pedal routing;

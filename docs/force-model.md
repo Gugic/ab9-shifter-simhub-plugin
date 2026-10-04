@@ -1008,7 +1008,10 @@ the wall is not closed over it.
 ### Optional float shifting
 
 With float shifting enabled, the grind releases with the clutch up when engine RPM agrees with
-the target gear's shaft RPM. Range and splitter enter through the game's slot mapping. Default
+the target gear's shaft RPM. One comparison and one mismatch envelope apply to every H-pattern
+gearbox, irrespective of the target's source. `ShiftTargetResolver` handles reported,
+configured and learned targets; `RevMatchModel` handles only the RPM comparison and hysteresis.
+Range and splitter enter through a game adapter's slot mapping. Default
 tolerance is ±100 RPM, clamped to 25–1000. A matched target stays matched out to 125% of that
 tolerance to prevent chatter. Changing targets, returning to neutral, or losing fresh data
 clears permission. RPM freshness is 150 ms, including the truck reader's original raw timestamp;
