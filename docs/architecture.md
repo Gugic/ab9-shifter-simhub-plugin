@@ -40,8 +40,9 @@ externally in Moza Pit House / AZOM and never starts plugin output.
 
 The open settings page polls attachment every five seconds on a worker, including while the
 master switch is off. `FfbDeviceProbe` enumerates attached DirectInput controllers and reads
-VID/PID only: it never acquires, changes properties, or creates effects. AB9 CDC presence also
-counts as attached. Failed enumeration means unknown rather than missing. Confirmed absence
+VID/PID only: it never acquires, changes properties, or creates effects. A previously verified
+AB9 port counts as attached while its name remains enumerated, without opening that port.
+Failed enumeration means unknown rather than missing. Confirmed absence
 shows **Base is not found** on Setup/Options and Main and prevents finishing setup. Runtime
 forces and held gear presses still require the engine's acquired device and fresh samples.
 
@@ -49,7 +50,7 @@ The initial read-only mode check is reserved before forces or gear presses can s
 completion can safely notify bound settings. A failed read preserves a generic setup; a known
 firmware H-pattern mode or an uncertain mode after a failed write blocks virtual output on that
 AB9. Other FFB sticks remain independent. The UI reads native settings once when Feel opens,
-or when the user requests Refresh AB9 in Options. Its status timer only renders the cached snapshot;
+or when the user requests Refresh base in Options. Its status timer only renders the cached snapshot;
 opening Main/Options or leaving an editor open does not poll the configuration port. Startup
 checks and the fresh checks/readbacks required by a configuration transaction remain in place.
 Output ownership may be reserved while the check is pending, with every button clear.

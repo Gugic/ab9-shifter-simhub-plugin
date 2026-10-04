@@ -12,9 +12,11 @@ Both virtual modes share the gate and all extra plugin effects. Generic uses Dir
 effects; Moza AB9 uses the basic effects supported onboard by Cockpit. Firmware H-pattern
 exposes only device status and the mode switch, with plugin output and tuning unavailable.
 
-Opening **Feel** reads the AB9's native settings once. Leaving it open does not poll the base;
-use **Options → Refresh AB9** to request another read. The displayed native status is the last
+Opening **Feel** reads the AB9's native settings once. Leaving it open does not poll native configuration;
+use **Options → Refresh base** to request another read. The displayed native status is the last
 checked snapshot. Startup and setting changes retain their mode checks and write verification.
+Attachment warnings update every five seconds through controller and port-name enumeration,
+including while the master switch is off; these checks never open the configuration port.
 
 Virtual dials apply on the next FFB tick. The seven onboard dials apply automatically after
 500 ms without another edit, and selecting a profile applies its onboard values too. Ordinary

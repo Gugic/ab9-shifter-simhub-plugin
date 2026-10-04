@@ -1,4 +1,5 @@
 using System;
+using System.IO.Ports;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -9,13 +10,18 @@ namespace AB9ActiveShifter.UI
 {
     public partial class SettingsControl
     {
+        private int _basePollTicks;
         private bool _refreshingMode;
         private bool _checkingBase;
         private bool? _basePresent;
         private int _probedVendor;
         private int _probedProduct;
 
-        private async void RefreshNativeHardware()
+        private void RefreshNativeHardware() { RefreshBaseHardware(true); }
+
+        private void RefreshBaseConnection() { RefreshBaseHardware(false); }
+
+        private async void RefreshBaseHardware(bool readNativeSettings)
         {
             if (Plugin == null || _boundSettings == null || _checkingBase || _preparingCalibration || _stopAfterCalibration
                 || (AB9ShifterPlugin.Engine != null && AB9ShifterPlugin.Engine.IsCalibrating)) return;
@@ -25,13 +31,29 @@ namespace AB9ActiveShifter.UI
             try
             {
                 bool ab9 = vendor == Ab9NativeProtocol.VendorId && product == Ab9NativeProtocol.ProductId;
-                if (ab9) await Plugin.RefreshNativeAsync();
-                bool? present = await Task.Run(() => FfbDeviceProbe.IsPresent(vendor, product));
-                if (_boundSettings.VendorId == vendor && _boundSettings.ProductId == product)
+                if (ab9 && readNativeSettings) await Plugin.RefreshNativeAsync();
+                string knownPort = ab9 ? Plugin.NativeSnapshot.Port : null;
+                bool? present = await Task.Run(() =>
+                {
+                    bool? attached = FfbDeviceProbe.IsPresent(vendor, product);
+                    if (knownPort != null)
+                    {
+                        // Enumerating port names never opens the configuration port. A cached
+                        // native snapshot alone cannot prove the base is still attached.
+                        try
+                        {
+                            if (Array.Exists(SerialPort.GetPortNames(), port =>
+                                string.Equals(port, knownPort, StringComparison.OrdinalIgnoreCase))) return true;
+                        }
+                        catch { return attached == true ? true : (bool?)null; }
+                    }
+                    return attached;
+                });
+                if (_boundSettings != null && _boundSettings.VendorId == vendor && _boundSettings.ProductId == product)
                 {
                     _probedVendor = vendor;
                     _probedProduct = product;
-                    _basePresent = ab9 && Plugin.NativeSnapshot.Port != null ? true : present;
+                    _basePresent = present;
                 }
             }
             catch (Exception ex) { Log.Error("Could not refresh the selected base", ex); }

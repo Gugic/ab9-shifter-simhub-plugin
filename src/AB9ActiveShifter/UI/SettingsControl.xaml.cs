@@ -498,6 +498,7 @@ namespace AB9ActiveShifter.UI
             // Lets the data thread look up the current car even when no profile lists one yet,
             // which is the only way the "add last used vehicle" button has anything to offer.
             if (Plugin != null) Plugin.WatchCarModel(true);
+            RefreshBaseConnection();
 
             _timer.Start();
         }
@@ -1297,6 +1298,14 @@ namespace AB9ActiveShifter.UI
             RefreshPedalStatus();
             // Render the last checked native snapshot; the status timer never opens its port.
             RefreshNativeUi();
+
+            // Attachment warnings stay current even with the master switch off. This worker
+            // only enumerates controllers and port names; native settings remain on demand.
+            if (++_basePollTicks >= 25)
+            {
+                _basePollTicks = 0;
+                RefreshBaseConnection();
+            }
 
             // Recheck the selected output every two seconds without rebuilding its dropdowns.
             // Role edits and vJoy ownership can change while this page stays open. Firmware
