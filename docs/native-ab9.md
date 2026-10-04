@@ -27,6 +27,11 @@ firmware are excluded. Multiple connected AB9s are refused rather than choosing 
 Close Cockpit, Pit House and AZOM's AB9 connection to release the COM port. Each transaction
 releases the port afterward. Generic FFB Stick remains usable with other DirectInput bases.
 
+Native settings are read once when Feel opens, with no periodic reads while driving or while
+the editor stays open. Options' **Refresh AB9** action requests another read when needed. Status shows
+the last checked snapshot; opening Main or Options alone does not access the configuration port.
+Startup still checks the mode, and configuration changes still perform fresh checks and readback.
+
 AB9-native uses flight input mode and DirectInput feedback mode. Preparing calibration
 neutralizes onboard conditions so the probes measure DirectInput alone. Calibration leaves
 virtual forces off. Until polarity is confirmed, profile application also limits onboard

@@ -478,7 +478,9 @@ runners cannot load, so anything worth testing must not touch it.
   require compatible connected hardware; profiles and percentages are shared between virtual modes. An uncertain mode after
   a failed write blocks virtual output on that AB9 until readback; other sticks remain generic.
   Profiles cannot switch during a write. The seven onboard dials apply after 500 ms without
-  edits; a busy read never loses a pending change. Ordinary tuning/profile changes preserve
+  edits. Native settings refresh once per Feel opening or explicit Options refresh; the UI
+  status timer never opens the configuration port. Startup/transaction checks remain. A busy read
+  never loses a pending change. Ordinary tuning/profile changes preserve
   the user's enabled switch while pausing output across the complete checked batch. Resume
   requires its final readback and an uncancelled enabled request; off and panic always win.
   Setup, mode changes, calibration, imports and failures leave virtual output off. Base-effect

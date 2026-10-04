@@ -147,6 +147,18 @@ namespace AB9ActiveShifter.UI
                     if (_propertyBySlider.TryGetValue(slider, out property)) RefreshDirtyMarker(property);
                 }
             };
+            if (ReferenceEquals(holder, FeelDialogHolder))
+            {
+                // One read per opening, after the editor is visible. Staying in Feel (or on
+                // Main) must not keep reopening the configuration port while driving.
+                EventHandler refreshOnOpen = null;
+                refreshOnOpen = (s, e) =>
+                {
+                    window.ContentRendered -= refreshOnOpen;
+                    RefreshNativeHardware();
+                };
+                window.ContentRendered += refreshOnOpen;
+            }
             _tuningWindow = window;
             try { window.ShowDialog(); }
             finally

@@ -305,6 +305,25 @@ The two useful discriminators, since this will be diagnosed again:
   fine in Pit House gearbox mode" is not evidence that the base is healthy — that mode never
   touches the interface the plugin uses, nor the DirectInput force feedback path at all.
 
+## Replacement base restarts observed on 2026-10-03
+
+The user reported two unexpected losses of force, followed by a USB sound and the base's
+startup calibration, equivalent to switching its power off and on. This is a different
+reported symptom from the previous unit's motor shutdowns.
+
+At **03:46:06 and 04:11:59 Pacific**, Windows Kernel-PnP Device Management event **1010**
+reported the AB9 composite device missing from the bus, with four interfaces removed.
+SimHub independently logged the serial failure, DirectInput `0x8007048F`, and enumeration
+without the AB9 while the other controllers remained present. The plugin stopped its engine
+after each loss; neither was immediately preceded by the normal settings-apply stop.
+
+The UI was capable of reading native settings every five seconds while its page was open.
+Those periodic reads have been removed; Feel now requests one read when opened. This removes
+unnecessary concurrent configuration traffic, but **does not establish the reboot's cause**.
+No device reset reason, voltage or temperature was captured, and a drive without recurring
+polling has not yet been tested. A separate 03:33:50 force-loop watchdog stop must not be
+conflated with the two later USB removals.
+
 ## `GetForceFeedbackState` is not a witness on this base
 
 Two of DirectInput's status flags are set by this base as a matter of course, so neither is

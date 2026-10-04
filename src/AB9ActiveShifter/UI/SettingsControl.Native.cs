@@ -7,7 +7,6 @@ namespace AB9ActiveShifter.UI
 {
     public partial class SettingsControl
     {
-        private int _nativePollTicks;
         private bool _refreshingMode;
 
         private async void RefreshNativeHardware()
