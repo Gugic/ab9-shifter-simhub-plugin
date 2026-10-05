@@ -6,8 +6,8 @@ An alternative to the MOZA AB9's own shifter mode. This SimHub plugin renders th
 itself in force feedback — including the **configurable lockout** (push-through or hotkey-released, guarding 7th and reverse out of the box) that
 the stock firmware has no setting for — and plays a **much wider range of telemetry effects**
 through the lever: a clutch grind that can refuse the gear, engine vibration, a rev limiter,
-ABS and traction control, curbs. The selected gear comes out as **vJoy buttons**, so any game
-binds it like an ordinary shifter.
+ABS and traction control, curbs. Choose **direct vJoy buttons** or **native SimHub Control Mapper
+roles** for the selected gear, and configure keyboard or controller bindings to suit your game.
 
 Main brings the profile, pattern and live monitor together; Geometry, Feel and Effects open as focused editors.
 
@@ -43,11 +43,12 @@ meant to feel that way.
 - A DirectInput FFB flight stick. The **MOZA AB9** is the tested base; its extra onboard controls require firmware **1.1.5.2 or newer**
 - **MOZA Pit House** and **MOZA Cockpit** for firmware updates or manual setup on older firmware.
   On AB9 firmware **1.1.5.2 or newer**, the plugin can configure the base directly
-- [**vJoy**](https://sourceforge.net/projects/vjoystick/) for virtual gear output, with a device exposing at least
+- **Gear output:** choose SimHub's built-in **Control Mapper** with configured roles, or
+  [**vJoy**](https://sourceforge.net/projects/vjoystick/) with a virtual device exposing
   **14 buttons** — 1–8 carry the H patterns, 9 and 10 the sequential up/down, 11–14 the automatic's
   P, R, N and D. Fewer still works for whatever fits. The output picker lists
   the devices vJoy reports with their button counts, so you can check this without guessing; the
-  gate itself works without vJoy, you just get no gear output
+  gate itself works without a configured output
 - .NET Framework 4.8, already present if SimHub runs
 
 Generic virtual profiles also work with other DirectInput FFB flight sticks: set their vendor
@@ -61,20 +62,26 @@ First-run **Setup** guides you through the base, output and polarity measurement
 **Main** shows the working shifter; those rig controls remain in **Options**. You do not repeat
 setup after a restart or a temporary disconnect.
 
-- **Generic FFB Stick** runs the virtual gate with DirectInput base effects. Configure the
-  stick's own centring and other background effects off, then choose vJoy and measure polarity.
-- **AB9-native** runs the same virtual gate, custom effects and vJoy output, with Cockpit's
-  basic effects controlled onboard. The plugin prepares flight mode and the initial base
+- **Moza AB9** runs the same virtual gate, custom effects and selected gear output, with Cockpit's
+  basic effects controlled onboard. **Prepare base** selects flight mode and the initial base
   settings, then leaves virtual forces off for polarity measurement. It uses the same profiles,
-  presets and effect percentages as Generic FFB Stick.
-- **AB9 H-pattern** hands the gate and gear buttons to MOZA's firmware. Plugin profiles,
-  tuning and vJoy output are unavailable; only mode and device status remain. Bind the AB9's
+  presets and effect percentages as Generic FFB stick.
+- **Generic FFB stick** uses DirectInput only; choose it for a base other than the AB9. Configure
+  the stick's own centring and other background effects off, then configure output and measure polarity.
+- **Moza AB9 native H-Pattern** uses the firmware shifter configured in **Moza Pit House / AZOM**.
+  Plugin output is disabled. Plugin profiles,
+  tuning and plugin gear output are unavailable; only mode and device status remain. Bind the AB9's
   physical buttons in the game, making it visible through HidHide if necessary.
 
-Both AB9 choices become available only after a genuine AB9 with firmware **1.1.5.2 or newer**
-answers its configuration reads. Close Cockpit, Pit House and AZOM's AB9 connection to free the
-port, then refresh if needed. Mode changes select the effect provider without splitting or
-retuning profiles. In AB9-native mode, base-effect and hardware-gain edits apply automatically
+All three choices can be saved while the base is connected or disconnected and the master switch
+is on or off. Expand **What does this mean?** for the mode descriptions. **Base is not found**
+appears on Setup/Options and Main when the selected base is missing; plugin forces and gear
+presses stay inactive until it reconnects. Mode selection does
+not write to the base. Use **Prepare base** to configure internal settings in Moza AB9 mode;
+the button is shown only in that mode and requires a genuine AB9 with firmware **1.1.5.2 or newer**.
+Generic FFB stick instead shows the numbered **BEFORE YOU START** manual checklist. Close Cockpit,
+Pit House and AZOM's AB9 connection to free the port, then use **Refresh base** if needed.
+Mode changes do not split or retune profiles. In Moza AB9 mode, base-effect and hardware-gain edits apply automatically
 after a short pause. Successful ordinary changes preserve the force-feedback toggle; mode
 changes, setup and failed writes leave virtual forces off. See
 [native configuration](docs/native-ab9.md) for the protocol and hardware verification limits.
@@ -98,7 +105,7 @@ it has any bearing on anything once the base is in flight mode.
 
 ### 3. Manual force feedback setup on older firmware — MOZA Cockpit
 
-For manual Generic FFB Stick setup, disable the onboard base effects so the plugin owns them. The AB9 self-centres in
+For manual Generic FFB stick setup, disable the onboard base effects so the plugin owns them. The AB9 self-centres in
 firmware, and DirectInput's request to switch that off is ignored — measured, across five
 configurations. The plugin's virtual setup writes the same onboard **Spring** setting that
 Cockpit uses; Pit House has no Spring setting in flight mode. Skip this and the base fights the gate everywhere with its
@@ -110,7 +117,7 @@ own centring.
 | --- | --- |
 | Force Feedback Mode | **DirectInput** |
 | Spring | **0%** |
-| Damper | **0%** when preparing Generic FFB Stick; AB9-native applies the profile percentage |
+| Damper | **0%** when preparing Generic FFB stick; Moza AB9 applies the profile percentage |
 | Maximum Torque Output | 100% |
 | Overall Force Feedback Intensity | 100% |
 | Game Force Feedback Gain | 100% |
@@ -119,7 +126,7 @@ own centring.
 **Spring 0** is the one that matters most — it is the base's centring, and the gate cannot work
 around it.
 
-**Onboard damping is available in AB9-native.** It is real damping applied in the base's own servo
+**Onboard damping is available in Moza AB9.** It is real damping applied in the base's own servo
 loop, ahead of the USB round trip that everything this plugin renders has to cross, and it
 settles the last bit of flutter a hand can provoke by leaning hard on a wall. It is the one kind
 of damping that does not make the lever feel thick — the plugin's own damping dial is a last
@@ -138,11 +145,15 @@ while it runs, so the copy fails if you skip that.
 
 Start SimHub and enable **AB9 Active Shifter** under *Settings → Plugins*.
 
-That is the whole install. You start with seven ready-made **presets** — **7+R lockout**, **7+R
-lockout (short throw, loose)**, **5+R**, **5+R wide**, **Sequential**, **Automatic (PRND)** and
+That is the whole install. You start with eight ready-made **presets** — **7+R lockout**, **7+R
+lockout (short throw, loose)**, **5+R**, **5+R wide**, **Sequential**, **Sequential (stiff, short)**, **Automatic (PRND)** and
 **Truck 6-gear (low-range lockout)** — each holding its own complete tuning, so you begin from
 gates that were tuned on real hardware rather than from bare defaults. Forces are off and the force
 cap is on, as they should be on a base nobody has measured yet.
+
+**Sequential (stiff, short)** preserves a tune driven on the development rig: a 7,552-count
+throw, full click, 14.54% base damping and 14% base friction. It includes the tune's native
+Effects rows and response curves. The original **Sequential** preset remains available.
 
 Four of the H presets are the **same gate**, and the only thing you are choosing between them is
 the pattern, how far the lever travels, and how wide the gate stands: *7+R lockout* runs the full
@@ -179,7 +190,7 @@ Some AB9 firmware revisions apply DirectInput effects backwards, which would tur
 force into one that throws the stick at its stops. Until this is measured the plugin **caps its
 force output at 10%**. Complete first-run Setup before tuning the working shifter.
 
-Setup includes the vJoy picker and base identity, so every control needed to finish it is
+Setup includes the output selector, its device or role pickers, and base identity, so every control needed to finish it is
 available immediately. Once complete, the working screen stays in place through disconnects;
 Options retains output selection and recalibration.
 
@@ -195,7 +206,7 @@ stops the moment its direction is certain, so an inverted effect never reaches t
 
 Four probes run: a push and a spring on each axis. All four must answer conclusively before
 the cap lifts. Their signs are stored separately because this unit inverts constant force on X
-and spring on Y. Gate walls always use constant force; Generic FFB Stick's optional global
+and spring on Y. Gate walls always use constant force; Generic FFB stick's optional global
 spring uses its own measured signs. Older calibration records remain valid for the gate, but
 the new global spring stays off until spring polarity has been measured and saved.
 
@@ -209,17 +220,25 @@ Once measured, the whole section collapses to its result and a **Measure again**
 is a property of the base rather than of a profile, so it only wants remeasuring if the hardware
 changes or the gate starts pushing the wrong way.
 
-### 6. Switch the forces on
+### 6. Switch the shifter on
 
 The shifter **starts off**. Enabling it takes the base exclusively and begins applying force, so
-do it deliberately: put a hand on the stick, then tick *Shifter force feedback enabled* on the
+do it deliberately: put a hand on the stick, then tick **Shifter enabled** on the
 Main screen.
+
+This is the master switch for the base and selected gear output. While on, the plugin keeps
+the selected vJoy device acquired through base disconnects and power cycles, including while
+waiting for the base to become available. Buttons clear while position is unavailable and
+resync when it returns. Lost vJoy ownership is checked and reacquired automatically; there is
+no need to reselect the output device. Turning the master off clears buttons and releases both
+devices. **Moza AB9 native H-Pattern** mode also releases plugin output because the firmware owns its buttons.
+**Release all forces (free stick)** keeps the connections while removing the plugin's forces.
 
 Raise the overall gain slowly from there. This is a 12 Nm base.
 
 ### 7. Bind the gears in your game
 
-Bind gears **1–7 and reverse to vJoy buttons 1–8**, the sequential up/down to **9 and 10**, and the
+For **vJoy (direct)**, bind gears **1–7 and reverse to vJoy buttons 1–8**, the sequential up/down to **9 and 10**, and the
 automatic's **P, R, N and D to 11–14**. Do **not** bind the AB9's own axes in the game — the plugin
 is what reads them.
 
@@ -227,14 +246,51 @@ Reverse is always button 8 wherever a pattern has one, and each later range sits
 so one set of bindings covers every pattern and no binding can ever mean two things (the truck
 pattern simply uses buttons 1–6 and nothing else).
 
+For **SimHub Control Mapper (native)**, in **Setup → Base and output** (or **Options → Base and
+output** after setup), set **Output** to **SimHub Control Mapper (native)**. The status checks
+whether the feature is loaded, separately from whether roles exist. **Controls and events** is
+a different SimHub page and does not mean Control Mapper is enabled. If disabled, use
+**Enable Control Mapper and restart SimHub**; if already enabled but not loaded, use
+**Restart SimHub to load Control Mapper**. These actions change SimHub's own feature setting
+and use its normal restart. If the host version cannot expose that setting, enable it manually
+in **Add/remove features** and restart.
+
+Use **Configure Control Mapper**, choose **Assign roles**, and create the roles you want.
+For keyboard output, add roles under **Keyboard** and choose each simulated key. For controller
+buttons, configure Control Mapper's vJoy or Arduino bridge output. Return here, press
+**Refresh roles**, and assign an existing role to each gear, sequential direction, or PRND
+position. **H-pattern mappings**, **Sequential mappings** and **PRND mappings** are always
+shown together, independently of the profile's selected pattern. Typing a name here does not
+create a role. Bind the resulting keys or controller
+buttons in your game.
+Blank mappings send nothing, and missing roles are reported. The output choice and mappings
+belong to your rig: switching profiles keeps them, and shared profiles never replace them.
+The output choice is independent of **Generic FFB stick** versus **Moza AB9**. Firmware
+**Moza AB9 native H-Pattern** uses the base's own buttons and disables both plugin output choices.
+
+H gears and PRND positions hold their roles; sequential shifts use the existing pulse length.
+For **Automatic (P R N D)**, assign existing Control Mapper roles to **PRND: P**, **PRND: R**,
+**PRND: N** and **PRND: D**. If you need additional roles, you can create custom ones such as
+`PRND.P`, `PRND.R`, `PRND.N` and `PRND.D`. Configure their keys or controller buttons and press
+**Refresh roles** to make newly created roles available. The selected
+position's role stays held until the lever moves to another position; N has its own held role.
+Each mapping group has its own instructions. Only the active pattern sends output; editing
+another pattern's assignments keeps the current output connected and held.
+**H-pattern neutral (optional)** holds a separate role while an H gate is in neutral, for games
+that need an explicit neutral key. Leave it blank for controller bindings that use released
+gear buttons as neutral. Keyboard bindings depend on the game: verify direct gear
+selection and the return to neutral. Controller buttons remain available through Control
+Mapper's vJoy or Arduino bridge. If using both direct vJoy and Control Mapper elsewhere, give
+them different vJoy devices so they do not compete for one output.
+
 **If your game grabs the base itself, hide it.** Some games enumerate the AB9 as a force feedback
 device and take it exclusively. DirectInput gives the foreground application priority, so the game
 wins; the plugin now stands down rather than snatching it back, because snatching it back crashes
 the game. The fix is to stop the game seeing the base at all: install
 [HidHide](https://github.com/nefarius/HidHide), whitelist `SimHubWPF.exe` **first**, then hide the
 base's *HID-compliant game controller* entry — the `MI_02` interface. Leave the `MI_00` serial
-port (COM12) visible, because MOZA Pit House and Cockpit need it. Your game keeps seeing the vJoy
-device, which is the only thing it ever needed.
+port (COM12) visible, because MOZA Pit House and Cockpit need it. Your game receives the selected
+gear output; it does not need the base's axes.
 
 ## The gate
 
@@ -318,7 +374,7 @@ activates that profile when the car changes; leave the list empty for manual sel
 tuning only: your measured polarity, your device and vJoy numbers, your loop rate and your car
 mappings stay as they are on your machine. An import always *adds* a profile, numbering the name if
 it is taken, so someone else's file can never land on top of yours — and it always arrives with
-virtual forces off, with every value range-checked on the way in. In AB9-native mode, the
+virtual forces off, with every value range-checked on the way in. In Moza AB9 mode, the
 imported profile's onboard base settings apply automatically while virtual output stays off.
 
 ## Game effects
@@ -348,7 +404,7 @@ reports the clutch pedal.
 - **Main** — the live gate beside the profile, pattern and force controls. **Options → Diagnostics**
   holds the trace recorder and loop rate.
 
-Software changes apply on the next FFB tick. AB9-native's seven onboard dials apply after
+Software changes apply on the next FFB tick. Moza AB9's seven onboard dials apply after
 500 ms without another edit, pausing output until the latest settings are verified. An enabled
 session resumes after a successful update; turning it off or pressing panic always takes
 precedence. No Apply button or restart is needed.
@@ -439,7 +495,7 @@ program has it. The message lists what was detected.
 occasionally a game. Close them; the plugin retries automatically.
 
 **"vJoy device 1 is owned by another program"** — the message names the owning process. Close it,
-or pick a different device from the **vJoy output** list in Options, which shows every device
+or pick a different device under **Options → Base and output → Device**, with **vJoy (direct)** selected, which shows every device
 vJoy reports along with its button count and whether anything already holds it.
 
 **The stick fights you everywhere, or drifts to the stops** — polarity has not been measured, so
@@ -453,7 +509,14 @@ adjust *wall bite distance* first, then *wall attack*.
 Confirm *Measure polarity* reported a result for both push axes rather than "barely moved", and
 that overall gain is not near zero.
 
-**Gears do not register in the game** — check `joy.cpl`: the vJoy device should light button *i*
+**Control Mapper sends nothing** — check its feature status in **Base and output**. Use
+**Enable Control Mapper and restart SimHub** if disabled, then **Configure Control Mapper**
+to configure its output and check that each assigned role still exists. An enabled mapper
+without roles needs configuration. Press **Refresh roles** after editing its configuration. For keyboard output,
+check the game's keyboard bindings and neutral behavior; for controller output, inspect its
+vJoy or bridge device in `joy.cpl`.
+
+**Direct vJoy gears do not register in the game** — check `joy.cpl`: the vJoy device should light button *i*
 while gear *i* is held. If it does, the binding is the problem, not the plugin.
 
 ## Documentation

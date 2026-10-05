@@ -8,6 +8,57 @@ namespace AB9ActiveShifter.Tests
 {
     public class OperatingModeTests
     {
+        [Theory]
+        [InlineData(OperatingMode.GenericFfbStick, "Generic FFB stick")]
+        [InlineData(OperatingMode.Ab9Native, "Moza AB9")]
+        [InlineData(OperatingMode.Ab9HPattern, "Moza AB9 native H-Pattern")]
+        public void EveryModeCanBeSavedWithoutConnectedHardwareOrAnEnabledSession(OperatingMode mode, string label)
+        {
+            var settings = new ShifterSettings { OverallGainPct = 71, SlotOvertravel = 8123 };
+            var store = new ProfileStore
+            {
+                ActiveProfile = "Tune",
+                SessionEnabled = false,
+                Profiles = new List<ShifterProfile> { new ShifterProfile { Name = "Tune", Settings = settings } }
+            };
+            Assert.True(store.SelectOperatingMode(mode));
+            Assert.Equal(mode, store.SelectedOperatingMode);
+            Assert.Equal(mode == OperatingMode.Ab9Native, store.Ab9PreparationRequired);
+            Assert.Equal(label, NativeProfilePolicy.ModeLabel(mode));
+            Assert.Same(settings, store.FindActive().Settings);
+            Assert.Equal(71, settings.OverallGainPct);
+            Assert.Equal(8123, settings.SlotOvertravel);
+            Assert.False(store.SetupCompleted);
+            Assert.False(store.SessionEnabled);
+            var restored = Newtonsoft.Json.JsonConvert.DeserializeObject<ProfileStore>(
+                Newtonsoft.Json.JsonConvert.SerializeObject(store));
+            Assert.Equal(mode, restored.SelectedOperatingMode);
+            Assert.Equal(store.Ab9PreparationRequired, restored.Ab9PreparationRequired);
+            store.SessionEnabled = true;
+            Assert.True(store.SelectOperatingMode(mode));
+            Assert.True(store.SessionEnabled);
+            if (mode != OperatingMode.GenericFfbStick)
+                Assert.False(NativeProfilePolicy.CanRunVirtual(mode, 0x346E, 0x1000, null, false));
+        }
+
+        [Fact]
+        public void AnUnknownModeCannotReplaceTheSavedChoice()
+        {
+            var store = new ProfileStore { SelectedOperatingMode = OperatingMode.Ab9Native, Ab9PreparationRequired = true };
+            Assert.False(store.SelectOperatingMode((OperatingMode)99));
+            Assert.Equal(OperatingMode.Ab9Native, store.SelectedOperatingMode);
+            Assert.True(store.Ab9PreparationRequired);
+        }
+
+        [Fact]
+        public void SelectingTheAb9ProviderWaitsForVerifiedPreparationBeforeRunning()
+        {
+            var flight = new Ab9NativeSnapshot("flight", "COM11", new Version(1, 1, 5, 2), 0, new Ab9NativeSettings(), true);
+            Assert.False(NativeProfilePolicy.CanRunVirtual(OperatingMode.Ab9Native, 0x346E, 0x1000, flight, false, true));
+            Assert.True(NativeProfilePolicy.CanRunVirtual(OperatingMode.Ab9Native, 0x346E, 0x1000, flight, false, false));
+            Assert.True(NativeProfilePolicy.CanRunVirtual(OperatingMode.GenericFfbStick, 0x1234, 0x5678, null, false, true));
+        }
+
         [Fact]
         public void ExperimentalFirmwareProfilesAreDiscardedWithoutChangingGenericTunes()
         {

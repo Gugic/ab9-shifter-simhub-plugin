@@ -11,10 +11,14 @@ namespace AB9ActiveShifter.Core
         // native effect frame from playing against an incoming gate.
         public bool NativeEffectsEnabled;
         public int NativeEffectsEpoch;
+        // Output can stay acquired while native setup prevents touching the base.
+        public bool VirtualDeviceEnabled = true;
         // Device
         public int VendorId = 0x346E;
         public int ProductId = 0x1000;
         public uint VJoyDeviceId = 1;
+        public GearOutputMode OutputMode = GearOutputMode.VJoy;
+        public string[] ControlMapperRoles = GearOutputConfig.CopyRoles(null);
 
         /// <summary>
         /// Loop rate. Measured on this base: reads are free and fresh at ~1 kHz, and one
@@ -672,8 +676,8 @@ namespace AB9ActiveShifter.Core
         public int DamperCoeff = 800;
 
         /// <summary>
-        /// Typed global base effects in Generic FFB Stick mode. These supplement the gate;
-        /// they never replace its shaped walls, damping or wall friction. AB9-native mode
+        /// Typed global base effects in Generic FFB stick mode. These supplement the gate;
+        /// they never replace its shaped walls, damping or wall friction. Moza AB9 mode
         /// applies the corresponding settings onboard and disables these DI conditions.
         /// </summary>
         public bool BaseEffectsViaDirectInput = true;

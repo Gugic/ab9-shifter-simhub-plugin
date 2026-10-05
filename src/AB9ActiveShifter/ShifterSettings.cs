@@ -66,6 +66,8 @@ namespace AB9ActiveShifter
         private bool _mirrorSlots;
         private bool _freeStick;
         private uint _vJoyDeviceId = 1;
+        private GearOutputMode _outputMode = GearOutputMode.VJoy;
+        private string[] _controlMapperRoles = GearOutputConfig.CopyRoles(null);
         private int _vendorId = 0x346E;
         private int _productId = 0x1000;
         private int _tickHz = 1000;
@@ -386,6 +388,31 @@ namespace AB9ActiveShifter
         public bool FreeStick { get { return _freeStick; } set { Set(ref _freeStick, value); } }
 
         public uint VJoyDeviceId { get { return _vJoyDeviceId; } set { Set(ref _vJoyDeviceId, value); } }
+        public GearOutputMode OutputMode
+        {
+            get { return _outputMode; }
+            set
+            {
+                if (value != GearOutputMode.VJoy && value != GearOutputMode.ControlMapper) value = GearOutputMode.VJoy;
+                if (_outputMode == value) return;
+                _outputMode = value;
+                OnChanged(nameof(OutputMode));
+                OnChanged(nameof(OutputModeIndex));
+            }
+        }
+        public int OutputModeIndex { get { return (int)OutputMode; } set { OutputMode = (GearOutputMode)value; } }
+
+        /// <summary>Copied at both boundaries: editing an array must not mutate a running config.</summary>
+        public string[] ControlMapperRoles
+        {
+            get { return GearOutputConfig.CopyRoles(_controlMapperRoles); }
+            set
+            {
+                if (GearOutputConfig.RolesEqual(_controlMapperRoles, value)) return;
+                _controlMapperRoles = GearOutputConfig.CopyRoles(value);
+                OnChanged(nameof(ControlMapperRoles));
+            }
+        }
         public int VendorId { get { return _vendorId; } set { Set(ref _vendorId, value); } }
         public int ProductId { get { return _productId; } set { Set(ref _productId, value); } }
 
@@ -988,6 +1015,8 @@ namespace AB9ActiveShifter
                 VendorId = VendorId,
                 ProductId = ProductId,
                 VJoyDeviceId = VJoyDeviceId,
+                OutputMode = OutputMode,
+                ControlMapperRoles = ControlMapperRoles,
                 TickHz = TickHz,
 
                 InvertConstantX = InvertConstantX,
@@ -1270,6 +1299,8 @@ namespace AB9ActiveShifter
                 SeqPulseMs = d.SeqPulseMs;
                 FreeStick = d.FreeStick;
                 VJoyDeviceId = d.VJoyDeviceId;
+                OutputMode = d.OutputMode;
+                ControlMapperRoles = d.ControlMapperRoles;
                 VendorId = d.VendorId;
                 ProductId = d.ProductId;
             }

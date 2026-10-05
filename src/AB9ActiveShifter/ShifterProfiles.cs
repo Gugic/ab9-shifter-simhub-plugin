@@ -35,6 +35,16 @@ namespace AB9ActiveShifter
         /// <summary>Machine-wide effect provider. Null identifies stores from before the three modes.</summary>
         public OperatingMode? SelectedOperatingMode { get; set; }
         public bool SetupCompleted { get; set; }
+        public bool Ab9PreparationRequired { get; set; }
+
+        /// <summary>A mode is a rig preference; hardware readiness gates operation separately.</summary>
+        public bool SelectOperatingMode(OperatingMode mode)
+        {
+            if (!NativeProfilePolicy.CanSelect(mode)) return false;
+            SelectedOperatingMode = mode;
+            Ab9PreparationRequired = mode == OperatingMode.Ab9Native;
+            return true;
+        }
 
         public void MigrateOperatingMode()
         {

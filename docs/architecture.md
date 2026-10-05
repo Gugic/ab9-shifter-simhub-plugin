@@ -9,7 +9,8 @@ One SimHub plugin assembly, `AB9ActiveShifter.dll`, plus a test project. The spl
 - **`Device/`** and **`Output/`** own hardware I/O. The vJoy wrapper is a 32-bit native
   DLL that test runners cannot load, which is why gear output sits behind `IGearOutput` and why
   `Core/` must stay clean.
-- **`UI/`** binds directly to `ShifterSettings` and never talks to the device.
+- **`UI/`** binds directly to `ShifterSettings`; force and output devices remain behind the engine.
+  The settings refresh worker queries attachment through `FfbDeviceProbe` without acquiring a device.
 - **`Updates/`** checks GitHub and replaces the plugin DLL, entirely away from the force loop.
   `ReleaseInfo` is the pure parser and version policy tested without I/O.
 - **`Effects/`** hosts SimHub's native ShakeIt editor and sources. Its output manager copies
@@ -18,23 +19,41 @@ One SimHub plugin assembly, `AB9ActiveShifter.dll`, plus a test project. The spl
 ## Threading
 
 **AB9 configuration** is an optional CDC worker, separate from the force and telemetry
-threads. The rig chooses Generic FFB Stick, AB9-native or AB9 H-pattern. Both virtual modes
-run the same gate and vJoy output; AB9-native replaces only the basic DirectInput base effects
+threads. The rig chooses Generic FFB stick, Moza AB9 or Moza AB9 native H-Pattern. Both virtual modes
+run the same gate and selected gear output; Moza AB9 replaces only the basic DirectInput base effects
 with onboard settings. Firmware H-pattern releases the virtual engine entirely.
 
 The worker uses exact USB identity, re-checks firmware at each session, reads every write back
-and releases the COM port afterward. Both AB9 choices require firmware 1.1.5.2 or newer.
+and releases the COM port afterward. Internal AB9 configuration requires firmware 1.1.5.2 or newer.
 Profiles are shared between virtual modes. The selected mode routes the same base-effect
 percentages to DirectInput or onboard controls; switching modes never clones or retunes a
 profile. Firmware H-pattern blocks profile activation and virtual output.
 
-The initial read-only mode check is reserved before output can start, then dispatched so its
+All three mode preferences can be saved regardless of attachment or the master switch.
+Selection first turns plugin output off, cancels queued writes, and saves the provider; it does
+not use CDC. Newly selecting Moza AB9 marks preparation required, which blocks virtual forces
+until a checked base configuration succeeds. **Prepare base** performs that transaction;
+startup and profile application retain their checked synchronization paths. The preparation
+requirement is saved with the rig, so restarting SimHub or changing game cannot bypass it.
+Moza AB9 native H-Pattern is configured
+externally in Moza Pit House / AZOM and never starts plugin output.
+
+The open settings page polls attachment every five seconds on a worker, including while the
+master switch is off. `FfbDeviceProbe` enumerates attached DirectInput controllers and reads
+VID/PID only: it never acquires, changes properties, or creates effects. A previously verified
+AB9 port counts as attached while its name remains enumerated, without opening that port.
+Failed enumeration means unknown rather than missing. Confirmed absence
+shows **Base is not found** on Setup/Options and Main and prevents finishing setup. Runtime
+forces and held gear presses still require the engine's acquired device and fresh samples.
+
+The initial read-only mode check is reserved before forces or gear presses can start, then dispatched so its
 completion can safely notify bound settings. A failed read preserves a generic setup; a known
 firmware H-pattern mode or an uncertain mode after a failed write blocks virtual output on that
 AB9. Other FFB sticks remain independent. The UI reads native settings once when Feel opens,
-or when the user requests Refresh AB9 in Options. Its status timer only renders the cached snapshot;
+or when the user requests Refresh base in Options. Its status timer only renders the cached snapshot;
 opening Main/Options or leaving an editor open does not poll the configuration port. Startup
 checks and the fresh checks/readbacks required by a configuration transaction remain in place.
+Output ownership may be reserved while the check is pending, with every button clear.
 
 Every write pauses virtual output first, using the existing teardown ordering, then mutes
 hardware torque while configuring the base. Torque is restored last. A pure
@@ -51,11 +70,13 @@ imports and failures leave virtual output off. Mode/profile identity changes can
 outgoing edits; profile activation and list edits wait for a current write to finish. Setup
 recipes and failure behavior are detailed in [native-ab9.md](native-ab9.md).
 
-**One background thread, `AB9ShifterFFB`, owns every DirectInput, effect, and vJoy call.** No
-exceptions except `FfbDevice.StopForces()`, which the watchdog may call to kill output when the
-loop has stopped ticking, and which swallows everything because the device may already be gone.
+**One background thread, `AB9ShifterFFB`, owns base acquisition, effect writes, and gear output.**
+Query-only setup enumeration is separate and cannot acquire or render forces. The watchdog may
+call `FfbDevice.StopForces()` to kill output when the loop has stopped ticking; it swallows
+everything because the device may already be gone.
 
-The thread runs `SearchDevice → OpenDevice → Run`, with 1/2/5 s backoff on failure — **except when
+The thread maintains selected output ownership before attempting the base. The base runs
+`SearchDevice → OpenDevice → Run`, with 1/2/5 s backoff on failure — **except when
 the fault says another application has taken the base**, where it stands down instead. Exclusive
 access goes to the foreground app, so reopening is not a repair; it pulls the device out from under
 the game and crashes it. `DeviceFaults.Classify` reads the HRESULT, `HandleDeviceLoss` releases and
@@ -74,7 +95,7 @@ Each tick:
    read off the state machine *before* its update — last tick's state, one millisecond old — so
    this tick's engage decision can depend on the answer.
 5. State machine update (with the grind's `allowEngage` refusal, if any).
-6. On a gear change: **vJoy buttons first**, then raise the event.
+6. On a gear change: **submit the selected output first**, then raise the event.
 7. Compose forces, passing position, velocity, the real elapsed time since the last composition
    (the attack shaping needs true `dt`, clamped so a stalled tick cannot dump a whole attack at
    once), and the effects' vibration and detent-mute.
@@ -91,8 +112,8 @@ knock out a gear you are currently holding.
 
 Calibration is queued before the engine starts, so acquisition cannot briefly run a normal
 profile. Pending acquisition and the gaps between individual probes remain part of one active
-calibration. Completion or cancellation holds all DirectInput forces and vJoy buttons off
-until a deliberate restart. Successful AB9-native setup then reapplies the shared base-effect
+calibration. Completion or cancellation holds all DirectInput forces and selected gear output off
+until a deliberate restart. Successful Moza AB9 setup then reapplies the shared base-effect
 percentages while virtual output stays off. Navigating away cancels an unfinished measurement.
 
 ## Effect handling
@@ -104,11 +125,11 @@ repeated failures fault the effect set. Effects start at zero; ordinary frames s
 requested coefficients, while calibration frames remain unmodified.
 
 `ForceComposer` continues to render every gate wall as constant force, with both spring fields
-off. `BaseEffectComposer` adds Generic FFB Stick's optional global spring, friction and inertia
+off. `BaseEffectComposer` adds Generic FFB stick's optional global spring, friction and inertia
 after the gate is composed. The spring uses separately measured signs on each axis and is
 suppressed unless its own polarity confirmation is present. Its center is DirectInput offset
 zero, not a moving gate anchor. These effects share the effective gain and 10% unconfirmed cap,
-are zero in free-stick mode, and are excluded during calibration. AB9-native suppresses these
+are zero in free-stick mode, and are excluded during calibration. Moza AB9 suppresses these
 DirectInput base effects, including the legacy device damper, without removing software wall
 damping, wall friction, home spring or telemetry forces. Coefficients are written only when
 changed, and all created effects participate in download checks, stop and disposal.
@@ -147,6 +168,22 @@ SimHub **rebuilds plugins at game change**, so the engine must survive it:
 | `End` | Save settings only |
 | `FinalizePlugin` (`IReusable`) | The real teardown |
 | `ProcessExit` hook | Backstop |
+
+`ShifterSettings.Enabled` is Main's **Shifter enabled** master switch, controlling both base
+and output ownership. `NativeProfilePolicy.CanOwnGearOutput` permits either virtual mode even
+when the base is missing, but rejects selected or observed AB9 firmware H-pattern mode.
+The shell stamps `EngineConfig.VirtualDeviceEnabled` with the stricter existing force/setup
+eligibility. A pending native check or unavailable Moza AB9 snapshot can therefore keep an
+output-only loop alive without touching DirectInput or publishing any gear/neutral role.
+A failed read alone no longer clears the user's master request; verified firmware H-pattern
+still does. Verified native reads resume an output-only loop when base eligibility returns;
+an ordinary status refresh does not disturb an already eligible running or yielded base.
+
+Before a native write the shell synchronously stops the base thread with output retention,
+then starts an output-only loop. This keeps the selected reservation while the write/readback
+is outstanding. The ordinary verified resume policy still decides whether forces may return.
+Master off, panic, shutdown and firmware H-pattern fully disconnect output; base loss and
+temporary native configuration clear its buttons without relinquishing it.
 
 `DataUpdate` publishes the immutable `TelemetryState` used by the clutch protection, then steps
 SimHub's native ShakeIt host. The native output manager copies each active tone into a second
@@ -260,12 +297,12 @@ holds an index and hands it on at the crests with the same hysteresis bias `Gate
 uses; `ForceComposer.ComposePrnd` renders the sequential rail laterally and the lane's detents fore
 and aft, through the same pipeline and the same single polarity application.
 
-Its buttons (11–14) go out through `VJoyGearOutput.SetGear` rather than `SetButton`, which is what
+Its buttons (11–14) go out through `IGearOutput.SetGear` rather than `SetButton`, which is what
 gives a position the same release-before-press, the same watchdog clear and the same shutdown
 ordering a gear gets — `GearCount` therefore bounds what that method may press, not what a gear is.
 The one thing the engine must ask per pattern is what should currently be held, and `ShifterEngine`
 has exactly one answer for it (`CurrentHeldButton`), used by all four places that push the truth
-back to vJoy: a rebuilt gate, a finished calibration, a profile switch, and vJoy arriving late.
+back to the output: a rebuilt gate, a finished calibration, a profile switch, and output arriving late.
 
 **vJoy is retried for as long as it is missing, and the retry does not live in `TryOpenDevice`.**
 The connect used to be attempted only there, and the loop stops calling that method the moment the
@@ -273,10 +310,77 @@ base opens — so at a cold boot, where SimHub starts with the machine and the v
 or two behind it, the base won the race, the phase went to `Run`, and vJoy was never asked again.
 The gate rendered perfectly and no game was ever told what gear it was in, until someone re-picked
 the device in Options by hand — which worked only because re-picking it is a config change,
-and a config change reopens everything. `WatchVJoy` now runs each tick beside `WatchForceOutput`,
+and a config change used to reopen everything. `WatchGearOutput` now runs each tick beside `WatchForceOutput`,
 gated by a `RetryBackoff` (1/2/5/15 s) because this is I/O the tick can attempt and fail, and it
 pushes `CurrentHeldButton` out the instant it succeeds: a device that arrives late must be told the
 gear it missed, or the game sees neutral until the next shift — in PRND, possibly for the session.
+
+## Gear output backends
+
+`ShifterEngine` holds `IGearOutput`; the SimHub shell supplies its factory. Direct vJoy remains
+the default, including for old saved settings. Native Control Mapper uses
+`PluginManager.GetControlMapperInterface()` and its public `StartRole` / `StopRole` methods,
+with role lists from the same interface. No controller is registered or acquired by this path.
+Control Mapper's own configuration decides whether those roles produce keys, vJoy buttons,
+Arduino bridge buttons, or internal SimHub controls.
+
+Feature readiness uses the public `PluginManager.GetPlugin<ControlMapperPlugin>()`, not an
+empty role list or the presence of Controls and events. UI and output connection share the
+same availability/mapping policy, distinguishing a missing feature from an enabled mapper
+without roles. `ShowPluginUI<ControlMapperPlugin>()` opens its native configuration page.
+
+The SDK has no public activation method. `ControlMapperFeatureSettings` checks the public host
+model's `MainModel.EnabledPlugins` collection for the exact Control Mapper class and its public
+`IsEnabled` setter. On an explicit enable/restart click only, it sets that feature and calls
+`RequestApplicationExit(true)`; SimHub persists the model through its normal exit, including
+its own settings backups. No private activation method or JSON write is used. An unavailable
+host shape falls back to Add/remove features, kiosk lock blocks the action, and a throwing
+restart request restores the previous setting. Other feature flags, mapper output settings,
+and role definitions are untouched. The host shape was reflected from the installed SimHub;
+it remains outside the plugin SDK and is guarded rather than treated as a permanent contract.
+
+`ControlMapperGearOutput` keeps held H/PRND roles and sequential button lifetimes behind the
+same interface as vJoy. It owns one `ControlMapperInterface` for its lifetime: SimHub keys
+presses by an owner id, and a new interface cannot stop the previous owner's presses. Blank
+roles are intentional no-ops. Shared roles count active logical buttons, so releasing one does
+not cancel another. Failed presses are retained for cleanup, since a call can throw after
+submitting; failed releases prevent pressing a replacement gear. Cleanup attempts releases
+even after the output reports disconnected. The optional role at index 0 is H neutral only;
+`ReleaseAll`, including calibration and the watchdog, clears it too.
+
+The settings UI always exposes H-pattern, sequential and PRND mappings as separate groups.
+`GearOutputConfig` masks runtime mappings by the current pattern and compares active output
+configuration. Editing another pattern's assignments retains the current output and its
+held roles; switching pattern or editing a role it uses releases and replaces the output.
+Output mode, role assignments, and vJoy id are machine facts, excluded from shared profiles.
+Changing backend, active mapping, or native pattern disconnects the old output before creating
+the new one and republishing the held gear. Changing output does not reopen the AB9. Reconnect
+uses the existing 1/2/5/15 s backoff and republishes the current state, except during calibration.
+`OutputConnected` and `OutputError` describe either backend; the existing `VJoyConnected`
+property continues to mean direct vJoy specifically.
+
+`GearOutputConnection` owns that lifecycle and uses a fakeable `IGearOutput` boundary. It polls
+acquisition while the base is absent and checks cached ownership once per second while connected.
+Its deadlines reset when the engine clock restarts, without replacing a retained output.
+vJoy checks actual driver ownership and invalidates its cached connection after failed button
+writes or resets. Recovery republishes a held gear only when the engine has a usable base sample;
+otherwise every button remains clear, including H neutral and PRND. Successful base reopen
+resyncs all state machines and publishes the current position. Base reconnect neither replaces
+the output instance nor resets its acquisition backoff. Native role output uses the same policy.
+
+Ordering at the engine remains release-before-press and output requests before force writes.
+Control Mapper queues roles for its own worker, so request ordering does **not** establish that
+the game's key/button arrived before the force. End-to-end timing, keyboard neutral semantics,
+and cleanup on game/profile/SimHub lifecycle changes still need verification on the rig.
+Readiness establishes that the configured roles exist, not that the selected external device
+is connected or the game accepted them; those are checked in Control Mapper and in the game.
+
+The output choice is independent of `ProfileStore.SelectedOperatingMode`. Both Generic FFB
+stick and Moza AB9 run either backend; firmware H-pattern stops the engine and hides plugin
+output settings. Native configuration clears buttons and releases the base before the CDC
+transaction while retaining output ownership, then resumes presses and forces only through the
+checked `NativeWritePause` path. Calibration
+never publishes H neutral while probes run.
 
 ## Telemetry effects and the grind
 
@@ -369,7 +473,7 @@ reported from the settings page as "settings won't save".
 ## SimHub surface
 
 Properties: `CurrentGear`, `GearIndex`, `InGear`, `GateState`, `GateColumn`, `StickX`, `StickY`,
-`DeviceConnected`, `DeviceName`, `VJoyConnected`, `LoopHz`, `StatusMessage`, `LockoutEngaged`.
+`DeviceConnected`, `DeviceName`, `VJoyConnected`, `OutputConnected`, `OutputError`, `LoopHz`, `StatusMessage`, `LockoutEngaged`.
 Events: `GearEngaged`, `GearReleased`, `LockoutEngaged`, `LockoutReleased`.
 Actions: `ToggleShifterFFB`, `ReleaseAllGears`, `NextProfile`, `PreviousProfile`,
 `ToggleLockout`, `EngageLockout`, `ReleaseLockout`.
@@ -392,6 +496,12 @@ diagnostics, resets, updates and About. Main uses one level of disclosure for au
 profile switching and sharing help; vehicle IDs never lengthen the action buttons. Firmware
 H-pattern exposes only mode and device status.
 
+`SettingsControl.Outputs` displays only mappings used by the active profile's pattern. First-run
+completion checks that backend's setup readiness; it never requires vJoy when Control Mapper is
+selected. Main reports the selected output and any runtime error, while periodic role/device
+checks update readiness without rebuilding an open picker. Completed setup persists through
+output loss. Firmware H-pattern skips both output probes entirely.
+
 All editor panels are created with the settings control so slider indexing, reset/undo state
 and namescope bindings remain intact when a panel is temporarily hosted by a modal. The existing
 ShakeIt editor instance moves with its panel; changing presentation does not recreate a profile.
@@ -399,7 +509,7 @@ Geometry resets dimensions and placement, Feel resets strengths and response, an
 resets measured polarity or machine identity. Calibration and complete resets live in Options.
 
 All profiles share plugin geometry, extra effects and base-effect percentages between virtual
-modes. In AB9-native, onboard changes apply automatically after the quiet period. Profile
+modes. In Moza AB9, onboard changes apply automatically after the quiet period. Profile
 import validates tuning and preserves machine facts, then activates the new profile with
 virtual output disabled; its onboard values still synchronize automatically. Mode choice is
 a rig preference and never travels in a shared profile.

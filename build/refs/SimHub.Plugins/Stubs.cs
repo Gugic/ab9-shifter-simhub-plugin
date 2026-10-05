@@ -8,6 +8,16 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using GameReaderCommon;
 
+namespace SimHub.Plugins.OutputPlugins.ControlRemapper
+{
+    public class ControlMapperPlugin : SimHub.Plugins.IPlugin
+    {
+        public SimHub.Plugins.PluginManager PluginManager { get; set; }
+        public void Init(SimHub.Plugins.PluginManager pluginManager) { }
+        public void End(SimHub.Plugins.PluginManager pluginManager) { }
+    }
+}
+
 namespace SimHub.Plugins
 {
     /// <summary>SimHub's plugin host: the property bridge and the supported restart hook.</summary>
@@ -16,6 +26,19 @@ namespace SimHub.Plugins
         public object GetPropertyValue(string name) { return null; }
         // Reflected against the installed assembly: public instance Void(Boolean).
         public void RequestApplicationExit(bool restart) { }
+        // Public instance surface reflected against the installed SimHub assembly.
+        public ControlMapperInterface GetControlMapperInterface() { return null; }
+        public T GetPlugin<T>() where T : IPlugin { return default(T); }
+        public void ShowPluginUI<T>() { }
+    }
+
+    public class ControlMapperInterface
+    {
+        public bool StartRole(string roleName) { return false; }
+        public bool StopRole(string roleName) { return false; }
+        public System.Collections.Generic.List<string> GetAvailableButtonRoles() { return null; }
+        public System.Collections.Generic.List<string> GetAvailableKeyboardSimulatedKeysRoles() { return null; }
+        public System.Collections.Generic.List<string> GetAvailableSimHubControlRoles() { return null; }
     }
 
     /// <summary>Handle returned when an event is registered. Never inspected by this plugin.</summary>

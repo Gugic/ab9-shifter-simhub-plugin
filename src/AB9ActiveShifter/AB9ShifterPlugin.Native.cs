@@ -28,9 +28,19 @@ namespace AB9ActiveShifter
         public string NativeOperationStatus { get; private set; }
         public bool NativeProfileUpdateInProgress { get { return _nativeProfileUpdate && NativePause.Active; } }
         public bool NativeSettingsPending { get { return _nativeEdits.Pending; } }
+        public bool NativeSetupRequired { get { return Store?.Ab9PreparationRequired == true; } }
         public OperatingMode CurrentOperatingMode { get { return Store?.SelectedOperatingMode ?? OperatingMode.GenericFfbStick; } }
         public bool Ab9ModesAvailable { get { return NativeSnapshot.CanManage; } }
         public bool CanConfigureNative { get { return Settings != null && Ab9ModesAvailable && !NativeBusy && !_nativeStartupCheck; } }
+
+        public bool GearOutputAvailable
+        {
+            get
+            {
+                return Settings != null && NativeProfilePolicy.CanOwnGearOutput(CurrentOperatingMode,
+                Settings.VendorId, Settings.ProductId, _ab9InNativeMode);
+            }
+        }
 
         public bool VirtualControlsAvailable
         {
@@ -38,7 +48,8 @@ namespace AB9ActiveShifter
             {
                 return Settings != null && !NativePause.Active && !_nativeStartupCheck && !_nativeReplayAfterHandoff
                     && NativeProfilePolicy.CanRunVirtual(CurrentOperatingMode,
-                        Settings.VendorId, Settings.ProductId, NativeSnapshot, _ab9InNativeMode || _ab9ModeUncertain);
+                        Settings.VendorId, Settings.ProductId, NativeSnapshot, _ab9InNativeMode || _ab9ModeUncertain,
+                        NativeSetupRequired);
             }
         }
 
@@ -92,86 +103,67 @@ namespace AB9ActiveShifter
                 _ab9InNativeMode = snapshot.IsNative;
                 _ab9ModeUncertain = false;
             }
-            if (Settings != null && (snapshot.IsNative || (CurrentOperatingMode == OperatingMode.Ab9Native && !snapshot.CanManage))
+            if (Settings != null && snapshot.IsNative
                 && Settings.VendorId == Ab9NativeProtocol.VendorId && Settings.ProductId == Ab9NativeProtocol.ProductId)
                 Settings.Enabled = false;
-            if (!VirtualControlsAvailable) PushSettingsToEngine();
+            if (!VirtualControlsAvailable || (_engine != null && !_engine.VirtualDeviceEnabled)) PushSettingsToEngine();
         }
 
-        /// <summary>Changes the rig's provider only after the selected AB9 configuration reads back.</summary>
-        public async Task<bool> ChangeOperatingModeAsync(OperatingMode mode)
+        /// <summary>Persists the provider independently of attachment; preparation is a separate action.</summary>
+        public Task<bool> ChangeOperatingModeAsync(OperatingMode mode)
         {
-            if (Store == null || Settings == null || !Enum.IsDefined(typeof(OperatingMode), mode)) return false;
-            if (!BeginNativeOperation()) return false;
-            bool succeeded = false;
-            OperatingMode previous = CurrentOperatingMode;
-            try
+            if (Store == null || Settings == null || !NativeProfilePolicy.CanSelect(mode) || NativeWriteBusy)
+                return Task.FromResult(false);
+            CancelNativeResume();
+            CancelPendingNativeSettings();
+            Settings.Enabled = false;
+            PushSettingsToEngine();
+            if (mode != OperatingMode.GenericFfbStick)
             {
-                // Refresh at the point of intent. The discovery worker rechecks exact USB identity
-                // and firmware again immediately before every hardware write.
-                Ab9NativeSnapshot snapshot = await NativeDevice.RefreshAsync();
-                ObserveNativeMode(snapshot);
-                if (mode != OperatingMode.GenericFfbStick && !snapshot.CanManage)
-                {
-                    NativeOperationStatus = snapshot.Status;
-                    return false;
-                }
-
-                if (mode == OperatingMode.Ab9Native)
-                {
-                    // New hardware cannot inherit polarity measured on a different stick.
-                    if (Settings.VendorId != Ab9NativeProtocol.VendorId || Settings.ProductId != Ab9NativeProtocol.ProductId)
-                        InvalidatePolarity();
-                    if (!await WriteBaseAsync(Settings.ToNativeSettings(), 0)) return false;
-                }
-                else if (mode == OperatingMode.Ab9HPattern)
-                {
-                    // The firmware owns this mode. Preserve its current stored layout and forces;
-                    // profile tuning, vJoy and DirectInput are all unavailable afterwards.
-                    if (!await WriteBaseAsync(snapshot.Settings.Copy(), 1)) return false;
-                }
-                else
-                {
-                    // Generic is always selectable, including with no AB9 attached. Only an AB9
-                    // still present after a managed mode needs its onboard effects neutralised.
-                    if (snapshot.CanManage && previous != OperatingMode.GenericFfbStick
-                        && Settings.VendorId == Ab9NativeProtocol.VendorId && Settings.ProductId == Ab9NativeProtocol.ProductId)
-                        if (!await WriteBaseAsync(Ab9NativeSettings.GenericSetup(), 0)) return false;
-                }
-
-                if (mode != OperatingMode.GenericFfbStick)
-                {
-                    Settings.VendorId = Ab9NativeProtocol.VendorId;
-                    Settings.ProductId = Ab9NativeProtocol.ProductId;
-                }
-                Store.SelectedOperatingMode = mode;
-                succeeded = true;
+                if (Settings.VendorId != Ab9NativeProtocol.VendorId || Settings.ProductId != Ab9NativeProtocol.ProductId)
+                    InvalidatePolarity();
+                Settings.VendorId = Ab9NativeProtocol.VendorId;
+                Settings.ProductId = Ab9NativeProtocol.ProductId;
             }
-            catch (Exception ex)
-            {
-                NativeOperationStatus = "Mode change failed: " + ex.Message + ". Forces remain off.";
-                Log.Error("Could not change the operating mode", ex);
-            }
-            finally { EndNativeOperation(); }
-            if (!succeeded) return false;
+            _nativeReplayAfterHandoff = false;
+            Store.SelectOperatingMode(mode);
+            NativeOperationStatus = mode == OperatingMode.Ab9HPattern
+                ? "Moza AB9 native H-Pattern selected. Set up the firmware shifter in Moza Pit House / AZOM. Plugin output is disabled."
+                : mode == OperatingMode.Ab9Native
+                    ? "Moza AB9 selected. Connect the base and use Prepare base to configure its internal settings. Plugin forces are off."
+                    : "Generic FFB stick selected. Configure DirectInput and disable built-in centring in your base's settings app. Plugin forces are off.";
             PushSettingsToEngine();
             SaveStore();
             RaiseProfileChanged();
-            NativeOperationStatus = mode == OperatingMode.Ab9HPattern
-                ? "AB9 H-pattern is active. The firmware owns the gate and its buttons."
-                : "Mode ready. Virtual forces are off; complete setup or enable the shifter when ready.";
-            return true;
+            return Task.FromResult(true);
         }
 
         /// <summary>One setup action for the selected provider; generic sticks retain their manual checklist.</summary>
         public async Task<bool> PrepareSelectedModeAsync()
         {
-            if (CurrentOperatingMode != OperatingMode.GenericFfbStick)
-                return await ChangeOperatingModeAsync(CurrentOperatingMode);
             if (Settings == null) return false;
+            if (CurrentOperatingMode == OperatingMode.Ab9HPattern)
+            {
+                NativeOperationStatus = "Set up Moza AB9 native H-Pattern in Moza Pit House / AZOM. Plugin output is disabled.";
+                return false;
+            }
+            if (CurrentOperatingMode == OperatingMode.Ab9Native)
+            {
+                if (!BeginNativeOperation()) return false;
+                try
+                {
+                    Ab9NativeSnapshot snapshot = await NativeDevice.RefreshAsync();
+                    ObserveNativeMode(snapshot);
+                    if (!snapshot.CanManage) { NativeOperationStatus = snapshot.Status; return false; }
+                    bool prepared = await WriteBaseAsync(Settings.ToNativeSettings(), 0);
+                    if (prepared) NativeOperationStatus = "Moza AB9 prepared. Complete setup or enable the shifter when ready.";
+                    return prepared;
+                }
+                finally { EndNativeOperation(); }
+            }
             Settings.Enabled = false;
             PushSettingsToEngine();
-            NativeOperationStatus = "Select the FFB device, configure its own centring off, choose vJoy, then measure polarity.";
+            NativeOperationStatus = "Select the FFB device, configure its own centring off, choose your gear output, then measure polarity.";
             return true;
         }
 
@@ -401,7 +393,13 @@ namespace AB9ActiveShifter
             Ab9NativeSnapshot snapshot = await NativeDevice.ApplyAsync(tune, mode);
             ObserveNativeMode(snapshot);
             NativeOperationStatus = snapshot.CanManage ? "AB9 settings applied and read back." : snapshot.Status;
-            return snapshot.CanManage && snapshot.InputMode == mode;
+            bool verified = snapshot.CanManage && snapshot.InputMode == mode;
+            if (verified && Store != null)
+            {
+                Store.Ab9PreparationRequired = false;
+                if (!_nativeUpdatesStopped) SaveStore();
+            }
+            return verified;
         }
 
         private void InvalidatePolarity()
@@ -415,7 +413,7 @@ namespace AB9ActiveShifter
         private async void ApplyNativeProfileInBackground()
         {
             try { await CompleteNativeProfileApplyAsync(); }
-            catch (Exception ex) { Log.Error("Could not apply the AB9-native profile", ex); }
+            catch (Exception ex) { Log.Error("Could not apply the Moza AB9 profile", ex); }
         }
     }
 }

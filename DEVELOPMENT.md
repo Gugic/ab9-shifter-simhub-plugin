@@ -11,7 +11,8 @@ error in this code drives a 12 Nm base the wrong way.
 
 - **.NET SDK 8** — it builds a `net48` target, so no separate targeting pack is required
 - **SimHub**, to run it. Not needed to build (see [Building without SimHub](#building-without-simhub))
-- **vJoy** with a device of at least 14 buttons, to see gears come out (1-8 gears, 9-10 sequential
+- **vJoy**, or SimHub's built-in **Control Mapper** with configured output roles, to see gears
+  come out. Direct vJoy uses 14 buttons to cover all patterns (1-8 gears, 9-10 sequential
   up/down, 11-14 the PRND positions)
 - An **AB9**, to feel anything. The tests need none of the above
 
@@ -145,7 +146,7 @@ the one release gate that stays manual — run it before tagging.
 ## How the code fits together
 
 One background thread owns everything with a device handle. It runs at 1 kHz, and each tick reads
-the stick, decides the gear, writes vJoy, composes forces and ships one write per axis. The UI and
+the stick, decides the gear, submits the selected output, composes forces and ships one write per axis. The UI and
 SimHub's property system only ever read a snapshot; nothing else touches DirectInput or vJoy.
 
 ```
@@ -155,8 +156,9 @@ src/AB9ActiveShifter/
   AB9ShifterPlugin.Native.cs Three operating modes and verified AB9 onboard configuration
   ShifterSettings.cs       Persisted POCO -> ToEngineConfig()
   ShifterProfiles.cs       Named profiles, legacy migration, cloning, the preset fork
-  DefaultProfiles.cs       The five presets, as deltas from bare defaults, and their reserved
+  DefaultProfiles.cs       The eight presets, as deltas from bare defaults, and their reserved
                            name prefix
+  DefaultProfiles.SequentialStiffShort.cs Captured short sequential tune and portable native Effects tree
   ProfileTransfer.cs       Export/import of one profile as a shareable file, with validation
   NativeEffectsData.cs     Validates a native tune before SimHub deserializes it
   Effects/                 Native ShakeIt service/editor, Lever output adapter and four sources
@@ -179,6 +181,8 @@ src/AB9ActiveShifter/
     EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
     NativeEffectMixer.cs   Native tone envelopes -> independent, budgeted 1 kHz carriers
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
+    GearOutputConfig.cs    Output choice, per-pattern role mappings and change detection (pure)
+    GearOutputConnection.cs Independent output ownership, health checks and bounded reconnect (fake API)
     DeviceFault.cs         A DirectInput HRESULT as gone / taken by another app / unknown
     VelocityEstimator.cs   Position -> speed across a 4 ms window
     PolarityCalibrator.cs  Measures effect polarity on hardware
@@ -186,8 +190,12 @@ src/AB9ActiveShifter/
                            be left running through a session and still hold the failure
   Device/                  DirectInput and Win32
     Ab9NativeDevice.cs     Separate CDC worker, exact AB9 discovery and checked transactions
+    FfbDeviceProbe.cs      Query-only attachment status, including with the master switch off
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
   Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the device/output picker (query-only)
+  Output/ControlMapperGearOutput.cs Held native roles behind IGearOutput, including optional H neutral
+  Output/IControlMapperRoles.cs Role API boundary, faked in I/O-free output tests
+  Output/SimHubControlMapperRoles.cs Public SimHub role API; one interface owns press and release
   Updates/                 ReleaseInfo (pure policy), UpdateService (background GitHub checks),
                            UpdateInstaller (validated, atomic DLL replacement)
   UI/                      SettingsControl.xaml (first-run Setup, Main/Options, tuning modals), the
@@ -195,7 +203,12 @@ src/AB9ActiveShifter/
                            on ForceGraphVisualizerBase and each sampling ForceComposer itself
     SettingsControl.Updates.cs App update preferences, shared banner and install/restart actions
     SettingsControl.Native.cs Native setup actions, status and control availability
+    SettingsControl.Outputs.cs Output selector, pattern-specific native role pickers and readiness
+    ControlMapperFeatureSettings.cs Guarded public host feature setting, explicit enable/restart
 tests/AB9ActiveShifter.Tests/
+  ControlMapperOutputTests.cs Role lifetimes, cleanup, mapping validation and rig-owned settings
+  ControlMapperFeatureTests.cs Fake host model: activation isolation, restart rollback and fallback
+  GearOutputConnectionTests.cs Base-independent ownership, recovery, timing and release policy
   NativeSettingsDebounceTests.cs Pending edits survive busy reads; latest tune wins each batch
   NativeWritePauseTests.cs Ordinary updates preserve Enabled; failures/off/panic cannot resume
   OperatingModeTests.cs    Shared providers, calibration caps and store migration

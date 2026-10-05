@@ -7,30 +7,42 @@ controls. **Options** holds mode, device/output, recalibration, pedals, hotkeys 
 Main's **Automatic profile switching** and **Sharing and button mapping** sections open
 independently; vehicle IDs stay separate from the compact action buttons.
 
-The rig's three-way mode switch chooses **Generic FFB Stick**, **AB9-native** or **AB9 H-pattern**.
+The rig's three-way mode switch chooses **Generic FFB stick**, **Moza AB9** or **Moza AB9 native H-Pattern**.
 Both virtual modes share the gate and all extra plugin effects. Generic uses DirectInput base
-effects; AB9-native uses the basic effects supported onboard by Cockpit. Firmware H-pattern
+effects; Moza AB9 uses the basic effects supported onboard by Cockpit. Firmware H-pattern
 exposes only device status and the mode switch, with plugin output and tuning unavailable.
 
-Opening **Feel** reads the AB9's native settings once. Leaving it open does not poll the base;
-use **Options → Refresh AB9** to request another read. The displayed native status is the last
+Opening **Feel** reads the AB9's native settings once. Leaving it open does not poll native configuration;
+use **Options → Refresh base** to request another read. The displayed native status is the last
 checked snapshot. Startup and setting changes retain their mode checks and write verification.
+Attachment warnings update every five seconds through controller and port-name enumeration,
+including while the master switch is off; these checks never open the configuration port.
 
 Virtual dials apply on the next FFB tick. The seven onboard dials apply automatically after
 500 ms without another edit, and selecting a profile applies its onboard values too. Ordinary
-changes preserve the force-feedback toggle: output pauses for the write and resumes after the
+changes preserve the master switch: buttons and forces pause for the write, output ownership
+is retained, and the base resumes after the
 latest values pass readback, provided it was enabled and you have not turned it off or pressed
 panic. Setup, mode changes, calibration and failed writes leave output off.
 Virtual force percentages are scaled by **Overall gain**; until polarity is confirmed its
 effective value is capped at 10%. Hardware gains and onboard resistance are separate scales;
 unconfirmed polarity also caps requested hardware torque at 10% and keeps the onboard spring off.
 
-Setup completion persists. Losing the base or vJoy shows connection status on the working
+Setup completion persists. Losing the base or selected output shows connection status on the working
 screen rather than reopening first-run Setup. Use Options to change the rig or measure again.
+
+**Shifter enabled** on Main is the master switch for the base and selected gear output.
+**Using the master switch and free stick** explains the two controls. While enabled, output
+acquisition and recovery continue independently of the base connection. A base restart clears
+buttons while its position is unavailable, retains the vJoy device, and resyncs gear output on
+reconnect. Silent loss of vJoy ownership is checked once per second and reacquired using the
+output retry schedule; no output-device reselection is needed. Turning the master off clears
+buttons and releases both devices. Firmware **Moza AB9 native H-Pattern** also releases plugin output.
+**Release all forces (free stick)** removes plugin forces while keeping its connections.
 
 ## Options and plugin updates
 
-**Options → UPDATES** is available before calibration or vJoy setup, and its preferences belong
+**Options → UPDATES** is available before calibration or output setup, and its preferences belong
 to the app rather than any profile. **Check for updates automatically** defaults on and checks
 the latest stable GitHub release at startup and every six hours. **Check now** checks immediately
 and shows a previously dismissed version again. **Release channel: Stable** excludes previews;
@@ -46,6 +58,61 @@ and uses SimHub's usual shutdown. Profiles, pedal binding and measured polarity 
 Dismiss hides only that version's banner, and a later release gets a new banner. The update
 remains accessible from Options. A failed check or download appears in the status so it can be
 retried; a release with no verified DLL can still be opened for manual installation.
+
+## Setup and gear output
+
+**Setup → Base and output → Output** selects **vJoy (direct)** or **SimHub Control Mapper
+(native)**. After setup the same controls live under **Options → Base and output**. This choice
+is independent of the **OPERATING MODE** selector: both virtual modes support either output.
+Firmware **Moza AB9 native H-Pattern** uses the base's own buttons and hides plugin output controls.
+
+Direct vJoy uses the **Device** picker and **Refresh** to choose its virtual controller;
+14 buttons cover all patterns. Keep its device separate from any vJoy device used by Control
+Mapper. The native choice always shows mappings for all patterns, a feature status,
+and **Refresh roles**. The status checks whether Control Mapper is loaded; an enabled mapper
+with no roles is reported separately from a disabled feature. **Controls and events** is a
+separate SimHub page. If disabled, **Enable Control Mapper and restart SimHub** enables the
+feature and requests SimHub's normal restart. If its feature setting is already enabled but
+the plugin is not loaded, the button reads **Restart SimHub to load Control Mapper**. On a host
+that does not expose its feature setting, use SimHub's **Add/remove features** and restart;
+unlock kiosk mode first if it is locked.
+
+**Configure Control Mapper** opens SimHub's mapper page once loaded. Choose **Assign roles**
+and create roles there, including simulated keys under **Keyboard** for keyboard output.
+Choose its output, then return and **Refresh roles**. Choose or type an existing role here;
+typing does not create a role. Blank mappings send nothing. Roles can drive keyboard keys,
+controller buttons through Control Mapper's vJoy or Arduino bridge, or SimHub controls.
+
+**H-pattern mappings** shows **Gear 1** through **Gear 7** and **Reverse**, regardless of the
+selected pattern. **H-pattern neutral (optional)** sends a held neutral role for games that need
+a separate neutral key. **Sequential mappings** shows **Sequential up** and **Sequential down**;
+**PRND mappings** shows
+**PRND: P**, **PRND: R**, **PRND: N**, and **PRND: D**. H gears and selector positions hold their
+roles, and sequential uses Main's **Sequential pulse length (ms)**. Verify keyboard direct-gear
+and neutral bindings in the game. Missing roles are reported under the mappings.
+
+All three groups and their instructions stay visible without changing **Pattern**. For PRND,
+assign existing Control Mapper roles to each position's row. Custom roles such as `PRND.P`,
+`PRND.R`, `PRND.N` and `PRND.D` are optional if you need additional assignments; configure
+their keys or controller buttons in Control Mapper, then **Refresh roles**.
+N holds its own role until the selector moves to another position. In an H pattern, returning
+to neutral releases the gear role; leave **H-pattern neutral (optional)** blank when released
+gear buttons represent neutral in the game. For sequential output, the guide suggests
+`ShiftUp` and `ShiftDown` for **Sequential up** and **Sequential down**.
+
+First-run **Finish setup** requires measured polarity and an available direct vJoy device or
+the loaded Control Mapper feature with at least one available role for the active pattern. Role availability does not
+prove that Control Mapper's external device or game bindings work; check those there and in the
+game. Once setup is complete, output loss leaves Main available and updates its connection status.
+Main's **Sharing and button mapping** follows the selected output.
+
+The output choice and role assignments belong to the rig and survive profile and operating-mode
+changes. Editing mappings or changing backend releases the previous output before publishing the
+current lever state when the active output is affected. Editing another pattern's mappings
+preserves the current output and held roles. Only the active pattern sends output, and its
+mappings determine readiness. Calibration clears every role, including optional H neutral. AB9 onboard
+configuration pauses the selected output along with the forces and resumes it through the same
+checked transaction as direct vJoy.
 
 ## What the tuning editors show you while you turn a dial
 
@@ -103,13 +170,32 @@ button changes hands.
 
 ### Base effects: one tune, two providers
 
-Both AB9 modes require a genuine connected base with firmware **1.1.5.2 or newer**. Refresh
-its status after closing Cockpit, Pit House or AZOM's AB9 connection. AB9-native selects flight
-mode and prepares the base; it still uses the plugin's virtual gate, calibration and vJoy.
-AB9 H-pattern uses firmware buttons and exposes no plugin tuning.
+The **OPERATING MODE** selector offers **Moza AB9**, **Generic FFB stick**, and
+**Moza AB9 native H-Pattern** with the base connected or disconnected and the master switch on
+or off. **What does this mean?** expands a bulleted explanation of the three modes; it starts
+collapsed. Choosing a mode saves the preference and leaves plugin output off. **Base is not found**
+appears on Setup/Options and Main when the selected base is missing; forces and gear presses stay
+inactive until fresh input is available.
+
+**Moza AB9** uses internal AB9 base settings alongside the plugin's virtual gate, calibration and
+selected gear output. **Prepare base** selects flight mode and verifies those settings, requiring
+a genuine AB9 with firmware **1.1.5.2 or newer**. Use **Refresh base** after closing Cockpit,
+Pit House or AZOM's AB9 connection. **Generic FFB stick** uses DirectInput only; choose it for
+other bases and follow their manual setup checklist. **Moza AB9 native H-Pattern** uses firmware
+buttons, is configured in **Moza Pit House / AZOM**, and disables plugin output and tuning.
+The **Prepare base** button and its explanation appear only in **Moza AB9**. Generic mode
+shows **BEFORE YOU START** as five numbered steps: select DirectInput feedback, turn off
+built-in centring/background effects, close apps holding the base exclusively, configure the
+chosen output, and bind its buttons or keys in the game.
+
+**Measure polarity** is required for both virtual modes: **Moza AB9** still drives the custom
+gate through DirectInput while using onboard basic effects, and **Generic FFB stick** uses
+DirectInput throughout. Calibration measures push and spring direction on each axis; the 10%
+gain cap remains until confirmed. Firmware **Moza AB9 native H-Pattern** needs no plugin
+calibration and hides these controls because plugin output is disabled.
 
 Feel labels the AB9's basic effects **Base-driven effects**: they are processed internally by
-the base and avoid the plugin's USB round trip. Generic FFB Stick provides the same controls
+the base and avoid the plugin's USB round trip. Generic FFB stick provides the same controls
 through DirectInput. Profiles and presets keep exactly the same percentages in both modes;
 there are no native copies or separate preset sets. Physical strength can differ by provider.
 
@@ -120,7 +206,7 @@ there are no native copies or separate preset sets. Physical strength can differ
 | Base inertia (%) | 0% | Base inertia |
 | Base friction (%) | 0% | Base friction |
 
-AB9-native also exposes hardware torque, overall intensity and game gain, each defaulting to
+Moza AB9 also exposes hardware torque, overall intensity and game gain, each defaulting to
 100%. Generic mode ignores these hardware scales. The plugin's home spring, wall damping,
 wall friction and game effects remain separate and available in both virtual modes.
 
@@ -133,7 +219,7 @@ Onboard edits save and apply automatically after a short pause; there is no Appl
 An update keeps the force-feedback toggle as set, while a failed write leaves forces off.
 Setup and recalibration temporarily neutralize onboard conditions for the probes and leave
 virtual output off afterward. Free stick releases plugin forces, while onboard resistance can
-remain. Importing a profile applies its onboard values in AB9-native mode but keeps virtual
+remain. Importing a profile applies its onboard values in Moza AB9 mode but keeps virtual
 output disabled. [Native configuration](native-ab9.md) records the transaction ordering,
 protocol evidence and current hardware verification limits.
 
@@ -166,7 +252,7 @@ protocol evidence and current hardware verification limits.
 
 The **pattern** lives on Main, per profile: 7+R (lockout), 6+R (no 7th slot — its divider
 just continues across), 5+R (three wider columns, no lockout), Sequential, Automatic (P R N D), or
-the truck 6 (three wider columns, six plain slots, no reverse at all). Forward gears map to vJoy
+the truck 6 (three wider columns, six plain slots, no reverse at all). In direct vJoy mode, forward gears map to vJoy
 buttons 1..N and **reverse — where the pattern has one — is always button 8** — so one set of game
 bindings covers every pattern and switching profiles never needs a rebind. (Reverse used to be the
 highest gear of the pattern, which put 5+R's R on button 6 — read by a game bound for 7+R as sixth
@@ -233,8 +319,8 @@ Set the throw first, then raise the end-stop until the bottom feels solid. Both 
 because the base is not self-centring: **MOZA Cockpit's Spring must be at 0**, which it has to be
 anyway. On a base still centring in firmware, leave the end-stop off.
 
-**Automatic (P R N D)** turns the fore/aft axis into a selector lane: four fixed positions, a vJoy
-button held at whichever one the lever is in, and nothing else. There is no neutral to come back
+**Automatic (P R N D)** turns the fore/aft axis into a selector lane: four fixed positions, with
+the selected output's button or role held at whichever one the lever is in. There is no neutral to come back
 through and no gear to engage — the lever is always somewhere, which is why the Main monitor reads
 *Engaged* the whole time. Its own section, **PRND LANE** controls are split between Geometry (travel, notches and placement) and Feel (forces and lockout behavior):
 
@@ -698,10 +784,16 @@ band where it actually is. *FFB loop rate* in Options should stay at 1000; see
 
 ## Presets, and why your profile just renamed itself
 
-The seven shipped tunes are marked `(Preset)` and sit at the end of the profile list. They never
+The eight shipped tunes are marked `(Preset)` and sit at the end of the profile list. They never
 change and they cannot be renamed or deleted — the Rename and Delete buttons grey out while one is
 selected. They exist so there is always a known-good gate to come back to when a tuning session has
 wandered.
+
+**(Preset) Sequential (stiff, short)** comes from the custom Sequential tune captured on the
+development rig. Its throw is 7,552 counts from centre, with 2,010 counts of overtravel and a
+100 ms output pulse. Click is 100%, push resistance 46%, base damping 14.54% and base friction
+14%. The native Effects configuration is retained, including the engine response curve and
+enabled limiter. Like every preset, it starts disabled and needs this rig's own calibration.
 
 Turning any dial while a preset is selected therefore does not edit it. The edit moves to a profile
 of your own, carrying the preset's name without the marker — `(Preset) 7+R lockout` becomes
@@ -710,10 +802,10 @@ Nothing is lost and nothing is interrupted: you carry on turning the same dial, 
 just made is already in the new profile. The only visible sign is the name in the box.
 
 What does *not* fork: arming the shifter, freeing the stick, running polarity calibration, picking a
-vJoy device and binding the clutch pedal. Those describe your machine rather than a tune — a copy of
+gear output and its mappings, and binding the clutch pedal. Those describe your machine rather than a tune — a copy of
 the gate is not what you wanted when you pressed Calibrate.
 
-They are also not stored in the profile at all. Measured polarity, the device and vJoy ids, the loop
+They are also not stored in the profile at all. Measured polarity, the device and vJoy ids, output mode and role mappings, the loop
 rate and the clutch binding belong to the rig, so they are held once and stamped onto whichever
 profile you switch to. That is why selecting a preset does not throw away your calibration and drop
 you back to the 10% force cap, and why calibrating while a preset is selected is not lost when the

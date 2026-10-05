@@ -6,8 +6,8 @@ no 7th slot, 5+R, or a six-slot truck gate with no reverse), a **sequential leve
 adjacent gap or a single slot, one-way either way or both, push-through or held at full force
 until a bound action releases it (the H gate and the PRND lane each carry their own). It renders
 the gate with DirectInput force feedback, detects the slotted gear from stick position, and holds
-a vJoy button per gear (or pulses up/down buttons in sequential, or holds one per PRND position)
-so any game sees a normal shifter.
+a vJoy button or configured SimHub Control Mapper role per gear (or pulses up/down in sequential,
+or holds one per PRND position) so games can bind controller buttons or keyboard keys.
 
 It is unofficial and unaffiliated — see *Naming, and the disclaimers* under Conventions before
 writing anything user-facing.
@@ -42,8 +42,8 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-573 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
-and the pure release parser in `Updates/ReleaseInfo.cs`. Keep them that way — they are the only
+630 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
 CI runs exactly this plus `dotnet format whitespace --verify-no-changes`, on every push and
@@ -85,9 +85,10 @@ src/AB9ActiveShifter/
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
   ShifterProfiles.cs       ProfileStore (named settings + active + the rig's own facts), legacy
                            migration, cloning, the preset fork
-  DefaultProfiles.cs       The seven presets every install carries, as deltas from bare defaults,
+  DefaultProfiles.cs       The eight presets every install carries, as deltas from bare defaults,
                            plus the reserved name prefix that marks them (see "Shipped
                            profiles" below)
+  DefaultProfiles.SequentialStiffShort.cs Captured short sequential tune and its portable native Effects tree
   ProfileTransfer.cs       One profile as a shareable file: what travels, and what is refused
   NativeEffectsData.cs     Validates the portable native tree without constructing a transport
   Effects/                 Native ShakeIt host/editor, Lever output adapter and shifter sources
@@ -130,6 +131,7 @@ src/AB9ActiveShifter/
   Device/                  DirectInput and Win32
     Ab9NativeDevice.cs     Separate CDC worker, exact AB9 discovery, checked transactions
     FfbDevice.cs           Open by VID/PID, exclusive+background, poll
+    FfbDeviceProbe.cs      Query-only attachment status for setup, even with the master switch off
     PedalDevice.cs         The clutch pedal's own handle. NON-exclusive by design - the game
                            needs those pedals too - and read-only; it never creates an effect
     EffectSet.cs           Gate and optional base effects; one force write per tick, fault handling
@@ -137,11 +139,19 @@ src/AB9ActiveShifter/
   Output/VJoyGearOutput.cs vJoy behind IGearOutput (the wrapper is x86-only)
   Output/VJoyDeviceProbe.cs Enumerates vJoy devices for the picker. The one vJoy caller off the
                            engine thread, and query-only - read its comment before adding another
+  Output/ControlMapperGearOutput.cs Held roles behind IGearOutput; unconditional release includes
+                           the optional H-neutral role, and only releases its own presses
+  Output/IControlMapperRoles.cs Role API boundary, faked in I/O-free output tests
+  Output/SimHubControlMapperRoles.cs Public SimHub role API; one interface owns press and release
+  Core/GearOutputConfig.cs Output choice, role meanings, pattern masking and change detection
+  Core/GearOutputConnection.cs Independent ownership, health checks and bounded reconnect (fake API)
   Updates/                 ReleaseInfo (pure release/version/asset policy), UpdateService
                            (background checks), UpdateInstaller (verified atomic DLL replacement)
   UI/                      SettingsControl.xaml (first-run Setup, Main/Options, tuning modals)
     SettingsControl.Updates.cs Update banner, app preferences, release notes and install/restart
     SettingsControl.Native.cs Native setup actions and control availability
+    SettingsControl.Outputs.cs Output selector, all-pattern native role pickers and readiness
+    ControlMapperFeatureSettings.cs Guarded public host feature setting, explicit enable/restart
     GateVisualizer.cs      The gate plan view with the live stick position, on Monitor and again
                            at the top of Geometry. Draws the gate's real free space, the mouths
                            and the engage/release notches, so every geometry dial moves something
@@ -215,6 +225,10 @@ tests/AB9ActiveShifter.Tests/
   VJoyDeviceInfoTests.cs   What the device picker says, including the too-few-buttons trap
   UpdateReleaseTests.cs   Numeric stable versions, repository-bound DLL assets, required checksum,
                            app preferences outside profiles; no HTTP or filesystem access
+  ControlMapperOutputTests.cs Held-role lifetimes, neutral, shared roles, failed writes and cleanup,
+                           machine facts and compatibility defaults; a fake API, no I/O
+  ControlMapperFeatureTests.cs Fake host model: activation isolation, restart rollback and fallback
+  GearOutputConnectionTests.cs Base-independent ownership, recovery, timing and release policy
 build/refs/                Reference-only stubs of SimHub's assemblies, so the plugin builds
                            on a machine with no SimHub. Read build/refs/README.md before
                            touching one - a wrong signature builds green and throws on the rig
@@ -473,9 +487,13 @@ runners cannot load, so anything worth testing must not touch it.
 - **Native AB9 setup stays off the force loop.** A separate CDC worker requires the exact AB9
   USB identity and firmware 1.1.5.2 or newer, re-checks before writing, and reads each write
   back. The virtual engine is torn down first; hardware torque is muted and verified before
-  configuration and restored last. AB9-native runs the virtual gate and vJoy in flight mode,
-  with only basic base effects onboard; firmware AB9 H-pattern runs neither. Both AB9 modes
-  require compatible connected hardware; profiles and percentages are shared between virtual modes. An uncertain mode after
+  configuration and restored last. Moza AB9 runs the virtual gate and selected gear output in flight mode,
+  with only basic base effects onboard; firmware Moza AB9 native H-Pattern runs neither. All three
+  mode preferences remain selectable offline or with the master switch off. Selection does no
+  CDC write and disables plugin output; Prepare base verifies internal AB9 settings before the
+  newly selected Moza AB9 provider can run. Firmware H-pattern is configured externally in
+  Moza Pit House / AZOM. Query-only attachment checks show Base is not found; absent input emits
+  no force or gear press. Profiles and percentages are shared between virtual modes. An uncertain mode after
   a failed write blocks virtual output on that AB9 until readback; other sticks remain generic.
   Profiles cannot switch during a write. The seven onboard dials apply after 500 ms without
   edits. Native settings refresh once per Feel opening or explicit Options refresh; the UI
@@ -486,8 +504,9 @@ runners cannot load, so anything worth testing must not touch it.
   Setup, mode changes, calibration, imports and failures leave virtual output off. Base-effect
   tuning is per profile, while hardware, firmware and port are runtime facts. See
   [docs/native-ab9.md](docs/native-ab9.md).
-- Gear change: **buttons before forces.** A game must see the gear at least as early as the hand
-  feels it. Sequential pulses obey the same order, and re-firing a button that is still down
+- Gear change: **output requests before forces.** Direct vJoy is written first; Control Mapper
+  queues roles for its own worker, so request order is not a claim about game delivery time.
+  Sequential pulses obey the same order, and re-firing a button that is still down
   inserts a ≥20 ms released gap first — an off-and-on inside one tick reads to a game's input
   poll as one continuous press. A pattern or profile switch clears any pulse in flight along
   with the held gear.
@@ -499,7 +518,7 @@ runners cannot load, so anything worth testing must not touch it.
   `RequestApplicationExit(true)` and normal finalisation. Keep the `.previous` backup until the
   next process starts; game-change `Init` must not clean it or reset a pending update. Update
   preferences live on `ProfileStore`, not a per-profile tune. Options remains available before
-  calibration and vJoy setup.
+  calibration and output setup.
 - The watchdog (500 ms timer, 1 s staleness) calls `EmergencyStop`. `StopForces` is the only
   device method callable off the engine thread, and it swallows everything.
 - **A device another application has taken is released, not reclaimed.** Exclusive+background is
@@ -541,6 +560,28 @@ runners cannot load, so anything worth testing must not touch it.
   fact: a disconnect shows working-state status, not a fresh onboarding flow. Main opens the
   Geometry, Feel and Effects modals; Options retains setup and rig controls. Firmware H-pattern
   exposes only the mode control and device status, while both virtual modes share plugin tuning.
+- **Output selection is independent of the base's effect provider.** First-run completion checks
+  the selected vJoy device or native role availability. A completed setup never loses Main due
+  to output loss. Firmware H-pattern neither queries nor runs plugin output. Calibration and
+  onboard-write pauses clear every held output, including optional H neutral. Role availability
+  does not prove Control Mapper's output device or game bindings work.
+- **Control Mapper releases must use the interface that pressed.** Each public interface owns
+  an id; recreating one cannot release another owner's roles. Keep it for the output's lifetime,
+  release only our roles, and attempt cleanup even after failed writes. Changing output releases
+  the old backend before pressing on the new one, without reopening the force-feedback base.
+- **Output mappings are rig settings, separate from a profile's pattern.** Keep H-pattern,
+  sequential and PRND assignments visible together. Only active mappings affect runtime output
+  and readiness; editing another pattern must not release held roles or reconnect output.
+- **Output ownership belongs to the master switch, not the base connection.** Main's
+  `Shifter enabled` keeps selected output acquired through base loss and native pauses.
+  Acquisition and bounded ownership checks continue without a base; gear presses wait for a
+  usable position and clear on loss. Master off and selected/observed firmware H-pattern release
+  ownership. Keep native force eligibility separate: output reservation never permits FFB or
+  H-neutral/PRND presses before setup verification or during calibration.
+- **Control Mapper feature availability is not role availability.** Use the loaded plugin
+  lookup; an empty list also describes an enabled mapper with no roles, and Controls and events
+  is independent. Enable/restart is an explicit UI action through the guarded public host model
+  and normal SimHub restart; do not invoke private activation or edit running host JSON.
 - **The pedals are opened NON-exclusively, and nothing but the base is ever taken exclusive.**
   The base is exclusive because creating force feedback effects requires it. A pedal set is not:
   the game is reading those pedals too, and an exclusive grab would silently take the clutch away
@@ -569,7 +610,7 @@ runners cannot load, so anything worth testing must not touch it.
   grind: it is the one point on a clutch's travel that means anything mechanically, so a second
   effect that wants it asks `ClutchBitePointPct` rather than growing its own dial.
 - **A fact about the rig is stored once, on the store — never per profile.** Measured polarity and
-  the invert flags, the device and vJoy ids, `TickHz`, and the whole clutch pedal binding live in
+  the invert flags, the device and vJoy ids, output choice and role assignments, `TickHz`, and the whole clutch pedal binding live in
   `ProfileStore.Machine` and are stamped onto whichever profile is activated
   (`ProfileTransfer.CopyMachineFacts`), exactly as `SessionEnabled`/`SessionFreeStick` are. The
   properties still sit on `ShifterSettings` so the XAML bindings and `ToEngineConfig` are unchanged;
@@ -585,7 +626,7 @@ runners cannot load, so anything worth testing must not touch it.
   `*Pct` to 0–100, positions to the 16-bit axis, the rest to their own envelope), an unreadable
   dial keeps the local value instead of failing the import, and `Enabled` and `FreeStick` are
   forced off whatever the file says — importing must never arm virtual force or gear output.
-  Activating the imported profile in AB9-native mode does synchronize its onboard settings,
+  Activating the imported profile in Moza AB9 mode does synchronize its onboard settings,
   using the same checked transaction while the virtual session remains disabled.
   The machine's own facts are never taken from a file either: measured polarity, the device and
   vJoy ids and the loop rate are not written on export and are kept from the receiving machine on
@@ -651,7 +692,7 @@ rolling copies in `_Backups\` beside it and restores the newest when the primary
 first-start test that only deletes the primary silently measures the old settings. See
 DEVELOPMENT.md for the command that clears both and the two log lines that prove it worked.
 
-**Shipped profiles.** The six tunes in `DefaultProfiles.cs` are **presets**: rebuilt by
+**Shipped profiles.** The eight tunes in `DefaultProfiles.cs` are **presets**: rebuilt by
 `EnsurePresets` on *every* start, not just the first, so they are always present and always
 current. They are written as *deltas* from a bare `ShifterSettings`, so the tuning reads as
 tuning and a dial that gains a better default inherits it. This used to be a JSON file copied in

@@ -25,7 +25,8 @@ namespace AB9ActiveShifter.UI
             bool virtualAvailable = Plugin.VirtualControlsAvailable;
             bool tuningAvailable = virtualAvailable || Plugin.NativeProfileUpdateInProgress;
             bool calibrating = _preparingCalibration || (AB9ShifterPlugin.Engine != null && AB9ShifterPlugin.Engine.IsCalibrating);
-            bool ready = virtualAvailable && _boundSettings.PolarityConfirmed && _vjoyReady;
+            bool baseMissing = BaseConnectionWarning.Visibility == Visibility.Visible;
+            bool ready = virtualAvailable && !baseMissing && _boundSettings.PolarityConfirmed && SelectedOutputReady;
             bool expandSetup = !completed || _reviewingSetup;
             if (_setupGroupsExpanded != expandSetup)
             {
@@ -47,23 +48,30 @@ namespace AB9ActiveShifter.UI
             FinishSetupButton.IsEnabled = ready && !Plugin.NativeBusy && !calibrating;
             VirtualChecklistSection.Visibility = Plugin.CurrentOperatingMode == OperatingMode.GenericFfbStick
                 ? Visibility.Visible : Visibility.Collapsed;
-            VirtualEnableSection.IsEnabled = !calibrating && (virtualAvailable || _boundSettings.Enabled);
+            VirtualEnableSection.IsEnabled = !calibrating && (Plugin.GearOutputAvailable || _boundSettings.Enabled);
             VirtualFreeStickSection.IsEnabled = virtualAvailable && !Plugin.NativeWriteBusy;
-            VirtualVJoySection.IsEnabled = !Plugin.NativeWriteBusy && !calibrating;
+            VirtualOutputSection.IsEnabled = !Plugin.NativeWriteBusy && !calibrating;
             VirtualClutchSection.IsEnabled = !Plugin.NativeWriteBusy;
             // Keep Cancel reachable while probes are running. The Measure button has its
             // own busy gate, while NativeWriteBusy also includes calibration itself.
-            VirtualCalibrationSection.IsEnabled = virtualAvailable && !Plugin.NativeBusy;
+            VirtualCalibrationSection.IsEnabled = virtualAvailable && !Plugin.NativeBusy && (!baseMissing || calibrating);
             TuningButtons.IsEnabled = tuningAvailable && _boundSettings.PolarityConfirmed && (!Plugin.NativeWriteBusy || Plugin.NativeProfileUpdateInProgress) && !calibrating;
             if (_tuningWindow != null && _tuningWindow.Content is Grid)
                 ((UIElement)((Grid)_tuningWindow.Content).Children[0]).IsEnabled = tuningAvailable && (!Plugin.NativeWriteBusy || Plugin.NativeProfileUpdateInProgress) && !calibrating;
             if (MainTab.Visibility != Visibility.Visible) WorkspaceTabs.SelectedItem = OptionsTab;
-            MainModeText.Text = "Mode: " + ModeLabel(Plugin.CurrentOperatingMode) + "   ·   Output: vJoy " + _boundSettings.VJoyDeviceId;
+            MainModeText.Text = "Mode: " + ModeLabel(Plugin.CurrentOperatingMode) + "   ·   Output: " + SelectedOutputName;
+            MainBaseConnectionWarning.Text = BaseConnectionWarning.Text;
+            MainBaseConnectionWarning.Visibility = BaseConnectionWarning.Visibility;
             TabGateText.Text = ready
-                ? "Base polarity and vJoy output are ready. Finish setup to open Main."
+                ? UsesControlMapper
+                    ? "Base polarity and Control Mapper roles are configured. Check its output and game bindings, then finish setup to open Main."
+                    : "Base polarity and vJoy output are ready. Finish setup to open Main."
+                : BaseConnectionWarning.Visibility == Visibility.Visible ? "Base is not found. Connect it to continue setup."
+                : Plugin.NativeSetupRequired ? "Use Prepare base to configure the Moza AB9 before continuing."
                 : !virtualAvailable ? "Choose a virtual mode and prepare the base to continue."
                 : !_boundSettings.PolarityConfirmed ? "Measure polarity before finishing setup."
-                : "Select an available vJoy device with enough buttons for this pattern.";
+                : UsesControlMapper ? "Assign at least one available Control Mapper role for this pattern."
+                : "Select an available vJoy device. Check its button count for this pattern.";
         }
 
         private void OnMainWorkspaceSizeChanged(object sender, SizeChangedEventArgs e)
@@ -79,8 +87,7 @@ namespace AB9ActiveShifter.UI
 
         private static string ModeLabel(OperatingMode mode)
         {
-            return mode == OperatingMode.Ab9Native ? "AB9-native"
-                : mode == OperatingMode.Ab9HPattern ? "AB9 H-pattern" : "Generic FFB Stick";
+            return NativeProfilePolicy.ModeLabel(mode);
         }
 
         private void OnOpenOptions(object sender, RoutedEventArgs e) { WorkspaceTabs.SelectedItem = OptionsTab; }
@@ -94,8 +101,9 @@ namespace AB9ActiveShifter.UI
 
         private void OnFinishSetup(object sender, RoutedEventArgs e)
         {
-            if (Plugin == null || !Plugin.VirtualControlsAvailable || !_boundSettings.PolarityConfirmed || !_vjoyReady ||
-                Plugin.NativeBusy || _preparingCalibration || (AB9ShifterPlugin.Engine != null && AB9ShifterPlugin.Engine.IsCalibrating)) return;
+            if (Plugin == null || _boundSettings == null || !Plugin.VirtualControlsAvailable || !_boundSettings.PolarityConfirmed || !SelectedOutputReady ||
+                BaseConnectionWarning.Visibility == Visibility.Visible || Plugin.NativeBusy || _preparingCalibration ||
+                (AB9ShifterPlugin.Engine != null && AB9ShifterPlugin.Engine.IsCalibrating)) return;
             Plugin.Store.SetupCompleted = true;
             Plugin.SaveStore();
             _reviewingSetup = false;

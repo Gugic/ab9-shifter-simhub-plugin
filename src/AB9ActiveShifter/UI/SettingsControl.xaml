@@ -2,6 +2,16 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
+        <DataTemplate x:Key="OutputRoleMappingTemplate">
+            <Grid Margin="0,3" MaxWidth="650" HorizontalAlignment="Stretch">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="210" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Label}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ComboBox Grid.Column="1" MinWidth="180" IsEditable="True" ItemsSource="{Binding AvailableRoles}" Text="{Binding Role, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" ToolTip="Choose or type an existing Control Mapper role. Leave blank to send nothing." />
+            </Grid>
+        </DataTemplate>
         <Style TargetType="{x:Type ui:TitledSlider}">
             <Setter Property="ToolTip" Value="Right-click to undo the last adjustment." />
             <EventSetter Event="PreviewMouseLeftButtonDown" Handler="OnSliderGestureStartMouse" />
@@ -40,10 +50,11 @@
                         <Border Padding="0,0,0,12" Margin="0,0,0,16" BorderThickness="0,0,0,1" BorderBrush="#44505C" Grid.ColumnSpan="2">
                             <StackPanel x:Name="StatusPanel" Margin="0,4,0,8">
                                 <TextBlock FontWeight="SemiBold" Margin="0,0,0,8" x:Name="MainModeText" />
+                                <TextBlock x:Name="MainBaseConnectionWarning" TextWrapping="Wrap" Foreground="#F0B35A" Margin="0,0,0,8" Visibility="Collapsed" />
                                 <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,0,6" />
                                 <UniformGrid Columns="2">
                                     <TextBlock Text="{Binding DeviceText}" Margin="0,2" />
-                                    <TextBlock Text="{Binding VJoyText}" Margin="0,2" />
+                                    <TextBlock Text="{Binding OutputText}" TextWrapping="Wrap" Margin="0,2" />
                                     <TextBlock Text="{Binding GearText}" Margin="0,2" />
                                     <TextBlock Text="{Binding LoopText}" Margin="0,2" />
                                 </UniformGrid>
@@ -91,7 +102,7 @@
                             <StackPanel Margin="0,0,0,8">
                                 <Border x:Name="VirtualEnableSection" Margin="0,4,0,4" Padding="0">
                                     <StackPanel Margin="0">
-                                        <styles:SHToggleCheckbox IsChecked="{Binding Enabled, Mode=TwoWay}" Content="Shifter force feedback enabled" Margin="0" />
+                                        <styles:SHToggleCheckbox IsChecked="{Binding Enabled, Mode=TwoWay}" Content="Shifter enabled" Margin="0" ToolTip="Master switch for the base and selected gear output. Off clears buttons and releases both devices." />
                                     </StackPanel>
                                 </Border>
                                 <Border x:Name="VirtualFreeStickSection" Margin="0,4,0,4" Padding="0">
@@ -119,7 +130,7 @@
                             <styles:SHExpander Header="Sharing and button mapping" Margin="0,0,0,8">
                                 <StackPanel Margin="0,8,0,0">
                                     <TextBlock Text="Duplicate creates an editable copy. Export shares the tune; Import adds a new profile with forces off and keeps this rig’s device settings and calibration." TextWrapping="Wrap" Opacity="0.8" Margin="0,0,0,8" />
-                                    <TextBlock Text="vJoy buttons: gears 1–7 → 1–7, reverse → 8; sequential up/down → 9/10; P/R/N/D → 11/12/13/14. The truck pattern uses buttons 1–6." TextWrapping="Wrap" Opacity="0.8" Margin="0" />
+                                    <TextBlock x:Name="OutputBindingSummary" TextWrapping="Wrap" Opacity="0.8" Margin="0" />
                                 </StackPanel>
                             </styles:SHExpander>
                         </StackPanel>
@@ -137,11 +148,11 @@
                         </Border>
                         <StackPanel Grid.Row="3" Grid.ColumnSpan="2">
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" x:Name="MainRecordStatus" />
-                            <styles:SHExpander Header="Using forces and free stick" Margin="0,4,0,8">
+                            <styles:SHExpander Header="Using the master switch and free stick" Margin="0,4,0,8">
                                 <StackPanel Margin="0,4,0,4">
-                                    <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="Enable after setup. Turning this off releases the base for another application." />
+                                    <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="Shifter enabled controls the base and selected gear output together. While enabled, the plugin keeps its output acquired through base disconnects and restarts. Buttons clear while the base is unavailable, then follow its position on reconnect. Turning this off clears buttons and releases both devices. Moza AB9 native H-Pattern mode releases plugin output too." />
                                     <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="This is a 12 Nm base and this is third-party software driving it: if the lever ever shakes, kicks or drives itself to a stop, untick this - and if it will not stop, cut the base's power. Keep your face and free hand clear the first time you enable a profile you have not felt before. See ABOUT in Options." />
-                                    <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="Releases the plugin’s forces while keeping its device connection. Onboard base effects can still resist movement in AB9-native mode." />
+                                    <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.75" Text="Releases the plugin’s forces while keeping its device connection. Onboard base effects can still resist movement in Moza AB9 mode." />
                                 </StackPanel>
                             </styles:SHExpander>
                         </StackPanel>
@@ -157,40 +168,146 @@
                         </StackPanel>
                         <styles:SHSection Title="OPERATING MODE" ShowSeparator="True">
                             <StackPanel Margin="0,6,0,16">
-                                <ComboBox Width="300" HorizontalAlignment="Left" SelectionChanged="OnOperatingModeSelected" Margin="0,4,0,8" x:Name="OperatingModeCombo">
-                                    <ComboBoxItem Content="AB9-native" Tag="Ab9Native" />
-                                    <ComboBoxItem Content="Generic FFB Stick" Tag="GenericFfbStick" />
-                                    <ComboBoxItem Content="AB9 H-pattern" Tag="Ab9HPattern" />
+                                <ComboBox Width="360" HorizontalAlignment="Left" SelectionChanged="OnOperatingModeSelected" Margin="0,4,0,8" x:Name="OperatingModeCombo">
+                                    <ComboBoxItem Content="Moza AB9" Tag="Ab9Native" />
+                                    <ComboBoxItem Content="Generic FFB stick" Tag="GenericFfbStick" />
+                                    <ComboBoxItem Content="Moza AB9 native H-Pattern" Tag="Ab9HPattern" />
                                 </ComboBox>
-                                <TextBlock Text="AB9-native uses onboard base effects with our virtual shifter. Generic FFB Stick uses DirectInput base effects. AB9 H-pattern hands control to the firmware shifter." TextWrapping="Wrap" Margin="0,4,0,8" />
+                                <styles:SHExpander Header="What does this mean?" IsExpanded="False" Margin="0,0,0,8">
+                                    <StackPanel Margin="0,6,0,4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="20" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Text="•" />
+                                            <TextBlock Grid.Column="1" TextWrapping="Wrap" Margin="0,0,0,8"><Run FontWeight="SemiBold" Text="Moza AB9" /> — Uses internal AB9 base settings alongside the plugin's virtual shifter.</TextBlock>
+                                            <TextBlock Grid.Row="1" Text="•" />
+                                            <TextBlock Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" Margin="0,0,0,8"><Run FontWeight="SemiBold" Text="Generic FFB stick" /> — Uses DirectInput only. Choose this for a base other than the AB9 and follow the manual checklist.</TextBlock>
+                                            <TextBlock Grid.Row="2" Text="•" />
+                                            <TextBlock Grid.Row="2" Grid.Column="1" TextWrapping="Wrap"><Run FontWeight="SemiBold" Text="Moza AB9 native H-Pattern" /> — Uses the firmware shifter configured in Moza Pit House / AZOM. Plugin output is disabled.</TextBlock>
+                                        </Grid>
+                                        <TextBlock Text="You can choose any mode with the base connected or disconnected and the master switch on or off." TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0" />
+                                    </StackPanel>
+                                </styles:SHExpander>
+                                <TextBlock x:Name="BaseConnectionWarning" TextWrapping="Wrap" Foreground="#F0B35A" Margin="0,0,0,8" Visibility="Collapsed" />
                                 <TextBlock x:Name="NativeStatusText" TextWrapping="Wrap" Margin="0,0,0,6" />
-                                <styles:SHButtonSecondary Content="Refresh AB9" Click="OnNativeRefresh" Padding="14,6" Margin="0,4,8,4" x:Name="NativeRefreshButton" />
+                                <styles:SHButtonSecondary Content="Refresh base" Click="OnNativeRefresh" Padding="14,6" Margin="0,4,8,4" x:Name="NativeRefreshButton" />
                                 <TextBlock TextWrapping="Wrap" Margin="0,4,0,8" x:Name="NativeOperationText" />
-                                <TextBlock Text="The AB9 firmware owns the shifter and its buttons. Plugin profiles, tuning, vJoy output and effects are unavailable in this mode. Choose another mode to return." TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,8" x:Name="HPatternNotice" />
+                                <TextBlock Text="Set up the firmware H-pattern shifter in Moza Pit House / AZOM. Plugin forces, profiles, gear output and effects are disabled in this mode. Choose another mode to return." TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,8" x:Name="HPatternNotice" />
                             </StackPanel>
                         </styles:SHSection>
                         <StackPanel x:Name="VirtualOptionsPanel">
                             <styles:SHExpander x:Name="PrepareGroup" Header="Prepare the base" Margin="0,8,0,8">
                                 <styles:SHSection Title="" ShowSeparator="True" x:Name="PrepareSection">
                                     <StackPanel Margin="0,6,0,16">
-                                        <TextBlock Text="In AB9-native mode, Prepare base selects flight mode and configures base effects. In Generic FFB Stick mode, use the checklist below with your base’s settings app." TextWrapping="Wrap" Margin="0,4,0,8" />
-                                        <styles:SHButtonSecondary Content="Prepare base" Click="OnPrepareSelectedMode" Padding="14,6" Margin="0,4,8,4" x:Name="PrepareBaseButton" />
+                                        <StackPanel x:Name="Ab9PreparePanel" Visibility="Collapsed">
+                                            <TextBlock Text="Prepare base checks the connected AB9, then:" TextWrapping="Wrap" Margin="0,4,0,8" />
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="20" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Text="•" />
+                                                <TextBlock Grid.Column="1" Text="Selects flight mode." TextWrapping="Wrap" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="1" Text="•" />
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="Applies this profile's internal base settings." TextWrapping="Wrap" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="2" Text="•" />
+                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="Leaves plugin output off for setup." TextWrapping="Wrap" />
+                                            </Grid>
+                                            <styles:SHButtonSecondary Content="Prepare base" Click="OnPrepareSelectedMode" HorizontalAlignment="Left" Padding="14,6" Margin="0,8,0,4" x:Name="PrepareBaseButton" />
+                                        </StackPanel>
                                         <styles:SHSection x:Name="VirtualChecklistSection" Title="BEFORE YOU START" ShowSeparator="True">
-                                            <TextBlock>Use your base’s settings app to remove built-in centring and select DirectInput force feedback. Close any application holding the base exclusively. Create a vJoy device with the buttons your pattern needs (up to 14 for all patterns), then select it below. Bind the virtual device’s gear buttons in your game.</TextBlock>
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="28" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Text="1." FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="Select DirectInput force feedback in your base's settings app." TextWrapping="Wrap" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="1" Text="2." FontWeight="SemiBold" />
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="Turn off built-in centring and other background effects." TextWrapping="Wrap" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="2" Text="3." FontWeight="SemiBold" />
+                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="Close any application holding the base exclusively." TextWrapping="Wrap" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="3" Text="4." FontWeight="SemiBold" />
+                                                <TextBlock Grid.Row="3" Grid.Column="1" Text="Choose vJoy (direct) or SimHub Control Mapper (native) below and configure its output." TextWrapping="Wrap" Margin="0,0,0,6" />
+                                                <TextBlock Grid.Row="4" Text="5." FontWeight="SemiBold" />
+                                                <TextBlock Grid.Row="4" Grid.Column="1" Text="Bind the output's buttons or keys in your game." TextWrapping="Wrap" />
+                                            </Grid>
                                         </styles:SHSection>
                                     </StackPanel>
                                 </styles:SHSection>
                             </styles:SHExpander>
                             <styles:SHExpander x:Name="OutputGroup" Header="Base and output" Margin="0,8,0,8">
-                                <styles:SHSection x:Name="VirtualVJoySection" Title="" ShowSeparator="True">
+                                <styles:SHSection x:Name="VirtualOutputSection" Title="" ShowSeparator="True">
                                     <StackPanel Margin="0,4,0,8">
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                            <TextBlock Text="Device" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                            <ComboBox x:Name="VJoyCombo" Width="330" Margin="0,0,8,0" SelectionChanged="OnVJoyDeviceSelected" />
-                                            <styles:SHButtonSecondary Click="OnRefreshVJoyDevices" Content="Refresh" Padding="10,3" />
+                                        <Grid Margin="0,0,0,10" MaxWidth="650" HorizontalAlignment="Left">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Output" VerticalAlignment="Center" />
+                                            <ComboBox Grid.Column="1" Width="330" HorizontalAlignment="Left" SelectedIndex="{Binding OutputModeIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="vJoy (direct)" />
+                                                <ComboBoxItem Content="SimHub Control Mapper (native)" />
+                                            </ComboBox>
+                                        </Grid>
+                                        <StackPanel x:Name="VJoyPanel">
+                                            <WrapPanel Margin="0,0,0,6">
+                                                <TextBlock Text="Device" VerticalAlignment="Center" Width="80" />
+                                                <ComboBox x:Name="VJoyCombo" Width="330" Margin="0,0,8,0" SelectionChanged="OnVJoyDeviceSelected" />
+                                                <styles:SHButtonSecondary Click="OnRefreshVJoyDevices" Content="Refresh" Padding="10,3" />
+                                            </WrapPanel>
+                                            <TextBlock x:Name="VJoyHint" TextWrapping="Wrap" Opacity="0.85" Margin="0,2,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0" Text="Choose a dedicated virtual device that carries gears into your game. Create or resize it in vJoyConf, then refresh. H patterns use up to 8 buttons, sequential uses 9–10, and PRND uses 11–14. If Control Mapper also uses vJoy, give it a different device." />
                                         </StackPanel>
-                                        <TextBlock x:Name="VJoyHint" TextWrapping="Wrap" Opacity="0.85" Margin="0,2,0,0" />
-                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0" Text="Choose the virtual device that carries gears into your game. Create or resize it in vJoyConf, then refresh. H patterns need up to 8 buttons, sequential needs 10, and PRND needs 14. Requirements follow the current pattern." />
+                                        <StackPanel x:Name="ControlMapperPanel" Visibility="Collapsed">
+                                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" Text="Control Mapper is a separate SimHub feature from Controls and events. Enable it below if needed, configure its output and roles, then assign existing roles here. Control Mapper can send keyboard keys, vJoy or Arduino bridge buttons, or SimHub controls. This output choice is separate from the AB9 operating mode." />
+                                            <TextBlock x:Name="ControlMapperStatus" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                            <WrapPanel Margin="0,0,0,8">
+                                                <styles:SHButtonSecondary x:Name="EnableControlMapperButton" Content="Enable Control Mapper and restart SimHub" Click="OnEnableControlMapper" Padding="10,3" Margin="0,0,8,4" />
+                                                <styles:SHButtonSecondary x:Name="ConfigureControlMapperButton" Content="Configure Control Mapper" Click="OnConfigureControlMapper" Padding="10,3" Margin="0,0,8,4" />
+                                                <styles:SHButtonSecondary Content="Refresh roles" Click="OnRefreshControlMapperRoles" Padding="10,3" Margin="0,0,0,4" />
+                                            </WrapPanel>
+                                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" Text="Configure all patterns here without changing the active profile. These are rig settings; only the active pattern sends output." />
+                                            <styles:SHSection Title="H-pattern mappings" ShowSeparator="True">
+                                                <StackPanel Margin="0,4,0,12">
+                                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="Use Gear1, Gear2 and so on, and GearR for Reverse, or choose your own roles. Returning to neutral releases the held gear role. Leave H-pattern neutral (optional) blank unless your game needs a separate neutral key." />
+                                                    <ItemsControl x:Name="HPatternMappings" ItemTemplate="{StaticResource OutputRoleMappingTemplate}" />
+                                                </StackPanel>
+                                            </styles:SHSection>
+                                            <styles:SHSection Title="Sequential mappings" ShowSeparator="True">
+                                                <StackPanel Margin="0,4,0,12">
+                                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="Use ShiftUp and ShiftDown, or choose your own roles. Each shift pulses its role using Sequential pulse length (ms) on Main." />
+                                                    <ItemsControl x:Name="SequentialMappings" ItemTemplate="{StaticResource OutputRoleMappingTemplate}" />
+                                                </StackPanel>
+                                            </styles:SHSection>
+                                            <styles:SHSection Title="PRND mappings" ShowSeparator="True">
+                                                <StackPanel Margin="0,4,0,12">
+                                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="Assign existing roles to P, R, N and D. If you need additional roles, you can create custom ones such as PRND.P, PRND.R, PRND.N and PRND.D. The selected position holds its assigned role, including N." />
+                                                    <ItemsControl x:Name="PrndMappings" ItemTemplate="{StaticResource OutputRoleMappingTemplate}" />
+                                                </StackPanel>
+                                            </styles:SHSection>
+                                            <TextBlock x:Name="ControlMapperHint" TextWrapping="Wrap" Opacity="0.85" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,6,0,0" Text="H gears and PRND positions hold their roles; sequential shifts use the pulse length on Main. H-pattern neutral is optional. Blank mappings send nothing. Check direct-gear and neutral keyboard bindings in your game. These assignments belong to the rig and survive profile switches." />
+                                        </StackPanel>
                                         <styles:SHExpander Header="Base device identity" Margin="0,8,0,0">
                                             <StackPanel Margin="0,8,0,0">
                                                 <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="The base is matched by USB vendor and product id, written in hex as Device Manager shows them. The AB9 is 346E / 1000; only change these if your base enumerates differently. This lives here rather than with the other advanced settings because a base that is not found is exactly the case where the tuning base is not yet ready." />
@@ -213,7 +330,7 @@
                                             <styles:SHButtonSecondary Click="OnRecalibrate" Content="Measure again" Padding="14,4" HorizontalAlignment="Left" />
                                         </StackPanel>
                                         <StackPanel x:Name="CalibrationFullPanel">
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" Text="Some AB9 firmware versions apply DirectInput effects backwards, which would turn a centring spring into one that throws the stick at its stops. Until this is measured the plugin caps its force at 10%, and setup remains incomplete." />
+                                            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" Text="Required in Moza AB9 and Generic FFB stick: the plugin drives the gate through DirectInput in both modes. Calibration checks push and spring direction on each axis. Incorrect polarity can push the stick toward its stops. Until confirmed, plugin gain stays capped at 10% and setup remains incomplete." />
                                             <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,8" Text="Calibration applies a short push each way and watches which way the stick actually moves, so it works even though the base holds itself centred. Take your hands off the stick and leave them off - anything resisting the stick will spoil the measurement. It takes about four seconds." />
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                                 <styles:SHButtonPrimary x:Name="CalibrateButton" Click="OnCalibrate" Content="Measure polarity" Margin="0,0,8,0" Padding="14,4" />
@@ -332,7 +449,7 @@
                                         <styles:SHExpander Header="Device and output">
                                             <StackPanel Margin="0,8,0,8">
                                                 <ui:TitledSlider Title="FFB loop rate (Hz)" Minimum="100" Maximum="1000" TickFrequency="50" ShowResetButton="True" ResetValue="1000" Value="{Binding TickHz, Mode=TwoWay}" />
-                                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="How often the gate is recomputed. Leave it at 1000: the base is the slow part of the loop, not this, so lowering it buys nothing and makes every wall arrive later. It is here to diagnose a struggling PC, not to tune feel. Which vJoy device carries the gears, and the base's vendor and product ids, are in Options." />
+                                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="How often the gate is recomputed. Leave it at 1000: the base is the slow part of the loop, not this, so lowering it buys nothing and makes every wall arrive later. It is here to diagnose a struggling PC, not to tune feel. Gear output and the base's vendor and product ids are under Base and output in Options." />
                                             </StackPanel>
                                         </styles:SHExpander>
                                     </StackPanel>
@@ -651,7 +768,7 @@
                                     <TextBlock x:Name="PrndLaneSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" />
                                     <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
                                         <StackPanel Margin="0,6,0,0">
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="An automatic's selector: one lane with four fixed positions in it, and a vJoy button held at whichever one the lever is in - P on button 11, R on 12, N on 13, D on 14. Above the gears and above the sequential up/down, so nothing a game already has bound can mean two things. There is no neutral to come back through and no gear to engage: the lever is always somewhere, and moving between positions is all there is." />
+                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="An automatic's selector: one lane with four fixed positions. Direct vJoy holds P/R/N/D on buttons 11/12/13/14; Control Mapper holds the role assigned to each position in Options. There is no neutral to come back through and no gear to engage: the lever is always somewhere, and moving between positions is all there is." />
                                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="The lane half-length puts P and D that far either side of centre, with the other two dividing the rest evenly - it is the lane's own dial, not the throw the H and sequential patterns share, because a selector lane is a fraction of the length a gear lever wants and sharing one would retune the other every time the pattern changed. The detent between positions is a smooth hump: nothing at a position, nothing again at the halfway point, one rise either side. That is deliberate rather than decorative - a force pulling toward the nearest position would reverse at every halfway point, and a reversal between two saturated forces is the worst step this hardware can produce. The free notch is what makes a selected position a place the lever rests rather than a point it is pulled to; zero turns each position into a line, which is stable only at moderate detent force, like the rail gate. Sideways the lever is railed to the middle at the slot wall strength." />
                                         </StackPanel>
                                     </styles:SHExpander>

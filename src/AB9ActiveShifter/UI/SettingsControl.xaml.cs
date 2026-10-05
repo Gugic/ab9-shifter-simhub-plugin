@@ -94,7 +94,7 @@ namespace AB9ActiveShifter.UI
 
         /// <summary>Last answer from the cheap repeated check on the chosen vJoy device.</summary>
         private bool _vjoyReady;
-        private int _vjoyPollTicks;
+        private int _outputPollTicks;
 
         /// <summary>Set by "Measure again", so the collapsed calibration panel opens back up.</summary>
         private bool _recalibrating;
@@ -108,7 +108,7 @@ namespace AB9ActiveShifter.UI
 
             BindActiveProfile();
             RefreshProfiles();
-            RefreshVJoyDevices();
+            RefreshOutputSettings();
             UpdateCalibrationSection();
 
             plugin.ProfileChanged += OnProfileChanged;
@@ -459,8 +459,8 @@ namespace AB9ActiveShifter.UI
             RefreshSlotThrowSummary();
             RefreshPrndLaneSummary();
 
-            // The device number is stored per profile, so switching profile can change it.
-            RefreshVJoyDevices();
+            // All output mappings belong to the rig; readiness follows the active pattern.
+            RefreshOutputSettings();
             UpdateCalibrationSection();
         }
 
@@ -490,7 +490,7 @@ namespace AB9ActiveShifter.UI
             RefreshPrndLaneSummary();
             RefreshProfiles();
             RefreshCarModels();
-            RefreshVJoyDevices();
+            RefreshOutputSettings();
             RefreshPedalDevices();
             RefreshCycleList();
             UpdateCalibrationSection();
@@ -498,6 +498,7 @@ namespace AB9ActiveShifter.UI
             // Lets the data thread look up the current car even when no profile lists one yet,
             // which is the only way the "add last used vehicle" button has anything to offer.
             if (Plugin != null) Plugin.WatchCarModel(true);
+            RefreshBaseConnection();
 
             _timer.Start();
         }
@@ -1251,6 +1252,15 @@ namespace AB9ActiveShifter.UI
             RefreshPrndLaneSummary();
             if (e != null) RefreshDirtyMarker(e.PropertyName);
 
+            if (e == null || e.PropertyName == nameof(ShifterSettings.OutputMode)
+                || e.PropertyName == nameof(ShifterSettings.Pattern))
+                RefreshOutputSettings();
+            else if (e.PropertyName == nameof(ShifterSettings.ControlMapperRoles) && UsesControlMapper)
+            {
+                RefreshControlMapperRoles(!_editingOutputRole);
+                UpdateTabGate();
+            }
+
             // Calibration writes the flag from the engine thread; this is how the gate and the
             // collapsed calibration panel find out that the measurement landed.
             if (e == null || e.PropertyName == "PolarityConfirmed" ||
@@ -1266,7 +1276,8 @@ namespace AB9ActiveShifter.UI
         {
             ShifterEngine engine = AB9ShifterPlugin.Engine;
             EngineSnapshot snap = engine != null ? engine.Snapshot : new EngineSnapshot();
-            _status.Update(snap);
+            _status.Update(snap, _boundSettings != null ? _boundSettings.OutputMode : GearOutputMode.VJoy,
+                engine != null && engine.IsRunning);
             RefreshLastCarModelButton();
 
             bool calibrating = engine != null && engine.IsCalibrating;
@@ -1288,20 +1299,29 @@ namespace AB9ActiveShifter.UI
             // Render the last checked native snapshot; the status timer never opens its port.
             RefreshNativeUi();
 
-            // Another program can take the vJoy device while this page is open, so the gate has
-            // to keep asking - but only every couple of seconds, and only about the one device
-            // that is chosen. Rebuilding the whole list on a timer would fight the dropdown.
-            if (++_vjoyPollTicks >= 10)
+            // Attachment warnings stay current even with the master switch off. This worker
+            // only enumerates controllers and port names; native settings remain on demand.
+            if (++_basePollTicks >= 25)
             {
-                _vjoyPollTicks = 0;
-                if (_boundSettings != null)
+                _basePollTicks = 0;
+                RefreshBaseConnection();
+            }
+
+            // Recheck the selected output every two seconds without rebuilding its dropdowns.
+            // Role edits and vJoy ownership can change while this page stays open. Firmware
+            // H-pattern owns its buttons and does not use either plugin output.
+            if (++_outputPollTicks >= 10)
+            {
+                _outputPollTicks = 0;
+                if (_boundSettings != null && Plugin.CurrentOperatingMode != OperatingMode.Ab9HPattern)
                 {
-                    bool ready = CanCarryGears(VJoyDeviceProbe.ProbeOne(_boundSettings.VJoyDeviceId));
-                    if (ready != _vjoyReady)
+                    if (UsesControlMapper)
+                        RefreshControlMapperRoles(false);
+                    else
                     {
-                        _vjoyReady = ready;
-                        UpdateTabGate();
+                        _vjoyReady = CanCarryGears(VJoyDeviceProbe.ProbeOne(_boundSettings.VJoyDeviceId));
                     }
+                    UpdateTabGate();
                 }
             }
         }
@@ -1835,7 +1855,7 @@ namespace AB9ActiveShifter.UI
         {
             private string _status = "Not started";
             private string _deviceText = "Base: -";
-            private string _vJoyText = "vJoy: -";
+            private string _outputText = "Output: -";
             private string _gearText = "Gear: -";
             private string _loopText = "Loop: -";
             private string _axisText = "X: -   Y: -";
@@ -1843,13 +1863,13 @@ namespace AB9ActiveShifter.UI
 
             public string Status { get { return _status; } private set { Set(ref _status, value, "Status"); } }
             public string DeviceText { get { return _deviceText; } private set { Set(ref _deviceText, value, "DeviceText"); } }
-            public string VJoyText { get { return _vJoyText; } private set { Set(ref _vJoyText, value, "VJoyText"); } }
+            public string OutputText { get { return _outputText; } private set { Set(ref _outputText, value, nameof(OutputText)); } }
             public string GearText { get { return _gearText; } private set { Set(ref _gearText, value, "GearText"); } }
             public string LoopText { get { return _loopText; } private set { Set(ref _loopText, value, "LoopText"); } }
             public string AxisText { get { return _axisText; } private set { Set(ref _axisText, value, "AxisText"); } }
             public string StateText { get { return _stateText; } private set { Set(ref _stateText, value, "StateText"); } }
 
-            public void Update(EngineSnapshot snap)
+            public void Update(EngineSnapshot snap, GearOutputMode selectedOutput, bool running)
             {
                 Status = snap.StatusMessage ?? "";
 
@@ -1857,7 +1877,11 @@ namespace AB9ActiveShifter.UI
                     ? "Base: connected" + (string.IsNullOrEmpty(snap.DeviceName) ? "" : " (" + snap.DeviceName + ")")
                     : "Base: not connected";
 
-                VJoyText = snap.VJoyConnected ? "vJoy: connected" : "vJoy: not connected";
+                string outputName = selectedOutput == GearOutputMode.ControlMapper ? "Control Mapper" : "vJoy";
+                OutputText = !running ? outputName + ": not active"
+                    : snap.OutputMode != selectedOutput ? outputName + ": changing output"
+                    : snap.OutputConnected ? outputName + (selectedOutput == GearOutputMode.ControlMapper ? ": roles active" : ": connected")
+                    : outputName + ": " + (snap.OutputError ?? "not connected");
                 GearText = "Gear: " + snap.GearLabel;
                 LoopText = snap.LoopHz > 0 ? "Loop: " + Math.Round(snap.LoopHz) + " Hz" : "Loop: idle";
                 AxisText = "X: " + snap.X + "   Y: " + snap.Y;

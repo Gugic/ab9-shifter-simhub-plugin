@@ -13,7 +13,14 @@ namespace AB9ActiveShifter.Output
 
         bool Connect();
 
-        /// <summary>Holds the button for <paramref name="gear"/> (1..8) and releases every other. 0 clears all.</summary>
+        /// <summary>Refreshes cached ownership. Called at a bounded rate on the engine thread.</summary>
+        bool CheckConnection();
+
+        /// <summary>
+        /// Holds the H gear (1..8) or PRND position (11..14), releasing the previous one first.
+        /// Zero clears the gear; a role output may additionally hold a configured H-neutral role.
+        /// ReleaseAll is the unconditional clear, including that optional neutral role.
+        /// </summary>
         void SetGear(int gear);
 
         /// <summary>
