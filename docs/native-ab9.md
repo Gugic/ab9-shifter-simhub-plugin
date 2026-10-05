@@ -16,6 +16,9 @@ If HidHide hides the AB9, make it visible to the game to bind its firmware gear 
 
 ## Setup and profiles
 
+For the illustrated install and first-run steps, see [setup guide](setup.md).
+The [tuning guide](tuning.md) maps the Main/Options workspace and its three editors.
+
 First-run Setup gathers the mode, base identity, output device or roles and measured polarity. After
 completion, Main shows the working shifter and Options retains those rig settings. A temporary
 disconnect does not reset setup completion. Geometry, Feel and Effects open from Main; the

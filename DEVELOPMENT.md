@@ -1,7 +1,7 @@
 # Development
 
 Building, testing and deploying the plugin, and enough of the architecture to know where to put a
-change. Users installing a release do not need any of this — [README.md](README.md) covers that.
+change. Users installing a release can follow the [setup guide](docs/setup.md).
 
 Before changing behaviour, read **[AGENTS.md](AGENTS.md)**. Its invariants section is the part
 that matters: every entry is there because breaking it caused a bug on real hardware, and a sign
@@ -127,7 +127,7 @@ difference between a field read and a property call, and between one enum consta
 straight into the IL. A stub that merely looks right produces a DLL that builds green in CI and
 throws on the rig. Read [build/refs/README.md](build/refs/README.md) before touching one.
 
-The Effects tab uses SimHub's public ShakeIt classes, an undocumented integration surface.
+The Effects editor uses SimHub's public ShakeIt classes, an undocumented integration surface.
 `ShakeItStubs.cs` mirrors their exact signatures, including generic declaring types. The real
 build also references SimHub's bundled `GongSolutions.WPF.DragDrop`, which the native profile
 implements. Check the editor and profile reload in the installed SimHub after an upgrade;
@@ -260,6 +260,7 @@ build stays green.
 `.github/workflows/release.yml` is manual (`workflow_dispatch`). Give it a version like `0.9.0` or
 `1.0.0-rc1` and it validates the number, refuses one that is already tagged, builds with the
 version stamped into the assembly, confirms the stamp arrived, packages the DLL with the notices,
+README, `docs/` guides and screenshots, and contributor documents,
 tags the commit and publishes a GitHub Release.
 
 Before running it: `tools\Verify-StubBuild.ps1` on a machine with SimHub, and refresh

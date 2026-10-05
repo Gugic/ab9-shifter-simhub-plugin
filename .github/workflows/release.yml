@@ -102,7 +102,8 @@ jobs:
           New-Item -ItemType Directory -Force $stage | Out-Null
           Copy-Item src/AB9ActiveShifter/bin/Release/AB9ActiveShifter.dll $stage
           Copy-Item src/AB9ActiveShifter/bin/Release/AB9ActiveShifter.pdb $stage -ErrorAction SilentlyContinue
-          Copy-Item README.md, LICENSE, NOTICE.md $stage
+          Copy-Item README.md, LICENSE, NOTICE.md, DEVELOPMENT.md, AGENTS.md $stage
+          Copy-Item docs $stage -Recurse
           Compress-Archive -Path "$stage/*" -DestinationPath "artifacts/AB9ActiveShifter-$env:VERSION.zip" -Force
           Get-ChildItem artifacts -File | ForEach-Object { "  {0}  {1:N0} bytes" -f $_.Name, $_.Length }
 
@@ -139,7 +140,8 @@ jobs:
             '',
             'Install: close SimHub, copy `AB9ActiveShifter.dll` from the zip into',
             '`C:\Program Files (x86)\SimHub\`, start SimHub and enable it under Settings -> Plugins.',
-            'Setup and tuning are in the README, which ships in the zip.',
+            'Start with README.md for the quickstart; the full setup and tuning guides are in docs/.',
+            'The guides and screenshots ship in the zip.',
             ''
           ) -join "`n"
           Set-Content -Path artifacts/notes.md -Value $notes -Encoding utf8
