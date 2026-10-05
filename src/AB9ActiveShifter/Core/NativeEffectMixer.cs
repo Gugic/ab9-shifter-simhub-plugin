@@ -62,7 +62,7 @@ namespace AB9ActiveShifter.Core
         }
 
         public int Step(NativeEffectFrame frame, int epoch, int ageMs, double dtMs,
-                        double effectiveGain, bool telemetryFresh)
+                        double effectiveGain, bool telemetryFresh, bool grindAllowed = true)
         {
             if (frame == null || frame.ProfileEpoch != epoch || ageMs < 0
                 || ageMs > EffectComposer.StaleAfterMs || epoch != _epoch)
@@ -80,7 +80,8 @@ namespace AB9ActiveShifter.Core
             for (int i = 0; i < count; i++)
             {
                 NativeEffectTone tone = frame.Tones[i];
-                if ((telemetryFresh || tone.Test) && tone.Priority && Valid(tone)) priority = true;
+                if ((telemetryFresh || tone.Test) && (grindAllowed || !tone.Grind || tone.Test)
+                    && tone.Priority && Valid(tone)) priority = true;
             }
 
             for (int i = 0; i < _voices.Length; i++) _voices[i].Seen = false;
@@ -89,6 +90,7 @@ namespace AB9ActiveShifter.Core
             {
                 NativeEffectTone tone = frame.Tones[i];
                 if ((!telemetryFresh && !tone.Test) || (priority && !tone.Priority) || !Valid(tone)) continue;
+                if (tone.Grind && !grindAllowed && !tone.Test) continue;
 
                 int index = FindVoice(tone.Id);
                 if (index < 0) continue;

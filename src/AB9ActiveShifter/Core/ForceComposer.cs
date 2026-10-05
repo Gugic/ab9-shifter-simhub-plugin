@@ -360,7 +360,7 @@ namespace AB9ActiveShifter.Core
         public ForceFrame Compose(
             GateState state, Column column, ShiftDir direction, int x, int y,
             int vx = 0, int vy = 0, double dtMs = 0, int vibY = 0, bool muteDetent = false,
-            bool lockoutReleased = false)
+            bool lockoutReleased = false, double grindWallScale = 1)
         {
             if (_freeStick)
             {
@@ -401,7 +401,7 @@ namespace AB9ActiveShifter.Core
 
             ForceFrame frame = state == GateState.Neutral
                 ? ComposeNeutral(x, y)
-                : ComposeInColumn(column, direction, x, y, muteDetent);
+                : ComposeInColumn(column, direction, x, y, muteDetent, grindWallScale);
 
             // The slot detent is the one force not shaped in time: the snick is a deliberate
             // transient, over in a few milliseconds by design, and it has to arrive whole to
@@ -1433,7 +1433,7 @@ namespace AB9ActiveShifter.Core
             return f;
         }
 
-        private ForceFrame ComposeInColumn(Column column, ShiftDir direction, int x, int y, bool muteDetent)
+        private ForceFrame ComposeInColumn(Column column, ShiftDir direction, int x, int y, bool muteDetent, double grindWallScale)
         {
             ForceFrame f = new ForceFrame
             {
@@ -1450,7 +1450,7 @@ namespace AB9ActiveShifter.Core
             // the slot detent replaces the tunnel's gate wall, which is what makes a gear a place
             // the lever can go rather than a wall it bounces off.
             f.ConstantX = Combine(LateralGuide(x, y, _guideColumn), BarrierForceIn(x, y));
-            f.ConstantY = SlotForceAt(direction, y, muteDetent, column);
+            f.ConstantY = SlotForceAt(direction, y, muteDetent, column, grindWallScale);
 
             return f;
         }
@@ -1485,7 +1485,7 @@ namespace AB9ActiveShifter.Core
         ///
         /// Public because the Feel tab's detent curve plots this rather than a copy of it.
         /// </summary>
-        public int SlotForceAt(ShiftDir direction, int y, bool muted, Column column = Column.None)
+        public int SlotForceAt(ShiftDir direction, int y, bool muted, Column column = Column.None, double grindWallScale = 1)
         {
             double d = _geo.EngageFraction(direction, y);
 
@@ -1495,7 +1495,8 @@ namespace AB9ActiveShifter.Core
             // attack and one yield floor.
             bool hardBalk = SlotHardEntryLive(column, direction);
             bool border = muted || hardBalk;
-            int wall = Math.Max(muted ? _grindWallForce : 0, hardBalk ? _lockoutForce : 0);
+            double scale = RevMatchModel.Finite(grindWallScale) ? GateGeometry.Clamp(grindWallScale, 0, 1) : 1;
+            int wall = Math.Max(muted ? (int)Math.Round(_grindWallForce * scale) : 0, hardBalk ? _lockoutForce : 0);
 
             int detent = DetentMagnitude(direction, d, border, wall);
 

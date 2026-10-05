@@ -6,6 +6,8 @@ namespace AB9ActiveShifter.Core
     public struct EffectOutput
     {
         public double GrindLevel;
+        public double GrindWallScale;
+        public RevMatchResult RevMatch;
         public int BiteSequence;
         /// <summary>Vibration to sum onto the fore/aft force, gate frame, DirectInput units.</summary>
         public int VibY;
@@ -20,11 +22,11 @@ namespace AB9ActiveShifter.Core
         public bool MuteDetent;
 
         /// <summary>
-        /// How hard the teeth are disagreeing, 0..1. Always 1 while grinding in
-        /// <see cref="GrindClutchMode.Threshold"/>, which is what makes that mode exactly the
-        /// behaviour that shipped before the mode existed. Reported for the Monitor tab and for
-        /// tests; the balk wall deliberately does NOT scale by it, because a border that softens
-        /// as the clutch lifts would let a determined shove through the moment it mattered most.
+        /// How hard the teeth are disagreeing, 0..1. With float shifting off, always 1 while
+        /// grinding in <see cref="GrindClutchMode.Threshold"/>, preserving the original
+        /// threshold behavior. Reported for the Monitor tab and for
+        /// tests. The wall does not scale by clutch engagement; only a known RPM mismatch can
+        /// soften its extra load through <see cref="GrindWallScale"/>.
         /// </summary>
         public double GrindStrength;
     }
@@ -80,6 +82,7 @@ namespace AB9ActiveShifter.Core
         private const double CurbReleaseMs = 150.0;
 
         private double _enginePhase;
+        private readonly RevMatchModel _revMatch = new RevMatchModel();
         private double _limiterPhase;
         private double _absPhase;
         private double _tcPhase;
@@ -120,12 +123,16 @@ namespace AB9ActiveShifter.Core
         /// 0..1 - the grind gets louder the harder the lever is forced against the balk.
         /// </summary>
         public EffectOutput Step(EngineConfig cfg, TelemetryState t, int ageMs, double dtMs,
-                                 bool approachingSlot, double slotDepth = 1.0)
+                                 bool approachingSlot, double slotDepth = 1.0, int targetGear = 0, int heldGear = 0)
         {
-            EffectOutput output = new EffectOutput { BiteSequence = _biteSequence };
+            EffectOutput output = new EffectOutput { BiteSequence = _biteSequence, GrindWallScale = 1 };
+            output.RevMatch = _revMatch.Step(cfg, t, ageMs, approachingSlot ? targetGear : 0, heldGear);
 
             bool fresh = t != null && t.GameRunning && ageMs >= 0 && ageMs <= StaleAfterMs;
-            if (!fresh)
+            bool invalidShift = cfg.FloatShiftingEnabled && approachingSlot && !output.RevMatch.Matched
+                && t != null && (!RevMatchModel.Finite(t.Rpms) || !RevMatchModel.Finite(t.SpeedKmh)
+                    || !RevMatchModel.Finite(t.Clutch) || !t.IsClutchFresh(ageMs));
+            if (!fresh || invalidShift)
             {
                 // Everything transient dies with the telemetry, and the gear edge detector
                 // re-adopts on the next fresh frame so a game start never fires a phantom pulse.
@@ -137,6 +144,17 @@ namespace AB9ActiveShifter.Core
                 _heaveSeeded = false;
                 _bitePulseLeftMs = 0;
                 _biteSeeded = false;
+                // Float permission must not turn into a free shift when RPM telemetry dies.
+                // Keep the carriers silent; a new latch waits for fresh telemetry (or the
+                // independently read pedal), while a held gear remains untouched.
+                bool pressedClutch = t != null && t.IsClutchFresh(ageMs)
+                    && RevMatchModel.Finite(t.Clutch) && ClutchEngagement(cfg, t.Clutch) == 0;
+                if (cfg.FloatShiftingEnabled && cfg.GrindEnabled && cfg.GrindRejectsGear && approachingSlot
+                    && t != null && t.GameRunning && !pressedClutch)
+                {
+                    output.BlockEngage = true;
+                    output.MuteDetent = true;
+                }
                 return output;
             }
 
@@ -265,18 +283,21 @@ namespace AB9ActiveShifter.Core
             double engagement = ClutchEngagement(cfg, t.Clutch);
             if (cfg.GrindEnabled && approachingSlot
                 && engagement > 0
-                && t.SpeedKmh >= cfg.GrindMinSpeedKmh
-                && t.Rpms > MinEngineRpm)
+                && (cfg.FloatShiftingEnabled ? Math.Abs(t.SpeedKmh) : t.SpeedKmh) >= cfg.GrindMinSpeedKmh
+                && t.Rpms > MinEngineRpm
+                && !output.RevMatch.Matched)
             {
                 output.GrindActive = true;
                 output.BlockEngage = cfg.GrindRejectsGear;
                 output.MuteDetent = cfg.GrindRejectsGear;
-                output.GrindStrength = engagement;
+                double mismatch = output.RevMatch.Available ? output.RevMatch.Mismatch : 1;
+                output.GrindWallScale = mismatch;
+                output.GrindStrength = engagement * mismatch;
 
                 double press = 0.4 + 0.6 * GateGeometry.Clamp(slotDepth, 0.0, 1.0);
-                output.GrindLevel = press * engagement;
+                output.GrindLevel = press * engagement * mismatch;
                 int amp = (int)Math.Round(
-                    Amp(cfg.GrindGainPct, gain, GrindFullScale) * press * engagement);
+                    Amp(cfg.GrindGainPct, gain, GrindFullScale) * press * engagement * mismatch);
                 if (!cfg.NativeEffectsEnabled) vib += Square(ref _grindPhase, cfg.GrindFreqHz, dtMs, amp);
             }
 

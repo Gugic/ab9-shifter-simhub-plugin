@@ -141,6 +141,11 @@ namespace AB9ActiveShifter
         private int _fxCustomGainPct = 30;
         private int _fxCustomFreqHz = 44;
         private bool _grindEnabled;
+        private bool _floatShiftingEnabled;
+        private int _floatToleranceRpm = 100;
+        private bool _floatLearnRatios = true;
+        private string _floatRpmAt100Kmh = "";
+        private string _floatScsHandlePositions = "2,3,4,5,6,7,8,1";
         private int _grindGainPct = 60;
         private int _grindFreqHz = 33;
         private int _grindWallPct = 70;
@@ -743,6 +748,11 @@ namespace AB9ActiveShifter
         public int FxCustomFreqHz { get { return _fxCustomFreqHz; } set { Set(ref _fxCustomFreqHz, value); } }
 
         public bool GrindEnabled { get { return _grindEnabled; } set { Set(ref _grindEnabled, value); } }
+        public bool FloatShiftingEnabled { get { return _floatShiftingEnabled; } set { Set(ref _floatShiftingEnabled, value); } }
+        public int FloatToleranceRpm { get { return _floatToleranceRpm; } set { Set(ref _floatToleranceRpm, GateGeometry.Clamp(value, 25, 1000)); } }
+        public bool FloatLearnRatios { get { return _floatLearnRatios; } set { Set(ref _floatLearnRatios, value); } }
+        public string FloatRpmAt100Kmh { get { return _floatRpmAt100Kmh; } set { Set(ref _floatRpmAt100Kmh, value ?? ""); } }
+        public string FloatScsHandlePositions { get { return _floatScsHandlePositions; } set { Set(ref _floatScsHandlePositions, value ?? ""); } }
         public int GrindGainPct { get { return _grindGainPct; } set { Set(ref _grindGainPct, value); } }
         public int GrindFreqHz { get { return _grindFreqHz; } set { Set(ref _grindFreqHz, value); } }
 
@@ -1093,6 +1103,11 @@ namespace AB9ActiveShifter
                 FxCustomGainPct = FxCustomGainPct,
                 FxCustomFreqHz = FxCustomFreqHz,
                 GrindEnabled = GrindEnabled,
+                FloatShiftingEnabled = FloatShiftingEnabled,
+                FloatToleranceRpm = FloatToleranceRpm,
+                FloatLearnRatios = FloatLearnRatios,
+                FloatRpmAt100KmhText = FloatRpmAt100Kmh,
+                FloatRpmAt100Kmh = RevMatchModel.ParseRatios(FloatRpmAt100Kmh),
                 GrindGainPct = GrindGainPct,
                 GrindFreqHz = GrindFreqHz,
                 GrindWallPct = GrindWallPct,
@@ -1268,6 +1283,11 @@ namespace AB9ActiveShifter
                 FxCustomGainPct = d.FxCustomGainPct;
                 FxCustomFreqHz = d.FxCustomFreqHz;
                 GrindEnabled = d.GrindEnabled;
+                FloatShiftingEnabled = d.FloatShiftingEnabled;
+                FloatToleranceRpm = d.FloatToleranceRpm;
+                FloatLearnRatios = d.FloatLearnRatios;
+                FloatRpmAt100Kmh = d.FloatRpmAt100Kmh;
+                FloatScsHandlePositions = d.FloatScsHandlePositions;
                 GrindGainPct = d.GrindGainPct;
                 GrindFreqHz = d.GrindFreqHz;
                 GrindWallPct = d.GrindWallPct;

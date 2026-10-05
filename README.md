@@ -21,6 +21,8 @@ with low gain, and read the [full safety notice](docs/safety.md) before enabling
 - **Lockouts:** guard a gap or slot, in either direction, with push-through or hotkey release.
 - **Game feedback:** clutch grind and gear rejection, engine vibration, rev limiter, ABS,
   traction control, road impacts and shift pulses through SimHub's effect editor.
+- **Optional float shifting:** rev-matched clutchless shifts across all H patterns, with
+  game targets, configured ratios or session learning. [Setup and limits](docs/usage.md#float-shifting).
 - **Profiles:** eight presets, editable copies, import/export, hotkey cycling and automatic
   selection by vehicle.
 - **One-time setup:** AB9 preparation, measured polarity and output configuration; Main then
@@ -48,8 +50,8 @@ You need **SimHub**, **.NET Framework 4.8**, a DirectInput FFB stick, and either
    **Shifter enabled**, bind the selected output in your game and check every gear.
    [Bindings and checks](docs/setup.md#6-bind-and-check-the-game-output).
 
-These docs follow current `main`; Control Mapper output and the updated mode labels are newer
-than v0.14.0, which uses direct vJoy output.
+These docs follow current `main`; Control Mapper output, float shifting and the updated mode
+labels are newer than v0.14.0, which uses direct vJoy output.
 
 For screenshots and the full walkthrough, see the **[setup guide](docs/setup.md)**.
 For everyday controls, see **[usage](docs/usage.md)**, **[tuning](docs/tuning.md)** and

@@ -345,5 +345,6 @@ namespace AB9ActiveShifter.Core
         /// configured - the gate is then never "released" - so dashboards can key on it alone.
         /// </summary>
         public bool LockoutEngaged = true;
+        public RevMatchResult RevMatch;
     }
 }

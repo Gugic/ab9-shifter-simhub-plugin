@@ -1278,6 +1278,16 @@ namespace AB9ActiveShifter.UI
             EngineSnapshot snap = engine != null ? engine.Snapshot : new EngineSnapshot();
             _status.Update(snap, _boundSettings != null ? _boundSettings.OutputMode : GearOutputMode.VJoy,
                 engine != null && engine.IsRunning);
+            RevMatchResult match = snap.RevMatch;
+            FloatShiftStatus.Text = _boundSettings == null || !_boundSettings.FloatShiftingEnabled
+                ? "Float shifting is off."
+                : (match.TargetGear == 0
+                    ? "Push toward a gear to compare RPM. Learned gears this session: " + match.LearnedGears
+                    : (!match.Available ? "Target RPM unavailable - use the clutch."
+                        : string.Format(CultureInfo.InvariantCulture, "{0}: target {1:0} RPM, error {2:+0;-0;0} RPM - {3}",
+                            match.Source == RevMatchSource.GameTelemetry ? "Game telemetry"
+                                : (match.Source == RevMatchSource.Configured ? "Configured ratio" : "Learned ratio"),
+                            match.TargetRpm, match.ErrorRpm, match.Matched ? "matched" : "match the revs")));
             RefreshLastCarModelButton();
 
             bool calibrating = engine != null && engine.IsCalibrating;

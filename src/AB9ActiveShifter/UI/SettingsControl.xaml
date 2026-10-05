@@ -877,12 +877,36 @@
                         <styles:SHButtonSecondary Click="OnResetEffects" Content="Reset effects to defaults" Padding="12,4" />
                     </StackPanel>
                     <ContentControl x:Name="NativeEffectsEditor" Grid.Row="3" />
-                    <styles:SHExpander Header="Clutch bite point for this profile" Grid.Row="2" Margin="0,0,0,8">
+                    <ScrollViewer Grid.Row="2" MaxHeight="340" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                    <styles:SHExpander Header="Float shifting" Margin="0,0,0,8" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <styles:SHToggleCheckbox Content="Allow rev-matched shifts without the clutch" IsChecked="{Binding FloatShiftingEnabled, Mode=TwoWay}" />
+                            <TextBlock Text="One RPM-matching model for every H-pattern gearbox. Enable Clutch grind and Reject the gear while grinding below. A match releases the balk and seats normally; an unknown target still needs the clutch. The game must also accept clutchless shifts." TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,8" />
+                            <ui:TitledSlider Title="RPM match tolerance" Minimum="25" Maximum="1000" ResetValue="100" Value="{Binding FloatToleranceRpm, Mode=TwoWay}" />
+                            <TextBlock x:Name="FloatShiftStatus" TextWrapping="Wrap" Margin="0,4,0,8" />
+                            <styles:SHToggleCheckbox Content="Learn ratios while driving in gear" IsChecked="{Binding FloatLearnRatios, Mode=TwoWay}" />
+                            <TextBlock Text="Targets use game telemetry when available. Otherwise, drive in each gear with the clutch fully released for at least a second to learn its ratio. The game must report the same gear as the lever. Learning resets on vehicle, game or profile changes. Road-speed ratios cannot confirm reverse direction, so reverse still needs the clutch." TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,8" />
+                            <TextBlock Text="RPM at 100 km/h, gears 1-7 (optional)" />
+                            <TextBox Text="{Binding FloatRpmAt100Kmh, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,4" />
+                            <TextBlock Text="Comma-separated values, for example 12000,8000,5500,4000,3200,2700. Blank or zero entries are unknown. These values override learning when the game does not report targets; game telemetry takes priority." TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" />
+                            <styles:SHExpander Header="ETS2 / ATS H-shifter bindings">
+                                <StackPanel>
+                                    <TextBlock Text="SCS handle positions for buttons 1-7, R" />
+                                    <TextBox Text="{Binding FloatScsHandlePositions, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,4" />
+                                    <TextBlock Text="ETS2/ATS supply wheel speed, ratios and range/splitter state automatically. Positions must match the game's H-shifter bindings: the usual layout has reverse at position 1 and forward gears at 2-8. Enter 0 for an unbound button. This mapping belongs to the profile." TextWrapping="Wrap" Opacity="0.75" />
+                                </StackPanel>
+                            </styles:SHExpander>
+                        </StackPanel>
+                    </styles:SHExpander>
+                    <styles:SHExpander Header="Clutch bite point for this profile" Margin="0,0,0,8">
                         <StackPanel>
                             <ui:TitledSlider Title="Bite point (% of pedal travel)" Minimum="0" Maximum="100" ResetValue="25" Margin="0,10,0,0" Value="{Binding ClutchBitePointPct, Mode=TwoWay}" />
                             <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="Where the clutch starts to bite. This is a property of the car rather than of the pedals, so it cannot be measured from the hardware - set it where the car actually picks up. It is what the progressive grind fades across, and what the bite-point pulse on Effects fires on." />
                         </StackPanel>
                     </styles:SHExpander>
+                    </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </ContentControl>
         </Grid>

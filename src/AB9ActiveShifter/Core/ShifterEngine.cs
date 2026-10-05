@@ -25,6 +25,8 @@ namespace AB9ActiveShifter.Core
         private static readonly int[] BackoffMs = { 1000, 2000, 5000 };
 
         private readonly object _deviceLock = new object();
+        private readonly object _configLock = new object();
+        private readonly FloatShiftConfigTracker _floatConfigTracker = new FloatShiftConfigTracker();
 
         private Thread _thread;
         private volatile bool _running;
@@ -89,6 +91,7 @@ namespace AB9ActiveShifter.Core
         private readonly NativeEffectMixer _nativeEffectMixer = new NativeEffectMixer();
         private double _grindEffectLevel;
         private int _biteEffectSequence;
+        private RevMatchResult _revMatchResult;
 
         public double GrindEffectLevel { get { return Volatile.Read(ref _grindEffectLevel); } }
         public int BiteEffectSequence { get { return Volatile.Read(ref _biteEffectSequence); } }
@@ -99,9 +102,10 @@ namespace AB9ActiveShifter.Core
         }
 
         private EffectOutput StepEffects(EngineConfig cfg, TelemetryState telemetry, int ageMs,
-                                         double dtMs, bool approaching, double depth = 1)
+                                         double dtMs, bool approaching, double depth = 1, int targetGear = 0, int heldGear = 0)
         {
-            EffectOutput output = _gameEffects.Step(cfg, telemetry, ageMs, dtMs, approaching, depth);
+            EffectOutput output = _gameEffects.Step(cfg, telemetry, ageMs, dtMs, approaching, depth, targetGear, heldGear);
+            _revMatchResult = output.RevMatch;
             Volatile.Write(ref _grindEffectLevel, output.GrindLevel);
             Volatile.Write(ref _biteEffectSequence, output.BiteSequence);
             if (cfg.NativeEffectsEnabled)
@@ -110,7 +114,8 @@ namespace AB9ActiveShifter.Core
                 bool fresh = telemetry != null && telemetry.GameRunning
                     && ageMs >= 0 && ageMs <= EffectComposer.StaleAfterMs;
                 output.VibY = _nativeEffectMixer.Step(native, cfg.NativeEffectsEpoch,
-                    unchecked(Environment.TickCount - native.CapturedAtTick), dtMs, cfg.EffectiveGain, fresh);
+                    unchecked(Environment.TickCount - native.CapturedAtTick), dtMs, cfg.EffectiveGain, fresh,
+                    !cfg.FloatShiftingEnabled || output.GrindActive);
             }
             return output;
         }
@@ -138,6 +143,8 @@ namespace AB9ActiveShifter.Core
         private readonly TelemetryState _pedalTelemetry = new TelemetryState();
         private bool _pedalsOpen;
         private string _pedalDeviceOpened;
+        private bool _pedalSampleValid;
+        private int _pedalCapturedAtTick, _pedalSampleAxis;
 
         /// <summary>
         /// How often a failing pedal open may be retried. The same schedule the base's own
@@ -285,8 +292,12 @@ namespace AB9ActiveShifter.Core
         public void ApplyConfig(EngineConfig config)
         {
             if (config == null) return;
-            _config = config;
-            _configDirty = true;
+            lock (_configLock)
+            {
+                _floatConfigTracker.Stamp(config);
+                _config = config;
+                _configDirty = true;
+            }
         }
 
         public bool VirtualDeviceEnabled { get { return _config.VirtualDeviceEnabled; } }
@@ -647,9 +658,10 @@ namespace AB9ActiveShifter.Core
                 // The telemetry effects run on whatever snapshot is current; its age is what
                 // silences them when the game pauses or goes away.
                 TelemetryState telemetry = _telemetry;
-                int telemetryAge = unchecked(Environment.TickCount - telemetry.CapturedAtTick);
-
                 telemetry = ReadPedals(cfg, telemetry, tickCount, nowMs);
+                // Age both sources after the poll, so its successful sample cannot appear
+                // newer than the time the effects are judging freshness against.
+                int telemetryAge = unchecked(Environment.TickCount - telemetry.CapturedAtTick);
 
                 ForceFrame frame;
                 GateState traceState;
@@ -744,7 +756,8 @@ namespace AB9ActiveShifter.Core
                         ? _geometry.EngageFraction(_stateMachine.Direction, y)
                         : 0.0;
                     EffectOutput fx = StepEffects(
-                        cfg, telemetry, telemetryAge, dtMs, approaching, slotDepth);
+                        cfg, telemetry, telemetryAge, dtMs, approaching, slotDepth,
+                        _geometry.GearFor(_stateMachine.Column, _stateMachine.Direction), _stateMachine.CurrentGear);
 
                     // The hard lockout's refusal rides the same allowEngage the grind uses, and
                     // reads the machine BEFORE this tick's update - last tick's target, the
@@ -772,7 +785,7 @@ namespace AB9ActiveShifter.Core
 
                     frame = _composer.Compose(
                         t.State, t.Column, t.Direction, x, y, _velocity.X, _velocity.Y, dtMs,
-                        fx.VibY, fx.MuteDetent, lockoutReleased);
+                        fx.VibY, fx.MuteDetent, lockoutReleased, fx.GrindWallScale);
 
                     if (cfg.LockoutMode == LockoutMode.HotkeyAutoRearm && lockoutReleased)
                     {
@@ -909,12 +922,13 @@ namespace AB9ActiveShifter.Core
             StepPedalCapture(nowMs);
 
             int axis = cfg.PedalAxisIndex;
-            if (axis >= 0 && axis < _pedalAxes.Length)
+            _pedalSampleValid = axis >= 0 && axis < _pedalAxes.Length && cfg.PedalCalibration != null;
+            if (_pedalSampleValid)
             {
                 _pedalRaw = _pedalAxes[axis];
-                _pedalPercent = cfg.PedalCalibration != null
-                    ? cfg.PedalCalibration.ToPercent(_pedalRaw)
-                    : 0.0;
+                _pedalPercent = cfg.PedalCalibration.ToPercent(_pedalRaw);
+                _pedalCapturedAtTick = Environment.TickCount;
+                _pedalSampleAxis = axis;
             }
 
             return EffectiveTelemetry(cfg, telemetry);
@@ -927,9 +941,10 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         private TelemetryState EffectiveTelemetry(EngineConfig cfg, TelemetryState telemetry)
         {
-            if (cfg.ClutchSource != ClutchSource.Pedal) return telemetry;
+            if (cfg.ClutchSource != ClutchSource.Pedal || !_pedalSampleValid
+                || cfg.PedalAxisIndex != _pedalSampleAxis || cfg.PedalCalibration == null) return telemetry;
 
-            _pedalTelemetry.CopyFromWithClutch(telemetry, _pedalPercent);
+            _pedalTelemetry.CopyFromWithClutch(telemetry, _pedalPercent, _pedalCapturedAtTick);
             return _pedalTelemetry;
         }
 
@@ -1005,6 +1020,7 @@ namespace AB9ActiveShifter.Core
 
         private void ClosePedals()
         {
+            _pedalSampleValid = false;
             _pedals.Close();
             _pedalsOpen = false;
             _pedalDeviceOpened = null;
@@ -1606,7 +1622,8 @@ namespace AB9ActiveShifter.Core
                 LoopHz = loopHz,
                 StatusMessage = _status,
                 DeviceName = _device != null ? (_device.ProductName ?? "") : "",
-                LockoutEngaged = !_lockoutReleased
+                LockoutEngaged = !_lockoutReleased,
+                RevMatch = _revMatchResult
             };
 
             _snapshot = snapshot;

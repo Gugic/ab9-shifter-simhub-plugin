@@ -29,6 +29,9 @@ namespace AB9ActiveShifter
         private static ShifterEngine _engine;
         private static UpdateService _updates;
         private static NativeEffectsService _nativeEffects;
+        private readonly ScsShiftTelemetryReader _shiftTelemetryReader = new ScsShiftTelemetryReader();
+        private readonly string _floatSessionId = Guid.NewGuid().ToString("N");
+        private int _floatSession;
         public NativeEffectsService Effects { get { return _nativeEffects; } }
 
         private static readonly object EngineSync = new object();
@@ -215,6 +218,7 @@ namespace AB9ActiveShifter
             initialConfig.NativeEffectsEnabled = true;
             initialConfig.GrindEnabled = false;
             if (_nativeEffects != null) _nativeEffects.Configure(initialConfig);
+            initialConfig.FloatProfileKey = Store == null ? "" : Store.ActiveProfile;
             _engine.ApplyConfig(initialConfig);
 
             AttachProperties();
@@ -310,6 +314,25 @@ namespace AB9ActiveShifter
                 }
             }
 
+            string vehicleKey = null;
+            ShiftTelemetry shift = null;
+            if (settings != null && settings.FloatShiftingEnabled && settings.IsHPattern)
+            {
+                try
+                {
+                    string game = Convert.ToString(pluginManager.GetPropertyValue("DataCorePlugin.CurrentGame"));
+                    string vehicle = string.IsNullOrWhiteSpace(d.CarId) ? d.CarModel : d.CarId;
+                    if (!string.IsNullOrWhiteSpace(game) && !string.IsNullOrWhiteSpace(vehicle))
+                        vehicleKey = _floatSessionId + ":" + _floatSession + ":" + game + ":" + vehicle;
+                    shift = _shiftTelemetryReader.Read(d.GetRawDataObject(), settings.FloatScsHandlePositions, Environment.TickCount);
+                }
+                catch (Exception ex)
+                {
+                    shift = new ShiftTelemetry(new double[8], "unavailable", Environment.TickCount);
+                    Log.ErrorThrottled("float-telemetry", "Float-shifting telemetry could not be read", ex);
+                }
+            }
+
             engine.SetTelemetry(new TelemetryState
             {
                 GameRunning = true,
@@ -318,6 +341,8 @@ namespace AB9ActiveShifter
                 SpeedKmh = d.SpeedKmh,
                 Clutch = d.Clutch,
                 Gear = d.Gear,
+                VehicleKey = vehicleKey,
+                Shift = shift,
                 AbsActive = d.ABSActive != 0,
                 TcActive = d.TCActive != 0,
                 HeaveG = d.AccelerationHeave ?? 0.0,
@@ -333,6 +358,7 @@ namespace AB9ActiveShifter
         /// </summary>
         public void End(PluginManager pluginManager)
         {
+            _floatSession++;
             Log.Info("End (saving settings; engine left running).");
             SaveStore();
             if (_nativeEffects != null) _nativeEffects.SaveNativeState();
@@ -626,6 +652,7 @@ namespace AB9ActiveShifter
             cfg.NativeEffectsEnabled = true;
             cfg.GrindEnabled = false;
             if (_nativeEffects != null) _nativeEffects.Configure(cfg);
+            cfg.FloatProfileKey = Store == null ? "" : Store.ActiveProfile;
 
             // How many times the lever thumps after a switch, so the profile can be counted by
             // hand. The count is the profile's own place in the store, which is a fact only the
