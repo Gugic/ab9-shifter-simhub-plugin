@@ -201,6 +201,8 @@ namespace AB9ActiveShifter.Core
         public string FloatRpmAt100KmhText = "";
         public double[] FloatRpmAt100Kmh = new double[8];
         public string FloatProfileKey;
+        /// <summary>Runtime context edges recorded before publication, including while stopped.</summary>
+        public int FloatConfigEpoch;
         public int GrindGainPct = 60;
         public int GrindFreqHz = 33;
 

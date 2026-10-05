@@ -29,7 +29,7 @@ dotnet test tests/AB9ActiveShifter.Tests
 The suite covers `Core/` plus the settings POCO's derived-dial arithmetic, and touches no I/O.
 It also tests the pure GitHub release parser and version/asset policy in `Updates/ReleaseInfo.cs`.
 Float-shifting tests use synthetic telemetry and schema-shaped POCOs for the optional SCS adapter;
-they never load a game reader or hardware. The suite currently has 707 tests, including checks
+they never load a game reader or hardware. The suite currently has 724 tests, including checks
 that reported, configured and learned targets produce identical float-shift behavior.
 Keep it that way — it is the only automated check on the force arithmetic. `Core/` is deliberately
 I/O-free for a second reason as well: the vJoy wrapper is a 32-bit native DLL that test runners
@@ -185,6 +185,7 @@ src/AB9ActiveShifter/
     EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
     RevMatchModel.cs       Common RPM matching and target hysteresis for every H gearbox
     ShiftTargetResolver.cs Target sourcing by data capability and session-only ratio learning
+    FloatShiftConfigTracker.cs Config context epochs, including changes while stopped
     NativeEffectMixer.cs   Native tone envelopes -> independent, budgeted 1 kHz carriers
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
     GearOutputConfig.cs    Output choice, per-pattern role mappings and change detection (pure)
@@ -220,6 +221,7 @@ tests/AB9ActiveShifter.Tests/
   OperatingModeTests.cs    Shared providers, calibration caps and store migration
   BaseEffectComposerTests.cs Generic typed effects and separate spring-polarity safety
   UnifiedFloatShiftTests.cs Common float-shift behavior across every target source and H pattern
+  FloatShiftLifecycleTests.cs Independent clutch freshness and stopped-loop context changes
 build/refs/                Reference-only stubs of SimHub's assemblies
 tools/Verify-StubBuild.ps1 Proves a stub-built DLL binds against the real SimHub
 tools/Show-ProfileDeltas.ps1 Turns a tuned settings file back into DefaultProfiles.cs assignments

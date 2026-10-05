@@ -50,8 +50,8 @@ You need **SimHub**, **.NET Framework 4.8**, a DirectInput FFB stick, and either
    **Shifter enabled**, bind the selected output in your game and check every gear.
    [Bindings and checks](docs/setup.md#6-bind-and-check-the-game-output).
 
-These docs follow current `main`; Control Mapper output and the updated mode labels are newer
-than v0.14.0, which uses direct vJoy output.
+These docs follow current `main`; Control Mapper output, float shifting and the updated mode
+labels are newer than v0.14.0, which uses direct vJoy output.
 
 For screenshots and the full walkthrough, see the **[setup guide](docs/setup.md)**.
 For everyday controls, see **[usage](docs/usage.md)**, **[tuning](docs/tuning.md)** and

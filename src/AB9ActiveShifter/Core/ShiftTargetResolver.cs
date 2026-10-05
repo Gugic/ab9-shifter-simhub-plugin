@@ -24,6 +24,7 @@ namespace AB9ActiveShifter.Core
         private readonly double[] _learned = new double[8];
         private string _vehicle, _profile, _transmission, _manual;
         private GatePattern _pattern;
+        private int _configEpoch;
         private int _sampleTick, _candidateStart, _candidateGear;
         private bool _sampleSeeded, _hasContext;
         private double _candidateRatio;
@@ -42,13 +43,15 @@ namespace AB9ActiveShifter.Core
             }
 
             string transmission = t.Shift == null ? null : t.Shift.TransmissionKey;
-            if (!_hasContext || _vehicle != t.VehicleKey || _profile != cfg.FloatProfileKey || _pattern != cfg.Pattern
+            if (!_hasContext || _configEpoch != cfg.FloatConfigEpoch
+                || _vehicle != t.VehicleKey || _profile != cfg.FloatProfileKey || _pattern != cfg.Pattern
                 || _transmission != transmission || _manual != cfg.FloatRpmAt100KmhText)
             {
                 Reset();
                 _vehicle = t.VehicleKey;
                 _profile = cfg.FloatProfileKey;
                 _pattern = cfg.Pattern;
+                _configEpoch = cfg.FloatConfigEpoch;
                 _transmission = transmission;
                 _manual = cfg.FloatRpmAt100KmhText;
                 _hasContext = true;
@@ -57,7 +60,7 @@ namespace AB9ActiveShifter.Core
             if (ageMs < 0 || ageMs > RevMatchModel.StaleAfterMs)
             { _candidateGear = 0; return result; }
 
-            if (t.Shift == null && cfg.FloatLearnRatios && !string.IsNullOrEmpty(t.VehicleKey)) Learn(t, heldGear);
+            if (t.Shift == null && cfg.FloatLearnRatios && !string.IsNullOrEmpty(t.VehicleKey)) Learn(t, ageMs, heldGear);
             for (int i = 0; i < 7; i++) if (_learned[i] > 0) result.LearnedGears++;
             if (targetGear < 1 || targetGear > 8) return result;
             result.Gear = targetGear;
@@ -88,7 +91,7 @@ namespace AB9ActiveShifter.Core
             return result;
         }
 
-        private void Learn(TelemetryState t, int heldGear)
+        private void Learn(TelemetryState t, int ageMs, int heldGear)
         {
             if (_sampleSeeded && _sampleTick == t.CapturedAtTick) return;
             if (_sampleSeeded && (unchecked(t.CapturedAtTick - _sampleTick) < 0
@@ -97,7 +100,7 @@ namespace AB9ActiveShifter.Core
             _sampleSeeded = true;
             int gameGear;
             if (heldGear < 1 || heldGear > 7 || !int.TryParse(t.Gear, out gameGear) || gameGear != heldGear
-                || t.Clutch > 1 || !RevMatchModel.Finite(t.Clutch) || t.Clutch < 0
+                || t.Clutch > 1 || !RevMatchModel.Finite(t.Clutch) || t.Clutch < 0 || !t.IsClutchFresh(ageMs)
                 || !RevMatchModel.Finite(t.SpeedKmh) || t.SpeedKmh < 10
                 || t.AbsActive || t.TcActive || t.Rpms <= EffectComposer.MinEngineRpm)
             { _candidateGear = 0; return; }

@@ -47,7 +47,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-707 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+724 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -119,6 +119,7 @@ src/AB9ActiveShifter/
     EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
     RevMatchModel.cs       One float-shift RPM comparison and hysteresis for every H gearbox
     ShiftTargetResolver.cs Game-reported, configured or session-learned targets, by data capability
+    FloatShiftConfigTracker.cs Remembers context changes even while the engine is stopped
     NativeEffectMixer.cs   Native envelopes -> independent sine carriers at 1 kHz, no native I/O
     TelemetryState.cs      Immutable game-telemetry snapshot, data thread -> engine thread
     ClutchTypes.cs         Where the clutch is read from, and how it decides the grind
@@ -183,6 +184,7 @@ tests/AB9ActiveShifter.Tests/
   ForceComposerTests.cs    Force shape, stability properties, polarity, clamps
   EffectComposerTests.cs   Carrier amplitudes and gain cap, staleness cut, grind conditions
   UnifiedFloatShiftTests.cs Reported, configured and learned targets share matching and force behavior
+  FloatShiftLifecycleTests.cs Pedal sample freshness and context resets between engine ticks
   NativeEffectTests.cs     Native tone budgets, phases, freshness, profile epochs and safe import
   GateStateMachineTests.cs Transitions, hysteresis, lockout traces
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
@@ -308,6 +310,10 @@ runners cannot load, so anything worth testing must not touch it.
   balk, while native tests and unrelated effects keep their ordinary controls and budgets.
   The comparator and force behavior never branch on vehicle type. Game adapters supply the
   same target contract; source resolution and learning belong in `ShiftTargetResolver`.
+  A pedal's freshness follows its successful poll timestamp, never the configured source:
+  a failed read falls back to the game frame's own clutch age. Float-context config edges are
+  stamped before publication, so stopped-loop off/on and profile round trips cannot retain
+  learned ratios or match hysteresis. Force-only edits preserve them.
 - **Velocity is never an adjacent-tick difference, and the absorber's scale is one-way in time.**
   Under write contention the device delivers distinct positions at only ~500 Hz, so per-tick
   differencing alternates ~2:1 and anything keying force on it renders a 250–500 Hz ripple —

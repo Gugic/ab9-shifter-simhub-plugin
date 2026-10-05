@@ -131,7 +131,7 @@ namespace AB9ActiveShifter.Core
             bool fresh = t != null && t.GameRunning && ageMs >= 0 && ageMs <= StaleAfterMs;
             bool invalidShift = cfg.FloatShiftingEnabled && approachingSlot && !output.RevMatch.Matched
                 && t != null && (!RevMatchModel.Finite(t.Rpms) || !RevMatchModel.Finite(t.SpeedKmh)
-                    || !RevMatchModel.Finite(t.Clutch));
+                    || !RevMatchModel.Finite(t.Clutch) || !t.IsClutchFresh(ageMs));
             if (!fresh || invalidShift)
             {
                 // Everything transient dies with the telemetry, and the gear edge detector
@@ -147,7 +147,7 @@ namespace AB9ActiveShifter.Core
                 // Float permission must not turn into a free shift when RPM telemetry dies.
                 // Keep the carriers silent; a new latch waits for fresh telemetry (or the
                 // independently read pedal), while a held gear remains untouched.
-                bool pressedClutch = t != null && (fresh || cfg.ClutchSource == ClutchSource.Pedal)
+                bool pressedClutch = t != null && t.IsClutchFresh(ageMs)
                     && RevMatchModel.Finite(t.Clutch) && ClutchEngagement(cfg, t.Clutch) == 0;
                 if (cfg.FloatShiftingEnabled && cfg.GrindEnabled && cfg.GrindRejectsGear && approachingSlot
                     && t != null && t.GameRunning && !pressedClutch)

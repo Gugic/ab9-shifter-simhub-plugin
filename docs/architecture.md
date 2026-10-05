@@ -427,7 +427,9 @@ full-absorbed like the wall it has become. Geometry is never touched at runtime,
 else — buttons before forces, the release path, the watchdog — is unchanged. Both flags are
 plumbed per tick. With float shifting off, telemetry loss retains the original inert behavior.
 With float shifting on, stale telemetry cannot bypass rejection for a new shift; the directly
-read pedal can still release it. No telemetry loss drops an engaged gear.
+read pedal can still release it when its successful sample is fresh. Selecting the pedal source
+alone grants no exemption: a failed poll/open falls back to the game frame's own clutch age.
+No telemetry loss drops an engaged gear.
 
 ### Float shifting
 
@@ -446,6 +448,15 @@ target RPM with engine RPM and applies the common tolerance, hysteresis and mism
 Neither branches on vehicle category. Both run on the engine thread without per-tick allocation.
 A context version revokes comparison hysteresis whenever the source's vehicle, profile or
 transmission identity changes. Target changes, neutral and stale data also revoke a match.
+`FloatShiftConfigTracker` stamps a runtime epoch on each configuration before publication,
+serialized by the engine's config lock. It observes float enable, profile, pattern and manual
+ratio changes even while the force loop is stopped. Returning to the same values cannot hide
+an intervening context change from the resolver. Force-only edits keep the epoch. The tick
+never takes that config lock or writes learned ratios from another thread.
+The direct-pedal scratch snapshot also carries its successful poll's capture tick. Clutch
+freshness uses that timestamp when present, otherwise the game snapshot's age; both reject
+future samples and samples older than 500 ms. A newly opened handle cannot provide an
+independent sample until a valid calibrated axis was polled. Closing the pedal invalidates it.
 Learning requires confirmed held gear, clutch ≤1%,
 speed ≥10 km/h, no ABS/TC event, and ratios within 1.5% for 750 ms of distinct frames no more
 than 150 ms apart. Vehicle/game/profile changes, disabling float shifting and manual ratio edits

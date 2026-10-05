@@ -30,6 +30,18 @@ namespace AB9ActiveShifter.Core
         /// <summary>Clutch pedal position, 0..100 with 100 fully pressed - SimHub's convention.</summary>
         public double Clutch;
 
+        /// <summary>A successful independent clutch sample's tick, or null to use this frame's
+        /// capture time. A configured but unavailable pedal never supplies this timestamp.</summary>
+        public int? ClutchCapturedAtTick;
+
+        public bool IsClutchFresh(int telemetryAgeMs)
+        {
+            int age = ClutchCapturedAtTick.HasValue
+                ? unchecked(CapturedAtTick - ClutchCapturedAtTick.Value + telemetryAgeMs)
+                : telemetryAgeMs;
+            return age >= 0 && age <= EffectComposer.StaleAfterMs;
+        }
+
         /// <summary>The game's own gear string ("N", "R", "1"...), for the shift pulse edge.</summary>
         public string Gear;
 
@@ -56,7 +68,7 @@ namespace AB9ActiveShifter.Core
         /// thread has never seen - copying INTO a published snapshot would tear it under the
         /// reader that is meant to see whole frames.
         /// </summary>
-        public void CopyFromWithClutch(TelemetryState source, double clutchPct)
+        public void CopyFromWithClutch(TelemetryState source, double clutchPct, int? capturedAtTick = null)
         {
             if (source == null) return;
 
@@ -74,6 +86,7 @@ namespace AB9ActiveShifter.Core
             CapturedAtTick = source.CapturedAtTick;
 
             Clutch = clutchPct;
+            ClutchCapturedAtTick = capturedAtTick;
         }
     }
 }

@@ -1027,7 +1027,10 @@ permits the ordinary debounce, while a held gear cannot be dropped.
 
 Unknown target RPM retains the original full balk and clutch requirement. Stale game telemetry
 silences carriers, while float-enabled rejection waits for fresh telemetry or a directly read
-disengaged clutch. Native grind tones are gated on the engine tick when released, so a retained
+disengaged clutch sampled within 500 ms. A configured but unavailable pedal cannot turn an old
+game clutch value into a fresh reading. Float-context config changes revoke learning and match
+hysteresis even when an off/on or profile round trip happens while the engine is stopped.
+Native grind tones are gated on the engine tick when released, so a retained
 native filter envelope cannot buzz over a matched snick. Other tones and explicit tests retain
 their behavior, and all forces retain the measured polarity and effective-gain cap.
 

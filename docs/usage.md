@@ -133,8 +133,8 @@ The game must support clutchless shifts too; the plugin does not cut throttle or
 Cars and trucks use the same RPM matching and force behavior. Targets come from game-reported
 drivetrain RPM, configured **RPM at 100 km/h, gears 1-7 (optional)** values, or session learning
 from steady driving with the clutch released. ETS2/ATS currently supply drivetrain targets from
-wheel speed, gear ratios and range/splitter state; check **ETS2/ATS bindings** against the game's
-H-shifter positions. Other games currently use configured or learned ratios. Unknown targets
+wheel speed, gear ratios and range/splitter state; check **ETS2 / ATS H-shifter bindings** against
+the game's H-shifter positions. Other games currently use configured or learned ratios. Unknown targets
 retain the clutch requirement; vehicle, game, profile and transmission changes clear session
 learning. Road-speed ratios cannot confirm reverse direction, so reverse still needs the clutch
 unless a game adapter reports a valid target. Float shifting ships off; see

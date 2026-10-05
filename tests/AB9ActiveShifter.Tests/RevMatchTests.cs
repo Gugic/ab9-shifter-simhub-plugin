@@ -153,6 +153,8 @@ namespace AB9ActiveShifter.Tests
             Assert.False(fx.Step(cfg, t, 501, 1, false, 1, 3, 3).BlockEngage);
             cfg.ClutchSource = ClutchSource.Pedal;
             t.Clutch = 100;
+            Assert.True(fx.Step(cfg, t, 501, 1, true, 1, 3).BlockEngage);
+            t.ClutchCapturedAtTick = t.CapturedAtTick + 501;
             Assert.False(fx.Step(cfg, t, 501, 1, true, 1, 3).BlockEngage);
         }
 

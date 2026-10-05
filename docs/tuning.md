@@ -461,6 +461,10 @@ released and the game confirming the lever's gear. Give each gear at least a sec
 changes. Use another profile for a different gearbox on the same vehicle. ABS/TC, partial clutch,
 telemetry gaps and unstable ratios prevent learning. Wheel slip without a reported TC event can
 still make a learned ratio inaccurate; check the status and use configured values if necessary.
+Disabling float shifting clears learning even with virtual output stopped; an off/on toggle
+starts fresh when output resumes. Profile and manual-ratio changes do the same. A missing direct
+pedal falls back to the game's clutch reading, and an old game reading cannot release stale-data
+rejection merely because the pedal source is selected.
 
 **RPM at 100 km/h, gears 1-7 (optional)** takes comma-separated values in gear order, such as
 `12000,8000,5500,4000,3200,2700`. Measure steady RPM/speed with the clutch released and enter

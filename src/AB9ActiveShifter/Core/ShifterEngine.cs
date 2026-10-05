@@ -25,6 +25,8 @@ namespace AB9ActiveShifter.Core
         private static readonly int[] BackoffMs = { 1000, 2000, 5000 };
 
         private readonly object _deviceLock = new object();
+        private readonly object _configLock = new object();
+        private readonly FloatShiftConfigTracker _floatConfigTracker = new FloatShiftConfigTracker();
 
         private Thread _thread;
         private volatile bool _running;
@@ -141,6 +143,8 @@ namespace AB9ActiveShifter.Core
         private readonly TelemetryState _pedalTelemetry = new TelemetryState();
         private bool _pedalsOpen;
         private string _pedalDeviceOpened;
+        private bool _pedalSampleValid;
+        private int _pedalCapturedAtTick, _pedalSampleAxis;
 
         /// <summary>
         /// How often a failing pedal open may be retried. The same schedule the base's own
@@ -288,8 +292,12 @@ namespace AB9ActiveShifter.Core
         public void ApplyConfig(EngineConfig config)
         {
             if (config == null) return;
-            _config = config;
-            _configDirty = true;
+            lock (_configLock)
+            {
+                _floatConfigTracker.Stamp(config);
+                _config = config;
+                _configDirty = true;
+            }
         }
 
         public bool VirtualDeviceEnabled { get { return _config.VirtualDeviceEnabled; } }
@@ -650,9 +658,10 @@ namespace AB9ActiveShifter.Core
                 // The telemetry effects run on whatever snapshot is current; its age is what
                 // silences them when the game pauses or goes away.
                 TelemetryState telemetry = _telemetry;
-                int telemetryAge = unchecked(Environment.TickCount - telemetry.CapturedAtTick);
-
                 telemetry = ReadPedals(cfg, telemetry, tickCount, nowMs);
+                // Age both sources after the poll, so its successful sample cannot appear
+                // newer than the time the effects are judging freshness against.
+                int telemetryAge = unchecked(Environment.TickCount - telemetry.CapturedAtTick);
 
                 ForceFrame frame;
                 GateState traceState;
@@ -913,12 +922,13 @@ namespace AB9ActiveShifter.Core
             StepPedalCapture(nowMs);
 
             int axis = cfg.PedalAxisIndex;
-            if (axis >= 0 && axis < _pedalAxes.Length)
+            _pedalSampleValid = axis >= 0 && axis < _pedalAxes.Length && cfg.PedalCalibration != null;
+            if (_pedalSampleValid)
             {
                 _pedalRaw = _pedalAxes[axis];
-                _pedalPercent = cfg.PedalCalibration != null
-                    ? cfg.PedalCalibration.ToPercent(_pedalRaw)
-                    : 0.0;
+                _pedalPercent = cfg.PedalCalibration.ToPercent(_pedalRaw);
+                _pedalCapturedAtTick = Environment.TickCount;
+                _pedalSampleAxis = axis;
             }
 
             return EffectiveTelemetry(cfg, telemetry);
@@ -931,9 +941,10 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         private TelemetryState EffectiveTelemetry(EngineConfig cfg, TelemetryState telemetry)
         {
-            if (cfg.ClutchSource != ClutchSource.Pedal) return telemetry;
+            if (cfg.ClutchSource != ClutchSource.Pedal || !_pedalSampleValid
+                || cfg.PedalAxisIndex != _pedalSampleAxis || cfg.PedalCalibration == null) return telemetry;
 
-            _pedalTelemetry.CopyFromWithClutch(telemetry, _pedalPercent);
+            _pedalTelemetry.CopyFromWithClutch(telemetry, _pedalPercent, _pedalCapturedAtTick);
             return _pedalTelemetry;
         }
 
@@ -1009,6 +1020,7 @@ namespace AB9ActiveShifter.Core
 
         private void ClosePedals()
         {
+            _pedalSampleValid = false;
             _pedals.Close();
             _pedalsOpen = false;
             _pedalDeviceOpened = null;
