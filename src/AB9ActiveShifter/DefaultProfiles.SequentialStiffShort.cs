@@ -4,13 +4,12 @@ namespace AB9ActiveShifter
     {
         /// <summary>
         /// The custom Sequential tune captured on the rig: a short stroke, full click,
-        /// and its own damping/friction. Calibration and session state stay at defaults.
+        /// and native effects. Presets applies the shared base damping/friction afterward.
+        /// Calibration and session state stay at defaults.
         /// </summary>
         private static ShifterSettings SequentialStiffShort()
         {
             ShifterSettings s = Sequential();
-            s.BaseFrictionPct = 14;
-            s.DamperCoeff = 1454;
             s.DetentResistPct = 46;
             s.EngageDepth = 25215;
             s.FxLimiterEnabled = true;
