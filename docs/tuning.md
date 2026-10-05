@@ -7,6 +7,24 @@ controls. **Options** holds mode, device/output, recalibration, pedals, hotkeys 
 Main's **Automatic profile switching** and **Sharing and button mapping** sections open
 independently; vehicle IDs stay separate from the compact action buttons.
 
+For installation and the first-run walkthrough, start with [README → Setup](../README.md#setup).
+**Options → MAINTENANCE → Review setup** expands the checklist again without resetting it.
+**Done** closes a tuning editor; settings have already applied as you changed them.
+
+| To change… | Open… |
+| --- | --- |
+| Profile, pattern, master switch, free stick or automatic profile selection | **Main** |
+| Travel, gate width, corridors, mouths, detection or lockout placement | **Main → Geometry…** |
+| Gain, base effects, wall/detent/lockout strength or stability | **Main → Feel…** |
+| Game feedback, clutch behavior, effect groups or Lever routing | **Main → Effects…** |
+| Mode, device identity, gear output or calibration | **Options → OPERATING MODE**, **Base and output**, **Polarity calibration** |
+| Clutch pedal source or binding | **Options → Pedals** |
+| Profile cycling, enable/panic or lockout keys | **Options → Hotkeys** |
+| Live readings, traces or loop rate | **Options → Diagnostics** |
+| Setup review, reset, version checks or notices | **Options → MAINTENANCE**, **UPDATES**, **About and acknowledgements** |
+
+![Options retains the rig controls after setup](img/options.png)
+
 The rig's three-way mode switch chooses **Generic FFB stick**, **Moza AB9** or **Moza AB9 native H-Pattern**.
 Both virtual modes share the gate and all extra plugin effects. Generic uses DirectInput base
 effects; Moza AB9 uses the basic effects supported onboard by Cockpit. Firmware H-pattern
@@ -42,8 +60,8 @@ buttons and releases both devices. Firmware **Moza AB9 native H-Pattern** also r
 
 ## Options and plugin updates
 
-**Options → UPDATES** is available before calibration or output setup, and its preferences belong
-to the app rather than any profile. **Check for updates automatically** defaults on and checks
+**UPDATES** appears on **Setup** before completion and on **Options** afterwards. Its preferences
+belong to the app rather than any profile. **Check for updates automatically** defaults on and checks
 the latest stable GitHub release at startup and every six hours. **Check now** checks immediately
 and shows a previously dismissed version again. **Release channel: Stable** excludes previews;
 the installed version, check status and **Last checked** time appear here too.
@@ -76,6 +94,8 @@ feature and requests SimHub's normal restart. If its feature setting is already 
 the plugin is not loaded, the button reads **Restart SimHub to load Control Mapper**. On a host
 that does not expose its feature setting, use SimHub's **Add/remove features** and restart;
 unlock kiosk mode first if it is locked.
+
+![Control Mapper output with feature status, configuration actions and role mappings](img/output-control-mapper.png)
 
 **Configure Control Mapper** opens SimHub's mapper page once loaded. Choose **Assign roles**
 and create roles there, including simulated keys under **Keyboard** for keyboard output.
@@ -140,6 +160,8 @@ questions that used to need a trip to the rig:
 
 ## What Geometry shows you while you turn a dial
 
+![Geometry editor with the gate monitor fixed above the scrolling controls](img/geometry.png)
+
 The same live gate shown on Main stays at the top of Geometry, outside its scroller, so a
 slider and its effect remain on screen together. It is a plan view drawn at
 the size the geometry actually makes it — every dial below moves something in it — and the slot
@@ -188,6 +210,8 @@ shows **BEFORE YOU START** as five numbered steps: select DirectInput feedback, 
 built-in centring/background effects, close apps holding the base exclusively, configure the
 chosen output, and bind its buttons or keys in the game.
 
+![Generic FFB stick first-run setup keeps the manual preparation checklist](img/setup-generic.png)
+
 **Measure polarity** is required for both virtual modes: **Moza AB9** still drives the custom
 gate through DirectInput while using onboard basic effects, and **Generic FFB stick** uses
 DirectInput throughout. Calibration measures push and spring direction on each axis; the 10%
@@ -223,7 +247,12 @@ remain. Importing a profile applies its onboard values in Moza AB9 mode but keep
 output disabled. [Native configuration](native-ab9.md) records the transaction ordering,
 protocol evidence and current hardware verification limits.
 
-### Generic virtual profiles
+![Feel editor identifies onboard processing under Base-driven effects](img/feel.png)
+
+### Virtual profile dials
+
+These controls are shared by both virtual modes. Strengths live in **Feel**; positions,
+distances, widths and mouth shapes live in **Geometry**.
 
 | Dial | Default | What it does |
 | --- | --- | --- |
@@ -302,7 +331,7 @@ the order matters because only one of them shortens anything:
 
 - ***Throw from centre to a seated gear*** moves the line a gear registers at, and it moves the
   release line with it so the hysteresis gap survives. It is the same stored fact as the Geometry
-  tab's *engage depth*, which measures from the end of travel instead, and the same dial the
+  editor's *engage depth*, which measures from the end of travel instead, and the same dial the
   sequential stroke calls *actuation throw*.
 - ***Slot end-stop wall*** is what actually shortens the travel. At 0% — the default, and how the
   gate has always worked — the seated hold keeps pulling past the seat and the lever runs on to the
@@ -346,9 +375,9 @@ labels, so R stays on button 12 either way.
 Keep one **profile** per pattern you actually use — every dial, the pattern included, is stored
 per profile, so switching is one dropdown.
 
-**Switching without the dropdown.** *Next profile* and *Previous profile* are actions, so they
-bind to a wheel button or a key in SimHub's own **Controls** page like any other. Which profiles
-they walk through is in Options under *Profile hotkeys*: tick the ones you want, or tick
+**Switching without the dropdown.** *Next profile* and *Previous profile* bind to a wheel button
+or key under **Options → Hotkeys → PROFILE HOTKEYS**, or in SimHub's **Controls and events**.
+Tick the profiles you want in that cycle, or tick
 none and they walk through all of them. Switching releases any held gear and clears a sequential
 pulse in flight before the new gate is applied, so it is safe to press while driving — which is
 the point, if you keep an H profile and a sequential one for different cars.
@@ -374,7 +403,7 @@ is the default and what a fresh install does.
 
 ## Telemetry effects (Effects)
 
-The whole tab uses SimHub's native ShakeIt editor. **Add effect**, **Add group** and
+Open **Effects…** from Main. The editor uses SimHub's native ShakeIt controls. **Add effect**, **Add group** and
 **Calibration** sit above the list; expanded rows have **Response filter**, **Live effects**,
 **Effect frequency**, **High priority** and **Channels assignment**. Route feedback to **Lever**.
 Use **Effects gain** and **Mute effects** above the editor for its master level, and
@@ -420,8 +449,8 @@ Symptoms:
 Where the clutch reading comes from, and the one number that describes your car rather than your
 hardware.
 
-**Read from** is *the game's telemetry* by default, which needs no setup and is right whenever the
-game reports the pedal at all. Switch to *the pedal itself* for either of two reasons:
+In **Options → Pedals**, **Read from** is **The game's telemetry** by default, which needs no
+setup when the game reports the pedal. Switch to **The pedal itself** for either of two reasons:
 
 - the game reports no clutch, so the grind has nothing to key on;
 - the grind feels late — telemetry arrives at the game's update rate, tens of milliseconds old
@@ -818,7 +847,7 @@ preset is rebuilt at the next start. Calibrate once, on any profile, and every p
 Each editor has its own reset: Feel resets strengths and resistance, Geometry resets dimensions
 and placement, and Effects resets game effects. Calibration and complete resets live in Options.
 Resetting Feel does not move the geometry; resetting Geometry does not change the loop rate.
-Measured polarity is deliberately *not* part of Forces or Geometry — it describes the hardware, not
+Measured polarity is deliberately *not* part of Feel or Geometry — it describes the hardware, not
 a preference, and discarding it would silently re-arm the 10% force cap.
 
 ## If you are an agent changing a default

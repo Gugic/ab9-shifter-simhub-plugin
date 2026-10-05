@@ -127,7 +127,7 @@ difference between a field read and a property call, and between one enum consta
 straight into the IL. A stub that merely looks right produces a DLL that builds green in CI and
 throws on the rig. Read [build/refs/README.md](build/refs/README.md) before touching one.
 
-The Effects tab uses SimHub's public ShakeIt classes, an undocumented integration surface.
+The Effects editor uses SimHub's public ShakeIt classes, an undocumented integration surface.
 `ShakeItStubs.cs` mirrors their exact signatures, including generic declaring types. The real
 build also references SimHub's bundled `GongSolutions.WPF.DragDrop`, which the native profile
 implements. Check the editor and profile reload in the installed SimHub after an upgrade;
