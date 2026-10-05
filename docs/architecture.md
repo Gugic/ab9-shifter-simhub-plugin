@@ -245,8 +245,17 @@ hysteresis on every boundary (the exit band is always the looser one).
   direction are latched at that moment.
 - Traveling → Engaged past `EngageDepth` for `MinEngageTicks` (2 ticks = 2 ms; it filters
   single-tick spikes) → button down.
-- Engaged → Traveling past `ReleaseDepth` → **button up immediately**.
-- Traveling → Neutral on re-entering the channel.
+- Engaged → Traveling past `ReleaseDepth` → **button up immediately**; if that report has
+  already returned to or crossed the tunnel, clear the column and enter Neutral on the same tick.
+- Traveling → Neutral on reaching the tunnel's approach edge from the latched direction,
+  including a report beyond the far edge that skipped the samples inside the tunnel.
+
+The return check is directional, not a request for a sample inside both tunnel edges. In
+`trace-20261005-025027.csv`, the short-throw release line lay across centre: second was still
+held at Y=30268, then a 4 ms report landed at Y=29449, past the tunnel's far edge at 29499.
+Waiting for another in-tunnel report retained the Back latch for the final 8.3 seconds, even at
+Y=0. A return is consumed on the release tick and accepts a crossed tunnel; the new slot still
+requires its ordinary engagement permission and full debounce, with a released output first.
 
 **The latch is an absolute lock.** Once a column is latched, `StepTraveling` and `StepEngaged`
 ignore X entirely — no lateral distance, however large, changes or drops the gear. The only route to

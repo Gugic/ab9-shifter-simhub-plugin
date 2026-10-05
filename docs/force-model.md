@@ -412,6 +412,21 @@ moves the whole slot together rather than changing its shape. And at the shipped
 landing already reaches the end of travel, so turning the stop on at a default throw cannot
 conjure a wall — it only stops pressing the gear home.
 
+The bottom uses **directed depth in its own slot**, never absolute distance from centre. The
+short-throw trace `trace-20261005-025027.csv` exposed both halves of a failure: a late release
+missed the neutral return and retained the old slot direction, then absolute depth rendered that
+slot's bottom on the opposite side. At the final sample, X=1962 and Y=0, the machine still said
+Traveling toward second, gear 0, and commanded -10000 DI farther into first's physical end.
+The trace starts with the symmetric failure at Y=65535 and +10000 DI. Directional depth makes
+a stale opposite-side stop inert; the state machine also consumes a return on its release tick
+and recognises reports that have crossed the tunnel without landing inside it.
+
+The end-stop receives the wall's **attack, static hold and configured rebound absorption**.
+The seating detent keeps its transient exemption only before the landing ends. Previously the
+bottom shared the detent's unshaped path and milder absorption, despite being a wall a hand can
+lean against. No dimensions or strengths change here. Recorded-position replay and pure tests
+verify the force direction and state recovery; stopping distance and feel still need a rig test.
+
 ## The rail gate
 
 Trying MOZA's native shifter mode on the same base produced one load-bearing observation: **the
@@ -1094,6 +1109,8 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | **A hard slot lockout that deepens the seated hold** | "Locked in gear" as a permanent extra load presses the gear into its stop all day and makes arming over a seated lever a full-strength step at depth, where the detent path has no attack. The exit toll is a band between crossover and seat instead: the seat stays a free region, arming there is force-free, and the toll is met on the way out. |
 | **Blocking the PRND selector's state in hard mode** | A selector must always hold exactly one position and its buttons follow the lever; a blocked handover would report a position the lever is not in — a lie to the game with a transmission attached. The lane's lockout is force only in every mode. |
 | **Summing the grind wall and the hard slot balk** | A border is not taller for having two reasons, and two stacked walls would mean two attacks and two yield floors fighting over one force. The muted stack takes the max of the two. |
+| **Absolute depth for an H slot's end-stop** | A stale slot direction rendered its bottom on the opposite side of centre. Trace-20261005-025027 ends at Y=0, direction Back, gear 0, with -10000 DI pushing farther outward. The bottom uses directed depth; the missed tunnel return is fixed separately. |
+| **Giving the slot bottom the snick's stabiliser exemptions** | It bypassed wall attack and used the detent's milder rebound floor. A bottom is a wall, so only the approach detent retains those exemptions; the free landing separates the two paths at zero force. |
 
 The shape of the whole search, in one sentence: **soft gradient = stable but mush; stiff gradient =
 buzz; pure step = hammer.** Every fix that worked moved the problem out of the position gradient

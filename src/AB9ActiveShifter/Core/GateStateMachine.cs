@@ -109,7 +109,7 @@ namespace AB9ActiveShifter.Core
 
         private void StepTraveling(int x, int y, bool allowEngage)
         {
-            if (_geo.InChannel(y))
+            if (ReturnedToChannel(y))
             {
                 EnterNeutral();
                 return;
@@ -137,7 +137,22 @@ namespace AB9ActiveShifter.Core
                 _state = GateState.Traveling;
                 _gear = 0;
                 _engageTicks = 0;
+
+                // Consume this report's tunnel return now. A late release can land at the far
+                // edge of the tunnel, with the next report already outside it; waiting a tick
+                // would keep the old direction all the way into the opposite slot.
+                if (ReturnedToChannel(y)) EnterNeutral();
             }
+        }
+
+        private bool ReturnedToChannel(int y)
+        {
+            // The approach edge is enough: a report beyond it has returned through the tunnel
+            // even if it skipped every position inside the band. This is direction-keyed, so
+            // lateral movement at slot depth still cannot clear the column latch.
+            return _direction == ShiftDir.Fwd
+                ? y >= GateGeometry.AxisCenter - _geo.ChannelHalfEnter
+                : y <= GateGeometry.AxisCenter + _geo.ChannelHalfEnter;
         }
 
         private void EnterNeutral()

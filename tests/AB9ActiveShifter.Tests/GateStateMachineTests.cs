@@ -156,6 +156,89 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(GateState.Traveling, sm.State);
         }
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void ALateReleaseCannotMissTheTunnelAndStrandTheOppositeShift(bool mirrored)
+        {
+            // Trace-20261005-025027: second was still held at y=30268. The next report,
+            // four milliseconds later, was y=29449, just past the far tunnel edge (29499).
+            // Releasing into Traveling and waiting for ANOTHER in-tunnel report stranded the
+            // Back latch all the way to y=0, with no first gear for the last 8.3 seconds.
+            EngineConfig cfg = DefaultProfiles.BuildPreset(
+                DefaultProfiles.Preset(DefaultProfiles.ShortThrowName)).Settings.ToEngineConfig();
+            GateStateMachine sm = new GateStateMachine(cfg.BuildGeometry(), cfg.MinEngageTicks);
+            int start = mirrored ? Max - 45203 : 45203;
+            int before = mirrored ? Max - 30268 : 30268;
+            int after = mirrored ? Max - 29449 : 29449;
+            int seat = mirrored ? Max - 20000 : 20000;
+            int oldGear = mirrored ? 1 : 2;
+            int newGear = mirrored ? 2 : 1;
+
+            sm.Resync(C1, start);
+            Assert.Equal(oldGear, sm.Update(C1, before).Gear);
+
+            StateTransition released = sm.Update(C1, after);
+            Assert.Equal(0, released.Gear);
+            Assert.Equal(oldGear, released.PreviousGear);
+            Assert.True(released.GearChanged);
+            Assert.Equal(GateState.Neutral, released.State);
+            Assert.Equal(Column.None, released.Column);
+            Assert.Equal(ShiftDir.None, released.Direction);
+
+            Hold(sm, C1, seat);
+            Assert.Equal(newGear, sm.CurrentGear);
+            Hold(sm, C1, mirrored ? Max : 0);
+            Assert.Equal(newGear, sm.CurrentGear);
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void AReleaseInsideTheTunnelClearsTheColumnOnThatSameReport(bool mirrored)
+        {
+            EngineConfig cfg = DefaultProfiles.BuildPreset(
+                DefaultProfiles.Preset(DefaultProfiles.ShortThrowName)).Settings.ToEngineConfig();
+            GateStateMachine sm = new GateStateMachine(cfg.BuildGeometry(), cfg.MinEngageTicks);
+            sm.Resync(C1, mirrored ? 0 : Max);
+
+            int inTunnel = mirrored ? Max - 30214 : 30214;
+            Assert.True(cfg.BuildGeometry().InChannel(inTunnel));
+            Assert.Equal(GateState.Neutral, sm.Update(C2, inTunnel).State);
+
+            // There may be no second tunnel sample. The next one must take the column the hand
+            // actually moved to, rather than retaining first/second's old column wall.
+            Hold(sm, C2, mirrored ? Max : 0);
+            Assert.Equal(mirrored ? 4 : 3, sm.CurrentGear);
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void ATravelingLeverThatCrossesTheWholeTunnelStillNeedsPermissionAndDebounce(bool mirrored)
+        {
+            GateStateMachine sm = NewMachine();
+            sm.Update(C1, mirrored ? 0 : Max, allowEngage: false);
+            Assert.Equal(GateState.Traveling, sm.State);
+
+            // Returning from a refused slot can skip every report inside the channel too.
+            StateTransition crossed = sm.Update(C2, mirrored ? Max : 0, allowEngage: false);
+            Assert.Equal(GateState.Neutral, crossed.State);
+            Assert.Equal(0, crossed.Gear);
+            HoldBlocked(sm, C2, mirrored ? Max : 0);
+            Assert.Equal(0, sm.CurrentGear);
+
+            for (int i = 0; i < Config.MinEngageTicks - 1; i++)
+                Assert.Equal(0, sm.Update(C2, mirrored ? Max : 0).Gear);
+
+            Assert.Equal(mirrored ? 4 : 3, sm.Update(C2, mirrored ? Max : 0).Gear);
+        }
+
+        private static void HoldBlocked(GateStateMachine sm, int x, int y)
+        {
+            for (int i = 0; i < 4; i++) sm.Update(x, y, allowEngage: false);
+        }
+
         [Fact]
         public void PushingThroughTheLockoutReachesSeventh()
         {
