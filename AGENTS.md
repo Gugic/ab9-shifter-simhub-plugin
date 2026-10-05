@@ -16,6 +16,11 @@ This file is the orientation. These documents hold the detail:
 
 | Document | Read it when |
 | --- | --- |
+| [docs/README.md](docs/README.md) | You need the documentation index. The root README is the overview, features and quickstart. |
+| [docs/setup.md](docs/setup.md) | You are changing installation, first-run setup, output configuration or updates. |
+| [docs/usage.md](docs/usage.md) | You are changing everyday controls, patterns, profiles, properties or hotkeys. |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | You are changing user-facing diagnosis or recovery steps. |
+| [docs/safety.md](docs/safety.md) | You need the full risk, non-affiliation and early-software notices, plus output limits. |
 | [docs/hardware.md](docs/hardware.md) | You need a measured fact about the base, the USB path, or MOZA's software. **Read before theorising about timing, polarity, or effect strength.** |
 | [docs/force-model.md](docs/force-model.md) | You are changing how the gate feels. Records every approach tried and why it failed, so it is not retried. |
 | [docs/architecture.md](docs/architecture.md) | You are changing code structure, threading, or lifecycle. |
@@ -675,10 +680,11 @@ so by omission: the repository is `ab9-shifter-simhub-plugin`, the plugin is `AB
 the assembly is `AB9ActiveShifter`. None of them carry a manufacturer's brand and none should
 start to. Name the hardware freely in prose — a reader has to know which base this is for — but
 not in a product name, and never in a way that reads as endorsement. Four places carry the same
-three disclaimers (risk, unofficial, early software): `README.md`'s *Read this first*,
+three disclaimers (risk, unofficial, early software): `docs/safety.md`'s *Read this first*,
 `NOTICE.md`, Options' `ABOUT` section, and the notes block in
 `.github/workflows/release.yml`. They are deliberately redundant, because each catches a reader
-the others miss — change them together or they drift.
+the others miss — change them together or they drift. The root README keeps a brief notice linking
+to the full safety page.
 
 **PowerShell and git.** `git commit -m @'…'@` does not work in this environment — the quotes are
 parsed as pathspecs. Write the message to a scratchpad file and use `git commit -F <file>`.
@@ -745,7 +751,7 @@ update the right column **in the same commit**:
 | A measured hardware fact, or a claim proven false | `docs/hardware.md`, in the table or the "disproven" section |
 | Threading, lifecycle, effect handling, safety ordering | `docs/architecture.md` and the invariants above |
 | Files added, moved, or renamed | the code map above, and the short one in `DEVELOPMENT.md` |
-| Setup steps, requirements, or anything a user does once | `README.md` |
+| Setup steps, requirements, or anything a user does once | `docs/setup.md`, and the quickstart in `README.md` |
 | Build, test, deploy or release procedure | `DEVELOPMENT.md`, and the build section above |
 | A dial added, renamed or removed | `DefaultProfiles.cs` if the shipped tuning names it, and check whether it should travel in `ProfileTransfer.NotShared` |
 | **Any label, section or control in `SettingsControl.xaml`** | `docs/tuning.md`, which **quotes UI labels verbatim** so a human can read the two side by side. The XAML is the authority: when they disagree the doc is wrong, and a doc that names a dial the UI does not have sends someone hunting for a control that is not there. This has already happened — the doc said *"Slot wall, once in a gear"* long after the UI said *"Slot wall / lateral rail"*. A new control also needs a home on the right tab: everything required to finish setup must stay on Setup (see the tab-gating invariant) |

@@ -7,7 +7,7 @@ controls. **Options** holds mode, device/output, recalibration, pedals, hotkeys 
 Main's **Automatic profile switching** and **Sharing and button mapping** sections open
 independently; vehicle IDs stay separate from the compact action buttons.
 
-For installation and the first-run walkthrough, start with [README → Setup](../README.md#setup).
+For installation and the first-run walkthrough, start with [setup guide](setup.md).
 **Options → MAINTENANCE → Review setup** expands the checklist again without resetting it.
 **Done** closes a tuning editor; settings have already applied as you changed them.
 

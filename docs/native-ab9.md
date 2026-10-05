@@ -16,7 +16,7 @@ If HidHide hides the AB9, make it visible to the game to bind its firmware gear 
 
 ## Setup and profiles
 
-For the illustrated install and first-run steps, see [README → Setup](../README.md#setup).
+For the illustrated install and first-run steps, see [setup guide](setup.md).
 The [tuning guide](tuning.md) maps the Main/Options workspace and its three editors.
 
 First-run Setup gathers the mode, base identity, output device or roles and measured polarity. After
