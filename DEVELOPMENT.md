@@ -106,6 +106,10 @@ cannot collide and nothing already in a settings file is ever touched. Editing a
 into a local profile instead; see *Shipped profiles* in `AGENTS.md` for why the fork renames the
 live object rather than cloning it.
 
+`Presets()` applies 15% base damping and 15% base friction to every shipped tune after building
+it. This shared policy reaches existing presets on restart; custom profiles retain their own
+values. Reset defaults remain 8% base damping and 0% base friction.
+
 To refresh them after retuning on the rig, stop SimHub and turn the saved file back into
 assignments:
 

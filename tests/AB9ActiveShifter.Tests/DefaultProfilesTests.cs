@@ -55,11 +55,17 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void EveryPresetUsesTheFullHardwareTorqueRangeAfterPolarityIsMeasured()
+        public void EveryPresetSharesTheBaseTuneAndKeepsTheUnmeasuredTorqueCap()
         {
             foreach (ShifterProfile profile in DefaultProfiles.Presets())
             {
                 Assert.Equal(100, profile.Settings.NativeTorquePct);
+                Assert.Equal(15, profile.Settings.BaseDamperPct);
+                Assert.Equal(15, profile.Settings.BaseFrictionPct);
+                Assert.Equal(1500, profile.Settings.ToEngineConfig().DamperCoeff);
+                Assert.Equal(15, profile.Settings.ToEngineConfig().BaseFrictionPct);
+                Assert.Equal(15, profile.Settings.ToNativeSettings().Damper);
+                Assert.Equal(15, profile.Settings.ToNativeSettings().Friction);
                 Assert.Equal(10, profile.Settings.ToNativeSettings().Torque);
                 profile.Settings.PolarityConfirmed = true;
                 Assert.Equal(100, profile.Settings.ToNativeSettings().Torque);
@@ -146,8 +152,6 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(100, s.SeqPulseMs);
             Assert.Equal(100, s.SeqClickPct);
             Assert.Equal(46, s.DetentResistPct);
-            Assert.Equal(14.54, s.BaseDamperPct);
-            Assert.Equal(14, s.BaseFrictionPct);
             Assert.True(s.FxLimiterEnabled);
             Assert.False(s.PedalCalibrated);
             Assert.Equal("", s.PedalDeviceId);

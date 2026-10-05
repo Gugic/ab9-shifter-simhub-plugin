@@ -25,8 +25,8 @@ namespace AB9ActiveShifter
     /// header says which four dials carry that and why.
     /// </para>
     /// <para>
-    /// These numbers were measured, not chosen. They are the tuning of the rig this plugin was
-    /// developed on, and most of them are far from the constants in <see cref="EngineConfig"/>:
+    /// The gate numbers were measured on the rig this plugin was developed on, and most of
+    /// them are far from the constants in <see cref="EngineConfig"/>:
     /// the walls are firmer and the stabilisers mostly off, because a gate assembled from
     /// conservative defaults feels vague. The defaults in <c>EngineConfig</c> are still the right
     /// starting point for a dial considered alone - they are what a reset returns to - but a
@@ -177,7 +177,14 @@ namespace AB9ActiveShifter
             // The hardware's maximum is not the profile's virtual gate strength. Every shipped
             // tune uses the full hardware range; its OverallGainPct still sets the gate's gain,
             // and ToNativeSettings retains the 10% cap until this rig's polarity is confirmed.
-            foreach (ShifterProfile profile in profiles) profile.Settings.NativeTorquePct = 100;
+            // Shared passive base tuning applies after each captured tune is built, so every
+            // preset uses the same damping and friction with either effect provider.
+            foreach (ShifterProfile profile in profiles)
+            {
+                profile.Settings.NativeTorquePct = 100;
+                profile.Settings.BaseDamperPct = 15;
+                profile.Settings.BaseFrictionPct = 15;
+            }
             return profiles;
         }
 

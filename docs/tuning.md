@@ -223,12 +223,12 @@ the base and avoid the plugin's USB round trip. Generic FFB stick provides the s
 through DirectInput. Profiles and presets keep exactly the same percentages in both modes;
 there are no native copies or separate preset sets. Physical strength can differ by provider.
 
-| Shared base control | Default | Meaning |
-| --- | --- | --- |
-| Base spring (%) | 0% | Global centring |
-| Base damper (%) | 8% | Base damping; preserves the existing DirectInput coefficient of 800 |
-| Base inertia (%) | 0% | Base inertia |
-| Base friction (%) | 0% | Base friction |
+| Shared base control | Reset default | Shipped presets | Meaning |
+| --- | --- | --- | --- |
+| Base spring (%) | 0% | 0% | Global centring |
+| Base damper (%) | 8% | 15% | Base damping; 15% maps to a DirectInput coefficient of 1500 |
+| Base inertia (%) | 0% | 0% | Base inertia |
+| Base friction (%) | 0% | 15% | Base friction |
 
 Moza AB9 also exposes hardware torque, overall intensity and game gain, each defaulting to
 100%. Generic mode ignores these hardware scales. The plugin's home spring, wall damping,
@@ -867,9 +867,10 @@ wandered.
 
 **(Preset) Sequential (stiff, short)** comes from the custom Sequential tune captured on the
 development rig. Its throw is 7,552 counts from centre, with 2,010 counts of overtravel and a
-100 ms output pulse. Click is 100%, push resistance 46%, base damping 14.54% and base friction
-14%. The native Effects configuration is retained, including the engine response curve and
-enabled limiter. Like every preset, it starts disabled and needs this rig's own calibration.
+100 ms output pulse. Click is 100% and push resistance 46%. Base damping and base friction are
+both 15%, as in every shipped preset. The native Effects configuration is retained, including
+the engine response curve and enabled limiter. Like every preset, it starts disabled and needs
+this rig's own calibration.
 
 Turning any dial while a preset is selected therefore does not edit it. The edit moves to a profile
 of your own, carrying the preset's name without the marker — `(Preset) 7+R lockout` becomes
