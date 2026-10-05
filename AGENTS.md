@@ -47,7 +47,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-724 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+733 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -359,6 +359,9 @@ runners cannot load, so anything worth testing must not touch it.
   distance at which the rest of the pattern came back and could capture the lever into a gear it
   was never driven into. Do not reintroduce a lateral release — it is also what frees the slot
   wall's face from its old exit-band squeeze, so restoring one would mean re-clamping that ramp.
+  Consume a tunnel return on the release tick, and recognise a report already beyond the tunnel's
+  far edge. Requiring another sample inside the band stranded the short-throw Back latch at the
+  forward stop for 8.3 seconds in trace-20261005-025027.
 - **The lateral field is faded to zero wherever the guide can change hands, and that fade is a
   MULTIPLIER on position alone.** A nearest-column field reverses at every column boundary, so a flat
   plateau held up to the boundary makes the reversal a step of twice the plateau — measured at 20000 DI,
@@ -479,6 +482,9 @@ runners cannot load, so anything worth testing must not touch it.
   across one axis count is a bang, not a face. The floor is reported by `StrokeStopDepth` rather
   than applied silently. Pinned by `TheLandingIsFreeSoASeatedGearRestsInARegionNotOnAPoint`,
   `TheLandingCanNeverBeShorterThanTheWallBite` and `NoSingleCountOfDepthEverStepsTheSlotForce`.
+  Depth is directed into the latched slot, never absolute distance from centre: a stale direction
+  must not render its bottom as a full-force push into the opposite end. The bottom takes wall
+  attack and wall rebound absorption; only the approach detent keeps the snick's exemptions.
 - **A PRND detent is zero at its position AND zero at the crest beside it.** The lane's force is
   measured from the *nearest* position, and every nearest-anything field flips at the midpoint —
   which on the lateral axis was a step of twice the plateau and cost `HandoverClearance` to pay

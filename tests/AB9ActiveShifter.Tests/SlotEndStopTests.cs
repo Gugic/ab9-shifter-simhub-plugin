@@ -100,6 +100,73 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void AStaleSlotDirectionCannotDriveTheLeverIntoTheOppositeStop()
+        {
+            // The final trace sample was Traveling, C1, Back at x=1962, y=0, fy=-10000.
+            // The old absolute depth made second's bottom push first's end farther outward.
+            EngineConfig cfg = FullGainConfig();
+            cfg.EngageDepth = 20761;
+            cfg.ReleaseDepth = 35317;
+            cfg.SlotOvertravel = 5022;
+            cfg.SlotStopForcePct = 100;
+            cfg.WallRamp = 3816;
+            cfg.DetentResistPct = 0;
+            ForceComposer c = Composer(cfg);
+
+            for (int depth = 0; depth <= Center; depth++)
+            {
+                Assert.Equal(0, c.SlotForceAt(ShiftDir.Back, Center - depth, muted: false));
+                Assert.Equal(0, c.SlotForceAt(ShiftDir.Fwd, Center + depth, muted: false));
+            }
+
+            Assert.Equal(0, c.Compose(GateState.Traveling, Column.C1, ShiftDir.Back,
+                1962, 0).ConstantY);
+        }
+
+        [Theory]
+        [InlineData(ShiftDir.Fwd)]
+        [InlineData(ShiftDir.Back)]
+        public void TheSlotBottomGetsTheWallsAttackAndReboundAbsorption(ShiftDir direction)
+        {
+            EngineConfig cfg = FullGainConfig();
+            cfg.EngageDepth = Center - 12000;
+            cfg.SlotOvertravel = 5000;
+            cfg.SlotStopForcePct = 100;
+            cfg.WallRamp = 3800;
+            cfg.WallAttackMs = 15;
+            cfg.WallYieldPct = 90;
+            cfg.DetentHoldPct = 40;
+            cfg.DampingPct = 0;
+            cfg.WallFrictionPct = 0;
+            ForceComposer c = Composer(cfg);
+            int y = direction == ShiftDir.Fwd ? 0 : GateGeometry.AxisMax;
+            int sign = direction == ShiftDir.Fwd ? 1 : -1;
+
+            // Even a report arriving beyond the entire face must wind the wall up in time.
+            ForceFrame contact = c.Compose(GateState.Engaged, Column.C1, direction,
+                0, y, vy: -sign * 50000, dtMs: 1);
+            Assert.Equal(sign * 667, contact.ConstantY);
+            for (int i = 0; i < 20; i++)
+                c.Compose(GateState.Engaged, Column.C1, direction, 0, y,
+                    vy: -sign * 50000, dtMs: 1);
+
+            ForceFrame rebound = c.Compose(GateState.Engaged, Column.C1, direction,
+                0, y, vy: sign * 50000, dtMs: 1);
+            Assert.Equal(sign * 1000, rebound.ConstantY);
+
+            // The free landing releases immediately; no stale stop follows the retreat.
+            int landingY = direction == ShiftDir.Fwd ? Center - 16000 : Center + 16000;
+            Assert.Equal(0, c.Compose(GateState.Engaged, Column.C1, direction,
+                0, landingY, dtMs: 1).ConstantY);
+
+            // The seating transient still arrives whole, with the detent's milder floor.
+            int seatY = direction == ShiftDir.Fwd ? Center - 12000 : Center + 12000;
+            ForceFrame seat = c.Compose(GateState.Engaged, Column.C1, direction,
+                0, seatY, vy: -sign * 50000, dtMs: 1);
+            Assert.Equal(-sign * 2812, seat.ConstantY);
+        }
+
+        [Fact]
         public void TheLandingIsFreeSoASeatedGearRestsInARegionNotOnAPoint()
         {
             // The whole stability argument. A hold pulling in against a wall pushing out is a

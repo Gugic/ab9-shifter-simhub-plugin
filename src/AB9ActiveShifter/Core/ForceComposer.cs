@@ -412,7 +412,11 @@ namespace AB9ActiveShifter.Core
             // the gear there is no snick to protect - the detent has become a wall being
             // leaned on - so it takes the attack and the walls' full absorption like every
             // wall. The moment the clutch unmutes it, the snick's exemptions return with it.
-            bool wallLike = state == GateState.Neutral || muteDetent;
+            // An H slot's bottom is a wall too. Only the approach detent gets the snick's
+            // exemptions; beyond the free landing, the stop needs attack and full absorption.
+            bool atSlotStop = _slotStopForce > 0
+                && SlotDepth(direction, y) > ThrowThreshold() + SlotLanding();
+            bool wallLike = state == GateState.Neutral || muteDetent || atSlotStop;
             return Bound(frame, vx, vy, dtMs,
                          wallLike ? _yieldFloor : _snickFloor,
                          shapeY: wallLike,
@@ -1510,7 +1514,7 @@ namespace AB9ActiveShifter.Core
             // a third of the way in, and stacking a second wall behind it would say nothing.
             if (_slotStopForce <= 0 || border) return detent;
 
-            int depth = Math.Abs(y - GateGeometry.AxisCenter);
+            int depth = SlotDepth(direction, y);
             int seat = ThrowThreshold();
             if (depth <= seat) return detent;
 
@@ -1527,6 +1531,15 @@ namespace AB9ActiveShifter.Core
             int stop = (int)Math.Round(_slotStopForce * t);
 
             return Combine(held, direction == ShiftDir.Fwd ? stop : -stop);
+        }
+
+        private static int SlotDepth(ShiftDir direction, int y)
+        {
+            // Depth belongs to this slot's side of centre. Absolute depth lets a stale Back
+            // latch render its stop at the forward end as a full-force push farther outward.
+            if (direction == ShiftDir.Fwd) return GateGeometry.AxisCenter - y;
+            if (direction == ShiftDir.Back) return y - GateGeometry.AxisCenter;
+            return 0;
         }
 
         /// <summary>Landing past the engage line, never shorter than the fade that precedes it.</summary>
