@@ -195,6 +195,69 @@ namespace AB9ActiveShifter.Tests
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
+        public void TheLatestForwardToBackCrossingClearsTheLatchAndPushesHomeAtTheStop(bool lateralDrift)
+        {
+            // Trace-20261008-011524: fifth was held at (32767,35172), then released at
+            // (32737,36531), already beyond the tunnel's far edge (36035). The installed
+            // 0.15.0 retained Traveling/C3/Fwd, reported neutral and drove y=65535 outward
+            // at +10000 DI for the final 4.8 seconds. Exercise state AND composed force.
+            EngineConfig cfg = DefaultProfiles.BuildPreset(
+                DefaultProfiles.Preset(DefaultProfiles.ShortThrowName)).Settings.ToEngineConfig();
+            cfg.PatternWidthPct = 65;
+            cfg.SlotHalfWidth = 468;
+            cfg.MouthDepth = 5271;
+            cfg.MouthOpenPct = 81;
+            cfg.DetentResistPct = 25;
+            cfg.DetentPullPct = 40;
+            cfg.DetentHoldPct = 50;
+            cfg.PolarityConfirmed = true;
+            cfg.InvertConstantY = false;
+            GateGeometry geo = cfg.BuildGeometry();
+            var sm = new GateStateMachine(geo, cfg.MinEngageTicks);
+            var composer = new ForceComposer(geo, cfg);
+            int columnX = geo.ColumnTarget(Column.C3);
+            sm.Resync(lateralDrift ? 40196 : columnX, 20512);
+            Assert.Equal(5, sm.CurrentGear);
+            Assert.Equal(5, sm.Update(lateralDrift ? 32767 : columnX, 35172).Gear);
+
+            StateTransition released = sm.Update(lateralDrift ? 32737 : columnX, 36531);
+            Assert.True(released.GearChanged);
+            Assert.Equal(5, released.PreviousGear);
+            Assert.Equal(0, released.Gear);
+            Assert.Equal(GateState.Neutral, released.State);
+            Assert.Equal(ShiftDir.None, released.Direction);
+            composer.Compose(released.State, released.Column, released.Direction,
+                lateralDrift ? 32737 : columnX, 36531, vy: 182735, dtMs: 1);
+
+            // These are the measured reports leading into the back slot. With the actual
+            // sideways drift it belongs to C2 (fourth); keeping X in C3 gives sixth. A replay
+            // cannot promise sixth from positions changed by the old force feedback.
+            int[,] positions = {
+                { 32643, 36631 }, { 32561, 36723 }, { 32380, 36911 },
+                { 32293, 37001 }, { 32199, 37094 }, { 37147, 44967 }, { 37340, 45144 }
+            };
+            for (int i = 0; i < positions.GetLength(0); i++)
+            {
+                int x = lateralDrift ? positions[i, 0] : columnX;
+                StateTransition t = sm.Update(x, positions[i, 1]);
+                composer.Compose(t.State, t.Column, t.Direction, x, positions[i, 1], vy: 100000, dtMs: 1);
+            }
+            Assert.Equal(lateralDrift ? 4 : 6, sm.CurrentGear);
+            Assert.Equal(ShiftDir.Back, sm.Direction);
+
+            for (int i = 0; i < 30; i++)
+            {
+                StateTransition t = sm.Update(lateralDrift ? 40392 : columnX, Max);
+                ForceFrame frame = composer.Compose(t.State, t.Column, t.Direction,
+                    lateralDrift ? 40392 : columnX, Max, vy: 1, dtMs: 1);
+                Assert.Equal(lateralDrift ? 4 : 6, t.Gear);
+                Assert.True(frame.ConstantY < 0, "Rear end-stop contact must push toward neutral.");
+            }
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
         public void AReleaseInsideTheTunnelClearsTheColumnOnThatSameReport(bool mirrored)
         {
             EngineConfig cfg = DefaultProfiles.BuildPreset(

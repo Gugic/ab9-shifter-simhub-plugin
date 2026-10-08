@@ -1757,7 +1757,7 @@ namespace AB9ActiveShifter.UI
                 {
                     int ticks = engine.Trace.Count;
                     long dropped = engine.Trace.Dropped;
-                    string path = engine.SaveTrace(null);
+                    string path = engine.SaveTrace(null, PluginInfo.Version);
 
                     RecordStatus.Text = dropped > 0
                         ? "Saved the last " + ticks + " ticks (of " + (dropped + ticks) +

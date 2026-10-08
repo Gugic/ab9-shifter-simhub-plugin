@@ -272,12 +272,12 @@ namespace AB9ActiveShifter.Core
         /// of the file. One tick is a millisecond; sleeping a few guarantees the loop has read the
         /// volatile flag, and if it has not, it is not writing either.
         /// </summary>
-        public string SaveTrace(string note)
+        public string SaveTrace(string note, string buildVersion)
         {
             _trace.Stop();
             Thread.Sleep(5);
             EngineConfig cfg = _activeConfig ?? _config;
-            string path = _trace.Save(TraceDirectory, cfg, note);
+            string path = _trace.Save(TraceDirectory, cfg, note, buildVersion);
 
             // Only once it is safely on disk. A throw above leaves the buffer intact, so a failed
             // write - a full disk, a locked file - costs a retry rather than the trace.

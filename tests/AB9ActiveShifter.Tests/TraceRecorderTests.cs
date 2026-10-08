@@ -49,6 +49,31 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void TheLoadedBuildTravelsWithTheTraceWithoutChangingItsColumns()
+        {
+            var r = new TraceRecorder();
+            r.Start();
+            Feed(r, 42, 1);
+            r.Stop();
+
+            string[] lines = r.ToCsv(new EngineConfig(), null, "0.15.1+dfe9acb")
+                .Split(new[] { Environment.NewLine }, StringSplitOptions.None);
+
+            Assert.Equal("# AB9 Active Shifter trace, 1 ticks; build=0.15.1+dfe9acb", lines[0]);
+            Assert.StartsWith("# BarrierForcePct=", lines[1]);
+            Assert.Equal("ms,x,y,vx,vy,dtMs,state,column,dir,gear,fx,fy", lines[3]);
+            Assert.Equal("0.000,42,0,0,0,1.000,Neutral,None,None,0,0,0", lines[4]);
+        }
+
+        [Fact]
+        public void AnUnspecifiedBuildIsReportedAsUnknown()
+        {
+            var r = new TraceRecorder();
+            Assert.StartsWith("# AB9 Active Shifter trace, 0 ticks; build=unknown",
+                r.ToCsv(new EngineConfig(), null, null));
+        }
+
+        [Fact]
         public void AShortRecordingKeepsEveryTickItWasGiven()
         {
             var r = new TraceRecorder();

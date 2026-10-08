@@ -799,6 +799,9 @@ Back direction after a late release skipped the last neutral-tunnel report. The 
 then applied full force farther into the wrong end. The return now clears on the release report,
 including one already beyond the tunnel, and an end-stop acts only on its own side of centre.
 The bottom also receives wall attack and rebound absorption instead of the snick's exemptions.
+The same fault appeared during 5→6 in `trace-20261008-011524.csv` on the older 0.15.0 DLL,
+after the fix had merged into source. Check the loaded build in the trace's first comment or
+Options' About section; install a build containing PR #48 and restart SimHub before retuning.
 Retest fast 2→1 and 1→2 strokes: the requested gear should latch and hold, and any bottom contact
 should push back toward centre. Feel and physical stopping distance still need that rig test.
 

@@ -29,7 +29,7 @@ dotnet test tests/AB9ActiveShifter.Tests
 The suite covers `Core/` plus the settings POCO's derived-dial arithmetic, and touches no I/O.
 It also tests the pure GitHub release parser and version/asset policy in `Updates/ReleaseInfo.cs`.
 Float-shifting tests use synthetic telemetry and schema-shaped POCOs for the optional SCS adapter;
-they never load a game reader or hardware. The suite currently has 733 tests, including checks
+they never load a game reader or hardware. The suite currently has 737 tests, including checks
 that reported, configured and learned targets produce identical float-shift behavior.
 Keep it that way — it is the only automated check on the force arithmetic. `Core/` is deliberately
 I/O-free for a second reason as well: the vJoy wrapper is a 32-bit native DLL that test runners
@@ -250,6 +250,8 @@ fixed without that.
 coming off the lockout" becomes a frequency and an amplitude instead of an adjective. It keeps
 the **last** two minutes and never stops itself, so for a fault that arrives at an unknown time
 the move is to start it, drive, and stop it once the fault has happened.
+The first comment includes the loaded plugin's `build=` version. Use it to confirm which DLL
+produced a failure: a newer checkout or merged PR does not update the installed assembly.
 
 ## CI and releases
 

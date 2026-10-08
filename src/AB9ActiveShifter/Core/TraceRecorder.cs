@@ -148,19 +148,29 @@ namespace AB9ActiveShifter.Core
         /// recording has stopped. The header carries the settings that produced it, because a trace
         /// without its configuration cannot be replayed.
         /// </summary>
-        public string Save(string directory, EngineConfig cfg, string note)
+        public string Save(string directory, EngineConfig cfg, string note, string buildVersion = null)
+        {
+            Directory.CreateDirectory(directory);
+
+            string name = "trace-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + ".csv";
+            string path = Path.Combine(directory, name);
+            File.WriteAllText(path, ToCsv(cfg, note, buildVersion));
+            return path;
+        }
+
+        /// <summary>
+        /// Formats the stopped recording without file I/O. The caller supplies its loaded build,
+        /// so a trace can distinguish installed code from a newer checkout or published release.
+        /// </summary>
+        public string ToCsv(EngineConfig cfg, string note, string buildVersion)
         {
             int n = Math.Min(_count, Capacity);
             int start = n < Capacity ? 0 : _writeIndex;
             long dropped = Dropped;
 
-            Directory.CreateDirectory(directory);
-
-            string name = "trace-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + ".csv";
-            string path = Path.Combine(directory, name);
-
             var sb = new StringBuilder(n * 64);
-            sb.Append("# AB9 Active Shifter trace, ").Append(n).Append(" ticks").AppendLine();
+            sb.Append("# AB9 Active Shifter trace, ").Append(n).Append(" ticks; build=")
+              .Append(string.IsNullOrEmpty(buildVersion) ? "unknown" : buildVersion).AppendLine();
 
             // Said in the file rather than only in the UI: a trace whose ms column starts at
             // 2 830 000 is not a broken clock, it is the tail of a long session, and whoever reads
@@ -195,8 +205,7 @@ namespace AB9ActiveShifter.Core
                   .AppendLine();
             }
 
-            File.WriteAllText(path, sb.ToString());
-            return path;
+            return sb.ToString();
         }
 
         /// <summary>
