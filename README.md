@@ -23,7 +23,7 @@ with low gain, and read the [full safety notice](docs/safety.md) before enabling
   traction control, road impacts and shift pulses through SimHub's effect editor.
 - **Optional float shifting:** rev-matched clutchless shifts across all H patterns, with
   game targets, configured ratios or session learning. [Setup and limits](docs/usage.md#float-shifting).
-- **Profiles:** eight presets, editable copies, import/export, hotkey cycling and automatic
+- **Profiles:** nine presets, editable copies, import/export, hotkey cycling and automatic
   selection by vehicle.
 - **One-time setup:** AB9 preparation, measured polarity and output configuration; Main then
   brings together the profile picker, live gate and Geometry, Feel and Effects editors.

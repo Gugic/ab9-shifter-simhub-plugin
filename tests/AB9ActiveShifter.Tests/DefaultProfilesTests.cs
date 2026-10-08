@@ -129,9 +129,84 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(GatePattern.Sequential, Find(store, Preset(DefaultProfiles.SequentialName)).Pattern);
             Assert.Equal(GatePattern.Sequential, Find(store, Preset(DefaultProfiles.SequentialStiffShortName)).Pattern);
             Assert.Equal(GatePattern.H7R, Find(store, Preset(DefaultProfiles.SevenRName)).Pattern);
+            Assert.Equal(GatePattern.H7R, Find(store, Preset(DefaultProfiles.SportShortThrowName)).Pattern);
             Assert.Equal(GatePattern.H5R, Find(store, Preset(DefaultProfiles.FiveRName)).Pattern);
             Assert.Equal(GatePattern.Prnd, Find(store, Preset(DefaultProfiles.PrndName)).Pattern);
             Assert.Equal(GatePattern.H6, Find(store, Preset(DefaultProfiles.TruckName)).Pattern);
+        }
+
+        [Fact]
+        public void TheSportShortThrowKeepsTheCapturedRigsTune()
+        {
+            ShifterSettings s = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SportShortThrowName));
+            Assert.Equal(12006, s.ThrowFromCentre);
+            Assert.Equal(20761, s.EngageDepth);
+            Assert.Equal(35317, s.ReleaseDepth);
+            Assert.Equal(5022, s.SlotOvertravel);
+            Assert.Equal(100, s.SlotStopForcePct);
+            Assert.Equal(65, s.PatternWidthPct);
+            Assert.Equal(468, s.SlotHalfWidth);
+            Assert.Equal(5271, s.MouthDepth);
+            Assert.Equal(81, s.MouthOpenPct);
+            Assert.Equal(25, s.DetentResistPct);
+            Assert.Equal(40, s.DetentPullPct);
+            Assert.Equal(50, s.DetentHoldPct);
+            Assert.Equal(35.15, s.BaseDamperPct);
+            Assert.Equal(35, s.BaseFrictionPct);
+            Assert.True(s.FloatShiftingEnabled);
+
+            // Every other shared dial stays with the source tune; machine facts are inherited
+            // from the receiving rig rather than copied out of its saved settings file.
+            ShifterSettings loose = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.ShortThrowName));
+            var captured = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "BaseFrictionPct", "DamperCoeff", "DetentHoldPct", "DetentPullPct", "DetentResistPct",
+                "FloatShiftingEnabled", "MouthDepth", "MouthOpenPct", "NativeEffectsJson",
+                "PatternWidthPct", "SlotHalfWidth"
+            };
+            foreach (PropertyInfo prop in typeof(ShifterSettings).GetProperties())
+            {
+                if (!prop.CanRead || !prop.CanWrite || !ProfileTransfer.IsTuning(prop.Name)) continue;
+                if (captured.Contains(prop.Name)) continue;
+                Assert.Equal(prop.GetValue(loose, null), prop.GetValue(s, null));
+            }
+            Assert.False(s.BaseSpringPolarityConfirmed);
+            Assert.False(s.PedalCalibrated);
+            Assert.Equal("", s.PedalDeviceId);
+        }
+
+        [Fact]
+        public void TheSportShortThrowPreservesTheCapturedNativeEffectsAndExportsThem()
+        {
+            ShifterSettings s = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SportShortThrowName));
+            var effects = JObject.Parse(NativeEffectsData.Validate(s.NativeEffectsJson));
+            var rows = (JArray)effects["Profile"]["EffectsContainers"];
+            Assert.Equal(100, (int)effects["GlobalGain"]);
+            Assert.False((bool)effects["IsMuted"]);
+            Assert.Equal(9, rows.Count);
+            Assert.True((bool)rows[0]["IsEnabled"]);
+            Assert.Equal(15, (int)rows[0]["Output"]["Frequency"]);
+            Assert.Equal("SplineFilter", (string)rows[2]["Filter"]["FilterType"]);
+            Assert.Equal(new[] { "0;0", "1;100", "100;100" }, rows[2]["Filter"]["ControlPoints"].ToObject<string[]>());
+            Assert.Equal(84, (int)rows[2]["Output"]["HighFrequency"]);
+            Assert.Equal(100, (int)rows[6]["Gain"]);
+            Assert.Equal("GammaFilter", (string)rows[6]["Filter"]["FilterType"]);
+            Assert.Equal(107, (int)rows[7]["Filter"]["Duration"]);
+            Assert.Equal(37, (int)rows[7]["Output"]["Frequency"]);
+            Assert.DoesNotContain("OutputManager", s.NativeEffectsJson);
+
+            string json = ProfileTransfer.Export(new ShifterProfile { Name = DefaultProfiles.SportShortThrowName, Settings = s });
+            ProfileImportResult imported = ProfileTransfer.Import(json, new ShifterSettings());
+            Assert.Equal(0, imported.Unknown);
+            Assert.True(JToken.DeepEquals(effects, JObject.Parse(imported.Profile.Settings.NativeEffectsJson)));
+
+            // Import compacts the effects string. Compare its JSON meaning and every other
+            // shared setting rather than counting that whitespace normalization as a dial change.
+            var before = (JObject)JObject.Parse(json)["Settings"];
+            var after = (JObject)JObject.Parse(ProfileTransfer.Export(imported.Profile))["Settings"];
+            before["NativeEffectsJson"] = effects;
+            after["NativeEffectsJson"] = JObject.Parse(imported.Profile.Settings.NativeEffectsJson);
+            Assert.True(JToken.DeepEquals(before, after));
         }
 
         [Fact]

@@ -136,7 +136,8 @@ before enabling force. Start low and raise it gradually with a hand on the lever
 
 The screenshots show example settings, not recommended starting strengths.
 
-There are eight presets: **7+R lockout**, **7+R lockout (short throw, loose)**, **5+R**, **5+R wide**,
+There are nine presets: **7+R lockout**, **7+R lockout (short throw, loose)**,
+**7+R lockout (short throw, stiff, sport)**, **5+R**, **5+R wide**,
 **Sequential**, **Sequential (stiff, short)**, **Automatic (PRND)** and
 **Truck 6-gear (low-range lockout)**. They are marked `(Preset)` in the picker. Changing a
 profile dial automatically creates an editable copy and keeps the preset available; use
