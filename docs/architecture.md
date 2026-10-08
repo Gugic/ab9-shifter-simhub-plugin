@@ -257,6 +257,17 @@ Waiting for another in-tunnel report retained the Back latch for the final 8.3 s
 Y=0. A return is consumed on the release tick and accepts a crossed tunnel; the new slot still
 requires its ordinary engagement permission and full debounce, with a released output first.
 
+`trace-20261008-011524.csv` reproduced the opposite crossing on an installed 0.15.0 build:
+fifth released between Y=35172 and Y=36531, past the far tunnel edge at 36035. The old Fwd
+latch then reported neutral and pushed toward the rear stop at +10000 DI for 4.8 seconds.
+The state/force regression covers that crossing both with the measured lateral drift and
+with X held in the 5/6 column. Recorded positions alone select fourth after the drift; that
+is distinct from the stale-direction fault and cannot predict motion under corrected forces.
+Trace saving passes the loaded `PluginInfo.Version` from the UI through the engine to the
+recorder. Its first comment carries `build=` without changing the CSV columns or adding a
+header line. `ToCsv` formats a stopped recording without file I/O, so the build stamp and
+sample layout can be tested independently of saving a file.
+
 **The latch is an absolute lock.** Once a column is latched, `StepTraveling` and `StepEngaged`
 ignore X entirely — no lateral distance, however large, changes or drops the gear. The only route to
 another gear is back through the neutral channel, exactly as a real gate works. There is

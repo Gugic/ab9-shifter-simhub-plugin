@@ -5,21 +5,22 @@ using AB9ActiveShifter.Core;
 namespace AB9ActiveShifter
 {
     /// <summary>
-    /// What a machine with no saved settings starts with: eight working profiles rather than bare
+    /// What a machine with no saved settings starts with: nine working profiles rather than bare
     /// defaults, written out to disk on that first start so they are ordinary settings from then
     /// on - editable, resettable, and never re-applied over anything a user has tuned.
     /// <para>
-    /// The H presets share one tune. <see cref="LooseGate"/> is the gate that actually gets
+    /// The standard H presets share one tune. <see cref="LooseGate"/> is the gate that actually gets
     /// driven on the rig, and <see cref="Gate"/>, the 5+R copy of it and <see cref="ShortThrow"/>
     /// differ by <em>where the slot ends</em> and by nothing else. That is deliberate, and it is a
     /// correction: the two H profiles used to carry an older, firmer tune with every stabiliser
     /// off, which reads well on paper and is jerky in the hand. A shipped profile is a
     /// recommendation, so all three now make the same one, and the choice a user makes between
-    /// them is a pattern and a throw length rather than a quality of gate.
+    /// them is a pattern and a throw length rather than a quality of gate. The sport H preset is
+    /// a separate captured tune, with tighter slots, a detent crossover and stronger base resistance.
     /// </para>
     /// <para>
-    /// <see cref="Truck"/> starts from that tune and then leaves it, which is the one place this
-    /// file ships a second opinion on purpose. Its numbers came back from the person who asked
+    /// <see cref="Truck"/> starts from that tune and then leaves it, which is another place this
+    /// file ships another feel on purpose. Its numbers came back from the person who asked
     /// for the pattern, measured against a real Eaton-Fuller box; nobody here drives a truck, and
     /// a gate that is "slow and hard and deliberate" is not the racing gate turned down. Its
     /// header says which four dials carry that and why.
@@ -75,6 +76,7 @@ namespace AB9ActiveShifter
         // the list, since only prefixed names sort to the end.
         public const string SevenRName = "7+R lockout";
         public const string ShortThrowName = "7+R lockout (short throw, loose)";
+        public const string SportShortThrowName = "7+R lockout (short throw, stiff, sport)";
         public const string FiveRName = "5+R";
         public const string FiveRWideName = "5+R wide";
         public const string SequentialName = "Sequential";
@@ -84,7 +86,7 @@ namespace AB9ActiveShifter
 
         private static readonly string[] BareNames =
         {
-            SevenRName, ShortThrowName, FiveRName, FiveRWideName, SequentialName, SequentialStiffShortName, PrndName,
+            SevenRName, ShortThrowName, SportShortThrowName, FiveRName, FiveRWideName, SequentialName, SequentialStiffShortName, PrndName,
             TruckName
         };
 
@@ -166,6 +168,7 @@ namespace AB9ActiveShifter
             {
                 new ShifterProfile { Name = Preset(SevenRName), Settings = sevenR },
                 new ShifterProfile { Name = Preset(ShortThrowName), Settings = ShortThrow() },
+                new ShifterProfile { Name = Preset(SportShortThrowName), Settings = SportShortThrow() },
                 new ShifterProfile { Name = Preset(FiveRName), Settings = fiveR },
                 new ShifterProfile { Name = Preset(FiveRWideName), Settings = fiveRWide },
                 new ShifterProfile { Name = Preset(SequentialName), Settings = Sequential() },

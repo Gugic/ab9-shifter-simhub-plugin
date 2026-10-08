@@ -23,6 +23,16 @@ own software.
 **A wall buzzes, or kicks back like ABS** — see [docs/tuning.md](tuning.md). Short answer:
 adjust *wall bite distance* first, then *wall attack*.
 
+**A fast short-throw shift pulls into the wrong end-stop and reports neutral** — check the
+loaded plugin build before changing the tune. Release 0.15.0 predates the tunnel-return fix
+merged in [PR #48](https://github.com/Gugic/ab9-shifter-simhub-plugin/pull/48). Install a build
+containing that fix and restart SimHub. Pulling newer source does not replace the installed DLL.
+New traces include `build=` in the first comment line; it identifies the assembly loaded by
+SimHub. Older traces need the version from **Options → About and acknowledgements**.
+Retest a fast 5→6 shift while keeping the lever in the 5/6 column. The gear should hold and
+rear end-stop contact should push toward neutral. A sideways move through the tunnel can
+select another column, so include that motion when interpreting the requested gear.
+
 **Everything feels dead, especially the lockout and the detents** — those are constant forces.
 Confirm *Measure polarity* reported a result for both push axes rather than "barely moved", and
 that overall gain is not near zero.

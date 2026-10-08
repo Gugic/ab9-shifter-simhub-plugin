@@ -47,7 +47,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-733 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+739 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -90,10 +90,11 @@ src/AB9ActiveShifter/
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
   ShifterProfiles.cs       ProfileStore (named settings + active + the rig's own facts), legacy
                            migration, cloning, the preset fork
-  DefaultProfiles.cs       The eight presets every install carries, as deltas from bare defaults,
+  DefaultProfiles.cs       The nine presets every install carries, as deltas from bare defaults,
                            plus the reserved name prefix that marks them (see "Shipped
                            profiles" below)
   DefaultProfiles.SequentialStiffShort.cs Captured short sequential tune and its portable native Effects tree
+  DefaultProfiles.SportShortThrow.cs Captured short H sport tune and its portable native Effects tree
   ProfileTransfer.cs       One profile as a shareable file: what travels, and what is refused
   NativeEffectsData.cs     Validates the portable native tree without constructing a transport
   ScsShiftTelemetryReader.cs Optional cached raw-data adapter; copies truck target RPMs only
@@ -725,7 +726,7 @@ rolling copies in `_Backups\` beside it and restores the newest when the primary
 first-start test that only deletes the primary silently measures the old settings. See
 DEVELOPMENT.md for the command that clears both and the two log lines that prove it worked.
 
-**Shipped profiles.** The eight tunes in `DefaultProfiles.cs` are **presets**: rebuilt by
+**Shipped profiles.** The nine tunes in `DefaultProfiles.cs` are **presets**: rebuilt by
 `EnsurePresets` on *every* start, not just the first, so they are always present and always
 current. They are written as *deltas* from a bare `ShifterSettings`, so the tuning reads as
 tuning and a dial that gains a better default inherits it. This used to be a JSON file copied in
