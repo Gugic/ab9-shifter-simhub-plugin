@@ -353,6 +353,17 @@ in a different stored state after a re-flash than after a power cycle is unmeasu
 read and write is logged now (see [native-ab9.md](native-ab9.md)); compare the first `reads`
 line of a good session with a bad one.
 
+**Measured the same day: the base can power up in native H-pattern mode.** The first logged
+startup read, at 15:06:55, found firmware **1.1.6.1** (re-flashed since the 1.1.5.2 reads of
+2026-10-03) and `InputMode 1`, with
+Spring 10, Damper 30, Inertia 10, Friction 0 and MechanicalResistance 100. The startup
+transaction then wrote it to flight mode. That startup check ran once per SimHub start. The
+base was switched off at 14:21:29 with SimHub running and reopened at 14:21:42 without a read,
+and the freeze above followed at 14:22:29. So the gate's DirectInput forces may have been
+driving a base running its own firmware gate. Whether the AB9 always returns to native mode
+after a power cycle, or this one came from the re-flash, is not yet measured. Either way the
+engine now reads the mode before every open in Moza AB9 mode (`BaseCheckGate`).
+
 ## `GetForceFeedbackState` is not a witness on this base
 
 Two of DirectInput's status flags are set by this base as a matter of course, so neither is

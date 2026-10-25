@@ -242,6 +242,21 @@ namespace AB9ActiveShifter.Core
         /// <summary>Raised on the engine thread when the whole calibration run ends.</summary>
         public event Action CalibrationFinished;
 
+        /// <summary>
+        /// Raised on the engine thread when it wants to open a base that needs a fresh mode read
+        /// first, and again every <see cref="BaseCheckGate.AskAgainMs"/> while it waits. Answered
+        /// with <see cref="NoteBaseChecked"/> once a read finds flight mode.
+        /// </summary>
+        public event Action BaseCheckNeeded;
+
+        private readonly BaseCheckGate _baseCheck = new BaseCheckGate();
+
+        /// <summary>A read just found the base in flight mode. Callable from any thread.</summary>
+        public void NoteBaseChecked()
+        {
+            _baseCheck.Checked(Environment.TickCount);
+        }
+
         public EngineSnapshot Snapshot { get { return _snapshot; } }
 
         /// <summary>
@@ -487,7 +502,10 @@ namespace AB9ActiveShifter.Core
 
                     if (_phase != EnginePhase.Run)
                     {
-                        if (nowMs >= nextOpenAttemptMs && (!_yielded || ReadyToReclaim(nowMs)))
+                        // The base check comes last: nothing asks for a read while a game holds the
+                        // base, and waiting on one is not a failed open, so it costs no backoff.
+                        if (nowMs >= nextOpenAttemptMs && (!_yielded || ReadyToReclaim(nowMs))
+                            && BaseCheckAllowsOpen(cfg))
                         {
                             if (TryOpenDevice(cfg, nowMs))
                             {
@@ -1149,6 +1167,32 @@ namespace AB9ActiveShifter.Core
             _calibrator = null;
         }
 
+        /// <summary>
+        /// Whether a base that must be read first has been read recently enough to open. A power
+        /// cycle the engine never saw - the base switched off while lost, yielded or stopped - can
+        /// bring an AB9 back in native H-pattern mode, where the gate's forces would land on the
+        /// firmware's own gate. Holding the open costs nothing: the output stays acquired with its
+        /// buttons clear, exactly as while the base is absent.
+        /// </summary>
+        private bool BaseCheckAllowsOpen(EngineConfig cfg)
+        {
+            if (!cfg.RequireFreshBaseCheck) return true;
+            int now = Environment.TickCount;
+            if (_baseCheck.MayOpen(now)) return true;
+
+            _status = "Reading the AB9's mode before opening it; forces stay off until it reads as flight mode.";
+            if (_baseCheck.ShouldAsk(now))
+            {
+                Action handler = BaseCheckNeeded;
+                if (handler != null)
+                {
+                    try { handler(); }
+                    catch (Exception ex) { Log.Error("Base check request handler threw", ex); }
+                }
+            }
+            return false;
+        }
+
         private bool TryOpenDevice(EngineConfig cfg, long nowMs)
         {
             lock (_deviceLock)
@@ -1202,6 +1246,7 @@ namespace AB9ActiveShifter.Core
 
                 Log.ResetThrottle("device-open");
                 Log.ResetThrottle("device-yield");
+                _baseCheck.Opened();
                 _yielded = false;
                 _phase = EnginePhase.Run;
                 _status = BuildReadyStatus(cfg);

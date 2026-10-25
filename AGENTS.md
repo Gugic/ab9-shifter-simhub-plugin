@@ -47,7 +47,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-739 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+748 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -129,6 +129,9 @@ src/AB9ActiveShifter/
     PedalDeviceInfo.cs     One controller as the pedal picker shows it
     PolarityCalibrator.cs  Measures effect polarity on hardware
     ShifterEngine.cs       The 1 kHz thread, phases, watchdog, reconnect, config swap
+    BaseCheckGate.cs       "Read the base before you open it" - an AB9 opens only within 3 s of
+                           a read that found flight mode, because a power cycle the engine never
+                           saw can bring it back in native H-pattern mode
     DeviceFault.cs         Reads a DirectInput HRESULT as gone / taken by another app / unknown.
                            The one distinction whose repair is opposite - see its header
     RetryBackoff.cs        "Do not try that again yet" - the gate on I/O the tick can attempt
@@ -190,6 +193,8 @@ tests/AB9ActiveShifter.Tests/
   GateStateMachineTests.cs Transitions, hysteresis, lockout traces
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
   RetryBackoffTests.cs     A failing device open cannot be attempted once per tick, counted
+  BaseCheckGateTests.cs    No AB9 open on a missing or stale read, a window shorter than a power
+                           cycle, and a waiting engine that asks every 2 s rather than every tick
   DeviceFaultTests.cs      Which HRESULTs mean another program has the base, so standing down and
                            crashing the user's game do not get confused
   VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
@@ -530,7 +535,13 @@ runners cannot load, so anything worth testing must not touch it.
   a failed write blocks virtual output on that AB9 until readback; other sticks remain generic.
   Profiles cannot switch during a write. The seven onboard dials apply after 500 ms without
   edits. Native settings refresh once per Feel opening or explicit Options refresh; the UI
-  status timer never opens the configuration port. Startup/transaction checks remain. A busy read
+  status timer never opens the configuration port. Startup/transaction checks remain. **In Moza
+  AB9 mode the engine opens the base only within 3 s of a read that found flight mode**
+  (`BaseCheckGate`), asking again every 2 s while it waits. A power cycle the engine never saw -
+  base lost, yielded or stopped - can bring the AB9 back in native H-pattern mode (a power-up read
+  found exactly that on 2026-10-25), and plugin forces must never land on the firmware gate. A
+  read that finds native mode turns the shifter off; one that finds no base keeps the last
+  answered snapshot, so the engine keeps asking rather than stranding the session. A busy read
   never loses a pending change. Ordinary tuning/profile changes preserve
   the user's enabled switch while pausing output across the complete checked batch. Resume
   requires its final readback and an uncancelled enabled request; off and panic always win.

@@ -25,7 +25,17 @@ namespace AB9ActiveShifter.Device
 
         public Task<Ab9NativeSnapshot> RefreshAsync()
         {
-            return RunAsync(null, null);
+            return RunAsync(null, null, false);
+        }
+
+        /// <summary>
+        /// A read the engine asked for before opening the base. A base that does not answer -
+        /// still off, still booting - leaves the last answered snapshot in place, so the gate
+        /// stays configured and the engine keeps asking until the base is back.
+        /// </summary>
+        public Task<Ab9NativeSnapshot> CheckModeAsync()
+        {
+            return RunAsync(null, null, true);
         }
 
         public Task<Ab9NativeSnapshot> ApplyAsync(Ab9NativeSettings settings, int? inputMode)
@@ -34,10 +44,10 @@ namespace AB9ActiveShifter.Device
             // Capture and validate before scheduling: slider changes cannot mutate an in-flight write.
             var copy = settings.Copy();
             copy.TransactionWrites(inputMode);
-            return RunAsync(copy, inputMode);
+            return RunAsync(copy, inputMode, false);
         }
 
-        private async Task<Ab9NativeSnapshot> RunAsync(Ab9NativeSettings settings, int? mode)
+        private async Task<Ab9NativeSnapshot> RunAsync(Ab9NativeSettings settings, int? mode, bool keepLastUnanswered)
         {
             if (!await _serial.WaitAsync(0).ConfigureAwait(false))
                 return new Ab9NativeSnapshot("AB9 configuration is busy; refresh and try again.");
@@ -46,17 +56,21 @@ namespace AB9ActiveShifter.Device
             {
                 return await Task.Run(() =>
                 {
+                    Ab9NativeSnapshot result;
                     try
                     {
-                        _snapshot = Execute(settings, mode);
+                        result = Execute(settings, mode);
                     }
                     catch (Exception ex)
                     {
-                        _snapshot = new Ab9NativeSnapshot("AB9 native controls unavailable: " + ex.Message +
+                        result = new Ab9NativeSnapshot("AB9 native controls unavailable: " + ex.Message +
                             " Close Cockpit, Pit House and AZOM's AB9 connection, then refresh.");
-                        Log.Warn(_snapshot.Status);
+                        // A check repeats every two seconds while the base boots; say it once.
+                        if (keepLastUnanswered) Log.WarnThrottled("native-check", result.Status, 30);
+                        else Log.Warn(result.Status);
                     }
-                    return Snapshot;
+                    if (!keepLastUnanswered || result.InputMode.HasValue) _snapshot = result;
+                    return result;
                 }).ConfigureAwait(false);
             }
             finally

@@ -41,6 +41,12 @@ Diagnostics** straight away and keep `Logs\SimHub.txt` from that session: in **M
 lines show every change the plugin made to them. The cause is not yet known; see the
 [hardware notes](hardware.md#replacement-base-freezes-observed-on-2026-10-25).
 
+**"The AB9 came back in native H-pattern mode"** — the base was switched off and on, and it
+started in its firmware gear-shifter mode. The plugin keeps its forces off rather than push
+against the base's own gate. Use **Prepare base** under **Options** to return it to flight mode,
+then switch **Shifter enabled** back on. Restarting SimHub does the same through the startup
+check.
+
 **Everything feels dead, especially the lockout and the detents** — those are constant forces.
 Confirm *Measure polarity* reported a result for both push axes rather than "barely moved", and
 that overall gain is not near zero.

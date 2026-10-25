@@ -48,6 +48,14 @@ the editor stays open. Options' **Refresh base** action requests another read wh
 the last checked snapshot; opening Main or Options alone does not access the configuration port.
 Startup still checks the mode, and configuration changes still perform fresh checks and readback.
 
+The base is also read before every time the plugin opens it in Moza AB9 mode: after a reconnect,
+when the shifter is enabled, or when the base is picked up again after a game. A read that found
+flight mode in the last 3 s is enough. Otherwise forces stay off while the plugin reads the mode,
+retrying every 2 s while the base is off or still starting. This covers a base switched off and
+on while SimHub runs, which the startup check never sees. If the base comes back in native
+H-pattern mode, the shifter is switched off with a message to use **Prepare base**. Nothing is
+written to the base on reconnect.
+
 Moza AB9 preparation uses flight input mode and DirectInput feedback mode. Newly selecting this
 provider waits for verified preparation before permitting virtual forces. Preparing calibration
 neutralizes onboard conditions so the probes measure DirectInput alone. Calibration leaves

@@ -55,6 +55,18 @@ opening Main/Options or leaving an editor open does not poll the configuration p
 checks and the fresh checks/readbacks required by a configuration transaction remain in place.
 Output ownership may be reserved while the check is pending, with every button clear.
 
+In Moza AB9 mode the startup check alone is not enough, because the engine never sees a power
+cycle that happens while it does not hold the base: lost, yielded to a game, or stopped. The shell
+stamps `EngineConfig.RequireFreshBaseCheck`, and the engine's open path asks `BaseCheckGate`
+before every open. The gate opens only within 3 s of a read that found flight mode. Any read
+counts: the startup check, a transaction's final readback, Feel, Refresh base. Otherwise the
+engine raises `BaseCheckNeeded` at once and every 2 s while it waits, and the shell answers on
+the CDC worker with `Ab9NativeDevice.CheckModeAsync`. Flight mode calls `NoteBaseChecked`.
+Native mode turns the shifter off, as at startup. No answer (base still off or booting) keeps the
+last answered snapshot, so `VirtualDeviceEnabled` stays set and the engine keeps asking. The gate
+sits after `ReadyToReclaim`, so nothing reads the port while a game holds the base. Waiting costs
+no backoff, and the output stays acquired with its buttons clear, as while the base is absent.
+
 Every write pauses virtual output first, using the existing teardown ordering, then mutes
 hardware torque while configuring the base. Torque is restored last. A pure
 `NativeSettingsDebounce` holds the latest copied values for the seven onboard dials until

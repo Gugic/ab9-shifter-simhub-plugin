@@ -13,6 +13,8 @@ namespace AB9ActiveShifter.Core
         public int NativeEffectsEpoch;
         // Output can stay acquired while native setup prevents touching the base.
         public bool VirtualDeviceEnabled = true;
+        // Moza AB9 mode: every open waits for a fresh read that found flight mode (BaseCheckGate).
+        public bool RequireFreshBaseCheck;
         // Device
         public int VendorId = 0x346E;
         public int ProductId = 0x1000;
