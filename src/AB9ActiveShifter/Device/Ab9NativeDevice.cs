@@ -99,8 +99,16 @@ namespace AB9ActiveShifter.Device
                     foreach (var value in settings.TransactionWrites(desiredMode)) WriteChecked(port, value.Key, value.Value);
                 }
 
+                // Logged on every read, so the startup check records what the base powered up
+                // with before the active profile is written over it.
                 var values = new Dictionary<Ab9Parameter, int>();
-                foreach (var parameter in Ab9NativeSettings.ReadParameters) values[parameter] = Read(port, parameter);
+                var read = new List<string>();
+                foreach (var parameter in Ab9NativeSettings.ReadParameters)
+                {
+                    values[parameter] = Read(port, parameter);
+                    read.Add(parameter + " " + values[parameter]);
+                }
+                Log.Info("AB9 on " + name + ", firmware " + firmware + ", reads " + string.Join(", ", read) + ".");
                 int finalMode = values[Ab9Parameter.InputMode];
                 return new Ab9NativeSnapshot("AB9 on " + name + ", firmware " + firmware + ": " +
                     (finalMode == 1 ? "native shifter mode." : "flight mode (virtual gate)."),
@@ -120,7 +128,15 @@ namespace AB9ActiveShifter.Device
             byte[] request = Ab9NativeProtocol.Write(parameter, value);
             port.Write(request, 0, request.Length);
             Thread.Sleep(20);
-            int actual = Read(port, parameter);
+            int actual;
+            try { actual = Read(port, parameter); }
+            catch (TimeoutException)
+            {
+                // The write may still have landed; name it, so the log shows where the batch stopped.
+                throw new TimeoutException("The AB9 did not answer the readback of " + parameter +
+                    " after writing " + value + ".");
+            }
+            Log.Info("AB9 wrote " + parameter + " " + value + ", read back " + actual + ".");
             if (actual != value) throw new InvalidOperationException(parameter + " did not read back as requested. " +
                 "Requested " + value + ", read " + actual + ". Virtual forces remain off.");
         }

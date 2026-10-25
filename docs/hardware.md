@@ -324,6 +324,35 @@ No device reset reason, voltage or temperature was captured, and a drive without
 polling has not yet been tested. A separate 03:33:50 force-loop watchdog stop must not be
 conflated with the two later USB removals.
 
+## Replacement base freezes observed on 2026-10-25
+
+A different symptom from the restarts above: the base stays on USB, but stops moving the lever
+and stops updating its position. The user reports it appears soon after first use after
+switching the base on, survives further power cycles and Cockpit setting changes, and clears
+after a firmware re-flash plus recalibration — until the next power cycle.
+
+`trace-20261025-142231.csv` (build `0.16.0+a976347`, Moza AB9 mode) caught one. At **8.696 s** X
+goes from about −89,500 counts/s to still at 33169 within one report, which no hand-driven
+lever can do. Y then cycles through five values (35887, 35885, 35883, 35886, 35884) every 5 ms,
+and from 10.95 s holds 35885, their mean. The report task is still sending filtered copies of the
+last samples after the sensor and motor loop stopped. The plugin went on commanding about
+2100 / −2500 DI with no effect, and logged its 30-second freeze warning.
+
+Nothing at the moment of the freeze stands out. The stroke into it peaked at 207k counts/s with
+forces under 5,000 DI. Eleven earlier strokes in the same trace were faster (up to 328k). The
+2026-10-05 trace ran 1.4M counts/s and the 2026-10-08 trace a full 10,000 DI without a freeze.
+Tick timing was normal until the freeze, and its jitter only doubled afterwards. The base
+reports exactly 32767 for several ticks at each centre crossing, but every trace back to August
+does the same, so that is the base's centre dead zone and not a symptom.
+
+**Not established: the cause.** In Moza AB9 mode, the startup check writes the active
+profile's onboard values on every SimHub start. One 2026-10-03 read found overall intensity 70%,
+spring 50%, damper 30%, friction 10%. This profile writes intensity 100%, damper 35% and
+friction 35%. Until 2026-10-25 a successful write was not logged. So whether the base starts
+in a different stored state after a re-flash than after a power cycle is unmeasured. Each
+read and write is logged now (see [native-ab9.md](native-ab9.md)); compare the first `reads`
+line of a good session with a bad one.
+
 ## `GetForceFeedbackState` is not a witness on this base
 
 Two of DirectInput's status flags are set by this base as a matter of course, so neither is

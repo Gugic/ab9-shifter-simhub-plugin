@@ -150,3 +150,9 @@ imports and failed transactions leave virtual output off. A failure discards the
 reports partial configuration and performs no automatic rollback. Uncertain mode blocks virtual
 output on the selected AB9 until a fresh read establishes its mode. This restriction never
 blocks an unrelated FFB stick.
+
+Every transaction is recorded at INFO in `Logs\SimHub.txt`. Each write logs
+`AB9 wrote <parameter> <value>, read back <value>` in the order sent, and every completed read
+logs the whole parameter set as `AB9 on COMn, firmware …, reads …`. The startup check reads
+before it applies the active profile, so a session's first `reads` line is what the base powered
+up with. A readback that never arrives names the parameter it was waiting for.
