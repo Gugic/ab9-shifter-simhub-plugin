@@ -154,8 +154,8 @@ namespace AB9ActiveShifter.Device
 
         /// <summary>
         /// What the last failure meant, as far as the driver would say. Read by the engine right
-        /// after a false return, because the repair for a device someone else has taken is the
-        /// opposite of the repair for one that has gone.
+        /// after a false return, so exclusive-access failures can follow the retake preference
+        /// without changing ordinary unplug/replug recovery.
         /// </summary>
         public DeviceFault LastFault { get; private set; }
 

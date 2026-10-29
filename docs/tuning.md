@@ -18,6 +18,7 @@ For installation and the first-run walkthrough, start with [setup guide](setup.m
 | Gain, base effects, wall/detent/lockout strength or stability | **Main → Feel…** |
 | Game feedback, clutch behavior, effect groups or Lever routing | **Main → Effects…** |
 | Mode, device identity, gear output or calibration | **Options → OPERATING MODE**, **Base and output**, **Polarity calibration** |
+| Recovery when a game interrupts the base | **Options → Base and output → Automatically retake the base** |
 | Clutch pedal source or binding | **Options → Pedals** |
 | Profile cycling, enable/panic or lockout keys | **Options → Hotkeys** |
 | Live readings, traces or loop rate | **Options → Diagnostics** |
@@ -57,6 +58,13 @@ reconnect. Silent loss of vJoy ownership is checked once per second and reacquir
 output retry schedule; no output-device reselection is needed. Turning the master off clears
 buttons and releases both devices. Firmware **Moza AB9 native H-Pattern** also releases plugin output.
 **Release all forces (free stick)** removes plugin forces while keeping its connections.
+
+**Automatically retake the base** under **Base and output** defaults on. Exclusive-access losses
+retry after one second, then failed opens back off to two and five seconds. Turn it off if retaking
+disrupts a particular game: exclusive-access losses then wait until no game is reported running.
+The setting belongs to the rig, survives profile switches and is excluded from shared profiles.
+Changing it while disconnected takes effect without cycling **Shifter enabled**. Turning the
+master off still releases everything and prevents recovery until it is switched on again.
 
 ## Options and plugin updates
 
@@ -558,6 +566,11 @@ and wall attack at 5 ms or off, so more damping or attack tuning alone is not th
 Use **Slot wall / lateral rail (%)** for the force outside that corridor. Keep the other dials
 steady while testing the new width. A new trace and the hand at the lever must confirm the
 result; removing the point equilibrium does not establish stability at every wall setting.
+
+**FFB disappears when a game starts and only returns after re-enabling the plugin.** Check
+**Options → Base and output → Automatically retake the base**. On restores recovery during
+the game; off deliberately waits for no game. If retaking disrupts the game, leave it off.
+This connection policy is separate from protection shutoff and force-strength tuning.
 
 **5+R or the truck 6 feels sprawling — every shift is a reach across the whole stick.**
 It is, and it is arithmetic rather than tuning: three columns spread over the same stick that 7+R

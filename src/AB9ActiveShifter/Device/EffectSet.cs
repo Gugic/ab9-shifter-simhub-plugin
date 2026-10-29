@@ -425,11 +425,9 @@ namespace AB9ActiveShifter.Device
                 {
                     _strikes++;
 
-                    // DIERR_NOTEXCLUSIVEACQUIRED arrives here, not at the poll: a game that takes
-                    // the base foreground-exclusive revokes our acquisition, and the first thing
-                    // to notice is the next force write. The engine needs to know that is what
-                    // happened, because reopening the device would take it straight back off the
-                    // game - which is what crashes it.
+                    // Losing exclusive access may surface on the next force write rather than
+                    // the position poll. Preserve that distinction so the engine can honor the
+                    // user's automatic-retake preference when it reconnects.
                     LastFault = DeviceFaults.Classify(ex.HResult);
 
                     Log.ErrorThrottled("effect-" + name,

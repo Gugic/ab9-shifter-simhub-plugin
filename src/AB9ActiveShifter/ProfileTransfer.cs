@@ -79,6 +79,7 @@ namespace AB9ActiveShifter
             // This machine's hardware and loop.
             "VendorId", "ProductId", "VendorIdHex", "ProductIdHex", "VJoyDeviceId", "TickHz",
             "OutputMode", "OutputModeIndex", "ControlMapperRoles",
+            "AutoRetakeBase",
 
             // The clutch pedal binding: a device id that means nothing on another machine, and a
             // travel measured on pedals nobody here owns. ClutchSource goes with them, because it
@@ -126,6 +127,7 @@ namespace AB9ActiveShifter
             "InvertSpringX", "InvertSpringY", "BaseSpringPolarityConfirmed",
             "VendorId", "ProductId", "VJoyDeviceId", "TickHz",
             "OutputMode", "ControlMapperRoles",
+            "AutoRetakeBase",
             "PedalDeviceId", "PedalAxisIndex", "PedalRawMin", "PedalRawMax",
             "PedalDeadzoneLow", "PedalDeadzoneHigh", "PedalInvert", "ClutchSource"
         };

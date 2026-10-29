@@ -60,7 +60,8 @@ namespace AB9ActiveShifter.Tests
                 .Split(new[] { Environment.NewLine }, StringSplitOptions.None);
 
             Assert.Equal("# AB9 Active Shifter trace, 1 ticks; build=0.15.1+dfe9acb", lines[0]);
-            Assert.StartsWith("# BarrierForcePct=", lines[1]);
+            Assert.StartsWith("# AutoRetakeBase=True ", lines[1]);
+            Assert.Contains("BarrierForcePct=", lines[1]);
             Assert.Equal("ms,x,y,vx,vy,dtMs,state,column,dir,gear,fx,fy", lines[3]);
             Assert.Equal("0.000,42,0,0,0,1.000,Neutral,None,None,0,0,0", lines[4]);
         }

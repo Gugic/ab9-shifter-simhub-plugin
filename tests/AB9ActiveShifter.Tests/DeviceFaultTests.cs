@@ -4,8 +4,8 @@ using Xunit;
 namespace AB9ActiveShifter.Tests
 {
     /// <summary>
-    /// Which HRESULTs mean "another program has the base", because acting on that answer is the
-    /// difference between standing down and crashing the user's game.
+    /// Which HRESULTs describe revoked/refused exclusive access, so those faults follow the
+    /// rig's retake preference separately from ordinary unplug/replug recovery.
     ///
     /// The numbers are SharpDX's own `ResultCode` constants, read off the shipped 4.2.0 assembly
     /// rather than remembered. Two of them are worth pinning for that reason alone:
@@ -18,7 +18,7 @@ namespace AB9ActiveShifter.Tests
         [Theory]
         [InlineData(unchecked((int)0x80040205))] // DIERR_NOTEXCLUSIVEACQUIRED
         [InlineData(unchecked((int)0x80070005))] // DIERR_OTHERAPPHASPRIO, which is E_ACCESSDENIED
-        public void ARevokedOrRefusedExclusiveGrabMeansSomebodyElseHasIt(int hresult)
+        public void ARevokedOrRefusedExclusiveGrabFollowsTheRetakePreference(int hresult)
         {
             Assert.Equal(DeviceFault.TakenByAnotherApp, DeviceFaults.Classify(hresult));
         }

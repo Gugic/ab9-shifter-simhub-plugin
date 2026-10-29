@@ -8,6 +8,13 @@ program has it. The message lists what was detected.
 **"The stick is held exclusively by another program"** — MOZA Cockpit or a Pit House tuning page,
 occasionally a game. Close them; the plugin retries automatically.
 
+**FFB disappears when a game starts, then returns when the plugin is re-enabled** — check
+**Options → Base and output → Automatically retake the base**. It defaults on and retries the
+connection during a game. Turning it off keeps the base released until no game is running.
+The unconditional wait introduced in 0.14 could leave Assetto Corsa without gate forces for the
+whole session after a temporary loss. This is separate from protection shutoff and USB freezes.
+If retaking disrupts a game, turn it off; the status now states which recovery policy is active.
+
 **"vJoy device 1 is owned by another program"** — the message names the owning process. Close it,
 or pick a different device under **Options → Base and output → Device**, with **vJoy (direct)** selected, which shows every device
 vJoy reports along with its button count and whether anything already holds it.

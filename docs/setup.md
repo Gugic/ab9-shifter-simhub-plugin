@@ -175,8 +175,12 @@ For **SimHub Control Mapper (native)**, bind the configured keys or controller b
 game. Check direct gear selection and return to neutral, plus every sequential or PRND mapping
 you use. The plugin knowing a role exists does not prove its external output is configured.
 
-In the two virtual modes, do **not** bind the AB9's own axes as game controls. If a game takes
-the base exclusively, use [HidHide](https://github.com/nefarius/HidHide): allow `SimHubWPF.exe`
+In the two virtual modes, do **not** bind the AB9's own axes as game controls.
+**Base and output → Automatically retake the base** defaults on and recovers after a game
+interrupts the connection. Turn it off if retaking disrupts a game; the plugin will then wait
+until no game is running. The preference is shared by every profile.
+To prevent a game from opening the physical controller, [HidHide](https://github.com/nefarius/HidHide)
+remains an optional alternative: allow `SimHubWPF.exe`
 first, then hide the AB9's *HID-compliant game controller* interface (`MI_02`) from the game.
 Leave its `MI_00` configuration port visible. The game only needs your chosen gear output.
 For **Moza AB9 native H-Pattern**, make the physical AB9 visible instead and bind its own buttons.
