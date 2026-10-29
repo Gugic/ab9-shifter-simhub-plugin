@@ -3,7 +3,7 @@
 [![CI](https://github.com/Gugic/ab9-shifter-simhub-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/Gugic/ab9-shifter-simhub-plugin/actions/workflows/ci.yml)
 
 A SimHub plugin that turns a force-feedback flight stick into an H-pattern shifter,
-sequential lever or automatic PRND selector. It renders the gate through force feedback
+sequential lever, automatic PRND selector or progressive analog handbrake. It renders the gate through force feedback
 and sends gears to games through **vJoy** or **SimHub Control Mapper**.
 
 The **MOZA AB9** is the tested base, with onboard setup and base effects on firmware
@@ -16,14 +16,17 @@ with low gain, and read the [full safety notice](docs/safety.md) before enabling
 
 ## Features
 
-- **Six patterns:** 7+R, 6+R, 5+R, a six-slot truck gate, sequential and automatic PRND.
+- **Seven patterns:** 7+R, 6+R, 5+R, a six-slot truck gate, sequential, automatic PRND and handbrake.
+- **Analog handbrake:** adjustable start/end positions, selectable resistance curves and damped return
+  to the chosen start, proportional vJoy Z output and rear-wheel lock feedback through SimHub.
+  [Setup and tuning](docs/tuning.md#handbrake).
 - **Configurable gates:** adjust width, travel, slot mouths, walls, detents and neutral centring.
 - **Lockouts:** guard a gap or slot, in either direction, with push-through or hotkey release.
 - **Game feedback:** clutch grind and gear rejection, engine vibration, rev limiter, ABS,
   traction control, road impacts and shift pulses through SimHub's effect editor.
 - **Optional float shifting:** rev-matched clutchless shifts across all H patterns, with
   game targets, configured ratios or session learning. [Setup and limits](docs/usage.md#float-shifting).
-- **Profiles:** nine presets, editable copies, import/export, hotkey cycling and automatic
+- **Profiles:** ten presets, editable copies, import/export, hotkey cycling and automatic
   selection by vehicle.
 - **One-time setup:** AB9 preparation, measured polarity and output configuration; Main then
   brings together the profile picker, live gate and Geometry, Feel and Effects editors.
@@ -42,7 +45,8 @@ You need **SimHub**, **.NET Framework 4.8**, a DirectInput FFB stick, and either
    Cockpit, Pit House and AZOM's AB9 connection. For **Generic FFB stick**, follow its manual
    checklist and set the device identity. [Mode and preparation details](docs/setup.md#2-choose-the-mode-and-prepare-the-base).
 3. **Choose output.** Select a direct vJoy device with **14 buttons**, or configure Control Mapper
-   and assign its gear roles. [Output instructions](docs/setup.md#3-choose-how-gears-reach-the-game).
+   and assign its gear roles. Handbrake needs direct vJoy with **Z axis** enabled; capture its
+   start/end in Options. [Output instructions](docs/setup.md#3-choose-how-gears-reach-the-game).
 4. **Measure polarity.** Take your hands off the lever, click **Measure polarity**, and wait for
    all four probes to succeed. Then click **Finish setup**. Leave the 10% cap in place if measurement
    is inconclusive. [Calibration walkthrough](docs/setup.md#4-measure-polarity-and-finish-setup).

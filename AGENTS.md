@@ -2,7 +2,8 @@
 
 A SimHub plugin that turns a **MOZA AB9 flight base** into an **H-pattern shifter** (7+R, 6+R with
 no 7th slot, 5+R, or a six-slot truck gate with no reverse), a **sequential lever**, or an
-**automatic's PRND selector**, selectable per named profile — with a **configurable lockout**: any
+**automatic's PRND selector**, or a **progressive analog handbrake**, selectable per named profile
+— with a **configurable lockout**: any
 adjacent gap or a single slot, one-way either way or both, push-through or held at full force
 until a bound action releases it (the H gate and the PRND lane each carry their own). It renders
 the gate with DirectInput force feedback, detects the slotted gear from stick position, and holds
@@ -47,7 +48,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-773 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+818 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -90,9 +91,10 @@ src/AB9ActiveShifter/
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
   ShifterProfiles.cs       ProfileStore (named settings + active + the rig's own facts), legacy
                            migration, cloning, the preset fork
-  DefaultProfiles.cs       The nine presets every install carries, as deltas from bare defaults,
+  DefaultProfiles.cs       The ten presets every install carries, as deltas from bare defaults,
                            plus the reserved name prefix that marks them (see "Shipped
                            profiles" below)
+  DefaultProfiles.Handbrake.cs Captured progressive handbrake tune, engine and rear wheel-lock effects
   DefaultProfiles.SequentialStiffShort.cs Captured short sequential tune and its portable native Effects tree
   DefaultProfiles.SportShortThrow.cs Captured short H sport tune and its portable native Effects tree
   ProfileTransfer.cs       One profile as a shareable file: what travels, and what is refused
@@ -116,6 +118,7 @@ src/AB9ActiveShifter/
                            which button each holds. Not GateGeometry with one column - see its
                            header for why that was refused
     PrndStateMachine.cs    Which position is held. No neutral, no travelling, no debounce
+    HandbrakeModel.cs      Calibrated travel, independent force/output curves, release-to-arm
     ForceComposer.cs       The gate itself: position+velocity -> forces. The heart.
     EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
     RevMatchModel.cs       One float-shift RPM comparison and hysteresis for every H gearbox
@@ -178,6 +181,7 @@ src/AB9ActiveShifter/
     SlidingAcrossGateVisualizer.cs Lateral field across the whole gate width
     SlotMouthVisualizer.cs        The corridor a mouth opens as the slot is approached
     PrndLaneVisualizer.cs         The selector lane's force across the whole of travel
+    HandbrakeCurveVisualizer.cs   Pull, return and braking curves sampled from HandbrakeModel
     InverseBooleanToVisibilityConverter.cs  The negation the raw/percent toggle needs
 tests/AB9ActiveShifter.Tests/
   Ab9NativeTests.cs        Wire captures, escaping, firmware order, transaction ordering,
@@ -206,6 +210,8 @@ tests/AB9ActiveShifter.Tests/
   SequentialTests.cs       One-shift-per-stroke, re-arm, mirror, spring shape, click kick
   PrndTests.cs             The selector: always in exactly one position, buttons above every
                            other range, and no axis count anywhere that steps the lane's force
+  HandbrakeTests.cs        Both pull directions, smooth restoring force, arming, axis scaling,
+                           cap/polarity, calibration ownership and safe profile transfer
   SettingsMappingTests.cs  ShifterSettings' derived dials (ThrowFromCentre moves both threshold
                            lines)
   SlotEndStopTests.cs      The bottom of an H slot: the default changes nothing, the landing is
@@ -352,13 +358,27 @@ runners cannot load, so anything worth testing must not touch it.
 
 **Geometry and state**
 
-- **Sequential and PRND share a sideways corridor, not an unconditional centred rail.**
-  Both honour `SlotHalfWidth` throughout their fore/aft travel, with zero explicitly opting
+- **Sequential, PRND and handbrake share a sideways corridor, not an unconditional centred rail.**
+  All honour `SlotHalfWidth` throughout their fore/aft travel, with zero explicitly opting
   into a rail. Their wall uses the full `WallRamp`, never the H-column spacing/handover cap
   in `GuideFace`; hidden H settings cannot steepen a pattern that has no neighbouring column.
   The plan view reads `LateralLaneHalfWidth` from its own composer. The 2026-10-28 traces still
   hunted at about 17 Hz with base damper 35%, rail force 80%, attack 5 ms or off; a green test
   suite does not replace a new hardware comparison of the corridor.
+- **Handbrake travel stays in device coordinates.** The endpoints alone choose pull direction;
+  mirrors only relabel gears. Endpoints are rig facts, excluded from shared profiles. Analog
+  output owns only vJoy Z, resets on free stick/calibration/loss/stop/mode change, and requires
+  release after acquisition or changed output mapping. Retry axis failures through the existing
+  vJoy backoff. Mechanical feel remains independent of game telemetry; stale effects go silent.
+  Start/end are explicit Geometry controls over the full raw axis, in either direction. The
+  restoring force and profile settling target use the chosen start. The global base spring is
+  suppressed in both providers for handbrake, preserving its saved value for other patterns;
+  native pattern edits synchronize that suppression. Analog capability is optional alongside
+  `IGearOutput`; Control Mapper remains button-only and clearly refuses analog handbrake.
+  Handbrake force curves are monotone with bounded slope (at most two in normalized travel),
+  always zero at start and full at end. Early build must not use a fractional power with an
+  infinite starting slope. The original late-build family remains enum zero and the default;
+  shape/amount are tuning, independent of braking response and the rig's endpoints.
 
 - Positions stay in **device coordinates end to end.** Layout preferences (`MirrorColumns`,
   `MirrorSlots`) relabel the *gear map* only. Mirroring the readings instead would put every
@@ -747,7 +767,7 @@ rolling copies in `_Backups\` beside it and restores the newest when the primary
 first-start test that only deletes the primary silently measures the old settings. See
 DEVELOPMENT.md for the command that clears both and the two log lines that prove it worked.
 
-**Shipped profiles.** The nine tunes in `DefaultProfiles.cs` are **presets**: rebuilt by
+**Shipped profiles.** The ten tunes in `DefaultProfiles.cs` are **presets**: rebuilt by
 `EnsurePresets` on *every* start, not just the first, so they are always present and always
 current. They are written as *deltas* from a bare `ShifterSettings`, so the tuning reads as
 tuning and a dial that gains a better default inherits it. This used to be a JSON file copied in

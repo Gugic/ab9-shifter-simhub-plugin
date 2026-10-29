@@ -32,10 +32,21 @@ namespace vJoyInterfaceWrap
 
         public bool ResetButtons(uint rID) { return false; }
 
+        public bool GetVJDAxisExist(uint rID, HID_USAGES axis) { return false; }
+        public bool GetVJDAxisMin(uint rID, HID_USAGES axis, ref long value) { return false; }
+        public bool GetVJDAxisMax(uint rID, HID_USAGES axis, ref long value) { return false; }
+        public bool SetAxis(int value, uint rID, HID_USAGES axis) { return false; }
+
         public bool SetBtn(bool Value, uint rID, uint nBtn) { return false; }
 
         public int GetVJDButtonNumber(uint rID) { return 0; }
 
         public int GetOwnerPid(uint rID) { return 0; }
     }
+}
+
+// Reflected from SimHub's mixed-mode x86 wrapper; the enum is global, with uint backing.
+public enum HID_USAGES : uint
+{
+    HID_USAGE_Z = 0x32
 }

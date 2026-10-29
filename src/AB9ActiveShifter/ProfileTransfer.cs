@@ -80,6 +80,7 @@ namespace AB9ActiveShifter
             "VendorId", "ProductId", "VendorIdHex", "ProductIdHex", "VJoyDeviceId", "TickHz",
             "OutputMode", "OutputModeIndex", "ControlMapperRoles",
             "AutoRetakeBase",
+            "HandbrakeRestY", "HandbrakeFullPullY",
 
             // The clutch pedal binding: a device id that means nothing on another machine, and a
             // travel measured on pedals nobody here owns. ClutchSource goes with them, because it
@@ -97,6 +98,7 @@ namespace AB9ActiveShifter
             "GrindClutchModeIndex", "LockoutPlacementIndex", "LockoutGapDirectionIndex",
             "LockoutSlotGearIndex", "LockoutSlotDirectionIndex", "LockoutModeIndex",
             "PrndLockoutGapIndex", "PrndLockoutDirectionIndex", "PrndLockoutModeIndex",
+            "HandbrakeForceCurveIndex",
 
             // The Feel tab's percent-of-column-spacing display toggle: each is fully derived
             // from the raw dial it shares a backing field with. Sharing both would write the
@@ -128,6 +130,7 @@ namespace AB9ActiveShifter
             "VendorId", "ProductId", "VJoyDeviceId", "TickHz",
             "OutputMode", "ControlMapperRoles",
             "AutoRetakeBase",
+            "HandbrakeRestY", "HandbrakeFullPullY",
             "PedalDeviceId", "PedalAxisIndex", "PedalRawMin", "PedalRawMax",
             "PedalDeadzoneLow", "PedalDeadzoneHigh", "PedalInvert", "ClutchSource"
         };

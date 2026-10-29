@@ -101,8 +101,9 @@ namespace AB9ActiveShifter.UI
             BaseEffectsDescription.Text = onboard
                 ? "The AB9 computes spring, damper, friction and inertia internally, avoiding the USB round trip. The custom gate, software stability and telemetry effects still use DirectInput. Changes apply automatically after you pause editing; successful updates keep the master switch as set."
                 : "DirectInput renders spring, damper, friction and inertia. This profile keeps the same values when you change between virtual modes.";
-            BaseSpringSlider.IsEnabled = onboard || _boundSettings.BaseSpringPolarityConfirmed;
-            BaseSpringCalibrationHint.Visibility = !onboard && !_boundSettings.BaseSpringPolarityConfirmed
+            BaseSpringSlider.IsEnabled = !_boundSettings.IsHandbrake && (onboard || _boundSettings.BaseSpringPolarityConfirmed);
+            HandbrakeSpringHint.Visibility = _boundSettings.IsHandbrake ? Visibility.Visible : Visibility.Collapsed;
+            BaseSpringCalibrationHint.Visibility = !_boundSettings.IsHandbrake && !onboard && !_boundSettings.BaseSpringPolarityConfirmed
                 ? Visibility.Visible : Visibility.Collapsed;
             foreach (ComboBoxItem item in ProfileCombo.Items)
             {

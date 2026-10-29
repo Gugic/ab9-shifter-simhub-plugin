@@ -44,6 +44,7 @@ namespace AB9ActiveShifter.Core
         public uint Id { get; set; }
         public VJoyDeviceState State { get; set; }
         public int Buttons { get; set; }
+        public bool HasHandbrakeAxis { get; set; }
 
         /// <summary>Process holding it when <see cref="State"/> is Busy; otherwise 0.</summary>
         public int OwnerPid { get; set; }

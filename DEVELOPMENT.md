@@ -14,6 +14,7 @@ error in this code drives a 12 Nm base the wrong way.
 - **vJoy**, or SimHub's built-in **Control Mapper** with configured output roles, to see gears
   come out. Direct vJoy uses 14 buttons to cover all patterns (1-8 gears, 9-10 sequential
   up/down, 11-14 the PRND positions)
+  Handbrake needs direct vJoy output with its Z axis enabled; Control Mapper carries buttons.
 - An **AB9**, to feel anything. The tests need none of the above
 
 ## Build and test
@@ -29,7 +30,7 @@ dotnet test tests/AB9ActiveShifter.Tests
 The suite covers `Core/` plus the settings POCO's derived-dial arithmetic, and touches no I/O.
 It also tests the pure GitHub release parser and version/asset policy in `Updates/ReleaseInfo.cs`.
 Float-shifting tests use synthetic telemetry and schema-shaped POCOs for the optional SCS adapter;
-they never load a game reader or hardware. The suite currently has 773 tests, including checks
+they never load a game reader or hardware. The suite currently has 818 tests, including checks
 that reported, configured and learned targets produce identical float-shift behavior.
 Keep it that way — it is the only automated check on the force arithmetic. `Core/` is deliberately
 I/O-free for a second reason as well: the vJoy wrapper is a 32-bit native DLL that test runners
@@ -159,8 +160,9 @@ src/AB9ActiveShifter/
   AB9ShifterPlugin.Native.cs Three operating modes and verified AB9 onboard configuration
   ShifterSettings.cs       Persisted POCO -> ToEngineConfig()
   ShifterProfiles.cs       Named profiles, legacy migration, cloning, the preset fork
-  DefaultProfiles.cs       The nine presets, as deltas from bare defaults, and their reserved
+  DefaultProfiles.cs       The ten presets, as deltas from bare defaults, and their reserved
                            name prefix
+  DefaultProfiles.Handbrake.cs Captured progressive handbrake tune, engine and rear wheel-lock effects
   DefaultProfiles.SequentialStiffShort.cs Captured short sequential tune and portable native Effects tree
   DefaultProfiles.SportShortThrow.cs Captured short H sport tune and portable native Effects tree
   ProfileTransfer.cs       Export/import of one profile as a shareable file, with validation
@@ -182,6 +184,7 @@ src/AB9ActiveShifter/
     SequentialStateMachine.cs One shift per stroke
     PrndLane.cs            Where an automatic's four positions are, and which button each holds
     PrndStateMachine.cs    Which position is held. Always exactly one
+    HandbrakeModel.cs      Calibrated travel, separate force/output curves and release-to-arm
     ForceComposer.cs       Position + velocity -> forces. The heart
     EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
     RevMatchModel.cs       Common RPM matching and target hysteresis for every H gearbox
@@ -215,7 +218,9 @@ src/AB9ActiveShifter/
     SettingsControl.Native.cs Native setup actions, status and control availability
     SettingsControl.Outputs.cs Output selector, pattern-specific native role pickers and readiness
     ControlMapperFeatureSettings.cs Guarded public host feature setting, explicit enable/restart
+    HandbrakeCurveVisualizer.cs Pull, return and braking curves from the runtime model
 tests/AB9ActiveShifter.Tests/
+  HandbrakeTests.cs        Pure travel/force/arming/axis-range and profile-transfer checks
   ControlMapperOutputTests.cs Role lifetimes, cleanup, mapping validation and rig-owned settings
   ControlMapperFeatureTests.cs Fake host model: activation isolation, restart rollback and fallback
   GearOutputConnectionTests.cs Base-independent ownership, recovery, timing and release policy

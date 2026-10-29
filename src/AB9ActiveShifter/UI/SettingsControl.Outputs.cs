@@ -35,6 +35,10 @@ namespace AB9ActiveShifter.UI
             OutputBindingSummary.Text = UsesControlMapper
                 ? "Control Mapper roles: configure H-pattern, sequential and PRND assignments in Options → Base and output, then bind the resulting keys or controller buttons in your game. All mappings belong to the rig; only the active pattern sends output. Blank mappings send nothing."
                 : "vJoy buttons: gears 1–7 → 1–7, reverse → 8; sequential up/down → 9/10; P/R/N/D → 11/12/13/14. The truck pattern uses buttons 1–6.";
+            if (_boundSettings.IsHandbrake)
+                OutputBindingSummary.Text = UsesControlMapper
+                    ? "Analog handbrake requires direct vJoy output. Select vJoy in Options → Base and output, enable Z in vJoyConf, then bind Z as the game's handbrake."
+                    : "Analog handbrake uses this vJoy device's Z axis. Enable Z in vJoyConf and bind it as the game's handbrake.";
             if (Plugin.CurrentOperatingMode != OperatingMode.Ab9HPattern)
             {
                 if (UsesControlMapper) RefreshControlMapperRoles(true);
@@ -134,6 +138,11 @@ namespace AB9ActiveShifter.UI
             }
             ControlMapperHint.Text = _controlMapperActionError ?? problem
                 ?? "Roles are configured. Check Control Mapper's selected output and bind its keys or controller buttons in your game.";
+            if (_boundSettings.IsHandbrake)
+            {
+                _controlMapperReady = false;
+                ControlMapperHint.Text = "Analog handbrake requires direct vJoy output with Z enabled. Select vJoy above; your role mappings are kept for the other patterns.";
+            }
             if (!rebuild) return;
 
             available.Insert(0, "");

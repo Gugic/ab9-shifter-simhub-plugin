@@ -55,6 +55,7 @@ namespace AB9ActiveShifter.UI
             // Keep Cancel reachable while probes are running. The Measure button has its
             // own busy gate, while NativeWriteBusy also includes calibration itself.
             VirtualCalibrationSection.IsEnabled = virtualAvailable && !Plugin.NativeBusy && (!baseMissing || calibrating);
+            HandbrakeCalibrationGroup.IsEnabled = virtualAvailable && !Plugin.NativeBusy && !calibrating && !baseMissing;
             TuningButtons.IsEnabled = tuningAvailable && _boundSettings.PolarityConfirmed && (!Plugin.NativeWriteBusy || Plugin.NativeProfileUpdateInProgress) && !calibrating;
             if (_tuningWindow != null && _tuningWindow.Content is Grid)
                 ((UIElement)((Grid)_tuningWindow.Content).Children[0]).IsEnabled = tuningAvailable && (!Plugin.NativeWriteBusy || Plugin.NativeProfileUpdateInProgress) && !calibrating;

@@ -40,6 +40,18 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         public GatePattern Pattern = GatePattern.H7R;
 
+        // Endpoints are rig facts; the remaining handbrake dials travel with a profile.
+        public int HandbrakeRestY = 32767;
+        public int HandbrakeFullPullY = 60000;
+        public int HandbrakeTravelPct = 100;
+        public int HandbrakeDeadzonePct = 2;
+        public int HandbrakeOutputProgressionPct;
+        public HandbrakeCurveShape HandbrakeForceCurve = HandbrakeCurveShape.BuildLater;
+        public int HandbrakeForceProgressionPct = 70;
+        public int HandbrakePullForcePct = 40;
+        public int HandbrakeReturnForcePct = 20;
+        public int HandbrakeStopForcePct = 60;
+
         /// <summary>
         /// How long a sequential shift holds its vJoy button down, in milliseconds. Long
         /// enough for a game polling at 60 Hz to see it several times; short enough that

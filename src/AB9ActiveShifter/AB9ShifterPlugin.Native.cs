@@ -320,6 +320,7 @@ namespace AB9ActiveShifter
             switch (property)
             {
                 case nameof(ShifterSettings.BaseSpringPct):
+                case nameof(ShifterSettings.Pattern):
                 case nameof(ShifterSettings.DamperCoeff):
                 case nameof(ShifterSettings.BaseFrictionPct):
                 case nameof(ShifterSettings.BaseInertiaPct):

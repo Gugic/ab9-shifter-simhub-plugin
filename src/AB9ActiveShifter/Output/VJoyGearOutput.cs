@@ -19,7 +19,7 @@ namespace AB9ActiveShifter.Output
     /// knowing the pattern. That is the reason <see cref="GearCount"/> reaches past the gears:
     /// it bounds what this may press, not what a gear is.
     /// </summary>
-    public sealed class VJoyGearOutput : IGearOutput
+    public sealed class VJoyGearOutput : IGearOutput, IHandbrakeOutput
     {
         /// <summary>Highest button <see cref="SetGear"/> will hold: 8 gears, then PRND's 11-14.</summary>
         public const int GearCount = 14;
@@ -31,13 +31,36 @@ namespace AB9ActiveShifter.Output
         private bool _acquired;
         private bool _hasOwnedDevice;
         private int _heldGear;
+        private readonly bool _useHandbrake;
+        private bool _handbrakeAvailable;
+        private long _axisMinimum;
+        private long _axisMaximum;
+        private int _lastBrake = -1;
+        private bool _axisFaulted;
 
-        public VJoyGearOutput(uint deviceId)
+        public bool HandbrakeAvailable { get { return IsConnected && _handbrakeAvailable; } }
+
+        private void ProbeHandbrakeAxis()
         {
-            _deviceId = deviceId == 0 ? 1u : deviceId;
+            _handbrakeAvailable = _vjoy.GetVJDAxisExist(_deviceId, HID_USAGES.HID_USAGE_Z)
+                && _vjoy.GetVJDAxisMin(_deviceId, HID_USAGES.HID_USAGE_Z, ref _axisMinimum)
+                && _vjoy.GetVJDAxisMax(_deviceId, HID_USAGES.HID_USAGE_Z, ref _axisMaximum)
+                && _axisMinimum >= 0 && _axisMaximum > _axisMinimum && _axisMaximum <= int.MaxValue;
+            if (!_handbrakeAvailable)
+            {
+                LastError = "Handbrake output needs the Z axis enabled in vJoyConf. Re-enable the plugin after changing it.";
+                Log.Warn(LastError);
+            }
+            else SetHandbrake(0);
         }
 
-        public bool IsConnected { get { return _acquired; } }
+        public VJoyGearOutput(uint deviceId, bool handbrake = false)
+        {
+            _deviceId = deviceId == 0 ? 1u : deviceId;
+            _useHandbrake = handbrake;
+        }
+
+        public bool IsConnected { get { return _acquired && !_axisFaulted; } }
 
         public string LastError { get; private set; }
 
@@ -57,7 +80,7 @@ namespace AB9ActiveShifter.Output
                     }
                 }
                 catch (Exception ex) { LostOwnership("Could not check vJoy ownership: " + ex.Message); }
-                return _acquired;
+                return IsConnected;
             }
         }
 
@@ -65,6 +88,8 @@ namespace AB9ActiveShifter.Output
         {
             _acquired = false;
             _heldGear = 0;
+            _handbrakeAvailable = false;
+            _lastBrake = -1;
             LastError = reason;
         }
 
@@ -72,10 +97,11 @@ namespace AB9ActiveShifter.Output
         {
             lock (_sync)
             {
-                if (_acquired) return true;
+                if (IsConnected) return true;
 
                 try
                 {
+                    if (_acquired) Disconnect();
                     if (!_vjoy.vJoyEnabled())
                     {
                         LastError = "vJoy driver is not enabled. Install vJoy and enable at least one device.";
@@ -108,7 +134,7 @@ namespace AB9ActiveShifter.Output
 
                     _hasOwnedDevice = true;
                     int buttons = _vjoy.GetVJDButtonNumber(_deviceId);
-                    if (buttons < Core.VJoyDeviceInfo.ButtonsNeeded)
+                    if (!_useHandbrake && buttons < Core.VJoyDeviceInfo.ButtonsNeeded)
                     {
                         // Not fatal: whatever buttons exist still work, so run and tell the
                         // user what is missing. Gears use 1..8; the sequential up/down pulses
@@ -130,13 +156,18 @@ namespace AB9ActiveShifter.Output
                         return false;
                     }
                     _heldGear = 0;
+                    _axisFaulted = false;
+                    _lastBrake = -1;
+                    _handbrakeAvailable = false;
                     _acquired = true;
+                    if (_useHandbrake) ProbeHandbrakeAxis();
                     Log.Info("vJoy device " + _deviceId + " acquired (" + buttons + " buttons).");
-                    return true;
+                    return IsConnected;
                 }
                 catch (Exception ex)
                 {
                     LastError = "vJoy initialisation failed: " + ex.Message;
+                    _axisFaulted = true;
                     Log.Error("vJoy initialisation failed", ex);
                     return false;
                 }
@@ -199,11 +230,54 @@ namespace AB9ActiveShifter.Output
             }
         }
 
+        public void SetHandbrake(int value)
+        {
+            lock (_sync)
+            {
+                if (!HandbrakeAvailable) return;
+                int axis = Core.HandbrakeModel.AxisValue(value, _axisMinimum, _axisMaximum);
+                if (axis == _lastBrake) return;
+                try
+                {
+                    if (!_vjoy.SetAxis(axis, _deviceId, HID_USAGES.HID_USAGE_Z))
+                        throw new InvalidOperationException("vJoy rejected the handbrake axis update.");
+                    _lastBrake = axis;
+                }
+                catch (Exception ex)
+                {
+                    AxisFailed(ex);
+                }
+            }
+        }
+
+        private void AxisFailed(Exception ex)
+        {
+            LastError = "Handbrake output failed: " + ex.Message;
+            Log.ErrorThrottled("vjoy-axis", LastError, ex);
+            _axisFaulted = true;
+            _lastBrake = -1;
+        }
+
+        // Teardown tries zero even after an axis write fault. Ordinary ticks respect the
+        // fault flag and leave retries to the engine's backoff, never one retry per tick.
+        private void ReleaseHandbrake()
+        {
+            if (!_acquired || !_handbrakeAvailable) return;
+            try
+            {
+                if (!_vjoy.SetAxis((int)_axisMinimum, _deviceId, HID_USAGES.HID_USAGE_Z))
+                    throw new InvalidOperationException("vJoy rejected the handbrake release.");
+                _lastBrake = (int)_axisMinimum;
+            }
+            catch (Exception ex) { AxisFailed(ex); }
+        }
+
         public void ReleaseAll()
         {
             lock (_sync)
             {
                 if (!_acquired) return;
+                ReleaseHandbrake();
                 try
                 {
                     if (!_vjoy.ResetButtons(_deviceId))
@@ -231,6 +305,7 @@ namespace AB9ActiveShifter.Output
                     // A failed write can clear our cache while the driver still owns the
                     // device. Only relinquish our ownership; never reset someone else's.
                     if (_vjoy.GetVJDStatus(_deviceId) != VjdStat.VJD_STAT_OWN) return;
+                    ReleaseHandbrake();
                     _vjoy.ResetButtons(_deviceId);
                     _vjoy.RelinquishVJD(_deviceId);
                     Log.Info("vJoy device " + _deviceId + " released.");
@@ -244,6 +319,9 @@ namespace AB9ActiveShifter.Output
                     _heldGear = 0;
                     _acquired = false;
                     _hasOwnedDevice = false;
+                    _handbrakeAvailable = false;
+                    _axisFaulted = false;
+                    _lastBrake = -1;
                 }
             }
         }

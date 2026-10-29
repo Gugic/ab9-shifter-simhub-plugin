@@ -16,6 +16,7 @@ You need **SimHub**, .NET Framework 4.8, and a DirectInput force-feedback flight
 **MOZA AB9** is the tested base; its onboard controls require firmware **1.1.5.2 or newer**.
 Other DirectInput FFB sticks use the generic mode and require their own polarity measurement.
 For gear output, choose either SimHub's **Control Mapper** or **vJoy** in step 3.
+Handbrake output requires direct vJoy with its **Z axis** enabled.
 
 1. Download the zip from the [latest release](https://github.com/Gugic/ab9-shifter-simhub-plugin/releases/latest).
 2. **Close SimHub**, then copy `AB9ActiveShifter.dll` from the zip into
@@ -72,9 +73,15 @@ Open **2 · Base and output** and select **Output**. After setup, these controls
 | **vJoy (direct)** | Install [vJoy](https://sourceforge.net/projects/vjoystick/), create a virtual device with **14 buttons** in Configure vJoy, then select it under **Device**. Use **Refresh** after changing its configuration. The picker shows button counts and ownership. |
 | **SimHub Control Mapper (native)** | Enable SimHub's Control Mapper feature, configure its keyboard or controller output, and assign existing roles to the plugin's gear mappings. Follow the steps below. |
 
-Fourteen vJoy buttons cover every pattern. An eight-button device covers H patterns but cannot
+Fourteen vJoy buttons cover every gear pattern. An eight-button device covers H patterns but cannot
 send sequential buttons 9–10 or PRND buttons 11–14. If Control Mapper also uses vJoy, give it a
 different virtual device so the two outputs do not compete for ownership.
+
+For **Handbrake (analog)**, choose **vJoy (direct)** and enable its **Z axis** in Configure vJoy.
+Under **Options → Handbrake travel calibration**, use free stick to capture the released start
+and full-pull end, at least 8000 counts apart. Release to start before braking can arm. Bind
+the virtual Z axis in the game; Control Mapper supplies button roles for the gear patterns.
+See [handbrake calibration and tuning](tuning.md#handbrake).
 
 For **SimHub Control Mapper (native)**:
 
@@ -136,17 +143,17 @@ before enabling force. Start low and raise it gradually with a hand on the lever
 
 The screenshots show example settings, not recommended starting strengths.
 
-There are nine presets: **7+R lockout**, **7+R lockout (short throw, loose)**,
+There are ten presets: **7+R lockout**, **7+R lockout (short throw, loose)**,
 **7+R lockout (short throw, stiff, sport)**, **5+R**, **5+R wide**,
-**Sequential**, **Sequential (stiff, short)**, **Automatic (PRND)** and
-**Truck 6-gear (low-range lockout)**. They are marked `(Preset)` in the picker. Changing a
+**Sequential**, **Sequential (stiff, short)**, **Automatic (PRND)**,
+**Truck 6-gear (low-range lockout)** and **Handbrake (progressive)**. They are marked `(Preset)` in the picker. Changing a
 profile dial automatically creates an editable copy and keeps the preset available; use
 **Duplicate** to make a copy deliberately. [Preset details](tuning.md#presets-and-why-your-profile-just-renamed-itself).
 
 Turn on **Shifter enabled** when ready. This is the master switch for both the base and gear
 output. **Release all forces (free stick)** releases the plugin's DirectInput forces while
 keeping the connections; onboard AB9 resistance can remain. Turning the master off clears
-buttons and releases both devices.
+buttons, releases handbrake input and releases both devices.
 
 While the master is off, **Stopped**, **Base: not connected** and **vJoy: not active** describe
 the engine's released connections. They do not mean that the calibration was lost; Options
@@ -159,17 +166,19 @@ setup, calibration and failed writes leave output off. There is no Apply button.
 
 ## 6. Bind and check the game output
 
-For **vJoy (direct)**, bind the virtual controller's buttons:
+For **vJoy (direct)**, bind the virtual controller's buttons or handbrake axis:
 
-| Pattern | Buttons |
+| Pattern | Output |
 | --- | --- |
 | H pattern | **1–7** for forward gears; **8** for reverse in every pattern that has it |
 | Truck six-slot gate | **1–6**; no reverse |
 | Sequential | **9** for up, **10** for down |
 | Automatic PRND | **11**, **12**, **13**, **14** for P, R, N, D |
+| Handbrake | **Z axis**, proportional braking input |
 
 Check the vJoy device in Windows Game Controllers (`joy.cpl`): a held H gear or PRND position
 holds its button; sequential produces a pulse. H-pattern neutral releases the gear buttons.
+In handbrake mode, release to start to arm, then check that Z moves from released to full input.
 
 For **SimHub Control Mapper (native)**, bind the configured keys or controller buttons in the
 game. Check direct gear selection and return to neutral, plus every sequential or PRND mapping

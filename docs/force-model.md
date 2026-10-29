@@ -722,6 +722,70 @@ latch and hold-fire arming included. The one deliberate difference: **the lane's
 touches the selector's state machine, hard mode included** — force is its whole answer, because a
 blocked handover would report a position the lever is not in.
 
+## Handbrake resistance and return
+
+`HandbrakeModel` supplies a one-sided stroke independently of H, sequential and PRND geometry.
+The endpoint difference determines direction in raw device coordinates. Usable travel is
+25-100% of calibrated travel with an 8000-count minimum; invalid calibration produces no braking
+or restoring force. The default force curve blends p and p squared, bounding its slope. Pull resistance
+defaults to 40%, progression to 70%, and return strength to 20%, each before effective gain.
+Returning velocity blends toward the lighter return strength with smoothstep over 0-20000
+counts/s; there is no force switch at zero velocity and return cannot exceed pull resistance.
+The bare defaults use a 60% end stop rising over 8000 counts toward rest. These conservative
+reset values are separate from the captured handbrake preset below.
+
+The stroke and lateral corridor use the existing yield/attack pipeline. Friction and damping join
+afterward; telemetry keeps its independent budget, freshness and final polarity. The milder
+snick yield floor preserves return assistance. The braking curve is separate: a 2% released dead
+zone and linear-to-quadratic progression (default linear) map to 0-10000. Force tuning does not
+retune game input. Motor movement can still change position-based braking; this is not load-cell
+pressure measurement.
+
+Rejected by design: arbitrary/discontinuous curves and an abrupt pull/release force switch,
+which introduce steps into the delayed loop; narrow hydraulic-style walls, which repeat the
+known steep-gradient failure; synthesized wheel-lock feedback without validated telemetry.
+Native ShakeIt wheel-lock feedback remains available and is enabled for the rear wheels in the captured preset. Its response follows the game telemetry; a separate force-modulation model is not implemented.
+
+The merged PR #52 corridor is now also the handbrake's lateral field: SlotHalfWidth is free
+throughout the stroke and WallRamp is used without hidden H-column spacing limits. Its preset
+uses the captured 844-count corridor and 3815-count bite. On 2026-10-29 the user reported
+constant hard oscillations at larger forces without that change; this is the reported reason
+for adopting the corridor, not a claim that the revised handbrake has passed its feel test.
+
+Start and end can span the entire Y axis in either direction. Return force, zero braking,
+release-to-arm and profile settling all refer to the start, never an assumed device centre.
+Changing endpoints clears output and eases in the moved geometry. The optional base-centering
+spring is suppressed for handbrake in both providers, with its stored percentage preserved for
+other patterns. Native pattern edits synchronize Spring zero through verified writes. This
+avoids a second return anchor fighting the handbrake's start. The software return still uses
+the same damping, yield, attack and final measured signs; no force cap is bypassed.
+
+Handbrake resistance now offers four curve families, blended from linear by the existing
+HandbrakeForceProgressionPct amount: BuildLater p*p (the original default), BuildEarly p*(2-p),
+Linear p, and SmoothS p*p*(3-2*p). Early build reaches 75% at half travel and has a flat slope
+at the end; S build concentrates the rise in the middle. All are monotone, zero at start,
+one at end and bounded by a normalized slope of two, so their maximum gradient is no greater
+than the original full quadratic. Curve choice defaults to BuildLater and the amount remains
+70%, preserving saved force arithmetic exactly. Braking still uses its independent existing
+curve; changing the feel cannot change the axis mapping. The graph samples Resistance itself.
+
+Rejected: sqrt(p) and other fractional powers below one, because their infinite slope at the
+start would turn the user's requested firm beginning into a step through the delayed loop.
+Arbitrary closely-spaced curve points are also excluded here: they could recreate the narrow
+steep gradients the force model was built to avoid. The family/amount controls provide early,
+even, late and middle build without that new stiffness range. Hardware feel still needs the
+person at the lever; the tests establish continuity and bounds, not absence of oscillation.
+
+On 2026-10-29 the user selected Handbrake (progressive) 4 as the shipped preset. It captures
+all portable dials and the complete native Effects tree: SmoothS at 100%, pull/return/end-stop
+and overall gain at 100%, 95% usable travel, quadratic braking, 15 ms attack, zero software
+damping/yield/friction and 15.22% base damping. Engine vibration is enabled at 25%; wheel lock
+is enabled at 100%, with Front/Rear aggregation mapped to Rear only, sensitivity 10, brake
+filter 20 and the saved 20 Hz white-noise tone. Tests pin the complete tree and its portable
+round trip. Endpoints, device/output bindings, measured polarity and live switches remain rig
+facts. The preset stays disabled and unconfirmed; the effective-gain cap still applies.
+This is the user's captured tune, not a stability claim about every supported rig or game.
+
 ## The four stabilising mechanisms
 
 A stiff wall rendered through a 3–4 ms delay is unstable — the delayed force acts as *negative*

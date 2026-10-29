@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using AB9ActiveShifter;
 using AB9ActiveShifter.Core;
 using Newtonsoft.Json.Linq;
@@ -276,6 +278,61 @@ namespace AB9ActiveShifter.Tests
             Assert.True((bool)rows[3]["IsEnabled"]);
             Assert.Equal("AB9LimiterEffectContainer", (string)rows[3]["ContainerType"]);
             Assert.DoesNotContain("OutputManager", s.NativeEffectsJson);
+        }
+
+        [Fact]
+        public void TheHandbrakePresetKeepsTheCapturedStrokeCurveAndResistance()
+        {
+            ShifterSettings s = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.HandbrakeName));
+            Assert.Equal(GatePattern.Handbrake, s.Pattern);
+            Assert.Equal(100, s.OverallGainPct);
+            Assert.Equal(100, s.ColumnPinForcePct);
+            Assert.Equal(844, s.SlotHalfWidth);
+            Assert.Equal(3815, s.WallRamp);
+            Assert.Equal(15, s.WallAttackMs);
+            Assert.Equal(0, s.DampingPct);
+            Assert.Equal(0, s.WallYieldPct);
+            Assert.Equal(0, s.WallFrictionPct);
+            Assert.Equal(1522, s.DamperCoeff);
+            Assert.Equal(95, s.HandbrakeTravelPct);
+            Assert.Equal(2, s.HandbrakeDeadzonePct);
+            Assert.Equal(100, s.HandbrakeOutputProgressionPct);
+            Assert.Equal(HandbrakeCurveShape.SmoothS, s.HandbrakeForceCurve);
+            Assert.Equal(100, s.HandbrakeForceProgressionPct);
+            Assert.Equal(100, s.HandbrakePullForcePct);
+            Assert.Equal(100, s.HandbrakeReturnForcePct);
+            Assert.Equal(100, s.HandbrakeStopForcePct);
+            Assert.Equal("wjee", s.FxCustomProperty);
+        }
+
+        [Fact]
+        public void TheHandbrakePresetPreservesTheWholeCapturedNativeEffectsTree()
+        {
+            ShifterSettings s = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.HandbrakeName));
+            string validated = NativeEffectsData.Validate(s.NativeEffectsJson);
+            using (SHA256 hash = SHA256.Create())
+            {
+                string capturedHash = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(validated)))
+                    .Replace("-", "").ToLowerInvariant();
+                Assert.Equal("20c7e27ab2b8b94b4447d63bd4e46115bdcd113bba62718c66f13a68b6755a53", capturedHash);
+            }
+            var effects = JObject.Parse(validated);
+            var rows = (JArray)effects["Profile"]["EffectsContainers"];
+            Assert.Equal(100.0, (double)effects["GlobalGain"]);
+            Assert.False((bool)effects["IsMuted"]);
+            Assert.Equal(10, rows.Count);
+            Assert.Equal("RPMContainer", (string)rows[2]["ContainerType"]);
+            Assert.True((bool)rows[2]["IsEnabled"]);
+            Assert.Equal(25.0, (double)rows[2]["Gain"]);
+            Assert.Equal("WheelsLockContainer", (string)rows[9]["ContainerType"]);
+            Assert.True((bool)rows[9]["IsEnabled"]);
+            Assert.Equal("Front/Rear", (string)rows[9]["AggregationMode"]);
+            Assert.False((bool)rows[9]["SettingsStore"]["Settings"][0]["Channels"]["Front"]["Channels"]["0"]["IsEnabled"]);
+            Assert.True((bool)rows[9]["SettingsStore"]["Settings"][0]["Channels"]["Rear"]["Channels"]["0"]["IsEnabled"]);
+            Assert.DoesNotContain("OutputManager", s.NativeEffectsJson);
+            ShifterSettings imported = ProfileTransfer.Import(ProfileTransfer.Export(new ShifterProfile
+            { Name = "Captured handbrake", Settings = s }), new ShifterSettings()).Profile.Settings;
+            Assert.True(JToken.DeepEquals(effects, JObject.Parse(imported.NativeEffectsJson)));
         }
 
         [Fact]

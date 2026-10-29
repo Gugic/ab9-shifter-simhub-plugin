@@ -94,6 +94,7 @@
                                             <ComboBoxItem Content="Sequential (+ / -)" />
                                             <ComboBoxItem Content="Automatic (P R N D)" />
                                             <ComboBoxItem Content="H pattern, 6 gears, no reverse (truck)" />
+                                            <ComboBoxItem Content="Handbrake (analog)" />
                                         </ComboBox>
                                     </Grid>
                                     <ui:TitledSlider x:Name="VirtualSequentialPulse" Title="Sequential pulse length (ms)" Minimum="20" Maximum="400" TickFrequency="10" ShowResetButton="True" ResetValue="120" Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}" Value="{Binding SeqPulseMs, Mode=TwoWay}" Margin="0,4,0,8" />
@@ -324,6 +325,22 @@
                                     </StackPanel>
                                 </styles:SHSection>
                             </styles:SHExpander>
+                            <styles:SHExpander x:Name="HandbrakeCalibrationGroup" Header="Handbrake travel calibration" Margin="0,8,0,8" Visibility="{Binding IsHandbrake, Converter={StaticResource BoolToVis}}">
+                                <StackPanel Margin="0,8,0,8">
+                                    <TextBlock TextWrapping="Wrap" Text="Enable free stick before capturing travel. With the plugin running, capture the released position, then your full pull. Either pull direction works; endpoints must be at least 8000 counts apart. This calibration is shared by all profiles. Enable the Z axis in vJoyConf and bind it as the game's handbrake." />
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,4">
+                                        <TextBlock Text="Start Y" Width="95" VerticalAlignment="Center" />
+                                        <TextBox Width="80" Text="{Binding HandbrakeRestY, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                                        <styles:SHButtonSecondary Content="Capture start" Tag="Rest" Click="OnCaptureHandbrakeEndpoint" Margin="8,0,0,0" Padding="10,3" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                        <TextBlock Text="End Y" Width="95" VerticalAlignment="Center" />
+                                        <TextBox Width="80" Text="{Binding HandbrakeFullPullY, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                                        <styles:SHButtonSecondary Content="Capture end" Tag="Full" Click="OnCaptureHandbrakeEndpoint" Margin="8,0,0,0" Padding="10,3" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="HandbrakeCaptureHint" TextWrapping="Wrap" Opacity="0.85" />
+                                </StackPanel>
+                            </styles:SHExpander>
                             <styles:SHExpander x:Name="CalibrationGroup" Header="Polarity calibration" Margin="0,8,0,8">
                                 <styles:SHSection x:Name="VirtualCalibrationSection" Title="" ShowSeparator="True">
                                     <StackPanel Margin="0,4,0,8">
@@ -524,6 +541,7 @@
                                     <TextBlock x:Name="BaseEffectsHeading" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,4" />
                                     <TextBlock Text="DirectInput renders these base effects. Gate forces, software stability and telemetry effects remain available in either virtual mode." TextWrapping="Wrap" Margin="0,4,0,8" x:Name="BaseEffectsDescription" />
                                     <ui:TitledSlider Title="Base spring (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="0" Value="{Binding BaseSpringPct, Mode=TwoWay}" x:Name="BaseSpringSlider" />
+                                    <TextBlock x:Name="HandbrakeSpringHint" TextWrapping="Wrap" Opacity="0.75" Visibility="Collapsed" Text="Handbrake return uses the configured start position. The base-centering spring is off in this pattern; use Return strength to tune the return." />
                                     <ui:TitledSlider Title="Base damper (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="8" Value="{Binding BaseDamperPct, Mode=TwoWay}" />
                                     <ui:TitledSlider Title="Base friction (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="0" Value="{Binding BaseFrictionPct, Mode=TwoWay}" />
                                     <ui:TitledSlider Title="Base inertia (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="0" Value="{Binding BaseInertiaPct, Mode=TwoWay}" />
@@ -548,7 +566,7 @@
                                 <ui:TitledSlider Title="Gate wall, between columns (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="90" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" Value="{Binding ChannelWallForcePct, Mode=TwoWay}" />
                                 <ui:TitledSlider Title="Slot wall / lateral rail (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="90" Value="{Binding ColumnPinForcePct, Mode=TwoWay}" />
                                 <ui:TitledSlider Title="Fore/aft drag while on a column (%)" Minimum="0" Maximum="40" TickFrequency="1" ShowResetButton="True" ResetValue="5" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" Value="{Binding ChannelGuideForcePct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Wall at the pattern edge (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="100" Value="{Binding PatternEdgeForcePct, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="Wall at the pattern edge (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="100" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" Value="{Binding PatternEdgeForcePct, Mode=TwoWay}" />
                                 <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
                                     <StackPanel Margin="0,6,0,0">
                                         <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="What stops the lever wandering off the side of a narrowed pattern. Outside the outermost columns there is bare travel with no gear in it, and the neutral tunnel is deliberately free everywhere else, so without this the lever slides to the base's own stop with nothing to say the gate ended. It is one-sided - it only ever pushes back in, never out - so it is a wall rather than a centring force, and it is zero everywhere inside the pattern. At 100% width it renders nothing at all, whatever it is set to: the outer columns are already at the stops and there is no room outside them." />
@@ -559,6 +577,25 @@
                         <styles:SHSection Title="THROW AND SLOT END-STOP STRENGTH" ShowSeparator="True" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,6,0,16">
                                 <ui:TitledSlider Title="Slot end-stop wall (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="0" Value="{Binding SlotStopForcePct, Mode=TwoWay}" />
+                            </StackPanel>
+                        </styles:SHSection>
+                        <styles:SHSection Title="HANDBRAKE RESISTANCE AND RETURN" ShowSeparator="True" Visibility="{Binding IsHandbrake, Converter={StaticResource BoolToVis}}">
+                            <StackPanel Margin="0,6,0,16">
+                                <local:HandbrakeCurveVisualizer x:Name="HandbrakeCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" />
+                                <ui:TitledSlider Title="Pull resistance (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="40" Value="{Binding HandbrakePullForcePct, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="Return strength (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="20" Value="{Binding HandbrakeReturnForcePct, Mode=TwoWay}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                                    <TextBlock Text="Resistance curve" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <ComboBox MinWidth="280" SelectedIndex="{Binding HandbrakeForceCurveIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="Build later (progressive)" />
+                                        <ComboBoxItem Content="Build early (flatten toward end)" />
+                                        <ComboBoxItem Content="Linear (even build)" />
+                                        <ComboBoxItem Content="S curve (gentle ends)" />
+                                    </ComboBox>
+                                </StackPanel>
+                                <ui:TitledSlider Title="Curve amount (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="70" IsEnabled="{Binding HandbrakeCurveUsesAmount}" Value="{Binding HandbrakeForceProgressionPct, Mode=TwoWay}" />
+                                <ui:TitledSlider Title="Handbrake end-stop (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="60" Value="{Binding HandbrakeStopForcePct, Mode=TwoWay}" />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Text="Build early raises resistance quickly near the start and flattens toward the end. Build later stays light initially and firms up near the end. S curve builds most in the middle. Curve amount blends the selected shape with a straight line: 0 is linear, 100 is the full shape. Pull and return share this shape; braking input keeps its own curve in Geometry. Return strength is limited to pull resistance. Damping below controls return motion." />
                             </StackPanel>
                         </styles:SHSection>
                         <styles:SHSection Title="SEQUENTIAL STROKE STRENGTH" ShowSeparator="True" Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}">
@@ -611,7 +648,7 @@
                                 </styles:SHExpander>
                             </StackPanel>
                         </styles:SHSection>
-                        <styles:SHSection Title="SLOT DETENT" ShowSeparator="True" Visibility="{Binding IsPrnd, Converter={StaticResource InverseBoolToVis}}">
+                        <styles:SHSection Title="SLOT DETENT" ShowSeparator="True" Visibility="{Binding HasSlotDetent, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,4,0,8">
                                 <local:DetentCurveVisualizer x:Name="DetentCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" />
                                 <ui:TitledSlider Title="Resistance entering the slot (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="22" Value="{Binding DetentResistPct, Mode=TwoWay}" />
@@ -645,11 +682,21 @@
                     </Grid.RowDefinitions>
                     <StackPanel Margin="12,4,12,8">
                         <local:GateVisualizer x:Name="GeometryGate" Height="250" HorizontalAlignment="Center" />
-                        <CheckBox x:Name="GeometryPercentToggle" Content="Show lateral distances as % of column spacing" Margin="0,0,0,4" Checked="OnGeometryPercentToggleChanged" Unchecked="OnGeometryPercentToggleChanged" />
+                        <CheckBox x:Name="GeometryPercentToggle" Content="Show lateral distances as % of column spacing" Margin="0,0,0,4" Checked="OnGeometryPercentToggleChanged" Unchecked="OnGeometryPercentToggleChanged" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" />
                     </StackPanel>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Grid.Row="1">
                         <StackPanel Margin="12,0,12,12">
-                            <styles:SHSection Title="GEAR LAYOUT" ShowSeparator="True">
+                            <styles:SHSection Title="HANDBRAKE TRAVEL AND OUTPUT" ShowSeparator="True" Visibility="{Binding IsHandbrake, Converter={StaticResource BoolToVis}}">
+                                <StackPanel Margin="0,6,0,16">
+                                    <TextBlock TextWrapping="Wrap" Opacity="0.85" Text="Set start and end anywhere in the base's Y travel, in either direction, at least 8000 counts apart. Return force and zero braking use the start position, not the base centre. These endpoints are shared by all profiles. Capture them with free stick in Options → Handbrake travel calibration, or adjust them here. Moving an endpoint eases the new forces in and requires a release to start before braking can arm." />
+                                    <ui:TitledSlider Title="Start position (axis counts)" Minimum="0" Maximum="65535" TickFrequency="100" ShowResetButton="False" Value="{Binding HandbrakeRestY, Mode=TwoWay}" />
+                                    <ui:TitledSlider Title="End position (axis counts)" Minimum="0" Maximum="65535" TickFrequency="100" ShowResetButton="False" Value="{Binding HandbrakeFullPullY, Mode=TwoWay}" />
+                                    <ui:TitledSlider Title="Usable handbrake travel (%)" Minimum="25" Maximum="100" ShowResetButton="True" ResetValue="100" Value="{Binding HandbrakeTravelPct, Mode=TwoWay}" />
+                                    <ui:TitledSlider Title="Released dead zone (%)" Minimum="0" Maximum="20" ShowResetButton="True" ResetValue="2" Value="{Binding HandbrakeDeadzonePct, Mode=TwoWay}" />
+                                    <ui:TitledSlider Title="Braking progression (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="0" Value="{Binding HandbrakeOutputProgressionPct, Mode=TwoWay}" />
+                                </StackPanel>
+                            </styles:SHSection>
+                            <styles:SHSection Title="GEAR LAYOUT" ShowSeparator="True" Visibility="{Binding IsHandbrake, Converter={StaticResource InverseBoolToVis}}">
                                 <StackPanel Margin="0,6,0,16">
                                     <styles:SHExpander Header="Gear layout">
                                         <StackPanel Margin="0,8,0,0">
@@ -675,7 +722,7 @@
                                 <StackPanel Margin="0,6,0,16">
                                     <StackPanel Visibility="{Binding HasLateralLane, Converter={StaticResource BoolToVis}}">
                                         <ui:TitledSlider Title="Sideways free corridor, either side (axis counts)" Minimum="0" Maximum="6000" TickFrequency="100" ShowResetButton="True" ResetValue="1100" Value="{Binding SlotHalfWidth, Mode=TwoWay}" />
-                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="Sequential and PRND have a lane with no sideways force inside this distance from centre. Outside it, Slot wall / lateral rail supplies the walls. Zero restores a centred rail, which can hunt at high force even with base damping. Widen the corridor for a quieter resting region; the monitor draws its actual width." />
+                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="Sequential, PRND and handbrake have a lane with no sideways force inside this distance from centre. Outside it, Slot wall / lateral rail supplies the walls. Zero restores a centred rail, which can hunt at high force even with base damping. Widen the corridor for a quieter resting region; the monitor draws its actual width." />
                                         <ui:TitledSlider Title="Wall bite distance (axis counts)" Minimum="60" Maximum="6000" TickFrequency="100" ShowResetButton="True" ResetValue="600" Value="{Binding WallRamp, Mode=TwoWay}" />
                                     </StackPanel>
                                     <StackPanel Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
@@ -695,15 +742,17 @@
                                         <ui:TitledSlider Title="Wall bite distance (% of column spacing)" Minimum="0" Maximum="30" TickFrequency="0.5" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}" Value="{Binding WallRampPercent, Mode=TwoWay}" />
                                     </StackPanel>
                                     <TextBlock x:Name="WallRampSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" />
-                                    <ui:TitledSlider Title="Gate wall fade width, across a column (axis counts)" Minimum="200" Maximum="6000" TickFrequency="100" ShowResetButton="True" ResetValue="1500" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}" Value="{Binding WallBlend, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Gate wall fade width, across a column (% of column spacing)" Minimum="0" Maximum="30" TickFrequency="0.5" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}" Value="{Binding WallBlendPercent, Mode=TwoWay}" />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="How far sideways it takes the fore/aft gate wall to go from open, on a column, to solid between columns. This is the mouth of each slot seen from the tunnel: narrow and the gate snaps shut as you leave a column, wide and every entry feels vague. It is a sideways gradient, so it is also what corners are made of - widen it if corners feel harsh." />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0" Text="Which gap the lockout guards is chosen in Geometry; within that gap it still places itself against the near column's band, so sliding across the gate meets it straight away instead of after a long stretch of dead travel (a Both-direction gate sits on the gap's midpoint instead). Its width is in Geometry, and the live monitor draws the band where it actually is." />
-                                    <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
-                                        <StackPanel Margin="0,6,0,0">
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="The lateral guide has no ramp of its own any more. Every sideways force in the gate - the pull along the tunnel, the funnel into a slot, the slot wall itself - now rises at the same stiffness as the wall, so a gentler force gets a shorter face instead of a steeper one. Its own ramp was a free parameter, and at the bottom of its range it made the funnel the steepest thing in the gate, three and a half times the wall face, in exactly the place the lever crosses on every shift." />
-                                        </StackPanel>
-                                    </styles:SHExpander>
+                                    <StackPanel Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                                        <ui:TitledSlider Title="Gate wall fade width, across a column (axis counts)" Minimum="200" Maximum="6000" TickFrequency="100" ShowResetButton="True" ResetValue="1500" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}" Value="{Binding WallBlend, Mode=TwoWay}" />
+                                        <ui:TitledSlider Title="Gate wall fade width, across a column (% of column spacing)" Minimum="0" Maximum="30" TickFrequency="0.5" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}" Value="{Binding WallBlendPercent, Mode=TwoWay}" />
+                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="How far sideways it takes the fore/aft gate wall to go from open, on a column, to solid between columns. This is the mouth of each slot seen from the tunnel: narrow and the gate snaps shut as you leave a column, wide and every entry feels vague. It is a sideways gradient, so it is also what corners are made of - widen it if corners feel harsh." />
+                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0" Text="Which gap the lockout guards is chosen in Geometry; within that gap it still places itself against the near column's band, so sliding across the gate meets it straight away instead of after a long stretch of dead travel (a Both-direction gate sits on the gap's midpoint instead). Its width is in Geometry, and the live monitor draws the band where it actually is." />
+                                        <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
+                                            <StackPanel Margin="0,6,0,0">
+                                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="The lateral guide has no ramp of its own any more. Every sideways force in the gate - the pull along the tunnel, the funnel into a slot, the slot wall itself - now rises at the same stiffness as the wall, so a gentler force gets a shorter face instead of a steeper one. Its own ramp was a free parameter, and at the bottom of its range it made the funnel the steepest thing in the gate, three and a half times the wall face, in exactly the place the lever crosses on every shift." />
+                                            </StackPanel>
+                                        </styles:SHExpander>
+                                    </StackPanel>
                                 </StackPanel>
                             </styles:SHSection>
                             <styles:SHSection Title="THROW AND SLOT END-STOP" ShowSeparator="True" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
@@ -834,7 +883,7 @@
                                     <ui:TitledSlider Title="Hump width (% of column spacing)" Minimum="0" Maximum="40" TickFrequency="1" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}" Value="{Binding BarrierWidthPercent, Mode=TwoWay}" />
                                 </StackPanel>
                             </styles:SHSection>
-                            <styles:SHExpander Header="Advanced gate geometry">
+                            <styles:SHExpander Header="Advanced gate geometry" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                                 <StackPanel Margin="0,8,0,8">
                                     <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="All in axis counts: positions run 0 to 65535 with 32767 at centre, so 1000 counts is about a finger's width of stick travel. These decide where the gate thinks the lever is, not what it feels like - change them only if gear detection is wrong, and use Feel for anything about strength." />
                                     <ui:TitledSlider Title="Neutral tunnel half-depth (enter)" Minimum="200" Maximum="8000" TickFrequency="100" ShowResetButton="True" ResetValue="2600" Value="{Binding ChannelHalfEnter, Mode=TwoWay}" />

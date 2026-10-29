@@ -133,6 +133,7 @@ namespace AB9ActiveShifter.UI
                 SlidingAcrossGateCurve.Attach(_boundSettings);
                 SlotMouthCurve.Attach(_boundSettings);
                 PrndLaneCurve.Attach(_boundSettings);
+                HandbrakeCurve.Attach(_boundSettings);
             }
 
             // A fresh baseline for "modified since I opened this profile" - not since the last
@@ -741,7 +742,7 @@ namespace AB9ActiveShifter.UI
                     VJoyCombo.SelectedIndex = 0;
                 }
 
-                VJoyHint.Text = HintFor(probe, selected);
+                VJoyHint.Text = HintFor(probe, selected, _boundSettings.IsHandbrake);
             }
             catch (Exception ex)
             {
@@ -768,7 +769,7 @@ namespace AB9ActiveShifter.UI
         }
 
         /// <summary>The sentence under the picker: what is wrong with the chosen device, if anything.</summary>
-        private static string HintFor(VJoyProbeResult probe, uint selected)
+        private static string HintFor(VJoyProbeResult probe, uint selected, bool handbrake = false)
         {
             VJoyDeviceInfo chosen = null;
             foreach (VJoyDeviceInfo d in probe.Devices)
@@ -792,6 +793,9 @@ namespace AB9ActiveShifter.UI
                     return "vJoy will not say what state device " + selected + " is in.";
 
                 default:
+                    if (handbrake) return chosen.HasHandbrakeAxis
+                        ? "Ready. Bind this device's Z axis as the game's handbrake."
+                        : "Enable this device's Z axis in vJoyConf, then refresh and re-enable the plugin.";
                     return chosen.Buttons >= VJoyDeviceInfo.ButtonsNeeded
                         ? "Ready. Bind gears 1-7 and reverse to buttons 1-8, the sequential up/down to 9 and 10, and PRND's P, R, N and D to 11-14."
                         : "Device " + selected + " has only " + chosen.Buttons + " buttons. Gears need 1-8, " +
@@ -812,6 +816,25 @@ namespace AB9ActiveShifter.UI
             // The engine notices the change and reconnects on its own; this only records it.
             _boundSettings.VJoyDeviceId = id;
             RefreshVJoyDevices();
+        }
+
+        private void OnCaptureHandbrakeEndpoint(object sender, RoutedEventArgs e)
+        {
+            ShifterEngine engine = AB9ShifterPlugin.Engine;
+            if (_boundSettings == null || engine == null || !engine.Snapshot.DeviceConnected
+                || !_boundSettings.FreeStick || engine.IsCalibrating)
+            {
+                HandbrakeCaptureHint.Text = "Run the plugin with free stick enabled, then capture travel.";
+                return;
+            }
+            var button = sender as Button;
+            if (button != null && Convert.ToString(button.Tag) == "Rest")
+                _boundSettings.HandbrakeRestY = engine.Snapshot.RawY;
+            else _boundSettings.HandbrakeFullPullY = engine.Snapshot.RawY;
+            var model = new HandbrakeModel(_boundSettings.ToEngineConfig());
+            HandbrakeCaptureHint.Text = model.IsValid
+                ? "Travel captured. Turn free stick off and release the lever to arm vJoy Z."
+                : "Capture both endpoints at least 8000 counts apart. Output stays released until travel is valid.";
         }
 
         private void OnRefreshVJoyDevices(object sender, RoutedEventArgs e)
@@ -1892,7 +1915,7 @@ namespace AB9ActiveShifter.UI
                     : snap.OutputMode != selectedOutput ? outputName + ": changing output"
                     : snap.OutputConnected ? outputName + (selectedOutput == GearOutputMode.ControlMapper ? ": roles active" : ": connected")
                     : outputName + ": " + (snap.OutputError ?? "not connected");
-                GearText = "Gear: " + snap.GearLabel;
+                GearText = (snap.HandbrakeMode ? "Handbrake: " : "Gear: ") + snap.GearLabel;
                 LoopText = snap.LoopHz > 0 ? "Loop: " + Math.Round(snap.LoopHz) + " Hz" : "Loop: idle";
                 AxisText = "X: " + snap.X + "   Y: " + snap.Y;
                 StateText = "State: " + snap.State + (snap.Column == Column.None ? "" : " in column " + snap.Column);
