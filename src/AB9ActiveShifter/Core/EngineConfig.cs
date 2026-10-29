@@ -639,6 +639,7 @@ namespace AB9ActiveShifter.Core
         /// pin force; a railed gear that trembles wants the slot wall lowered, not damping.
         /// See docs/force-model.md, "The rail gate".
         /// </summary>
+        // Also the sideways half-width in sequential and PRND; zero explicitly selects a rail.
         public int SlotHalfWidth = 1100;
 
         /// <summary>

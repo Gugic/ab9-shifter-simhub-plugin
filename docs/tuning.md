@@ -368,7 +368,14 @@ through and no gear to engage — the lever is always somewhere, which is why th
 - ***End-stop wall past P and D*** is the wall at either end of the lane. Always back down the
   lane, never a pocket.
 
-Sideways the lever is railed to the middle by **slot wall / lateral rail**, as in sequential.
+Sideways, **Slot wall / lateral rail (%)** sets the wall force, as in sequential. In Geometry,
+**Sideways free corridor, either side (axis counts)** sets the distance either side of centre
+with no sideways force. It uses the existing `SlotHalfWidth` saved with the profile; the usual
+Sequential and PRND presets now use the sport H profile's 468. **Wall bite distance (axis counts)** is the rise beyond
+each corridor edge, with no H-column spacing ceiling in either pattern. The monitor draws the
+actual corridor width. Zero restores a centred rail, which can hunt at high force even with
+onboard damping. This setting also applies to Sequential; it does not move any fore/aft firing
+line, PRND position or button boundary.
 **MirrorSlots** (gear layout) turns the lane round so P is nearest you; the buttons follow the
 labels, so R stays on button 12 either way.
 
@@ -542,6 +549,15 @@ the bite; **notches too faint** between columns → raise barrier force — the 
 barrier humps, unchanged by the rails.
 
 ## Symptom → dial
+
+**Sequential or PRND shakes sideways after a small touch or when an effect starts.**
+In Geometry, widen **Sideways free corridor, either side (axis counts)**. Older builds ignored
+this saved width in both patterns and always pulled onto the centre line. The 2026-10-28
+sequential recordings still hunted at roughly 17 Hz with base damper 35%, lateral force 80%,
+and wall attack at 5 ms or off, so more damping or attack tuning alone is not the answer.
+Use **Slot wall / lateral rail (%)** for the force outside that corridor. Keep the other dials
+steady while testing the new width. A new trace and the hand at the lever must confirm the
+result; removing the point equilibrium does not establish stability at every wall setting.
 
 **5+R or the truck 6 feels sprawling — every shift is a reach across the whole stick.**
 It is, and it is arithmetic rather than tuning: three columns spread over the same stick that 7+R
@@ -878,11 +894,22 @@ change and they cannot be renamed or deleted — the Rename and Delete buttons g
 selected. They exist so there is always a known-good gate to come back to when a tuning session has
 wandered.
 
-**(Preset) Sequential (stiff, short)** comes from the custom Sequential tune captured on the
-development rig. Its throw is 7,552 counts from centre, with 2,010 counts of overtravel and a
-100 ms output pulse. Click is 100%, push resistance 46%, base damping 14.54% and base friction
-14%. The native Effects configuration is retained, including the engine response curve and
-enabled limiter. Like every preset, it starts disabled and needs this rig's own calibration.
+The regular Sequential preset and **(Preset) Automatic (PRND)** take their sideways and base feel
+from **(Preset) 7+R lockout (short throw, stiff, sport)**: 468 counts of free corridor either
+side, 80% **Slot wall / lateral rail (%)**, 3816-count wall bite, 15 ms wall attack, 10%
+rebound absorption, 5% wall friction, 35.15% base damping and 35% base friction. Software
+damping remains zero. The user found the first 2400-count lane too wide and requested the
+sport tune on 2026-10-29. Stroke, PRND positions and each preset's Effects tree retain their
+own tuning. Existing custom profiles keep their saved values. The shared values are proven
+on the H profile; their lane feel still needs a comparison at the lever.
+
+**(Preset) Sequential (stiff, short)** now captures **Sequential (stiff, short) 2**, saved on
+the development rig on 2026-10-29. Its throw is 7,552 counts from centre, with 2,010 counts of
+overtravel and a 100 ms output pulse. Lateral wall is 100%, wall bite 6000 counts, click 70%
+and push resistance 45%. It retains the 468-count corridor, 15 ms attack, 35.15% base damping
+and 35% base friction. Its complete native Effects tree is retained, including the engine
+curve and enabled limiter; master effects gain is 40% and the saved global mute flag is off.
+Like every preset, it starts disabled and needs the receiving rig's own calibration.
 
 **(Preset) 7+R lockout (short throw, stiff, sport)** copies the short-throw H tune captured on
 the development rig on 2026-10-08. Its throw is 12,006 counts from centre, pattern width 65%

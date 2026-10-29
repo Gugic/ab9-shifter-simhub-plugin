@@ -474,10 +474,7 @@ namespace AB9ActiveShifter.Core
                 SpringY = SpringPreset.Off
             };
 
-            // The lateral rail, at the wall's own stiffness: face derived from the plateau so
-            // the one-stiffness rule holds here too.
-            int face = GuideFace(_columnPinForce, 0);
-            frame.ConstantX = Saturating(x - GateGeometry.AxisCenter, _columnPinForce, face, 0);
+            frame.ConstantX = LateralLaneForce(x);
 
             frame.ConstantY = SequentialSpring(y);
 
@@ -522,9 +519,7 @@ namespace AB9ActiveShifter.Core
                 SpringY = SpringPreset.Off
             };
 
-            // The same lateral rail the sequential lever gets, at the wall's own stiffness.
-            int face = GuideFace(_columnPinForce, 0);
-            frame.ConstantX = Saturating(x - GateGeometry.AxisCenter, _columnPinForce, face, 0);
+            frame.ConstantX = LateralLaneForce(x);
 
             frame.ConstantY = PrndLaneForce(y);
 
@@ -755,6 +750,25 @@ namespace AB9ActiveShifter.Core
 
             // Fwd is low y; the restoring push is toward +y, and vice versa.
             return dir == ShiftDir.Fwd ? force : -force;
+        }
+
+        /// <summary>
+        /// Sideways free space in sequential and PRND. The plan view reads this same answer;
+        /// a single lane has no neighbouring columns to limit its corridor or wall bite.
+        /// </summary>
+        public int LateralLaneHalfWidth
+        {
+            get { return GateGeometry.Clamp(_cfg.SlotHalfWidth, 0, GateGeometry.AxisCenter); }
+        }
+
+        private int LateralLaneForce(int x)
+        {
+            // A pull onto a point hunted even with the onboard damper at 35%. Give the lane
+            // the same force-free resting region as an H slot. Zero still explicitly opts
+            // into a rail. Never use GuideFace here: its H-column spacing/handover ceiling
+            // made hidden H settings steepen this wall despite there being no other column.
+            return Saturating(x - GateGeometry.AxisCenter, _columnPinForce,
+                              Math.Max(1, _cfg.WallRamp), LateralLaneHalfWidth);
         }
 
         /// <summary>
@@ -1763,6 +1777,9 @@ namespace AB9ActiveShifter.Core
         {
             get
             {
+                if (_cfg.Pattern == GatePattern.Sequential || _cfg.Pattern == GatePattern.Prnd)
+                    return int.MaxValue;
+
                 int worst = int.MaxValue;
                 for (int i = 0; i < _geo.ColumnCount; i++)
                 {

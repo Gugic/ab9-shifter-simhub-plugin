@@ -519,7 +519,7 @@ namespace AB9ActiveShifter
         public int BarrierWidth { get { return _barrierWidth; } set { Set(ref _barrierWidth, value); OnChanged("BarrierWidthPercent"); } }
         public int WallBlend { get { return _wallBlend; } set { Set(ref _wallBlend, value); OnChanged("WallBlendPercent"); } }
 
-        /// <summary>Free lateral corridor inside a slot. Widen it if a gear shakes when seated; zero rails the slot.</summary>
+        /// <summary>Free lateral corridor in an H slot or a sequential/PRND lane. Zero opts into a rail.</summary>
         public int SlotHalfWidth { get { return _slotHalfWidth; } set { Set(ref _slotHalfWidth, value); OnChanged("SlotHalfWidthPercent"); } }
 
         /// <summary>Free fore/aft depth of the neutral tunnel before its centring begins. Zero rails the tunnel.</summary>
@@ -538,6 +538,7 @@ namespace AB9ActiveShifter
                 OnChanged("IsHPattern");
                 OnChanged("IsSequential");
                 OnChanged("IsPrnd");
+                OnChanged("HasLateralLane");
 
                 NotifySpacingDependents();
             }
@@ -611,6 +612,9 @@ namespace AB9ActiveShifter
 
         /// <summary>For the PRND-only controls, and for hiding the slot detent that has no slot.</summary>
         public bool IsPrnd { get { return _pattern == GatePattern.Prnd; } }
+
+        /// <summary>Patterns sharing one sideways corridor, without H-column geometry.</summary>
+        public bool HasLateralLane { get { return IsSequential || IsPrnd; } }
 
         // Visibility facts for the lockout group. Deliberately the user's CHOICE, not the
         // geometry's effective answer: the old HasLockout duplicated the geometry's rule and

@@ -47,7 +47,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-748 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+759 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -349,6 +349,14 @@ runners cannot load, so anything worth testing must not touch it.
   full-strength wall swallows a light guide force whole and makes sliding across the gate notchy.
 
 **Geometry and state**
+
+- **Sequential and PRND share a sideways corridor, not an unconditional centred rail.**
+  Both honour `SlotHalfWidth` throughout their fore/aft travel, with zero explicitly opting
+  into a rail. Their wall uses the full `WallRamp`, never the H-column spacing/handover cap
+  in `GuideFace`; hidden H settings cannot steepen a pattern that has no neighbouring column.
+  The plan view reads `LateralLaneHalfWidth` from its own composer. The 2026-10-28 traces still
+  hunted at about 17 Hz with base damper 35%, rail force 80%, attack 5 ms or off; a green test
+  suite does not replace a new hardware comparison of the corridor.
 
 - Positions stay in **device coordinates end to end.** Layout preferences (`MirrorColumns`,
   `MirrorSlots`) relabel the *gear map* only. Mirroring the readings instead would put every

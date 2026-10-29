@@ -23,6 +23,12 @@ own software.
 **A wall buzzes, or kicks back like ABS** — see [docs/tuning.md](tuning.md). Short answer:
 adjust *wall bite distance* first, then *wall attack*.
 
+**Sequential or PRND hunts sideways after a light touch** — check **Geometry → Sideways free
+corridor, either side (axis counts)**. Older builds forced a zero-width rail in both patterns,
+ignoring the saved slot width. Onboard damping and a shorter wall attack improved the recorded
+oscillation but did not cure it. Use a nonzero corridor and moderate **Slot wall / lateral rail
+(%)**, then verify at the lever. See the [tuning reference](tuning.md#symptom--dial).
+
 **A fast short-throw shift pulls into the wrong end-stop and reports neutral** — check the
 loaded plugin build before changing the tune. Release 0.15.0 predates the tunnel-return fix
 merged in [PR #48](https://github.com/Gugic/ab9-shifter-simhub-plugin/pull/48). Install a build

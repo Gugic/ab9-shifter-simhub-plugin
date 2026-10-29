@@ -18,11 +18,12 @@ All of this lives in `Core/ForceComposer.cs`, which is pure and fully unit-teste
 
 ## Optional base effects
 
-The shipped **Sequential (stiff, short)** preset captures the custom Sequential tune from the
-development rig on 2026-10-03. It changes tuning only: a 7,552-count firing distance, 2,010-count
-overtravel, 46% push resistance, 100% click, 14.54% generic base damping and 14% base friction.
-Its native Effects tree is preserved. The force shapes and polarity cap are unchanged; the
-original Sequential preset remains a separate choice.
+The shipped **Sequential (stiff, short)** preset captures **Sequential (stiff, short) 2** from
+the development rig on 2026-10-29. It changes tuning only: a 7,552-count firing distance,
+2,010-count overtravel, 45% push resistance, 70% click, 100% lateral wall, 6000-count wall bite,
+35.15% base damping and 35% base friction. Its native Effects tree is preserved with 40% master
+gain and the saved global mute off. The force shapes and polarity cap are unchanged; the
+regular Sequential preset remains a separate choice.
 
 The gate's force shapes are shared by Generic FFB Stick and AB9-native. Their extra software
 damping, wall friction, home spring and telemetry effects stay in the constant-force path.
@@ -606,11 +607,11 @@ boxes: give it the configurable lockout between the first two columns, paying on
 into the low range, and the shipped `Truck 6-gear (low-range lockout)` preset is exactly that.
 The game decides what each button means; the pattern makes no reverse claim at all.
 
-**Sequential.** No gate at all: the lever is railed to the lateral centre and sprung home
+**Sequential.** No H gate: the lever has a sideways corridor and is sprung home
 fore/aft. The "spring" is not a DirectInput spring — those cannot hold a lever on this base (see
 the effect-strength section) — but the usual saturating constant-force profile, made deliberately
 shallow: full resistance is only reached at the shift threshold itself, a gradient of well under
-1 DI per count, which no delay can destabilise. Crossing the threshold drops the resistance to a
+1 DI per count at the shipped throw. Crossing the threshold drops the resistance to a
 lighter hold — the click — and the drop passes the time shaping instantly like any release, while
 the force always points home so the lever returns on its own. The return assist keeps the snick's
 milder yield floor: absorbing the return would defeat it. Past the click, `SeqOvertravel` counts
@@ -643,11 +644,43 @@ frame (`SeqThrow` in Geometry: counts from centre to the firing line, the same s
 because shortening only the firing line would eventually let a lever resting on the threshold
 machine-gun shifts.
 
+**The sideways lane shared by sequential and PRND** uses `SlotHalfWidth` as its force-free
+half-width and `WallRamp` as its full wall bite. Both previously ignored that corridor setting
+and always pulled onto a point. In the 2026-10-28 traces, changing onboard damper from 8% to
+35%, lateral force from 100% to 80%, and attack from 20 ms to 5 ms or off reduced the huge
+7–8 Hz swings but left a roughly 17 Hz, 12,000–15,000-count sideways hunt. Both new recordings
+replay within 1 DI with no vibration carrier: the remaining hunt needs no RPM effect.
+
+The corridor now applies throughout both strokes, including at PRND positions and beyond the
+sequential firing lines. Zero still explicitly selects a centred rail; it is not stable at
+arbitrary force merely because base damping is present. Their lateral wall must not call
+`GuideFace`: its H-column spacing and handover ceiling shortened a requested 6000-count face
+to 5261 counts even though these patterns have no neighbouring column. The monitor reads the
+composer's `LateralLaneHalfWidth`, and the geometry editor exposes the existing saved value.
+Fore/aft forces, state machines, carriers, polarity and the shared stabilisers are unchanged.
+
+The first lane test used a 2400-count half-width and was reported too wide. On 2026-10-29
+the user requested the existing sport H feel instead. The regular Sequential preset and PRND
+read their shared tune from `SportShortThrow`: 468-count half-width, 80% wall force, 3816-count
+bite, 15 ms attack, 10% absorption, 5% wall friction, no software damping, 35.15% base damping
+and 35% base friction. Stroke and Effects settings remain specific to each pattern. Matching
+these dials is not proof that a lane feels identical to an H slot; hardware confirmation remains.
+
+The later **Sequential (stiff, short) 2** capture overrides that shared lane tune with a 100%
+lateral wall and 6000-count bite, retaining its other stabilisers. Its own stroke and native
+Effects tree are copied in full; capturing it does not retune the regular Sequential or PRND.
+
+The user's stable comparison, `(Preset) 7+R lockout (short throw, stiff, sport)`, has a much
+narrower 468-count slot corridor. It also has zero lateral guide force in neutral and 35%
+onboard friction, versus the sequential recordings' 0% onboard friction. Its quiet behaviour
+therefore cannot establish a minimum corridor width or be attributed to width alone. A quiet
+region matters even when narrow; base friction is a separate controlled comparison to make.
+
 **The PRND selector** replaces the gate with a single lane: four fixed positions, evenly spaced,
 `PrndLaneHalfLength` either side of centre, with a vJoy button held at whichever one the lever is
 in (P 11, R 12, N 13, D 14 — above the gears and above the sequential pulses, and following the
 *label* so `MirrorSlots` turns the lane round without costing a rebind). Laterally it is the
-sequential rail. Fore and aft it is three things:
+sequential corridor. Fore and aft it is three things:
 
 | Where | Force |
 | --- | --- |
@@ -1064,6 +1097,7 @@ Kept permanently. Each line is a thing that was built, felt on hardware, and aba
 | --- | --- |
 | **Spring effects for the gate walls** | Walls felt like nothing. Root cause is arithmetic, not tuning: ~0.3 DI/count ceiling. Whole gate rebuilt on constant forces. |
 | **Pull toward a slot's centre line** | Middle columns shook violently when seated; outer columns fine. Interior equilibrium = oscillator. Replaced by corridors. |
+| **Always-zero-width lateral rails in sequential and PRND** | A small sideways touch started large oscillations. The sequential traces of 2026-10-28 still hunted at about 17 Hz with onboard damper 35%, rail force 80%, and attack at 5 ms or off. Both modes now honour the existing sideways corridor; stronger damping and a shorter attack alone did not remove this point equilibrium. |
 | **A guide plateau held flat up to the column boundary** | The boundary reverses the force, so a flat plateau makes the reversal a step of 2 × plateau in one tick - measured at 20000 DI, a clamped ±12 Nm, from 100 counts of drift, and felt as the notches kicking while sliding the tunnel. Replaced by the handover window. |
 | **A guide reach measured from the guide column** | The natural fix, and it invents history dependence: the reach belongs to *which* column owns the field, so the latched branch and the position-picked branch disagree by the full pin force wherever both columns lie on the same side of the lever - exactly where a flat plateau had made them identical. Measured 10000 DI at one position selected by whether the lever once dipped into the tunnel, plus no push-back over 75% of the axis at gear depth. Use a positional multiplier, which both branches share. |
 | **A handover window keyed on `InChannel(y)`** | Moves the same reversal onto the depth axis. With the pick live at every depth and using a different rule down there, keying the window on `InChannel(y)` leaves the other rule's flip window on a live part of the field: **2403 DI from one single axis count of fore/aft movement**, where the fore/aft wall's deadband leaves the lever freest. Not to be confused with the fade that replaced it: that is continuous in depth, and it is only safe because freezing the pick outside the tunnel means there is no other rule and no flip left to price. |

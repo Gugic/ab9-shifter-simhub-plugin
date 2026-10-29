@@ -3,28 +3,28 @@ namespace AB9ActiveShifter
     public static partial class DefaultProfiles
     {
         /// <summary>
-        /// The custom Sequential tune captured on the rig: a short stroke, full click,
-        /// and its own damping/friction. Calibration and session state stay at defaults.
+        /// The user's Sequential (stiff, short) 2 tune captured on 2026-10-29. Its stroke,
+        /// resistance and complete native Effects tree travel; rig/session facts do not.
         /// </summary>
         private static ShifterSettings SequentialStiffShort()
         {
             ShifterSettings s = Sequential();
-            s.BaseFrictionPct = 14;
-            s.DamperCoeff = 1454;
-            s.DetentResistPct = 46;
+            s.ColumnPinForcePct = 100;
+            s.WallRamp = 6000;
+            s.DetentResistPct = 45;
             s.EngageDepth = 25215;
             s.FxLimiterEnabled = true;
             s.ReleaseDepth = 25715;
-            s.SeqClickPct = 100;
+            s.SeqClickPct = 70;
             s.NativeEffectsJson = SequentialStiffShortEffects;
             return s;
         }
 
-        // Preserve the native editor's complete portable tree rather than migrating its
-        // curves and effect options through the older scalar dials. No transport is stored.
+        // Preserve the complete portable tree, including its 40% master gain, response
+        // curves and channel settings. The saved global mute is off; no transport travels.
         private const string SequentialStiffShortEffects = @"{
   ""Version"": 1,
-  ""GlobalGain"": 100.0,
+  ""GlobalGain"": 40.00000000000003,
   ""IsMuted"": false,
   ""Profile"": {
     ""CarChoices"": [],
