@@ -179,8 +179,9 @@ namespace AB9ActiveShifter
                     _engine = new ShifterEngine(cfg => cfg.OutputMode == GearOutputMode.ControlMapper
                         ? (Output.IGearOutput)new Output.ControlMapperGearOutput(
                             new Output.SimHubControlMapperRoles(pluginManager), GearOutputConfig.RolesForPattern(cfg.ControlMapperRoles, cfg.Pattern),
-                            cfg.Pattern != GatePattern.Sequential && cfg.Pattern != GatePattern.Prnd)
-                        : new Output.VJoyGearOutput(cfg.VJoyDeviceId));
+                            cfg.Pattern != GatePattern.Sequential && cfg.Pattern != GatePattern.Prnd && cfg.Pattern != GatePattern.Handbrake,
+                            cfg.Pattern == GatePattern.Handbrake)
+                        : new Output.VJoyGearOutput(cfg.VJoyDeviceId, cfg.Pattern == GatePattern.Handbrake));
                     Log.Info("FFB engine created.");
                 }
             }
@@ -985,6 +986,8 @@ namespace AB9ActiveShifter
             this.AttachDelegate("LoopHz", () => (int)Math.Round(Snapshot().LoopHz));
             this.AttachDelegate("StatusMessage", () => Snapshot().StatusMessage);
             this.AttachDelegate("LockoutEngaged", () => Snapshot().LockoutEngaged);
+            this.AttachDelegate("HandbrakePct", () => Snapshot().HandbrakePct);
+            this.AttachDelegate("HandbrakeArmed", () => Snapshot().HandbrakeArmed);
 
             this.AddEvent("GearEngaged");
             this.AddEvent("GearReleased");

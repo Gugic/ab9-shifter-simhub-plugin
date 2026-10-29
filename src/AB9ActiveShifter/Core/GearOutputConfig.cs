@@ -56,6 +56,7 @@ namespace AB9ActiveShifter.Core
 
         public static bool UsesButton(GatePattern pattern, int button)
         {
+            if (pattern == GatePattern.Handbrake) return false;
             if (pattern == GatePattern.Sequential) return button == 9 || button == 10;
             if (pattern == GatePattern.Prnd) return button >= 11 && button <= 14;
             if (button == 0) return true;
@@ -76,6 +77,7 @@ namespace AB9ActiveShifter.Core
         {
             if (before == null || after == null) return true;
             if (before.OutputMode != after.OutputMode) return true;
+            if ((before.Pattern == GatePattern.Handbrake) != (after.Pattern == GatePattern.Handbrake)) return true;
             if (after.OutputMode == GearOutputMode.VJoy)
                 return before.VJoyDeviceId != after.VJoyDeviceId;
             return before.Pattern != after.Pattern

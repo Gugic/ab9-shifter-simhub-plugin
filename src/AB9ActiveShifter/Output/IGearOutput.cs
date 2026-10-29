@@ -33,4 +33,11 @@ namespace AB9ActiveShifter.Output
 
         void Disconnect();
     }
+
+    /// <summary>Optional analog capability. Button-only backends never synthesize braking.</summary>
+    public interface IHandbrakeOutput
+    {
+        bool HandbrakeAvailable { get; }
+        void SetHandbrake(int value);
+    }
 }

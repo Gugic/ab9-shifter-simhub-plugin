@@ -27,7 +27,9 @@ namespace AB9ActiveShifter.Core
 
             // Old installs confirmed constant polarity without retaining the spring signs.
             // They must measure again before a new global spring can exert any force.
-            if (!config.BaseSpringPolarityConfirmed) return frame;
+            // Handbrake return belongs to its calibrated start, including in native mode.
+            // A second spring at the device centre would fight that same return model.
+            if (!config.BaseSpringPolarityConfirmed || config.Pattern == GatePattern.Handbrake) return frame;
 
             double boundedScale = double.IsNaN(springScale) ? 0 : Math.Max(0, Math.Min(1, springScale));
             int spring = Coefficient(config.BaseSpringPct, gain * boundedScale);

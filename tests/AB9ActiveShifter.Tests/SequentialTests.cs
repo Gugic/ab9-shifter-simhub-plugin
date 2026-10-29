@@ -34,6 +34,7 @@ namespace AB9ActiveShifter.Tests
         private static ForceFrame LaneFrame(ForceComposer composer, GatePattern pattern, int x, int y,
                                              int vibY = 0)
         {
+            if (pattern == GatePattern.Handbrake) return composer.ComposeHandbrake(x, y, vibY: vibY);
             return pattern == GatePattern.Sequential
                 ? composer.ComposeSequential(x, y, vibY: vibY)
                 : composer.ComposePrnd(x, y, vibY: vibY);
@@ -42,6 +43,7 @@ namespace AB9ActiveShifter.Tests
         [Theory]
         [InlineData(GatePattern.Sequential)]
         [InlineData(GatePattern.Prnd)]
+        [InlineData(GatePattern.Handbrake)]
         public void TheLaneHasAQuietSidewaysCorridorThroughoutItsStroke(GatePattern pattern)
         {
             EngineConfig cfg = SeqConfig();
@@ -62,6 +64,7 @@ namespace AB9ActiveShifter.Tests
         [Theory]
         [InlineData(GatePattern.Sequential)]
         [InlineData(GatePattern.Prnd)]
+        [InlineData(GatePattern.Handbrake)]
         public void HiddenHGeometryCannotSteepenALanesWalls(GatePattern pattern)
         {
             EngineConfig cfg = SeqConfig();
@@ -87,6 +90,7 @@ namespace AB9ActiveShifter.Tests
         [Theory]
         [InlineData(GatePattern.Sequential)]
         [InlineData(GatePattern.Prnd)]
+        [InlineData(GatePattern.Handbrake)]
         public void ZeroWidthStillOptsIntoARailAndWideningItLeavesTheStrokeAndCarrierAlone(GatePattern pattern)
         {
             EngineConfig cfg = SeqConfig();
@@ -108,6 +112,7 @@ namespace AB9ActiveShifter.Tests
         [Theory]
         [InlineData(GatePattern.Sequential)]
         [InlineData(GatePattern.Prnd)]
+        [InlineData(GatePattern.Handbrake)]
         public void EveryLaneWallCountIsContinuousAndThePolarityCapStillApplies(GatePattern pattern)
         {
             EngineConfig cfg = SeqConfig();

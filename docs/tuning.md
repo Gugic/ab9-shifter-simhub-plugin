@@ -900,9 +900,97 @@ sits on the midpoint), and both the plan view at the top of Geometry and the Mai
 band where it actually is. *FFB loop rate* in Options should stay at 1000; see
 [hardware.md](hardware.md) for why higher buys nothing.
 
+## Handbrake
+
+Choose **Handbrake (analog)** under **Pattern**, or start with **(Preset) Handbrake (progressive)**.
+The preset captures the user's **Handbrake (progressive) 4** tune, including its enabled engine
+and rear-wheel lock effects. In **Effects**, wheel lock uses SimHub's native ShakeIt telemetry
+effect, routed from the rear wheels to the lever. Its sensitivity, brake filter, response curve
+and vibration remain configurable; feedback depends on the wheel telemetry available from the
+game.
+
+The captured preset uses the full S curve, 100% pull/return/end-stop strength and overall gain,
+95% usable travel, quadratic braking input, an 844-count sideways corridor and a 3815-count
+wall bite. Wall attack is 15 ms; software damping, rebound absorption and wall friction are zero,
+with 15.22% base damping. It ships disabled and unconfirmed, retains the polarity gain cap,
+and uses each rig's own endpoints and bindings. The tables below list bare/reset defaults;
+the captured preset deliberately differs from them.
+
+In **Options → Handbrake travel calibration**, run the plugin with **Release all forces (free
+stick)** enabled. Choose the released starting position and press **Capture start**, then pull
+to the ending position and press **Capture end**. **Start Y** and **End Y** can also be entered directly. Either
+direction works; endpoints need at least 8000 counts between them. Calibration belongs to the
+rig, survives profile switches and does not travel in exported profiles. Turn free stick off
+and release the lever before pulling again. Enable vJoy's **Z axis** in vJoyConf and bind that
+axis as the game's handbrake; after changing vJoy configuration, refresh and re-enable the plugin.
+
+**Geometry → HANDBRAKE TRAVEL AND OUTPUT** controls game input:
+
+**Start position (axis counts)** and **End position (axis counts)** cover the full 0–65535 Y axis.
+Choose either direction and keep at least 8000 counts between them. Start is both the zero-braking
+position and the return anchor; it can sit away from the base centre to use more of the available
+travel. The monitor labels **start / released** and **end / full pull** and draws the real sideways
+corridor. Endpoint edits ease in the moved geometry and require release to start before braking
+arms. These two controls are rig calibration, shared across profiles; **Reset geometry** keeps them.
+
+| UI label | Default | Meaning |
+| --- | --- | --- |
+| **Usable handbrake travel (%)** | 100 | Share of measured travel, with an 8000-count minimum |
+| **Released dead zone (%)** | 2 | Initial travel that sends zero braking |
+| **Braking progression (%)** | 0 | 0 is linear input; 100 is quadratic |
+
+**Feel → HANDBRAKE RESISTANCE AND RETURN** controls physical feedback:
+
+| UI label | Default | Meaning |
+| --- | --- | --- |
+| **Pull resistance (%)** | 40 | Resistance reached at full usable pull, before overall gain |
+| **Return strength (%)** | 20 | Lighter return resistance, limited to pull resistance |
+| **Resistance curve** | Build later (progressive) | Select where resistance builds through the stroke |
+| **Curve amount (%)** | 70 | Blend from linear (0) to the full selected shape (100) |
+| **Handbrake end-stop (%)** | 60 | Broad restoring walls beyond rest and usable pull |
+
+**Build early (flatten toward end)** raises resistance quickly near the start, then adds less
+as the lever approaches the end. This is the choice for a firm initial pull with a flatter
+finish. **Build later (progressive)** stays lighter initially and builds most near the end,
+preserving the original curve for saved tunes. **Linear (even build)** increases resistance
+evenly and disables **Curve amount (%)**. **S curve (gentle ends)** builds most in the middle.
+At 0% amount all families are linear; at 100% the selected shape is fully applied. With full
+early build, half the stroke reaches 75% of the configured pull resistance. Pull and return
+share the selected shape; **Braking progression (%)** remains independent. The live graph
+uses the same model as the force loop. Curve choice and amount travel with shared profiles,
+and **Reset feel to defaults** restores Build later at 70%. Adding the selector does not
+change an existing tune until a different family is chosen.
+
+Use **Sideways free corridor, either side (axis counts)** and **Wall bite distance (axis counts)**
+in **CORRIDORS AND WALL SHAPE** to tune the same lateral corridor as Sequential and PRND after
+PR #52. The handbrake preset uses the captured 844-count corridor and 3815-count bite.
+Existing custom profiles keep their stored dials. Zero corridor width explicitly selects a rail
+and can hunt at high force. Use **Slot wall / lateral rail (%)** for lateral strength and **Damping (%)** to calm return
+motion. Existing stability and overall-gain controls apply, including the unconfirmed polarity
+cap. The graph samples the same model as the force loop and plots pull, return and braking
+separately; the monitor marks rest and full usable pull. Gear-only controls are hidden.
+
+The optional **Base spring (%)** is suppressed in handbrake mode in both virtual providers;
+**Return strength (%)** supplies return toward the chosen start instead. Its saved base-spring
+percentage is kept for other patterns. Other base effects remain available. Handbrake requires
+direct vJoy output with Z enabled; Control Mapper button roles remain available for the shifter
+patterns, with their mappings preserved when switching back.
+
+Output clears on free stick, calibration, device loss, stop and pattern change. Restart,
+reconnect and changed output mapping require a release before braking can arm; a held lever
+cannot suddenly apply braking on reconnect. The monitor reports sent input and release-to-arm
+status. Resistance continues without a game; stale telemetry effects fall silent. Output is
+position based, so motor feedback can move braking input. Profile confirmation thumps are
+suppressed for handbrake mode. **Reset feel to defaults** preserves travel calibration, and
+**Reset geometry** restores the three input dials while keeping the rig's endpoints.
+
+If full pull cannot reach 100%, recapture the endpoints or reduce usable travel. If input remains
+at zero, release to arm, check the Z axis and check the calibration span. If return feels abrupt,
+reduce return strength or increase damping before steepening any force curve.
+
 ## Presets, and why your profile just renamed itself
 
-The nine shipped tunes are marked `(Preset)` and sit at the end of the profile list. They never
+The ten shipped tunes are marked `(Preset)` and sit at the end of the profile list. They never
 change and they cannot be renamed or deleted — the Rename and Delete buttons grey out while one is
 selected. They exist so there is always a known-good gate to come back to when a tuning session has
 wandered.

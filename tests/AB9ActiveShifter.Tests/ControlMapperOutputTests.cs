@@ -31,6 +31,30 @@ namespace AB9ActiveShifter.Tests
             }
         }
 
+        [Fact]
+        public void AnalogHandbrakeCannotPressRolesOrPretendToBeAButton()
+        {
+            var mapper = new Roles();
+            var output = new ControlMapperGearOutput(mapper, GearOutputConfig.CopyRoles(null), true, handbrake: true);
+            Assert.False(output.Connect());
+            Assert.Contains("vJoy", output.LastError);
+            output.SetGear(0); output.SetGear(1); output.SetButton(9, true);
+            Assert.Empty(mapper.Calls);
+            Assert.Equal(0, mapper.RoleQueries);
+            for (int button = 0; button < GearOutputConfig.RoleCount; button++)
+                Assert.False(GearOutputConfig.UsesButton(GatePattern.Handbrake, button));
+        }
+
+        [Fact]
+        public void EnteringAndLeavingHandbrakeReconfiguresTheSameVJoyDevice()
+        {
+            var shifter = new EngineConfig { Pattern = GatePattern.Sequential };
+            var handbrake = new EngineConfig { Pattern = GatePattern.Handbrake };
+            Assert.True(GearOutputConfig.OutputChanged(shifter, handbrake));
+            Assert.True(GearOutputConfig.OutputChanged(handbrake, shifter));
+            Assert.False(GearOutputConfig.OutputChanged(handbrake, new EngineConfig { Pattern = GatePattern.Handbrake }));
+        }
+
         private static ControlMapperGearOutput Output(Roles mapper, bool neutral = false,
             params int[] buttons)
         {

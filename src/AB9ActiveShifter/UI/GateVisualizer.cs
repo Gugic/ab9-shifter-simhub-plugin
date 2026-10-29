@@ -63,6 +63,25 @@ namespace AB9ActiveShifter.UI
             GateGeometry geo = cfg.BuildGeometry();
             EngineSnapshot snap = Snapshot;
 
+            if (cfg.Pattern == GatePattern.Handbrake)
+            {
+                var handbrake = new HandbrakeModel(cfg);
+                double cx = MapX(AxisCenter, left, right);
+                if (handbrake.IsValid)
+                {
+                    double rest = MapY(handbrake.RestY, top, bottom);
+                    double full = MapY(handbrake.FullPullY, top, bottom);
+                    DrawLateralLane(dc, cfg, left, right, Math.Min(rest, full), Math.Max(rest, full));
+                    dc.DrawLine(MarkPen, new Point(cx - 15, rest), new Point(cx + 15, rest));
+                    dc.DrawLine(StopPen, new Point(cx - 15, full), new Point(cx + 15, full));
+                    DrawLabel(dc, "start / released", cx + 25, rest - 6, TextAlign.Left);
+                    DrawLabel(dc, "end / full pull", cx + 25, full - 6, TextAlign.Left);
+                }
+                else DrawLabel(dc, "capture handbrake travel in Options", cx, top, TextAlign.Center);
+                DrawStick(dc, snap, left, right, top, bottom);
+                return;
+            }
+
             if (geo.Pattern == GatePattern.Sequential)
             {
                 DrawSequential(dc, geo, cfg, snap, left, right, top, bottom);

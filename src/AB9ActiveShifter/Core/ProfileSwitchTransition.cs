@@ -96,7 +96,7 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>Called once per tick with the current stick position.</summary>
-        public void Step(long nowMs, int x, int y)
+        public void Step(long nowMs, int x, int y, int homeY = GateGeometry.AxisCenter)
         {
             PulseEnvelope = 0;
 
@@ -111,7 +111,7 @@ namespace AB9ActiveShifter.Core
                         ForceScale = 0;
 
                         bool home = Math.Abs(x - GateGeometry.AxisCenter) <= SettleBand
-                                    && Math.Abs(y - GateGeometry.AxisCenter) <= SettleBand;
+                                    && Math.Abs(y - homeY) <= SettleBand;
 
                         // The timeout is not a fallback, it is the common case: a hand that never let
                         // go holds the lever out of the band forever, and waiting for it would mean a

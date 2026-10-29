@@ -5,7 +5,7 @@ using AB9ActiveShifter.Core;
 namespace AB9ActiveShifter
 {
     /// <summary>
-    /// What a machine with no saved settings starts with: nine working profiles rather than bare
+    /// What a machine with no saved settings starts with: ten profiles rather than bare
     /// defaults, written out to disk on that first start so they are ordinary settings from then
     /// on - editable, resettable, and never re-applied over anything a user has tuned.
     /// <para>
@@ -83,11 +83,12 @@ namespace AB9ActiveShifter
         public const string SequentialStiffShortName = "Sequential (stiff, short)";
         public const string PrndName = "Automatic (PRND)";
         public const string TruckName = "Truck 6-gear (low-range lockout)";
+        public const string HandbrakeName = "Handbrake (progressive)";
 
         private static readonly string[] BareNames =
         {
             SevenRName, ShortThrowName, SportShortThrowName, FiveRName, FiveRWideName, SequentialName, SequentialStiffShortName, PrndName,
-            TruckName
+            TruckName, HandbrakeName
         };
 
         /// <summary>The profile a fresh install comes up in.</summary>
@@ -174,7 +175,8 @@ namespace AB9ActiveShifter
                 new ShifterProfile { Name = Preset(SequentialName), Settings = Sequential() },
                 new ShifterProfile { Name = Preset(SequentialStiffShortName), Settings = SequentialStiffShort() },
                 new ShifterProfile { Name = Preset(PrndName), Settings = Automatic() },
-                new ShifterProfile { Name = Preset(TruckName), Settings = Truck() }
+                new ShifterProfile { Name = Preset(TruckName), Settings = Truck() },
+                new ShifterProfile { Name = Preset(HandbrakeName), Settings = Handbrake() }
             };
 
             // The hardware's maximum is not the profile's virtual gate strength. Every shipped

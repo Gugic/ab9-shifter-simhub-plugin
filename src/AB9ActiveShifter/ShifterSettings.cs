@@ -40,7 +40,7 @@ namespace AB9ActiveShifter
             {
                 Torque = PolarityConfirmed ? NativeTorquePct : Math.Min(10, NativeTorquePct),
                 OverallIntensity = NativeOverallIntensityPct,
-                Spring = PolarityConfirmed ? BaseSpringPct : 0,
+                Spring = PolarityConfirmed && !IsHandbrake ? BaseSpringPct : 0,
                 Damper = (int)Math.Round(BaseDamperPct),
                 Inertia = BaseInertiaPct,
                 Friction = BaseFrictionPct,
@@ -91,6 +91,16 @@ namespace AB9ActiveShifter
         private int _slotHalfWidth = 1100;
         private int _channelFreeDepth = 2600;
         private GatePattern _pattern = GatePattern.H7R;
+        private int _handbrakeRestY = 32767;
+        private int _handbrakeFullPullY = 60000;
+        private int _handbrakeTravelPct = 100;
+        private int _handbrakeDeadzonePct = 2;
+        private int _handbrakeOutputProgressionPct = 0;
+        private HandbrakeCurveShape _handbrakeForceCurve = HandbrakeCurveShape.BuildLater;
+        private int _handbrakeForceProgressionPct = 70;
+        private int _handbrakePullForcePct = 40;
+        private int _handbrakeReturnForcePct = 20;
+        private int _handbrakeStopForcePct = 60;
         private int _seqPulseMs = 120;
         private int _seqOvertravel = 2500;
         private int _seqStopForcePct = 90;
@@ -541,6 +551,8 @@ namespace AB9ActiveShifter
                 OnChanged("IsSequential");
                 OnChanged("IsPrnd");
                 OnChanged("HasLateralLane");
+                OnChanged("IsHandbrake");
+                OnChanged("HasSlotDetent");
 
                 NotifySpacingDependents();
             }
@@ -616,7 +628,36 @@ namespace AB9ActiveShifter
         public bool IsPrnd { get { return _pattern == GatePattern.Prnd; } }
 
         /// <summary>Patterns sharing one sideways corridor, without H-column geometry.</summary>
-        public bool HasLateralLane { get { return IsSequential || IsPrnd; } }
+        public bool HasLateralLane { get { return IsSequential || IsPrnd || IsHandbrake; } }
+        public bool IsHandbrake { get { return _pattern == GatePattern.Handbrake; } }
+        public bool HasSlotDetent { get { return IsHPattern || IsSequential; } }
+
+        public int HandbrakeRestY { get { return _handbrakeRestY; } set { Set(ref _handbrakeRestY, value); } }
+        public int HandbrakeFullPullY { get { return _handbrakeFullPullY; } set { Set(ref _handbrakeFullPullY, value); } }
+        public int HandbrakeTravelPct { get { return _handbrakeTravelPct; } set { Set(ref _handbrakeTravelPct, value); } }
+        public int HandbrakeDeadzonePct { get { return _handbrakeDeadzonePct; } set { Set(ref _handbrakeDeadzonePct, value); } }
+        public int HandbrakeOutputProgressionPct { get { return _handbrakeOutputProgressionPct; } set { Set(ref _handbrakeOutputProgressionPct, value); } }
+        public HandbrakeCurveShape HandbrakeForceCurve
+        {
+            get { return _handbrakeForceCurve; }
+            set
+            {
+                if (_handbrakeForceCurve == value) return;
+                Set(ref _handbrakeForceCurve, value);
+                OnChanged(nameof(HandbrakeForceCurveIndex));
+                OnChanged(nameof(HandbrakeCurveUsesAmount));
+            }
+        }
+        public int HandbrakeForceCurveIndex
+        {
+            get { return (int)_handbrakeForceCurve; }
+            set { HandbrakeForceCurve = (HandbrakeCurveShape)GateGeometry.Clamp(value, 0, 3); }
+        }
+        public bool HandbrakeCurveUsesAmount { get { return _handbrakeForceCurve != HandbrakeCurveShape.Linear; } }
+        public int HandbrakeForceProgressionPct { get { return _handbrakeForceProgressionPct; } set { Set(ref _handbrakeForceProgressionPct, value); } }
+        public int HandbrakePullForcePct { get { return _handbrakePullForcePct; } set { Set(ref _handbrakePullForcePct, value); } }
+        public int HandbrakeReturnForcePct { get { return _handbrakeReturnForcePct; } set { Set(ref _handbrakeReturnForcePct, value); } }
+        public int HandbrakeStopForcePct { get { return _handbrakeStopForcePct; } set { Set(ref _handbrakeStopForcePct, value); } }
 
         // Visibility facts for the lockout group. Deliberately the user's CHOICE, not the
         // geometry's effective answer: the old HasLockout duplicated the geometry's rule and
@@ -1076,6 +1117,16 @@ namespace AB9ActiveShifter
                 SlotHalfWidth = SlotHalfWidth,
                 ChannelFreeDepth = ChannelFreeDepth,
                 Pattern = Pattern,
+                HandbrakeRestY = HandbrakeRestY,
+                HandbrakeFullPullY = HandbrakeFullPullY,
+                HandbrakeTravelPct = HandbrakeTravelPct,
+                HandbrakeDeadzonePct = HandbrakeDeadzonePct,
+                HandbrakeOutputProgressionPct = HandbrakeOutputProgressionPct,
+                HandbrakeForceCurve = HandbrakeForceCurve,
+                HandbrakeForceProgressionPct = HandbrakeForceProgressionPct,
+                HandbrakePullForcePct = HandbrakePullForcePct,
+                HandbrakeReturnForcePct = HandbrakeReturnForcePct,
+                HandbrakeStopForcePct = HandbrakeStopForcePct,
                 SeqPulseMs = SeqPulseMs,
                 SeqOvertravel = SeqOvertravel,
                 SeqStopForcePct = SeqStopForcePct,
@@ -1207,6 +1258,11 @@ namespace AB9ActiveShifter
                 WallAttackMs = d.WallAttackMs;
                 SeqStopForcePct = d.SeqStopForcePct;
                 SeqClickPct = d.SeqClickPct;
+                HandbrakeForceProgressionPct = d.HandbrakeForceProgressionPct;
+                HandbrakeForceCurve = d.HandbrakeForceCurve;
+                HandbrakePullForcePct = d.HandbrakePullForcePct;
+                HandbrakeReturnForcePct = d.HandbrakeReturnForcePct;
+                HandbrakeStopForcePct = d.HandbrakeStopForcePct;
                 PrndDetentForcePct = d.PrndDetentForcePct;
                 PrndStopForcePct = d.PrndStopForcePct;
                 DamperCoeff = d.DamperCoeff;
@@ -1246,6 +1302,9 @@ namespace AB9ActiveShifter
                 SlotHalfWidth = d.SlotHalfWidth;
                 ChannelFreeDepth = d.ChannelFreeDepth;
                 SeqOvertravel = d.SeqOvertravel;
+                HandbrakeTravelPct = d.HandbrakeTravelPct;
+                HandbrakeDeadzonePct = d.HandbrakeDeadzonePct;
+                HandbrakeOutputProgressionPct = d.HandbrakeOutputProgressionPct;
                 PrndLaneHalfLength = d.PrndLaneHalfLength;
                 PrndNotchHalfWidth = d.PrndNotchHalfWidth;
                 SlotOvertravel = d.SlotOvertravel;

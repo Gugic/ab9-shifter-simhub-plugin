@@ -43,6 +43,8 @@ namespace AB9ActiveShifter.Core
         private GateStateMachine _stateMachine;
         private SequentialStateMachine _seqMachine;
         private PrndStateMachine _prndMachine;
+        private HandbrakeModel _handbrake;
+        private int _handbrakeValue;
         private ForceComposer _composer;
 
         // Sequential pulse bookkeeping, engine thread only. A pending press exists so that
@@ -78,11 +80,12 @@ namespace AB9ActiveShifter.Core
         private EffectSet _effects;
         private readonly GearOutputConnection _outputConnection;
         private IGearOutput _output { get { return _outputConnection.Output; } }
+        private IHandbrakeOutput _handbrakeOutput { get { return _output as IHandbrakeOutput; } }
         private volatile bool _releaseOutputOnStop = true;
 
         public ShifterEngine(Func<EngineConfig, IGearOutput> outputFactory = null)
         {
-            _outputConnection = new GearOutputConnection(outputFactory ?? (cfg => new VJoyGearOutput(cfg.VJoyDeviceId)));
+            _outputConnection = new GearOutputConnection(outputFactory ?? (cfg => new VJoyGearOutput(cfg.VJoyDeviceId, cfg.Pattern == GatePattern.Handbrake)));
         }
 
         // Telemetry effects. The composer keeps carrier phases and lives on the engine
@@ -692,7 +695,23 @@ namespace AB9ActiveShifter.Core
 
                 bool gearChanged = false;
 
-                if (cfg.Pattern == GatePattern.Sequential)
+                if (cfg.Pattern == GatePattern.Handbrake)
+                {
+                    EffectOutput fx = StepEffects(cfg, telemetry, telemetryAge, dtMs, false);
+                    _handbrakeValue = _handbrake.Update(y, !cfg.FreeStick && !_transition.Active
+                        && _handbrakeOutput != null && _handbrakeOutput.HandbrakeAvailable);
+                    if (_handbrakeOutput != null)
+                    {
+                        _handbrakeOutput.SetHandbrake(_handbrakeValue);
+                        if (!_output.IsConnected) { _handbrake.Reset(); _handbrakeValue = 0; }
+                    }
+                    frame = _composer.ComposeHandbrake(x, y, _velocity.X, _velocity.Y, dtMs, fx.VibY);
+                    traceState = GateState.Neutral;
+                    traceColumn = Column.None;
+                    traceDir = ShiftDir.None;
+                    traceGear = 0;
+                }
+                else if (cfg.Pattern == GatePattern.Sequential)
                 {
                     // No grind in sequential - clutchless shifting is what a dog box is for -
                     // so the effects only contribute vibration here.
@@ -829,7 +848,8 @@ namespace AB9ActiveShifter.Core
                 // the carriers agreed on and cannot be confused with a force of its own.
                 if (_transition.Active)
                 {
-                    _transition.Step(nowMs, x, y);
+                    _transition.Step(nowMs, x, y,
+                        cfg.Pattern == GatePattern.Handbrake ? cfg.HandbrakeRestY : GateGeometry.AxisCenter);
                     frame = ScaleFrame(frame, _transition.ForceScale);
 
                     if (_transition.PulseEnvelope > 0)
@@ -1060,6 +1080,7 @@ namespace AB9ActiveShifter.Core
             if (Interlocked.Exchange(ref _calibrationRequest, 0) == 1)
             {
                 _calibrationOutputHeld = false;
+                ClearHandbrakeOutput();
                 _calibrationQueue.Clear();
                 _calibrationQueue.Enqueue(CalibrationTarget.ConstantX);
                 _calibrationQueue.Enqueue(CalibrationTarget.ConstantY);
@@ -1237,6 +1258,7 @@ namespace AB9ActiveShifter.Core
 
                 _device = device;
                 _effects = effects;
+                ClearHandbrakeOutput();
 
                 int x, y;
                 string pollError;
@@ -1271,7 +1293,12 @@ namespace AB9ActiveShifter.Core
                 ? cfg.OverallGainPct + "% gain"
                 : EngineConfig.UnconfirmedGainCapPct + "% gain (capped until polarity is confirmed)";
 
-            return "Running on " + deviceName + ", " + output + ", " + gain + ".";
+            string handbrake = cfg.Pattern != GatePattern.Handbrake ? ""
+                : !_handbrake.IsValid ? " Set handbrake start and end at least 8000 counts apart."
+                : cfg.OutputMode != GearOutputMode.VJoy ? " Analog handbrake requires direct vJoy output with Z enabled."
+                : _handbrakeOutput == null || !_handbrakeOutput.HandbrakeAvailable ? " " + (_output != null ? _output.LastError : "Handbrake output unavailable.")
+                : " Handbrake uses vJoy Z; release to the configured start to arm output.";
+            return "Running on " + deviceName + ", " + output + ", " + gain + "." + handbrake;
         }
 
         /// <summary>
@@ -1280,6 +1307,7 @@ namespace AB9ActiveShifter.Core
         /// </summary>
         private void HandleDeviceLoss(string reason, DeviceFault fault, long nowMs)
         {
+            ClearHandbrakeOutput();
             _deviceReconnect.DeviceLost(fault, nowMs);
             if (fault == DeviceFault.TakenByAnotherApp) ShowTakeoverStatus(_activeConfig, reason);
             else
@@ -1340,6 +1368,16 @@ namespace AB9ActiveShifter.Core
 
             _geometry = cfg.BuildGeometry();
             _composer = new ForceComposer(_geometry, cfg);
+            bool sameHandbrake = previous != null && previous.Pattern == cfg.Pattern
+                && previous.HandbrakeRestY == cfg.HandbrakeRestY
+                && previous.HandbrakeFullPullY == cfg.HandbrakeFullPullY
+                && previous.HandbrakeTravelPct == cfg.HandbrakeTravelPct
+                && previous.HandbrakeDeadzonePct == cfg.HandbrakeDeadzonePct
+                && previous.HandbrakeOutputProgressionPct == cfg.HandbrakeOutputProgressionPct
+                && previous.NativeEffectsEpoch == cfg.NativeEffectsEpoch;
+            _handbrake = new HandbrakeModel(cfg,
+                sameHandbrake && !cfg.FreeStick && _handbrake != null && _handbrake.Armed);
+            if (!sameHandbrake || cfg.FreeStick) ClearHandbrakeOutput();
 
             // A profile that ships a hard gate arrives locked, and a gate that moved or
             // changed its mode re-arms: the release is a session grant against one specific
@@ -1393,7 +1431,7 @@ namespace AB9ActiveShifter.Core
                 // previous gate to have been thrown out of and nothing to confirm.
                 if (previous != null)
                 {
-                    _transition.Begin(nowMs, cfg.ProfileConfirmPulses);
+                    _transition.Begin(nowMs, cfg.Pattern == GatePattern.Handbrake ? 0 : cfg.ProfileConfirmPulses);
                 }
             }
 
@@ -1420,6 +1458,10 @@ namespace AB9ActiveShifter.Core
                 WatchGearOutput(cfg, nowMs);
                 _status = BuildReadyStatus(cfg);
             }
+
+            if (_phase == EnginePhase.Run && !IsCalibrating && !_calibrationOutputHeld
+                && (cfg.Pattern == GatePattern.Handbrake || (previous != null && previous.Pattern == GatePattern.Handbrake)))
+                _status = BuildReadyStatus(cfg);
         }
 
         /// <summary>
@@ -1551,7 +1593,11 @@ namespace AB9ActiveShifter.Core
                 // Moves the PRND positions, so it moves where a button changes hands - geometry
                 // by the only definition that matters here, even though it sits among the forces
                 // in the UI.
-                && a.PrndLaneHalfLength == b.PrndLaneHalfLength;
+                && a.PrndLaneHalfLength == b.PrndLaneHalfLength
+                && (a.Pattern != GatePattern.Handbrake
+                    || (a.HandbrakeRestY == b.HandbrakeRestY
+                        && a.HandbrakeFullPullY == b.HandbrakeFullPullY
+                        && a.HandbrakeTravelPct == b.HandbrakeTravelPct));
         }
 
         /// <summary>
@@ -1566,9 +1612,16 @@ namespace AB9ActiveShifter.Core
             if (_calibrationOutputHeld || _calibrator != null || _calibrationQueue.Count != 0
                 || Volatile.Read(ref _calibrationRequest) != 0) return 0;
             if (cfg == null) return 0;
-            if (cfg.Pattern == GatePattern.Sequential) return 0;
+            if (cfg.Pattern == GatePattern.Sequential || cfg.Pattern == GatePattern.Handbrake) return 0;
             if (cfg.Pattern == GatePattern.Prnd) return _prndMachine != null ? _prndMachine.CurrentButton : 0;
             return _stateMachine != null ? _stateMachine.CurrentGear : 0;
+        }
+
+        private void ClearHandbrakeOutput()
+        {
+            _handbrakeValue = 0;
+            if (_handbrake != null) _handbrake.Reset();
+            if (_handbrakeOutput != null) _handbrakeOutput.SetHandbrake(0);
         }
 
         private void PublishSnapshot(int x, int y, double loopHz)
@@ -1580,10 +1633,16 @@ namespace AB9ActiveShifter.Core
 
             bool sequential = cfg != null && cfg.Pattern == GatePattern.Sequential;
             bool selector = cfg != null && cfg.Pattern == GatePattern.Prnd;
-            bool gate = !sequential && !selector;
+            bool handbrake = cfg != null && cfg.Pattern == GatePattern.Handbrake;
+            bool gate = !sequential && !selector && !handbrake;
 
             string label;
-            if (sequential)
+            if (handbrake)
+            {
+                label = (_handbrakeValue / 100.0).ToString("0") + "%"
+                    + (_handbrake != null && _handbrake.Armed ? "" : " (release to arm)");
+            }
+            else if (sequential)
             {
                 label = _seqPushed == ShiftDir.Fwd ? "+" : (_seqPushed == ShiftDir.Back ? "-" : "N");
             }
@@ -1602,9 +1661,11 @@ namespace AB9ActiveShifter.Core
                 Phase = _phase,
                 DeviceConnected = _device != null && _device.IsOpen,
                 OutputMode = _activeConfig != null ? _activeConfig.OutputMode : GearOutputMode.VJoy,
-                OutputConnected = _output != null && _output.IsConnected,
+                OutputConnected = _output != null && _output.IsConnected
+                    && (!handbrake || (_handbrakeOutput != null && _handbrakeOutput.HandbrakeAvailable)),
                 OutputError = _output != null ? _output.LastError : null,
-                VJoyConnected = _activeConfig != null && _activeConfig.OutputMode == GearOutputMode.VJoy && _output != null && _output.IsConnected,
+                VJoyConnected = _activeConfig != null && _activeConfig.OutputMode == GearOutputMode.VJoy && _output != null && _output.IsConnected
+                    && (!handbrake || (_handbrakeOutput != null && _handbrakeOutput.HandbrakeAvailable)),
                 RawX = x,
                 RawY = y,
                 X = x,
@@ -1619,6 +1680,9 @@ namespace AB9ActiveShifter.Core
                     ? (prnd != null ? prnd.CurrentButton : 0)
                     : (gate && sm != null ? sm.CurrentGear : 0),
                 GearLabel = label,
+                HandbrakeMode = handbrake,
+                HandbrakePct = _handbrakeValue / 100.0,
+                HandbrakeArmed = handbrake && _handbrake != null && _handbrake.Armed,
                 LoopHz = loopHz,
                 StatusMessage = _status,
                 DeviceName = _device != null ? (_device.ProductName ?? "") : "",
@@ -1745,6 +1809,7 @@ namespace AB9ActiveShifter.Core
             bool wasConnected = _output != null && _output.IsConnected;
             bool publish = _phase == EnginePhase.Run && CanPublishHeldOutput;
             bool connected = _outputConnection.Poll(nowMs, publish, publish ? CurrentHeldButton(cfg) : 0);
+            if (connected || _output == null || !_output.IsConnected) ClearHandbrakeOutput();
             if (connected)
                 Log.Info("Gear output connected; " + (publish ? "the current gear was republished." : "waiting for a fresh base position."));
             if (_phase == EnginePhase.Run && (connected || wasConnected != (_output != null && _output.IsConnected)))
@@ -1802,7 +1867,8 @@ namespace AB9ActiveShifter.Core
             //     where it is - a straight in fourth would otherwise trip this every lap.
             //
             // Disarmed rather than paused, so the window always measures one continuous stall.
-            if (_lastCommandedForce < StallForceFloor || _lastTickEngaged)
+            if (_lastCommandedForce < StallForceFloor || _lastTickEngaged
+                || (_activeConfig != null && _activeConfig.Pattern == GatePattern.Handbrake))
             {
                 _stalledSinceMs = 0;
                 return;
@@ -1839,6 +1905,7 @@ namespace AB9ActiveShifter.Core
         /// <summary>Must be called under <see cref="_deviceLock"/>.</summary>
         private void Teardown(bool releaseOutput = false)
         {
+            ClearHandbrakeOutput();
             // Order matters and is the same on every path: buttons, then forces, then the
             // device handle. Releasing the device first could leave a gear button stuck.
             if (_output != null) _output.ReleaseAll();

@@ -66,7 +66,7 @@ the way a real H lever rests at the 3/4 gate.
 
 ## Patterns
 
-Six, selectable per **profile** on Main:
+Seven, selectable per **profile** on Main:
 
 | Pattern | |
 | --- | --- |
@@ -76,6 +76,7 @@ Six, selectable per **profile** on Main:
 | **Sequential** | A sprung fore/aft lever: one shift per stroke, with a click you can tune |
 | **Automatic (P R N D)** | A selector lane: four fixed positions in a line, a button held at whichever one the lever is in. No neutral to come back through and no gear to engage — the lever is always somewhere |
 | **Truck 6** | Three wider columns, six plain slots on buttons 1–6, no reverse anywhere — what each button means is your game's business. Made for Eaton-Fuller-style boxes: add the lockout between the first two columns (the shipped truck preset does exactly that) and you have a low-range gate |
+| **Handbrake (analog)** | A calibrated pull from a chosen start to end, adjustable resistance/return curves and proportional vJoy Z output. The progressive preset includes engine and rear-wheel lock feedback. [Setup and tuning](tuning.md#handbrake) |
 
 **How wide the pattern stands is a dial too.** By default the columns are spread over the whole
 stick, which is right for 7+R and a lot of reach for the three-column patterns — 5+R and the truck
@@ -118,6 +119,8 @@ property (which puts ShakeIt's exported effect groups on the lever).
 Effects ride on top of the gate without changing its geometry. Ordinary effects fall silent
 within half a second of stale or inactive telemetry; a running **Test** can play without a game.
 Check the selected profile's enabled rows before driving: presets can include enabled effects.
+The handbrake preset enables native wheel-lock feedback with rear-wheel routing. Tune it in
+**Effects…**; the response depends on the wheel telemetry supplied by the game.
 The grind uses either the game's clutch reading or a pedal bound under **Options → Pedals**.
 
 ![Effects editor: profile gain, clutch behavior and SimHub's native effect rows](img/effects.png)
@@ -176,6 +179,8 @@ Available for dashboards and formulas:
 | `GateState` | `Neutral`, `Traveling`, `Engaged` |
 | `GateColumn` | `C1`…`C4`, or `None` |
 | `StickX`, `StickY` | axis positions, 0–65535 |
+| `HandbrakePct` | handbrake input sent to vJoy, 0–100 |
+| `HandbrakeArmed` | true after release to the calibrated start has armed handbrake output |
 | `DeviceConnected`, `VJoyConnected`, `DeviceName` | connection state |
 | `LoopHz` | measured FFB loop rate |
 | `StatusMessage` | the same working status shown on Main |
@@ -203,5 +208,5 @@ prefer to manage them all in one place — they are the same actions either way,
 
 Which profiles `NextProfile` walks through is set under **Options → Hotkeys → PROFILE HOTKEYS** —
 tick the ones you want in the ring, or tick none and it walks through all of them.
-Switching releases any held gear and clears a sequential pulse in flight before the new gate is
+Switching releases any held gear, handbrake input and a sequential pulse in flight before the new gate is
 applied, so it is safe to press while driving.

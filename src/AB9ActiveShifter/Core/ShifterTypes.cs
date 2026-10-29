@@ -36,7 +36,10 @@ namespace AB9ActiveShifter.Core
         /// configured between the first two columns. Appended last - the pattern is stored as
         /// an int in saved settings, so the existing values must never be renumbered.
         /// </summary>
-        H6 = 5
+        H6 = 5,
+
+        /// <summary>One-sided progressive lever with proportional vJoy Z output.</summary>
+        Handbrake = 6
     }
 
     /// <summary>
@@ -336,6 +339,9 @@ namespace AB9ActiveShifter.Core
         public Column Column = Column.None;
         public int Gear;
         public string GearLabel = "N";
+        public double HandbrakePct;
+        public bool HandbrakeMode;
+        public bool HandbrakeArmed;
         public double LoopHz;
         public string StatusMessage = "Stopped";
         public string DeviceName = "";

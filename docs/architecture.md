@@ -136,6 +136,44 @@ percentages while virtual output stays off. Navigating away cancels an unfinishe
 
 ## Effect handling
 
+Handbrake is a separate `GatePattern`, appended without renumbering saved patterns. Its
+`HandbrakeModel` normalizes calibrated Y endpoints, maps travel to braking independently of
+resistance, and owns release-to-arm state. Endpoints belong to `ProfileStore.Machine`; travel,
+dead zone and curves belong to the profile. Output mapping edits clear output and require a
+release; force edits preserve arming. Reconnect, calibration, free stick and teardown clear Z.
+The output adapter queries Z's existence and logical limits, caches successful values, and
+routes failed writes through `WatchGearOutput`'s existing backoff. Teardown still tries zero after a
+write fault and releases buttons independently. Other virtual axes are never reset.
+
+The handbrake uses PR #52's shared lateral corridor and full wall bite, with its own fore/aft
+start and end over the full raw Y axis. Endpoint/travel edits use the profile-transition ramp
+and require a release, while force edits preserve arming. The handbrake uses the same
+`ForceComposer.Bound` stabilisers, effective gain, polarity signs,
+telemetry freshness and native ShakeIt tone mixer. It has no gear latch or shift pulses. Profile
+transitions settle at the calibrated rest position and omit confirmation thumps in this mode,
+because moving a position-based handbrake also changes braking. The advisory frozen-position
+warning is suppressed for a handbrake that can legitimately be held still under load; the
+watchdog and effect-health checks remain active. Snapshots expose `HandbrakePct` (sent output)
+and `HandbrakeArmed`, also published as SimHub properties. The captured handbrake preset enables
+ShakeIt's native wheel-lock container, with Front/Rear aggregation routed to Rear only. Its
+tones use this same mixer and handbrake composition path, including freshness and gain limits.
+
+Force curve choice is profile tuning: late build (the default), early build, linear or smooth
+S, with the existing progression percentage retained as the blend amount. Braking keeps its
+independent original curve. The enum defaults to the original family so saved tunes retain
+their exact arithmetic. Shape edits rebuild the composer while preserving output arming and
+calibration. The preview samples that same model. Every family is monotone with slope at most
+two over normalized travel; no square-root singularity or arbitrary narrow control-point
+segment is introduced at the starting position.
+
+The optional global base spring is suppressed for handbrake in both providers so the base centre
+cannot compete with the chosen start. Its stored percentage is preserved for other patterns;
+native pattern edits queue verified onboard settings just like base-effect edits. Other base
+conditions are retained. `IHandbrakeOutput` is an optional capability on the vJoy backend;
+`GearOutputConnection` recreates output on entering/leaving handbrake, including on the same
+vJoy id. Control Mapper explicitly refuses analog handbrake, never mapping it to a button or a
+neutral role. Successful reconnect clears the sent value and arming latch before another pull.
+
 The constant forces and two calibration springs are created after acquire + reset; damper,
 friction and inertia are optional condition effects where supported. Parameters use
 `SetParameters(TypeSpecificParameters | NoRestart)`, with a retry without `NoRestart` before
@@ -146,7 +184,8 @@ requested coefficients, while calibration frames remain unmodified.
 off. `BaseEffectComposer` adds Generic FFB stick's optional global spring, friction and inertia
 after the gate is composed. The spring uses separately measured signs on each axis and is
 suppressed unless its own polarity confirmation is present. Its center is DirectInput offset
-zero, not a moving gate anchor. These effects share the effective gain and 10% unconfirmed cap,
+zero outside handbrake mode, where it is suppressed in favour of the calibrated return model.
+These effects share the effective gain and 10% unconfirmed cap,
 are zero in free-stick mode, and are excluded during calibration. Moza AB9 suppresses these
 DirectInput base effects, including the legacy device damper, without removing software wall
 damping, wall friction, home spring or telemetry forces. Coefficients are written only when

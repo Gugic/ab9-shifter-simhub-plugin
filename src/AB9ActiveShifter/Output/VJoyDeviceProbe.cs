@@ -159,6 +159,7 @@ namespace AB9ActiveShifter.Output
                 }
 
                 info.Buttons = driver.GetVJDButtonNumber(id);
+                info.HasHandbrakeAxis = driver.GetVJDAxisExist(id, HID_USAGES.HID_USAGE_Z);
 
                 if (info.State == VJoyDeviceState.Busy)
                 {

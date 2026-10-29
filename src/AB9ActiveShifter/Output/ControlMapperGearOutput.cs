@@ -15,16 +15,18 @@ namespace AB9ActiveShifter.Output
         private readonly IControlMapperRoles _mapper;
         private readonly string[] _roles;
         private readonly bool _holdNeutral;
+        private readonly bool _handbrake;
         private readonly bool[] _down = new bool[GearOutputConfig.RoleCount];
         private readonly object _sync = new object();
         private int _heldButton = -1;
         private bool _connected;
 
-        public ControlMapperGearOutput(IControlMapperRoles mapper, string[] roles, bool holdNeutral)
+        public ControlMapperGearOutput(IControlMapperRoles mapper, string[] roles, bool holdNeutral, bool handbrake = false)
         {
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
             _roles = GearOutputConfig.CopyRoles(roles);
             _holdNeutral = holdNeutral;
+            _handbrake = handbrake;
         }
 
         public bool IsConnected { get { return _connected; } }
@@ -48,6 +50,12 @@ namespace AB9ActiveShifter.Output
         {
             lock (_sync)
             {
+                if (_handbrake)
+                {
+                    LastError = "Analog handbrake needs direct vJoy output with Z enabled. Select vJoy in Base and output.";
+                    _connected = false;
+                    return false;
+                }
                 try
                 {
                     bool available = _mapper.IsAvailable;

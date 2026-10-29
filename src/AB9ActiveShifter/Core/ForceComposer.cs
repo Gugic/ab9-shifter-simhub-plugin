@@ -45,6 +45,7 @@ namespace AB9ActiveShifter.Core
     {
         private readonly GateGeometry _geo;
         private readonly EngineConfig _cfg;
+        private readonly HandbrakeModel _handbrake;
 
         private readonly int _columnPinForce;
         private readonly int _channelWallForce;
@@ -224,6 +225,7 @@ namespace AB9ActiveShifter.Core
         {
             _geo = geometry;
             _cfg = config;
+            _handbrake = new HandbrakeModel(config);
 
             double gain = config.EffectiveGain;
             _freeStick = config.FreeStick;
@@ -712,15 +714,20 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// The sequential lever's fore/aft force: rises linearly from nothing at centre to the
-        /// full resist at the shift threshold, drops to the lighter hold - the click - for the
-        /// overtravel, then meets the end-stop wall, rising over the wall's bite on top of the
-        /// hold. Everything is measured from the firing line, so shortening the throw moves the
-        /// whole stroke together. Always toward centre, never over-centre: a sequential lever
-        /// must come home on release, and a wall rather than a pocket means releasing inside
-        /// the stop still returns it. The approach to the click is a shallow gradient by
-        /// construction - full resist over the whole engage span - so no delay can pump it.
+        /// One-sided progressive resistance and the shared lateral corridor. The same Bound
+        /// pipeline supplies yield, attack, friction, damping, carriers and measured polarity.
         /// </summary>
+        public ForceFrame ComposeHandbrake(int x, int y, int vx = 0, int vy = 0, double dtMs = 0, int vibY = 0)
+        {
+            if (_freeStick) return FreeFrame();
+            var frame = new ForceFrame { SpringX = SpringPreset.Off, SpringY = SpringPreset.Off };
+            frame.ConstantX = LateralLaneForce(x);
+            frame.ConstantY = _handbrake.Resistance(y, vy);
+            return Bound(frame, vx, vy, dtMs, _snickFloor, shapeY: true, vibY: vibY);
+        }
+
+        /// <summary>Sequential resistance rises to the firing line, drops into a lighter
+        /// hold, then meets the end stop. It always returns home, with no over-centre pocket.</summary>
         private int SequentialSpring(int y)
         {
             ShiftDir dir = _geo.DirectionOf(y);
@@ -753,7 +760,7 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// Sideways free space in sequential and PRND. The plan view reads this same answer;
+        /// Sideways free space in sequential, PRND and handbrake. The plan view reads this same answer;
         /// a single lane has no neighbouring columns to limit its corridor or wall bite.
         /// </summary>
         public int LateralLaneHalfWidth
@@ -1777,7 +1784,7 @@ namespace AB9ActiveShifter.Core
         {
             get
             {
-                if (_cfg.Pattern == GatePattern.Sequential || _cfg.Pattern == GatePattern.Prnd)
+                if (_cfg.Pattern == GatePattern.Sequential || _cfg.Pattern == GatePattern.Prnd || _cfg.Pattern == GatePattern.Handbrake)
                     return int.MaxValue;
 
                 int worst = int.MaxValue;
