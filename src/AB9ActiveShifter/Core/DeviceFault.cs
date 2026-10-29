@@ -3,10 +3,9 @@ namespace AB9ActiveShifter.Core
     /// <summary>
     /// Why the base stopped answering, to the extent the driver will say.
     ///
-    /// The distinction that matters is <see cref="TakenByAnotherApp"/> against everything else,
-    /// because the repair is opposite. A device that has gone wants reopening as fast as the
-    /// backoff allows. A device another application has taken wants leaving alone: reopening it is
-    /// not a repair, it is a theft, and it is what crashes the game that took it.
+    /// Exclusive-access faults follow the rig's automatic-retake preference. Keeping them distinct
+    /// lets a user opt out of recovery during a game without disabling ordinary unplug/replug
+    /// recovery. A revoked acquisition does not prove another application still owns the base.
     /// </summary>
     public enum DeviceFault
     {
@@ -16,7 +15,7 @@ namespace AB9ActiveShifter.Core
         /// <summary>The device has left the bus. Reopen when it comes back.</summary>
         Gone,
 
-        /// <summary>Another process holds it. Do not reach for it.</summary>
+        /// <summary>Exclusive acquisition was lost or refused. Follow the retake preference.</summary>
         TakenByAnotherApp
     }
 

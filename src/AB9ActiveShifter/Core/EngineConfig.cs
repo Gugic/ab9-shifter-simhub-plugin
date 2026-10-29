@@ -18,6 +18,8 @@ namespace AB9ActiveShifter.Core
         // Device
         public int VendorId = 0x346E;
         public int ProductId = 0x1000;
+        /// <summary>Retry exclusive acquisition during a game; opt out for titles that cannot tolerate it.</summary>
+        public bool AutoRetakeBase = true;
         public uint VJoyDeviceId = 1;
         public GearOutputMode OutputMode = GearOutputMode.VJoy;
         public string[] ControlMapperRoles = GearOutputConfig.CopyRoles(null);

@@ -47,7 +47,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-759 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+773 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -136,6 +136,7 @@ src/AB9ActiveShifter/
                            The one distinction whose repair is opposite - see its header
     RetryBackoff.cs        "Do not try that again yet" - the gate on I/O the tick can attempt
                            and fail. A throttled log is not one; see its header
+    DeviceReconnectPolicy.cs Base-open backoff and the rig's automatic-retake opt-out
     VelocityEstimator.cs   Position -> speed across a 4 ms window; per-tick differences alias
     TraceRecorder.cs       Per-tick ring buffer -> CSV, so a feel complaint can be replayed.
                            Keeps the LAST two minutes; read its header before making it stop
@@ -193,10 +194,11 @@ tests/AB9ActiveShifter.Tests/
   GateStateMachineTests.cs Transitions, hysteresis, lockout traces
   PolarityCalibratorTests.cs Two-axis stick model incl. this unit's mixed inversion pattern
   RetryBackoffTests.cs     A failing device open cannot be attempted once per tick, counted
+  DeviceReconnectTests.cs Retake defaults, opt-out, failed opens, timing and rig-only persistence
   BaseCheckGateTests.cs    No AB9 open on a missing or stale read, a window shorter than a power
                            cycle, and a waiting engine that asks every 2 s rather than every tick
-  DeviceFaultTests.cs      Which HRESULTs mean another program has the base, so standing down and
-                           crashing the user's game do not get confused
+  DeviceFaultTests.cs      Which HRESULTs describe exclusive-access failures, so the retake
+                           preference stays separate from unplug/replug recovery
   VelocityEstimatorTests.cs  Feeds the measured stale-then-jump report stream, demands a steady answer
   TraceRecorderTests.cs    That the buffer keeps the newest two minutes rather than the oldest,
                            wraps without a seam, says in the file when it dropped ticks, and
@@ -573,17 +575,17 @@ runners cannot load, so anything worth testing must not touch it.
   calibration and output setup.
 - The watchdog (500 ms timer, 1 s staleness) calls `EmergencyStop`. `StopForces` is the only
   device method callable off the engine thread, and it swallows everything.
-- **A device another application has taken is released, not reclaimed.** Exclusive+background is
-  the strongest cooperative level DirectInput has and it still loses to a foreground app, so
-  reopening is not a repair - it is a theft, and it pulls the device out from under the game
-  mid-frame. Measured: `DIERR_NOTEXCLUSIVEACQUIRED` at 00:31:38.140 followed by our own successful
-  reopen 127 ms later, and a user report of Forza crashing when the plugin is re-armed.
-  `DeviceFaults.Classify` names the condition and `ReadyToReclaim` waits for SimHub to report no
-  game running - a timer alone would take the device mid-race, just less often. A config change is
-  the deliberate override, and `DIERR_INPUTLOST` stays `Unknown` on purpose: it cannot tell a
-  focus change from a pulled cable, so it still re-acquires once and the failure of *that* attempt
-  is what gets classified. The real fix is outside the plugin - hide the base from games with
-  HidHide, see docs/hardware.md.
+- **Exclusive-access recovery follows the rig's preference.** `AutoRetakeBase` defaults true:
+  `DeviceReconnectPolicy` retries during a game after a full one-second loss delay, with 1/2/5 s
+  failure backoff. Turning it off waits for no game, checking at 5/15/30 s; initial priority
+  refusals follow that choice too. Profile changes and tuning cannot override the opt-out.
+  Master off/on and changed device identity explicitly restart acquisition. Every loss still
+  clears buttons, stops effects, then releases the base; native-mode verification and the force
+  cap still apply on reconnect. Measured: waiting after a temporary loss stranded AC until a
+  manual restart, whereas retaking disrupted Forza. Neither is a universal result, so status
+  must state the preference without claiming every retry crashes a game. See docs/hardware.md
+  for version comparison, log evidence, and the raw-HID reservation probe that failed with
+  Win32 32 even before DirectInput initialization. `DIERR_INPUTLOST` remains `Unknown`.
 - **A repair keyed on this base's status flags needs a second source, and never touches the gear.**
   The base sets `DIGFFS_EMPTY` while producing force — measured, held over forty minutes with no
   other fault flag — and `DIGFFS_STOPPED` at rest, which is why `Idle` is not a fault. Since

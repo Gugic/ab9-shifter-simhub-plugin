@@ -23,6 +23,8 @@ namespace AB9ActiveShifter.Core
         private const int SnapshotEveryTicks = 8;
 
         private static readonly int[] BackoffMs = { 1000, 2000, 5000 };
+        private readonly DeviceReconnectPolicy _deviceReconnect = new DeviceReconnectPolicy();
+        private bool _preserveReconnectWait;
 
         private readonly object _deviceLock = new object();
         private readonly object _configLock = new object();
@@ -364,6 +366,7 @@ namespace AB9ActiveShifter.Core
             lock (_deviceLock)
             {
                 _releaseOutputOnStop = releaseOutput;
+                _preserveReconnectWait = !releaseOutput;
                 if (!_running && _thread == null)
                 {
                     ClearCalibration();
@@ -463,8 +466,8 @@ namespace AB9ActiveShifter.Core
 
             var clock = Stopwatch.StartNew();
 
-            long nextOpenAttemptMs = 0;
-            int backoffIndex = 0;
+            _deviceReconnect.RestartClock(_preserveReconnectWait);
+            _preserveReconnectWait = false;
             long tickCount = 0;
             long hzWindowStartMs = 0;
             int hzTicks = 0;
@@ -502,20 +505,20 @@ namespace AB9ActiveShifter.Core
 
                     if (_phase != EnginePhase.Run)
                     {
-                        // The base check comes last: nothing asks for a read while a game holds the
-                        // base, and waiting on one is not a failed open, so it costs no backoff.
-                        if (nowMs >= nextOpenAttemptMs && (!_yielded || ReadyToReclaim(nowMs))
+                        // Both recovery preferences gate I/O. The native-mode check still runs
+                        // before every permitted open; waiting for it is not a failed attempt.
+                        if (ReadyToReconnect(cfg, nowMs)
                             && BaseCheckAllowsOpen(cfg))
                         {
-                            if (TryOpenDevice(cfg, nowMs))
+                            DeviceFault fault;
+                            if (TryOpenDevice(cfg, nowMs, out fault))
                             {
-                                backoffIndex = 0;
+                                _deviceReconnect.Reset();
                             }
                             else
                             {
-                                int wait = BackoffMs[Math.Min(backoffIndex, BackoffMs.Length - 1)];
-                                backoffIndex++;
-                                nextOpenAttemptMs = nowMs + wait;
+                                _deviceReconnect.OpenFailed(fault, nowMs);
+                                if (fault == DeviceFault.TakenByAnotherApp) ShowTakeoverStatus(cfg, _status);
                             }
                         }
 
@@ -1193,8 +1196,9 @@ namespace AB9ActiveShifter.Core
             return false;
         }
 
-        private bool TryOpenDevice(EngineConfig cfg, long nowMs)
+        private bool TryOpenDevice(EngineConfig cfg, long nowMs, out DeviceFault fault)
         {
+            fault = DeviceFault.Unknown;
             lock (_deviceLock)
             {
                 Teardown();
@@ -1213,6 +1217,7 @@ namespace AB9ActiveShifter.Core
                 string error;
                 if (!device.Open(cfg, hwnd, out error))
                 {
+                    fault = device.LastFault;
                     device.Dispose();
                     _status = error;
                     Log.WarnThrottled("device-open", error, 15);
@@ -1247,7 +1252,7 @@ namespace AB9ActiveShifter.Core
                 Log.ResetThrottle("device-open");
                 Log.ResetThrottle("device-yield");
                 _baseCheck.Opened();
-                _yielded = false;
+                Log.ResetThrottle("device-retake");
                 _phase = EnginePhase.Run;
                 _status = BuildReadyStatus(cfg);
                 return true;
@@ -1270,45 +1275,13 @@ namespace AB9ActiveShifter.Core
         }
 
         /// <summary>
-        /// Gives the device up, and decides whether to go looking for it again.
-        ///
-        /// For every fault but one the answer is yes, on the usual backoff. The exception is a
-        /// device another application has taken, where reopening is not a repair: DirectInput
-        /// hands exclusive access to the foreground app, so the game wins the moment it asks - and
-        /// the reconnect loop then takes it straight back, at which point the game loses its device
-        /// mid-frame and crashes. Measured on this rig with Forza and with Wreckfest 2, and visible
-        /// in the log as DIERR_NOTEXCLUSIVEACQUIRED followed one tenth of a second later by our own
-        /// "Opened 'MOZA AB9 FFB Base' exclusive+background" - us winning the tug of war.
-        ///
-        /// There is no cooperative level that beats this; exclusive+background is already the
-        /// strongest DirectInput offers, and exclusive is mandatory for creating effects at all.
-        /// The only real fix is for games not to see the base (HidHide), so the log says so.
+        /// Always release buttons, stop effects and give up the failed handle. The rig's recovery
+        /// preference chooses between retrying acquisition and waiting until the game exits.
         /// </summary>
         private void HandleDeviceLoss(string reason, DeviceFault fault, long nowMs)
         {
-            if (fault == DeviceFault.TakenByAnotherApp)
-            {
-                _yielded = true;
-
-                // Reset then immediately hold off, so the first look is one whole wait away. An
-                // instant re-check would land in the moment the game was still starting up and the
-                // telemetry had not caught up yet - which reads as "no game" and takes the device
-                // straight back, the exact thing being fixed.
-                _yieldedRetry.Reset();
-                _yieldedRetry.Failed(nowMs);
-
-                _status = "Another application has taken the base. Standing down rather than " +
-                          "taking it back - reclaiming it is what crashes the game. It will be " +
-                          "picked up again once no game is running.";
-
-                Log.WarnThrottled("device-yield",
-                    "Another application has taken the base (" + reason + "). Standing down: " +
-                    "DirectInput gives exclusive access to the foreground application, so " +
-                    "reopening it here would pull the device out from under that program. The " +
-                    "gate will be picked up again once no game is running. To stop this happening " +
-                    "at all, hide the base's HID interface from games with HidHide and whitelist " +
-                    "SimHubWPF.exe - games are meant to receive the selected gear output, not the base's axes.", 30);
-            }
+            _deviceReconnect.DeviceLost(fault, nowMs);
+            if (fault == DeviceFault.TakenByAnotherApp) ShowTakeoverStatus(_activeConfig, reason);
             else
             {
                 Log.WarnThrottled("device-loss", "Device lost: " + reason, 10);
@@ -1316,56 +1289,39 @@ namespace AB9ActiveShifter.Core
             }
 
             if (_output != null) _output.ReleaseAll();
-
             DisposeEffects();
             DisposeDevice();
-
             _phase = EnginePhase.SearchDevice;
         }
 
-        // --- standing down for another application ------------------------------------------
-        //
-        // Set when a fault says another process owns the base, cleared by a successful open or by
-        // any config change - which is what makes re-picking a device on the Setup tab, or toggling
-        // the plugin off and on, the deliberate "take it back anyway" escape.
-        private volatile bool _yielded;
-
-        /// <summary>
-        /// How often a stood-down engine may look to see whether the base is free again. Longer
-        /// than the ordinary reconnect because the answer is usually "still racing", and every
-        /// attempt that SUCCEEDS while a game is running is a crash rather than a recovery.
-        /// </summary>
-        private readonly RetryBackoff _yieldedRetry = new RetryBackoff(5000, 15000, 30000);
-
-        /// <summary>A game reported within this long counts as still running.</summary>
-        private const int GameLiveWindowMs = 2000;
-
-        /// <summary>
-        /// Whether to reach for the base again after standing down.
-        ///
-        /// The rule is "when it is actually free", not "in N seconds", because a timer that fires
-        /// mid-race takes the device off the game exactly as the old code did, just less often.
-        /// SimHub already knows whether a game is running and the engine already has that snapshot,
-        /// so the wait costs nothing to ask for. A game SimHub does not recognise is the hole in
-        /// this - it reads as no game - which is the other reason the log points at HidHide.
-        /// </summary>
-        private bool ReadyToReclaim(long nowMs)
+        private void ShowTakeoverStatus(EngineConfig cfg, string reason = null)
         {
-            if (!_yieldedRetry.Due(nowMs)) return false;
-
-            TelemetryState telemetry = _telemetry;
-            int age = unchecked(Environment.TickCount - telemetry.CapturedAtTick);
-
-            if (telemetry.GameRunning && age >= 0 && age <= GameLiveWindowMs)
+            string detail = string.IsNullOrEmpty(reason) ? "" : " Detail: " + reason;
+            if (_deviceReconnect.WaitingForGame(cfg.AutoRetakeBase))
             {
-                _yieldedRetry.Failed(nowMs);
-                return false;
+                _status = "Lost exclusive access to the base. Automatic retaking is off; " +
+                          "waiting until no game is running.";
+                Log.WarnThrottled("device-yield", _status + detail +
+                    " Enable Automatically retake the base in Base and output to retry during a game.", 30);
             }
+            else
+            {
+                _status = "Lost exclusive access to the base. Retrying automatically.";
+                Log.WarnThrottled("device-retake", _status + detail +
+                    " If reconnecting disrupts this game, turn off Automatically retake the base " +
+                    "in Base and output.", 30);
+            }
+        }
 
-            _yielded = false;
-            _yieldedRetry.Succeeded();
-            Log.Info("No game is holding the base now; picking it up again.");
-            return true;
+        private bool ReadyToReconnect(EngineConfig cfg, long nowMs)
+        {
+            TelemetryState telemetry = _telemetry;
+            bool wasWaiting = _deviceReconnect.WaitingForGame(cfg.AutoRetakeBase);
+            bool ready = _deviceReconnect.CanAttemptOpen(nowMs, cfg.AutoRetakeBase,
+                telemetry.GameRunning, unchecked(Environment.TickCount - telemetry.CapturedAtTick));
+            if (wasWaiting && !_deviceReconnect.WaitingForGame(cfg.AutoRetakeBase))
+                Log.Info("No game is reported running now; retrying the base connection.");
+            return ready;
         }
 
         private void ApplyConfigChange(EngineConfig cfg, long nowMs)
@@ -1447,11 +1403,10 @@ namespace AB9ActiveShifter.Core
                                (previous.VendorId != cfg.VendorId ||
                                 previous.ProductId != cfg.ProductId);
 
-            // A config change is the user's own hand on the plugin - re-picking a device, toggling
-            // it off and on - so it is also the escape from standing down: take the base back even
-            // if a game is holding it, because this time someone asked for it.
-            _yielded = false;
-            _yieldedRetry.Reset();
+            // Tuning, output edits and profile switches must not override a conservative wait.
+            // A master off/on resets the policy; an internal native-write pause preserves it.
+            if (needsReopen) _deviceReconnect.Reset();
+            else if (_deviceReconnect.TakeoverPending) ShowTakeoverStatus(cfg);
 
             if (needsReopen && _phase == EnginePhase.Run)
             {

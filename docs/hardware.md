@@ -178,32 +178,73 @@ plugin can render. Two verdicts from hardware, and both stand:
 The plugin takes the device `Exclusive | Background` — exclusive is required to create FFB
 effects, background so forces stay live while the *game* has focus rather than SimHub.
 
-Things that will take it away: **MOZA Cockpit**, a **Pit House** live-tuning page, and **any game
-that enumerates it as a force feedback device** — measured here with Forza Motorsport and
-Wreckfest 2. The failure surfaces as `DIERR_OTHERAPPHASPRIO` / `DIERR_NOTEXCLUSIVEACQUIRED`.
+MOZA Cockpit, a Pit House live-tuning page, or a game requesting exclusive FFB access can
+interrupt the connection. This was observed with Forza Motorsport, Wreckfest 2 and Assetto Corsa.
+Enumeration alone is not proof of an exclusive acquisition.
+[Microsoft documents](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ee417921(v=vs.85))
+that a background-exclusive application is not guaranteed to retain access and can recover by
+unacquiring/reacquiring. There is no stronger DirectInput cooperative flag.
+`DIERR_NOTEXCLUSIVEACQUIRED` says our exclusive acquisition is absent, not that a particular
+process still owns the base; `DIERR_OTHERAPPHASPRIO` is an acquisition refusal.
 
-**Exclusive does not mean what the name suggests, and there is no stronger level.** DirectInput
-grants exclusive access to the *foreground* application and unacquires whoever held it in the
-background, so a game asking for the base always wins. Worse, the reconnect loop used to take it
-straight back: the log for 2026-08-20 00:31:38 shows `DIERR_NOTEXCLUSIVEACQUIRED` followed 127 ms
-later by our own `Opened 'MOZA AB9 FFB Base' exclusive+background`, and the user's report is that
-re-arming the plugin while Forza is running crashes the game. That is us pulling the device out
-from under it mid-frame.
+**The regression was recovery policy, with different outcomes in different games.** In 0.13,
+the same `Exclusive | Background` initialization retried device loss. Version 0.14 introduced a
+wait until no game was running for both exclusive-access codes. On 2026-10-28, the SimHub log
+shows Assetto Corsa launching, `DIERR_NOTEXCLUSIVEACQUIRED` at 12:31:32.169, then the wait; a
+manual restart acquired the base at 12:31:42.607 while AC stayed running. No onboard writes
+occurred near that event. That supports a recovery regression rather than a game-launch mode
+rewrite. Conversely, the 2026-08-20 log shows a revoked acquisition followed by a successful
+reopen shortly afterwards, and the user reported Forza crashing when the plugin was re-armed.
+Neither observation proves that reacquisition always crashes, or that it is harmless in all games.
 
-So a fault the driver classifies as *taken by another application* now **stands the engine down**
-rather than reopening (`DeviceFaults.Classify`, `ShifterEngine.ReadyToReclaim`): it releases the
-device, says so in the status, and waits until SimHub reports no game running before picking it up
-again. Any config change is the deliberate override. Everything else — a device that has simply
-gone — still retries on the ordinary 1/2/5 s backoff.
+**Automatically retake the base** therefore defaults on, with a one-second delay after a loss
+and 1/2/5 s backoff on failed opens. Opting out retains the wait for no game, with 5/15/30 s
+between checks. A master off/on or changed device identity explicitly restarts acquisition;
+profile and tuning edits preserve the chosen wait. Ordinary device disappearance retries with
+either preference. Retaking recovers the connection; it does not prevent another takeover.
 
-**The real fix is for games not to see the base at all.** Hide its HID interface
+**Live recovery with build `09bc212`, 2026-10-28:** after installing the new DLL and restarting
+SimHub, a fresh AC launch produced `DIERR_NOTEXCLUSIVEACQUIRED` at 21:07:37.028 and the automatic
+retry status at 21:07:37.076. AC connected at 21:07:37.619. The pre-open check read flight mode
+at 21:07:38.156, then the base opened exclusive/background at 21:07:38.400, about 1.3 s after
+the loss, with no engine restart or manual re-enable between them. The intervening native
+operation was a read, not a configuration write. This verifies game-launch acquisition recovery
+on this rig; the log alone does not establish restored subjective feel or a long-session result.
+
+### Lower-level ownership probe, 2026-10-28
+
+A scratch x86 .NET Framework probe used the installed SharpDX 4.2 assemblies and the exact AB9
+`MI_02` device path. SimHub and AC were stopped. It opened/closed handles and polled position;
+it created no effects, sent no actuator/reset commands and wrote no HID or configuration reports.
+A separate fresh process tested raw handles before creating or enumerating DirectInput, to rule
+out the probe's own DirectInput cache as the only cause.
+
+| Probe | Result |
+| --- | --- |
+| Raw HID read/write, share read/write | Opened |
+| Raw HID read/write, share mode 0, before DirectInput | Failed, Win32 32 (`ERROR_SHARING_VIOLATION`) |
+| Metadata-only HID handle, share mode 0, before DirectInput | Failed, Win32 32 |
+| DirectInput exclusive/background acquisition and position poll | Succeeded |
+| Raw HID read/write, share mode 0, while DirectInput held the base | Failed, Win32 32 |
+
+The existing conflicting handle owner was not identified. These results do not establish that
+exclusive raw HID is impossible on every installation. They do establish that it cannot simply
+be assumed available at plugin startup on this rig. Further,
+[CreateFile sharing restrictions](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)
+apply to subsequent I/O opens even within the same process: a separate exclusive reservation
+would also restrict handles DirectInput opens. DirectInput has no public API to adopt our HID
+handle. A direct HID/PID effect transport would be a different backend to prototype and verify,
+not an extra flag on the existing one. WinUSB similarly requires an appropriate driver binding,
+not just opening the existing HID controller differently. Neither alternative was implemented
+or verified by this handle-only probe.
+
+**Hiding remains an optional way to prevent games from opening the physical controller.** Hide its HID interface
 (`HID\VID_346E&PID_1000&MI_02`, *not* the `MI_00` serial port that Cockpit and Pit House need)
 with [HidHide](https://github.com/nefarius/HidHide) and whitelist `SimHubWPF.exe`. Games are meant
-to see the **vJoy** device for gears; the base is the plugin's alone. This is also worth ruling in
-or out as a cause of the silent freezes — two DirectInput applications creating and driving effects
-on the same base while ownership changes hands is not a state the firmware is likely to be tested
-against, and on this rig the Wreckfest run went game-detected 00:30:29 → exclusivity revoked
-00:31:38 → device off the bus 00:32:06.
+to receive the selected gear output; the base is the plugin's alone. Ownership contention is
+still worth investigating separately from silent freezes: the Wreckfest run went game-detected
+00:30:29 → exclusivity revoked 00:31:38 → device off the bus 00:32:06. That sequence alone does
+not establish causation.
 
 **Steam Input is not one of them, on this rig.** It was listed as a required setup step from the
 start, inherited from BonusFFB's issue tracker rather than measured here, and in use with Steam

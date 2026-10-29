@@ -71,6 +71,7 @@ namespace AB9ActiveShifter
         private int _vendorId = 0x346E;
         private int _productId = 0x1000;
         private int _tickHz = 1000;
+        private bool _autoRetakeBase = true;
 
         private int _columnPinForcePct = 90;
         private int _channelWallForcePct = 90;
@@ -469,6 +470,7 @@ namespace AB9ActiveShifter
                 out value);
         }
         public int TickHz { get { return _tickHz; } set { Set(ref _tickHz, value); } }
+        public bool AutoRetakeBase { get { return _autoRetakeBase; } set { Set(ref _autoRetakeBase, value); } }
 
         // Walls are constant forces expressed as a percentage of full scale. Spring
         // coefficients used to live here and could not produce a usable wall; see ForceComposer.
@@ -1032,6 +1034,7 @@ namespace AB9ActiveShifter
                 OutputMode = OutputMode,
                 ControlMapperRoles = ControlMapperRoles,
                 TickHz = TickHz,
+                AutoRetakeBase = AutoRetakeBase,
 
                 InvertConstantX = InvertConstantX,
                 InvertConstantY = InvertConstantY,
@@ -1320,6 +1323,7 @@ namespace AB9ActiveShifter
             if (scope == ResetScope.Everything)
             {
                 TickHz = d.TickHz;
+                AutoRetakeBase = d.AutoRetakeBase;
                 SeqPulseMs = d.SeqPulseMs;
                 FreeStick = d.FreeStick;
                 VJoyDeviceId = d.VJoyDeviceId;

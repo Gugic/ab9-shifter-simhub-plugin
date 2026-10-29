@@ -319,6 +319,8 @@
                                                 </StackPanel>
                                             </StackPanel>
                                         </styles:SHExpander>
+                                        <styles:SHToggleCheckbox Content="Automatically retake the base" IsChecked="{Binding AutoRetakeBase, Mode=TwoWay}" Margin="0,12,0,4" />
+                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Text="Retry the base connection if a game interrupts force feedback. On by default. Turn this off if retaking the base causes problems in a game; the plugin will then wait until no game is running. This setting applies to every profile." />
                                     </StackPanel>
                                 </styles:SHSection>
                             </styles:SHExpander>

@@ -64,7 +64,8 @@ engine raises `BaseCheckNeeded` at once and every 2 s while it waits, and the sh
 the CDC worker with `Ab9NativeDevice.CheckModeAsync`. Flight mode calls `NoteBaseChecked`.
 Native mode turns the shifter off, as at startup. No answer (base still off or booting) keeps the
 last answered snapshot, so `VirtualDeviceEnabled` stays set and the engine keeps asking. The gate
-sits after `ReadyToReclaim`, so nothing reads the port while a game holds the base. Waiting costs
+sits after `DeviceReconnectPolicy`, so opting out of automatic retaking also holds these reads
+while a game is running. Waiting costs
 no backoff, and the output stays acquired with its buttons clear, as while the base is absent.
 
 Every write pauses virtual output first, using the existing teardown ordering, then mutes
@@ -88,14 +89,19 @@ call `FfbDevice.StopForces()` to kill output when the loop has stopped ticking; 
 everything because the device may already be gone.
 
 The thread maintains selected output ownership before attempting the base. The base runs
-`SearchDevice → OpenDevice → Run`, with 1/2/5 s backoff on failure — **except when
-the fault says another application has taken the base**, where it stands down instead. Exclusive
-access goes to the foreground app, so reopening is not a repair; it pulls the device out from under
-the game and crashes it. `DeviceFaults.Classify` reads the HRESULT, `HandleDeviceLoss` releases and
-sets `_yielded`, and `ReadyToReclaim` waits for SimHub to report no game running before looking
-again (5/15/30 s between looks, and the first look one whole wait after the loss so a game still
-starting up is not mistaken for one that has gone). Any config change clears the stand-down, which
-is what makes re-picking a device in Options the deliberate "take it back anyway".
+`SearchDevice → OpenDevice → Run`. `DeviceReconnectPolicy` gates every open with a 1/2/5 s
+failure backoff, including a full second after a device loss even if the next open succeeds.
+**Automatically retake the base** defaults on and retries exclusive-access losses during a game,
+restoring the recovery behavior from before 0.14. Turning it off makes exclusive-access faults
+wait until SimHub reports no game running: checks are spaced 5/15/30 s, with the first one a full
+five seconds after the loss so game startup is not mistaken for an exit. Initial acquisition
+refusals follow the same preference. Ordinary unplug/replug recovery works in either mode.
+The preference is a machine fact, excluded from profile transfers. Changing it takes effect while
+disconnected. Profile switches, unrelated tuning and internal native-write pauses preserve a conservative wait; a master
+off/on or changed device identity resets it. `HandleDeviceLoss` still clears buttons, stops effects,
+and releases the failed handle in that order. The native mode check and force cap apply on every
+reconnect. Retaking can disrupt some games, but a lost acquisition is not proof that every retry
+will crash a game; see the measured differences in [hardware.md](hardware.md#exclusive-access).
 
 Each tick:
 
