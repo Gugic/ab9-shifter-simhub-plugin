@@ -18,11 +18,13 @@ All of this lives in `Core/ForceComposer.cs`, which is pure and fully unit-teste
 
 ## Optional base effects
 
-The shipped **Sequential (stiff, short)** preset captures the custom Sequential tune from the
-development rig on 2026-10-03. It changes tuning only: a 7,552-count firing distance, 2,010-count
+The shipped **Sequential (stiff, short)** preset comes from the custom Sequential tune captured on
+the development rig on 2026-10-03: a 7,552-count firing distance, 2,010-count
 overtravel, 46% push resistance, 100% click, 14.54% generic base damping and 14% base friction.
 Its native Effects tree is preserved. The force shapes and polarity cap are unchanged; the
-original Sequential preset remains a separate choice.
+original Sequential preset remains a separate choice. On 2026-10-05, all eight shipped presets
+were set to 15% base damping and 15% base friction at the user's request, replacing the captured
+base percentages. These shared values apply to both effect providers and await a human feel check.
 
 The gate's force shapes are shared by Generic FFB Stick and AB9-native. Their extra software
 damping, wall friction, home spring and telemetry effects stay in the constant-force path.
@@ -33,9 +35,10 @@ friction and inertia; AB9-native uses the corresponding onboard settings.
 forces or runs on polarity probe frames. The optional global spring has a fixed center and
 its own measured per-axis signs, not a moving wall anchor or reused constant-force polarity.
 It defaults off and remains off on rigs whose older calibration did not save spring signs.
-Friction and inertia also default off; these are optional background feel controls, not a new
-attempt to stabilize stiff gate walls with weak device condition effects. Their coefficients
-share effective gain and go to zero in free-stick mode. Spring follows the profile-transition
+Friction and inertia also reset to off; shipped presets use 15% friction. These are optional
+background feel controls, not a new attempt to stabilize stiff gate walls with weak device
+condition effects. Their coefficients share effective gain and go to zero in free-stick mode.
+Spring follows the profile-transition
 ramp; passive damping, friction and inertia remain whole through that transition.
 
 ## The gate, in three kinds of force
