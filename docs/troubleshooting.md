@@ -33,6 +33,20 @@ Retest a fast 5→6 shift while keeping the lever in the 5/6 column. The gear sh
 rear end-stop contact should push toward neutral. A sideways move through the tunnel can
 select another column, so include that motion when interpreting the requested gear.
 
+**The base stays connected but stops moving the lever, and its position freezes** — MOZA
+Cockpit shows the position frozen too, and after 30 s of the gate pushing, the log says *The base
+has not moved for 30 s*. Only a power cycle brings it back. Save a trace from **Options →
+Diagnostics** straight away and keep `Logs\SimHub.txt` from that session: in **Moza AB9** mode its
+`AB9 on COMn … reads` lines show the onboard settings the base was running, and its `AB9 wrote`
+lines show every change the plugin made to them. The cause is not yet known; see the
+[hardware notes](hardware.md#replacement-base-freezes-observed-on-2026-10-25).
+
+**"The AB9 came back in native H-pattern mode"** — the base was switched off and on, and it
+started in its firmware gear-shifter mode. The plugin keeps its forces off rather than push
+against the base's own gate. Use **Prepare base** under **Options** to return it to flight mode,
+then switch **Shifter enabled** back on. Restarting SimHub does the same through the startup
+check.
+
 **Everything feels dead, especially the lockout and the detents** — those are constant forces.
 Confirm *Measure polarity* reported a result for both push axes rather than "barely moved", and
 that overall gain is not near zero.

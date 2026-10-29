@@ -106,7 +106,35 @@ namespace AB9ActiveShifter
             if (Settings != null && snapshot.IsNative
                 && Settings.VendorId == Ab9NativeProtocol.VendorId && Settings.ProductId == Ab9NativeProtocol.ProductId)
                 Settings.Enabled = false;
+            // Any read that finds flight mode vouches for the base's next open, briefly.
+            if (snapshot.CanManage && snapshot.InputMode == 0) _engine?.NoteBaseChecked();
             if (!VirtualControlsAvailable || (_engine != null && !_engine.VirtualDeviceEnabled)) PushSettingsToEngine();
+        }
+
+        private void OnBaseCheckNeeded()
+        {
+            OnUiThread(CheckBaseForEngine);
+        }
+
+        // The engine asks before it opens the base in Moza AB9 mode, including after a reconnect
+        // the startup check never saw. Flight mode lets it open; native mode turns the shifter
+        // off, as at startup; no answer changes nothing, and the engine asks again.
+        private async void CheckBaseForEngine()
+        {
+            if (CurrentOperatingMode != OperatingMode.Ab9Native || NativeBusy || _nativeStartupCheck) return;
+            try
+            {
+                Ab9NativeSnapshot snapshot = await NativeDevice.CheckModeAsync();
+                if (!snapshot.InputMode.HasValue) return;
+                if (snapshot.IsNative)
+                {
+                    NativeOperationStatus = "The AB9 came back in native H-pattern mode, so plugin forces stayed off and " +
+                        "the shifter was switched off. Use Prepare base to return it to flight mode, then enable the shifter.";
+                    Log.Warn(NativeOperationStatus);
+                }
+                ObserveNativeMode(snapshot);
+            }
+            catch (Exception ex) { Log.Error("Could not check the AB9 mode before opening it", ex); }
         }
 
         /// <summary>Persists the provider independently of attachment; preparation is a separate action.</summary>

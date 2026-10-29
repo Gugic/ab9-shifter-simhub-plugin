@@ -197,6 +197,9 @@ namespace AB9ActiveShifter
             _engine.CalibrationFinished -= OnCalibrationFinished;
             _engine.CalibrationFinished += OnCalibrationFinished;
 
+            _engine.BaseCheckNeeded -= OnBaseCheckNeeded;
+            _engine.BaseCheckNeeded += OnBaseCheckNeeded;
+
             _engine.PedalCaptureCompleted -= OnPedalCaptureCompleted;
             _engine.PedalCaptureCompleted += OnPedalCaptureCompleted;
 
@@ -394,6 +397,7 @@ namespace AB9ActiveShifter
                 engine.LockoutEngagedChanged -= OnLockoutEngagedChanged;
                 engine.CalibrationCompleted -= OnCalibrationCompleted;
                 engine.CalibrationFinished -= OnCalibrationFinished;
+                engine.BaseCheckNeeded -= OnBaseCheckNeeded;
                 engine.PedalCaptureCompleted -= OnPedalCaptureCompleted;
                 engine.Dispose();
             }
@@ -649,6 +653,7 @@ namespace AB9ActiveShifter
             EngineConfig cfg = Settings.ToEngineConfig();
             cfg.BaseEffectsViaDirectInput = CurrentOperatingMode == OperatingMode.GenericFfbStick;
             cfg.VirtualDeviceEnabled = VirtualControlsAvailable;
+            cfg.RequireFreshBaseCheck = CurrentOperatingMode == OperatingMode.Ab9Native;
             cfg.NativeEffectsEnabled = true;
             cfg.GrindEnabled = false;
             if (_nativeEffects != null) _nativeEffects.Configure(cfg);

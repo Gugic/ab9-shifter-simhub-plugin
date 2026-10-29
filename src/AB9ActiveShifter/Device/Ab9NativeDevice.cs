@@ -25,7 +25,17 @@ namespace AB9ActiveShifter.Device
 
         public Task<Ab9NativeSnapshot> RefreshAsync()
         {
-            return RunAsync(null, null);
+            return RunAsync(null, null, false);
+        }
+
+        /// <summary>
+        /// A read the engine asked for before opening the base. A base that does not answer -
+        /// still off, still booting - leaves the last answered snapshot in place, so the gate
+        /// stays configured and the engine keeps asking until the base is back.
+        /// </summary>
+        public Task<Ab9NativeSnapshot> CheckModeAsync()
+        {
+            return RunAsync(null, null, true);
         }
 
         public Task<Ab9NativeSnapshot> ApplyAsync(Ab9NativeSettings settings, int? inputMode)
@@ -34,10 +44,10 @@ namespace AB9ActiveShifter.Device
             // Capture and validate before scheduling: slider changes cannot mutate an in-flight write.
             var copy = settings.Copy();
             copy.TransactionWrites(inputMode);
-            return RunAsync(copy, inputMode);
+            return RunAsync(copy, inputMode, false);
         }
 
-        private async Task<Ab9NativeSnapshot> RunAsync(Ab9NativeSettings settings, int? mode)
+        private async Task<Ab9NativeSnapshot> RunAsync(Ab9NativeSettings settings, int? mode, bool keepLastUnanswered)
         {
             if (!await _serial.WaitAsync(0).ConfigureAwait(false))
                 return new Ab9NativeSnapshot("AB9 configuration is busy; refresh and try again.");
@@ -46,17 +56,21 @@ namespace AB9ActiveShifter.Device
             {
                 return await Task.Run(() =>
                 {
+                    Ab9NativeSnapshot result;
                     try
                     {
-                        _snapshot = Execute(settings, mode);
+                        result = Execute(settings, mode);
                     }
                     catch (Exception ex)
                     {
-                        _snapshot = new Ab9NativeSnapshot("AB9 native controls unavailable: " + ex.Message +
+                        result = new Ab9NativeSnapshot("AB9 native controls unavailable: " + ex.Message +
                             " Close Cockpit, Pit House and AZOM's AB9 connection, then refresh.");
-                        Log.Warn(_snapshot.Status);
+                        // A check repeats every two seconds while the base boots; say it once.
+                        if (keepLastUnanswered) Log.WarnThrottled("native-check", result.Status, 30);
+                        else Log.Warn(result.Status);
                     }
-                    return Snapshot;
+                    if (!keepLastUnanswered || result.InputMode.HasValue) _snapshot = result;
+                    return result;
                 }).ConfigureAwait(false);
             }
             finally
@@ -99,8 +113,16 @@ namespace AB9ActiveShifter.Device
                     foreach (var value in settings.TransactionWrites(desiredMode)) WriteChecked(port, value.Key, value.Value);
                 }
 
+                // Logged on every read, so the startup check records what the base powered up
+                // with before the active profile is written over it.
                 var values = new Dictionary<Ab9Parameter, int>();
-                foreach (var parameter in Ab9NativeSettings.ReadParameters) values[parameter] = Read(port, parameter);
+                var read = new List<string>();
+                foreach (var parameter in Ab9NativeSettings.ReadParameters)
+                {
+                    values[parameter] = Read(port, parameter);
+                    read.Add(parameter + " " + values[parameter]);
+                }
+                Log.Info("AB9 on " + name + ", firmware " + firmware + ", reads " + string.Join(", ", read) + ".");
                 int finalMode = values[Ab9Parameter.InputMode];
                 return new Ab9NativeSnapshot("AB9 on " + name + ", firmware " + firmware + ": " +
                     (finalMode == 1 ? "native shifter mode." : "flight mode (virtual gate)."),
@@ -120,7 +142,15 @@ namespace AB9ActiveShifter.Device
             byte[] request = Ab9NativeProtocol.Write(parameter, value);
             port.Write(request, 0, request.Length);
             Thread.Sleep(20);
-            int actual = Read(port, parameter);
+            int actual;
+            try { actual = Read(port, parameter); }
+            catch (TimeoutException)
+            {
+                // The write may still have landed; name it, so the log shows where the batch stopped.
+                throw new TimeoutException("The AB9 did not answer the readback of " + parameter +
+                    " after writing " + value + ".");
+            }
+            Log.Info("AB9 wrote " + parameter + " " + value + ", read back " + actual + ".");
             if (actual != value) throw new InvalidOperationException(parameter + " did not read back as requested. " +
                 "Requested " + value + ", read " + actual + ". Virtual forces remain off.");
         }
