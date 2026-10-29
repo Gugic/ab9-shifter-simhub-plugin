@@ -203,6 +203,14 @@ between checks. A master off/on or changed device identity explicitly restarts a
 profile and tuning edits preserve the chosen wait. Ordinary device disappearance retries with
 either preference. Retaking recovers the connection; it does not prevent another takeover.
 
+**Live recovery with build `09bc212`, 2026-10-28:** after installing the new DLL and restarting
+SimHub, a fresh AC launch produced `DIERR_NOTEXCLUSIVEACQUIRED` at 21:07:37.028 and the automatic
+retry status at 21:07:37.076. AC connected at 21:07:37.619. The pre-open check read flight mode
+at 21:07:38.156, then the base opened exclusive/background at 21:07:38.400, about 1.3 s after
+the loss, with no engine restart or manual re-enable between them. The intervening native
+operation was a read, not a configuration write. This verifies game-launch acquisition recovery
+on this rig; the log alone does not establish restored subjective feel or a long-session result.
+
 ### Lower-level ownership probe, 2026-10-28
 
 A scratch x86 .NET Framework probe used the installed SharpDX 4.2 assemblies and the exact AB9
