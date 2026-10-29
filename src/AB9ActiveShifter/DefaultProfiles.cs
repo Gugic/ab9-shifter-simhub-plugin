@@ -350,15 +350,8 @@ namespace AB9ActiveShifter
             s.SeqPulseMs = 100;
             s.SeqClickPct = 71;
 
-            // The lever is sprung, so unlike the gate it leans on its spring continuously: it
-            // keeps a slow wall attack and some yield, which the H profiles do not need.
-            s.ColumnPinForcePct = 100;
             s.ChannelWallForcePct = 100;
-            s.WallRamp = 6000;
             s.WallBlend = 6000;
-            s.WallAttackMs = 16;
-            s.WallYieldPct = 20;
-            s.WallFrictionPct = 0;
 
             // Push resistance and click strength are the detent dials in sequential mode.
             s.DetentResistPct = 60;
@@ -372,7 +365,6 @@ namespace AB9ActiveShifter
             s.BarrierForcePct = 6;
             s.BarrierWidth = 1350;
             s.ColumnDetentForcePct = 14;
-            s.SlotHalfWidth = 2400;
             s.MouthShape = SlotMouthShape.Angled;
             s.LockoutForcePct = 100;
             s.LockoutHalfWidth = 4838;
@@ -386,7 +378,30 @@ namespace AB9ActiveShifter
             s.FxCurbsGainPct = 64;
             s.FxShiftGainPct = 100;
 
+            ApplySportLaneFeel(s);
             return s;
+        }
+
+        /// <summary>
+        /// The user-verified H sport tune is the authority for sideways clearance, wall
+        /// shaping and base resistance in the standard lane presets. Captured short tunes
+        /// can override these; stroke, positions and effects remain owned by each pattern.
+        /// Called last so an inert H dial cannot undo it.
+        /// </summary>
+        private static void ApplySportLaneFeel(ShifterSettings lane)
+        {
+            ShifterSettings sport = SportShortThrow();
+            lane.SlotHalfWidth = sport.SlotHalfWidth;
+            lane.ColumnPinForcePct = sport.ColumnPinForcePct;
+            lane.WallRamp = sport.WallRamp;
+            lane.WallAttackMs = sport.WallAttackMs;
+            lane.WallYieldPct = sport.WallYieldPct;
+            lane.WallFrictionPct = sport.WallFrictionPct;
+            lane.DampingPct = sport.DampingPct;
+            lane.DamperCoeff = sport.DamperCoeff;
+            lane.BaseSpringPct = sport.BaseSpringPct;
+            lane.BaseFrictionPct = sport.BaseFrictionPct;
+            lane.BaseInertiaPct = sport.BaseInertiaPct;
         }
 
         /// <summary>
@@ -397,25 +412,21 @@ namespace AB9ActiveShifter
         /// own: those dials persist with the profile, so leaving them tuned means switching this
         /// profile's pattern lands somewhere sane instead of on bare defaults.
         /// <para>
-        /// Two things about it are knowingly imperfect and are shipped as they were measured
-        /// rather than tidied, because a shipped profile that does not match the rig it came from
-        /// is worse than an honest one:
+        /// Its fore/aft notch remains as measured; the shared sideways corridor and resistance
+        /// use the H sport settings at the user's request, pending a new lane comparison.
         /// </para>
         /// <para>
         /// The notch is clamped away. <c>PrndNotchHalfWidth</c> asks for 6000 against a wall bite
-        /// of 6000, and the ceiling is half the position spacing less pi wall bites - 10000 less
-        /// 18850, so zero. Each position therefore has no free width at all and its detent has
+        /// of 3816, and the ceiling is half the position spacing less pi wall bites - 10000 less
+        /// about 11988, so zero. Each position therefore has no free width at all and its detent has
         /// less room to rise in than one wall bite, which is the abrupt case
         /// ForceComposer.PrndNotchHalfWidthCeiling exists to report. Lengthening the lane or
         /// shortening the bite is what buys it back.
         /// </para>
         /// <para>
-        /// The lever wobbles side to side when pushed off centre and released - a hand-driven
-        /// oscillation the gate has too little dissipation to outpace, measured at 9.8 Hz and
-        /// plus/minus half the axis. Rebound absorption above 50% stops it and buzzes on the walls
-        /// instead, because that one dial spans a wall touch at ~30000 counts/s and a fling at
-        /// 800000 with a blend that saturates by 22000. It sits at 15 here, which is the wobble
-        /// end of that trade.
+        /// The old unconditional rail wobbled sideways at 9.8 Hz and plus/minus half the axis.
+        /// The corridor replaces that point equilibrium. Keep the measured rebound setting;
+        /// raising it above 50% traded the wobble for wall buzz rather than curing both.
         /// </para>
         /// </summary>
         private static ShifterSettings Automatic()
@@ -432,17 +443,9 @@ namespace AB9ActiveShifter
             s.PrndNotchHalfWidth = 6000;
             s.PrndStopForcePct = 100;
 
-            // The lateral rail and the stabilisers around it. Software damping is zero like
-            // every preset's - the Cockpit damper carries it (see LooseGate) - and here that is
-            // also a correction: this profile used to inherit the bare default of 25 by
-            // omission, the only shipped tune with software damping on.
-            s.ColumnPinForcePct = 80;
-            s.WallRamp = 6000;
+            // H-only blend tuning is retained for a deliberate pattern change. The active
+            // sideways lane and base resistance are applied from the sport tune below.
             s.WallBlend = 1559;
-            s.WallAttackMs = 15;
-            s.WallYieldPct = 15;
-            s.WallFrictionPct = 7;
-            s.DampingPct = 0;
 
             // Gate dials that render nothing in PRND but persist with the profile. The tunnel
             // pair is deliberately left as measured: enter and leave are equal, which
@@ -463,7 +466,6 @@ namespace AB9ActiveShifter
             s.LockoutHalfWidth = 6000;
             s.MouthShape = SlotMouthShape.Angled;
             s.MouthDepth = 12000;
-            s.SlotHalfWidth = 2400;
             s.SlotStopForcePct = 100;
             s.DetentResistPct = 0;
             s.DetentPullPct = 0;
@@ -493,6 +495,7 @@ namespace AB9ActiveShifter
             s.GrindMinSpeedKmh = 11;
             s.GrindClutchMode = GrindClutchMode.Progressive;
 
+            ApplySportLaneFeel(s);
             return s;
         }
 

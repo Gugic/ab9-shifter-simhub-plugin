@@ -31,6 +31,120 @@ namespace AB9ActiveShifter.Tests
             return new SequentialStateMachine(cfg.BuildGeometry(), cfg.MinEngageTicks);
         }
 
+        private static ForceFrame LaneFrame(ForceComposer composer, GatePattern pattern, int x, int y,
+                                             int vibY = 0)
+        {
+            return pattern == GatePattern.Sequential
+                ? composer.ComposeSequential(x, y, vibY: vibY)
+                : composer.ComposePrnd(x, y, vibY: vibY);
+        }
+
+        [Theory]
+        [InlineData(GatePattern.Sequential)]
+        [InlineData(GatePattern.Prnd)]
+        public void TheLaneHasAQuietSidewaysCorridorThroughoutItsStroke(GatePattern pattern)
+        {
+            EngineConfig cfg = SeqConfig();
+            cfg.Pattern = pattern;
+            cfg.SlotHalfWidth = 2400;
+            var composer = new ForceComposer(cfg.BuildGeometry(), cfg);
+
+            foreach (int y in new[] { 0, cfg.EngageDepth, Center, Max })
+            {
+                for (int offset = -2400; offset <= 2400; offset += 100)
+                    Assert.Equal(0, LaneFrame(composer, pattern, Center + offset, y, 1500).ConstantX);
+            }
+
+            Assert.True(LaneFrame(composer, pattern, Center + 2500, Center).ConstantX < 0);
+            Assert.True(LaneFrame(composer, pattern, Center - 2500, Center).ConstantX > 0);
+        }
+
+        [Theory]
+        [InlineData(GatePattern.Sequential)]
+        [InlineData(GatePattern.Prnd)]
+        public void HiddenHGeometryCannotSteepenALanesWalls(GatePattern pattern)
+        {
+            EngineConfig cfg = SeqConfig();
+            cfg.Pattern = pattern;
+            cfg.ColumnPinForcePct = 80;
+            cfg.WallRamp = 6000;
+            cfg.SlotHalfWidth = 2400;
+
+            foreach (int width in new[] { 25, 100 })
+            {
+                cfg.PatternWidthPct = width;
+                foreach (int handover in new[] { 400, 5000 })
+                {
+                    cfg.DetentHysteresis = handover;
+                    var composer = new ForceComposer(cfg.BuildGeometry(), cfg);
+                    Assert.Equal(int.MaxValue, composer.WallRampCeiling);
+                    Assert.Equal(-4000, LaneFrame(composer, pattern, Center + 2400 + 3000, Center).ConstantX);
+                    Assert.Equal(-8000, LaneFrame(composer, pattern, Center + 2400 + 6000, Center).ConstantX);
+                }
+            }
+        }
+
+        [Theory]
+        [InlineData(GatePattern.Sequential)]
+        [InlineData(GatePattern.Prnd)]
+        public void ZeroWidthStillOptsIntoARailAndWideningItLeavesTheStrokeAndCarrierAlone(GatePattern pattern)
+        {
+            EngineConfig cfg = SeqConfig();
+            cfg.Pattern = pattern;
+            cfg.SlotHalfWidth = 0;
+            var rail = new ForceComposer(cfg.BuildGeometry(), cfg);
+            EngineConfig laneConfig = SeqConfig();
+            laneConfig.Pattern = pattern;
+            laneConfig.SlotHalfWidth = 2400;
+            var lane = new ForceComposer(laneConfig.BuildGeometry(), laneConfig);
+
+            Assert.True(LaneFrame(rail, pattern, Center + 1000, Center).ConstantX < 0);
+            Assert.Equal(0, LaneFrame(lane, pattern, Center + 1000, Center).ConstantX);
+            for (int y = 0; y <= Max; y += 137)
+                Assert.Equal(LaneFrame(rail, pattern, Center, y, 1500).ConstantY,
+                             LaneFrame(lane, pattern, Center, y, 1500).ConstantY);
+        }
+
+        [Theory]
+        [InlineData(GatePattern.Sequential)]
+        [InlineData(GatePattern.Prnd)]
+        public void EveryLaneWallCountIsContinuousAndThePolarityCapStillApplies(GatePattern pattern)
+        {
+            EngineConfig cfg = SeqConfig();
+            cfg.Pattern = pattern;
+            cfg.WallRamp = 6000;
+            cfg.SlotHalfWidth = 2400;
+            var composer = new ForceComposer(cfg.BuildGeometry(), cfg);
+            int previous = LaneFrame(composer, pattern, 0, Center).ConstantX;
+            for (int x = 1; x <= Max; x++)
+            {
+                int current = LaneFrame(composer, pattern, x, Center).ConstantX;
+                Assert.InRange(Math.Abs(current - previous), 0, 2);
+                previous = current;
+            }
+
+            cfg.PolarityConfirmed = false;
+            cfg.InvertConstantX = true;
+            composer = new ForceComposer(cfg.BuildGeometry(), cfg);
+            int capped = LaneFrame(composer, pattern, 0, Center).ConstantX;
+            Assert.InRange(capped, -1000, -1);
+        }
+
+        [Fact]
+        public void SwitchingPatternsNotifiesTheLaneControlsWithoutCreatingANewTune()
+        {
+            var settings = new ShifterSettings();
+            var seen = new System.Collections.Generic.List<string>();
+            settings.PropertyChanged += (sender, e) => seen.Add(e.PropertyName);
+            settings.Pattern = GatePattern.Sequential;
+            Assert.True(settings.HasLateralLane);
+            Assert.Contains("HasLateralLane", seen);
+            settings.Pattern = GatePattern.Prnd;
+            Assert.True(settings.HasLateralLane);
+            settings.Pattern = GatePattern.H7R;
+            Assert.False(settings.HasLateralLane);
+        }
+
         [Fact]
         public void OnePushFiresExactlyOneUpshift()
         {

@@ -210,7 +210,7 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void TheStiffShortSequentialKeepsTheCustomRigsStrokeAndResistance()
+        public void TheStiffShortSequentialKeepsTheLatestCapturedStrokeAndResistance()
         {
             ShifterSettings s = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SequentialStiffShortName));
             Assert.Equal(7552, s.ThrowFromCentre);
@@ -219,13 +219,44 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(2010, s.SeqOvertravel);
             Assert.Equal(100, s.SeqStopForcePct);
             Assert.Equal(100, s.SeqPulseMs);
-            Assert.Equal(100, s.SeqClickPct);
-            Assert.Equal(46, s.DetentResistPct);
-            Assert.Equal(14.54, s.BaseDamperPct);
-            Assert.Equal(14, s.BaseFrictionPct);
+            Assert.Equal(70, s.SeqClickPct);
+            Assert.Equal(45, s.DetentResistPct);
+            Assert.Equal(100, s.ColumnPinForcePct);
+            Assert.Equal(6000, s.WallRamp);
+            Assert.Equal(15, s.WallAttackMs);
+            Assert.Equal(35.15, s.BaseDamperPct);
+            Assert.Equal(35, s.BaseFrictionPct);
             Assert.True(s.FxLimiterEnabled);
             Assert.False(s.PedalCalibrated);
             Assert.Equal("", s.PedalDeviceId);
+        }
+
+        [Theory]
+        [InlineData(DefaultProfiles.SequentialName)]
+        [InlineData(DefaultProfiles.PrndName)]
+        public void TheStandardLanePresetsUseTheSportsSidewaysAndBaseFeel(string name)
+        {
+            ProfileStore store = DefaultProfiles.Create();
+            ShifterSettings s = Find(store, Preset(name));
+            ShifterSettings sport = Find(store, Preset(DefaultProfiles.SportShortThrowName));
+            Assert.Equal(sport.SlotHalfWidth, s.SlotHalfWidth);
+            Assert.Equal(sport.ColumnPinForcePct, s.ColumnPinForcePct);
+            Assert.Equal(sport.WallRamp, s.WallRamp);
+            Assert.Equal(sport.WallAttackMs, s.WallAttackMs);
+            Assert.Equal(sport.WallYieldPct, s.WallYieldPct);
+            Assert.Equal(sport.WallFrictionPct, s.WallFrictionPct);
+            Assert.Equal(sport.DampingPct, s.DampingPct);
+            Assert.Equal(sport.DamperCoeff, s.DamperCoeff);
+            Assert.Equal(sport.BaseFrictionPct, s.BaseFrictionPct);
+            Assert.Equal(sport.BaseSpringPct, s.BaseSpringPct);
+            Assert.Equal(sport.BaseInertiaPct, s.BaseInertiaPct);
+            EngineConfig cfg = s.ToEngineConfig();
+            var composer = new ForceComposer(cfg.BuildGeometry(), cfg);
+            int x = GateGeometry.AxisCenter + 400;
+            ForceFrame frame = s.IsSequential
+                ? composer.ComposeSequential(x, GateGeometry.AxisCenter)
+                : composer.ComposePrnd(x, GateGeometry.AxisCenter);
+            Assert.Equal(0, frame.ConstantX);
         }
 
         [Fact]
@@ -234,6 +265,8 @@ namespace AB9ActiveShifter.Tests
             ShifterSettings s = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SequentialStiffShortName));
             var effects = JObject.Parse(NativeEffectsData.Validate(s.NativeEffectsJson));
             var rows = (JArray)effects["Profile"]["EffectsContainers"];
+            Assert.Equal(40.0, (double)effects["GlobalGain"], 10);
+            Assert.False((bool)effects["IsMuted"]);
             Assert.Equal(9, rows.Count);
             JObject engine = (JObject)rows[2];
             Assert.Equal("RPMContainer", (string)engine["ContainerType"]);

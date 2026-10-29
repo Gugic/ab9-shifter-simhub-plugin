@@ -65,7 +65,7 @@ namespace AB9ActiveShifter.UI
 
             if (geo.Pattern == GatePattern.Sequential)
             {
-                DrawSequential(dc, geo, snap, left, right, top, bottom);
+                DrawSequential(dc, geo, cfg, snap, left, right, top, bottom);
                 return;
             }
 
@@ -471,30 +471,30 @@ namespace AB9ActiveShifter.UI
         /// the H pattern gets: where a shift fires, and how far back the lever must come before it
         /// can fire again.
         /// </summary>
-        private void DrawSequential(DrawingContext dc, GateGeometry geo, EngineSnapshot snap,
+        private void DrawSequential(DrawingContext dc, GateGeometry geo, EngineConfig cfg, EngineSnapshot snap,
                                     double left, double right, double top, double bottom)
         {
             double cx = (left + right) / 2;
             double midY = MapY(AxisCenter, top, bottom);
 
-            dc.DrawLine(MakePen(GateBrush, 10, false), new Point(cx, top), new Point(cx, bottom));
+            double markReach = Math.Max(26, DrawLateralLane(dc, cfg, left, right, top, bottom) + 8);
             dc.DrawLine(MakePen(GateBrush, 10, false), new Point(cx - 18, midY), new Point(cx + 18, midY));
 
             foreach (int y in new[] { geo.EngageDepth, AxisMax - geo.EngageDepth })
             {
                 double sy = MapY(y, top, bottom);
-                dc.DrawLine(MarkPen, new Point(cx - 26, sy), new Point(cx + 26, sy));
+                dc.DrawLine(MarkPen, new Point(cx - markReach, sy), new Point(cx + markReach, sy));
             }
 
             foreach (int y in new[] { geo.ReleaseDepth, AxisMax - geo.ReleaseDepth })
             {
                 double sy = MapY(y, top, bottom);
-                dc.DrawLine(MarkDashPen, new Point(cx - 26, sy), new Point(cx + 26, sy));
+                dc.DrawLine(MarkDashPen, new Point(cx - markReach, sy), new Point(cx + markReach, sy));
             }
 
-            DrawLabel(dc, "shifts here", cx + 30, MapY(geo.EngageDepth, top, bottom) - 6, TextAlign.Left);
+            DrawLabel(dc, "shifts here", cx + markReach + 4, MapY(geo.EngageDepth, top, bottom) - 6, TextAlign.Left);
             // Opposite sides stay readable even when the two thresholds nearly coincide.
-            DrawLabel(dc, "re-arms here", cx - 30, MapY(geo.ReleaseDepth, top, bottom) - 6, TextAlign.Right);
+            DrawLabel(dc, "re-arms here", cx - markReach - 4, MapY(geo.ReleaseDepth, top, bottom) - 6, TextAlign.Right);
 
             DrawGearLabel(dc, "+", cx, top - 17, snap.GearLabel == "+");
             DrawGearLabel(dc, "-", cx, bottom + 4, snap.GearLabel == "-");
@@ -514,14 +514,16 @@ namespace AB9ActiveShifter.UI
             PrndLane lane = cfg.BuildPrndLane();
             double cx = (left + right) / 2;
 
-            dc.DrawLine(MakePen(GateBrush, 10, false),
-                        new Point(cx, MapY(AxisCenter - lane.HalfLength, top, bottom)),
-                        new Point(cx, MapY(AxisCenter + lane.HalfLength, top, bottom)));
+            double halfWidth = DrawLateralLane(dc, cfg, left, right,
+                                              MapY(AxisCenter - lane.HalfLength, top, bottom),
+                                              MapY(AxisCenter + lane.HalfLength, top, bottom));
+            double markReach = Math.Max(26, halfWidth + 8);
 
             for (int gap = 0; gap < PrndLane.PositionCount - 1; gap++)
             {
                 double sy = MapY(lane.CrestY(gap), top, bottom);
-                dc.DrawLine(MarkDashPen, new Point(cx - 14, sy), new Point(cx + 14, sy));
+                double crestReach = Math.Max(14, halfWidth);
+                dc.DrawLine(MarkDashPen, new Point(cx - crestReach, sy), new Point(cx + crestReach, sy));
             }
 
             double firstY = MapY(lane.PositionY(0), top, bottom);
@@ -534,20 +536,34 @@ namespace AB9ActiveShifter.UI
                 string label = lane.LabelFor(i);
                 bool lit = snap.DeviceConnected && snap.GearLabel == label;
 
-                dc.DrawLine(MarkPen, new Point(cx - 26, sy), new Point(cx + 26, sy));
+                dc.DrawLine(MarkPen, new Point(cx - markReach, sy), new Point(cx + markReach, sy));
 
                 FormattedText text = Text(label, 15, lit ? ActiveBrush : LabelBrush, lit);
                 double labelY = labelTop + i * labelSpacing;
                 bool displaced = Math.Abs(labelY - sy) > 0.5;
-                if (displaced) dc.DrawLine(MarkPen, new Point(cx + 26, sy), new Point(cx + 38, labelY));
-                dc.DrawText(text, new Point(cx + (displaced ? 42 : 32), labelY - (text.Height / 2)));
+                if (displaced) dc.DrawLine(MarkPen, new Point(cx + markReach, sy), new Point(cx + markReach + 12, labelY));
+                dc.DrawText(text, new Point(cx + markReach + (displaced ? 16 : 6), labelY - (text.Height / 2)));
             }
 
-            DrawLabel(dc, "positions", cx - 32 - 54, MapY(lane.PositionY(0), top, bottom) - 6, TextAlign.Left);
-            DrawLabel(dc, "button changes here", cx + 62,
+            DrawLabel(dc, "positions", cx - markReach - 6, MapY(lane.PositionY(0), top, bottom) - 6, TextAlign.Right);
+            DrawLabel(dc, "button changes here", cx + markReach + 36,
                       MapY(lane.CrestY(0), top, bottom) - 6, TextAlign.Left);
 
             DrawStick(dc, snap, left, right, top, bottom);
+        }
+
+        private static double DrawLateralLane(DrawingContext dc, EngineConfig cfg,
+                                            double left, double right, double top, double bottom)
+        {
+            var composer = new ForceComposer(cfg.BuildGeometry(), cfg);
+            int halfWidth = composer.LateralLaneHalfWidth;
+            double from = MapX(AxisCenter - halfWidth, left, right);
+            double to = MapX(AxisCenter + halfWidth, left, right);
+            if (halfWidth == 0)
+                dc.DrawLine(GatePen, new Point(from, top), new Point(from, bottom));
+            else
+                dc.DrawRectangle(FreeSpaceBrush, GatePen, new Rect(from, top, to - from, bottom - top));
+            return (to - from) / 2;
         }
 
         private void DrawStick(DrawingContext dc, EngineSnapshot snap, double left, double right, double top, double bottom)
