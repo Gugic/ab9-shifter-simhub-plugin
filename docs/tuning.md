@@ -995,6 +995,9 @@ change and they cannot be renamed or deleted — the Rename and Delete buttons g
 selected. They exist so there is always a known-good gate to come back to when a tuning session has
 wandered.
 
+A fresh install selects **(Preset) 7+R lockout (short throw, stiff, sport)**. Existing installs
+keep their selected profile.
+
 The regular Sequential preset and **(Preset) Automatic (PRND)** take their sideways and base feel
 from **(Preset) 7+R lockout (short throw, stiff, sport)**: 468 counts of free corridor either
 side, 80% **Slot wall / lateral rail (%)**, 3816-count wall bite, 15 ms wall attack, 10%
