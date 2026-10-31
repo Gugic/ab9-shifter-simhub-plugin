@@ -90,7 +90,7 @@ powershell -Command "Stop-Process -Name SimHubWPF -Force; Start-Sleep 3; Remove-
 A real first start logs, at `Init`:
 
 ```
-[AB9Shifter] No saved settings; installed the shipped profiles and made '(Preset) 7+R lockout' active.
+[AB9Shifter] No saved settings; installed the shipped profiles and made '(Preset) 7+R lockout (short throw, stiff, sport)' active.
 [AB9Shifter] Plugin is disabled in settings; engine not started.
 ```
 

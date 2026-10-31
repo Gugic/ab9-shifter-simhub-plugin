@@ -110,6 +110,7 @@ namespace AB9ActiveShifter.Tests
             ProfileStore store = DefaultProfiles.Create();
 
             Assert.NotNull(store.FindActive());
+            Assert.Equal(Preset(DefaultProfiles.SportShortThrowName), store.ActiveProfile);
             Assert.Equal(DefaultProfiles.ActiveName, store.FindActive().Name);
 
             HashSet<string> names = new HashSet<string>();

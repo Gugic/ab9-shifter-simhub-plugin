@@ -92,7 +92,7 @@ namespace AB9ActiveShifter
         };
 
         /// <summary>The profile a fresh install comes up in.</summary>
-        public static string ActiveName { get { return Preset(SevenRName); } }
+        public static string ActiveName { get { return Preset(SportShortThrowName); } }
 
         /// <summary>The shipped name for a bare one.</summary>
         public static string Preset(string bareName) { return PresetPrefix + bareName; }

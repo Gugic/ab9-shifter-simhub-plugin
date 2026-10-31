@@ -24,7 +24,8 @@ Handbrake output requires direct vJoy with its **Z axis** enabled.
 3. Start SimHub and enable **AB9 Active Shifter** under **Settings → Plugins**. Open
    **AB9 Shifter** in the sidebar.
 
-A fresh install starts with forces off, the 10% polarity cap in place, and the **Setup** page.
+A fresh install selects **(Preset) 7+R lockout (short throw, stiff, sport)**, with forces off,
+the 10% polarity cap in place, and the **Setup** page.
 Building from source instead: [DEVELOPMENT.md](../DEVELOPMENT.md).
 
 ## 2. Choose the mode and prepare the base
