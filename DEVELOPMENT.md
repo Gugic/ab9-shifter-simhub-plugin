@@ -30,7 +30,7 @@ dotnet test tests/AB9ActiveShifter.Tests
 The suite covers `Core/` plus the settings POCO's derived-dial arithmetic, and touches no I/O.
 It also tests the pure GitHub release parser and version/asset policy in `Updates/ReleaseInfo.cs`.
 Float-shifting tests use synthetic telemetry and schema-shaped POCOs for the optional SCS adapter;
-they never load a game reader or hardware. The suite currently has 832 tests, including checks
+they never load a game reader or hardware. The suite currently has 833 tests, including checks
 that reported, configured and learned targets produce identical float-shift behavior.
 Keep it that way — it is the only automated check on the force arithmetic. `Core/` is deliberately
 I/O-free for a second reason as well: the vJoy wrapper is a 32-bit native DLL that test runners
@@ -162,9 +162,10 @@ src/AB9ActiveShifter/
   ShifterProfiles.cs       Named profiles, legacy migration, cloning, the preset fork
   DefaultProfiles.cs       The eleven presets, as deltas from bare defaults, and their reserved
                            name prefix
+  DefaultProfiles.Effects.cs Shared balanced native Effects tree for the ten shifter presets
   DefaultProfiles.Handbrake.cs Captured progressive handbrake tune, engine and rear wheel-lock effects
-  DefaultProfiles.SequentialStiffShort.cs Captured short sequential tune and portable native Effects tree
-  DefaultProfiles.SportShortThrow.cs Captured 7+R and narrow 5+R sport tunes and portable native Effects tree
+  DefaultProfiles.SequentialStiffShort.cs Captured short sequential stroke and resistance
+  DefaultProfiles.SportShortThrow.cs Captured 7+R and narrow 5+R mechanical sport tunes
   ProfileTransfer.cs       Export/import of one profile as a shareable file, with validation
   NativeEffectsData.cs     Validates a native tune before SimHub deserializes it
   ScsShiftTelemetryReader.cs Cached optional SCS adapter; raw objects stay on the data thread

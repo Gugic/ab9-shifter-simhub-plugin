@@ -184,7 +184,14 @@ namespace AB9ActiveShifter
             // The hardware's maximum is not the profile's virtual gate strength. Every shipped
             // tune uses the full hardware range; its OverallGainPct still sets the gate's gain,
             // and ToNativeSettings retains the 10% cap until this rig's polarity is confirmed.
-            foreach (ShifterProfile profile in profiles) profile.Settings.NativeTorquePct = 100;
+            foreach (ShifterProfile profile in profiles)
+            {
+                profile.Settings.NativeTorquePct = 100;
+                // Share the full balanced capture without touching each pattern's mechanics.
+                // Handbrake retains its separate engine/rear-wheel-lock setup.
+                if (profile.Settings.Pattern != GatePattern.Handbrake)
+                    profile.Settings.NativeEffectsJson = BalancedShifterEffects;
+            }
             return profiles;
         }
 
@@ -389,7 +396,7 @@ namespace AB9ActiveShifter
         /// <summary>
         /// The user-verified H sport tune is the authority for sideways clearance, wall
         /// shaping and base resistance in the standard lane presets. Captured short tunes
-        /// can override these; stroke, positions and effects remain owned by each pattern.
+        /// can override these; stroke and positions remain owned by each pattern.
         /// Called last so an inert H dial cannot undo it.
         /// </summary>
         private static void ApplySportLaneFeel(ShifterSettings lane)

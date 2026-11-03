@@ -72,7 +72,7 @@ Seven, selectable per **profile** on Main:
 | --- | --- |
 | **7+R** | The full gate above, with the lockout |
 | **6+R** | The slot where 7 would sit genuinely does not exist — the wall over it never opens, so the lever cannot enter it at all. The stock firmware's 6+R leaves the seven-gear gate rendered with that slot merely inert, which is no guard against the misshift that choosing six gears is meant to prevent |
-| **5+R** | Three wider columns, no lockout by default. Standard presets at 60% width and *wide* at the full sweep; **5+R (narrow, short throw, stiff, sport)** uses 40% width, short slot stops, the sport detent and base resistance, and 50% effects volume |
+| **5+R** | Three wider columns, no lockout by default. Standard presets at 60% width and *wide* at the full sweep; **5+R (narrow, short throw, stiff, sport)** uses 40% width, short slot stops, the sport detent and base resistance |
 | **Sequential** | A sprung fore/aft lever: one shift per stroke, with a click you can tune |
 | **Automatic (P R N D)** | A selector lane: four fixed positions in a line, a button held at whichever one the lever is in. No neutral to come back through and no gear to engage — the lever is always somewhere |
 | **Truck 6** | Three wider columns, six plain slots on buttons 1–6, no reverse anywhere — what each button means is your game's business. Made for Eaton-Fuller-style boxes: add the lockout between the first two columns (the shipped truck preset does exactly that) and you have a low-range gate |
@@ -96,6 +96,10 @@ if you would rather not use the dropdown.
 
 The profile picker keeps your profiles first and shipped presets together at the bottom.
 Duplicates and imports join your profiles above the presets; each group keeps its existing order.
+
+All shifter presets use the same balanced Effects tune at 80% master volume, with the captured
+engine, road-impact, shift and H-pattern grind settings. The handbrake retains its own Effects
+setup with rear-wheel lock. Preset refreshes leave your editable profiles alone.
 
 **A profile can also claim cars.** Open **Automatic profile switching** on Main and enter one
 vehicle ID per line. **Add last vehicle** uses the ID the game last reported. A matching vehicle

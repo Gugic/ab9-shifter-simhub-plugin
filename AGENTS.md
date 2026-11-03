@@ -48,7 +48,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-832 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+833 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -94,9 +94,10 @@ src/AB9ActiveShifter/
   DefaultProfiles.cs       The eleven presets every install carries, as deltas from bare defaults,
                            plus the reserved name prefix that marks them (see "Shipped
                            profiles" below)
+  DefaultProfiles.Effects.cs Shared balanced native Effects tree for the ten shifter presets
   DefaultProfiles.Handbrake.cs Captured progressive handbrake tune, engine and rear wheel-lock effects
-  DefaultProfiles.SequentialStiffShort.cs Captured short sequential tune and its portable native Effects tree
-  DefaultProfiles.SportShortThrow.cs Captured 7+R and narrow 5+R sport tunes and portable native Effects tree
+  DefaultProfiles.SequentialStiffShort.cs Captured short sequential stroke and resistance
+  DefaultProfiles.SportShortThrow.cs Captured 7+R and narrow 5+R mechanical sport tunes
   ProfileTransfer.cs       One profile as a shareable file: what travels, and what is refused
   NativeEffectsData.cs     Validates the portable native tree without constructing a transport
   ScsShiftTelemetryReader.cs Optional cached raw-data adapter; copies truck target RPMs only
