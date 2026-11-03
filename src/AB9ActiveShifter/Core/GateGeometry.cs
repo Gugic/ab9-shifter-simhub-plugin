@@ -442,7 +442,7 @@ namespace AB9ActiveShifter.Core
 
         public static double Clamp(double v, double lo, double hi)
         {
-            return v < lo ? lo : (v > hi ? hi : v);
+            return double.IsNaN(v) || v < lo ? lo : (v > hi ? hi : v);
         }
 
         /// <summary>

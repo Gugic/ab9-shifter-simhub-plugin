@@ -293,7 +293,7 @@ namespace AB9ActiveShifter.Tests
         /// </summary>
         private static void AssertNoStep(ForceComposer c, EngineConfig cfg)
         {
-            int steepest = Math.Max(cfg.SlotStopForcePct, cfg.DetentHoldPct) * 100;
+            double steepest = Math.Max(cfg.SlotStopForcePct, cfg.DetentHoldPct) * 100;
             int bound = (int)Math.Ceiling(steepest / (double)Math.Max(1, cfg.WallRamp)) + 1;
 
             int previousFwd = c.SlotForceAt(ShiftDir.Fwd, Center, muted: false);

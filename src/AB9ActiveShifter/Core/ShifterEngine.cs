@@ -1644,7 +1644,7 @@ namespace AB9ActiveShifter.Core
             }
             else if (sequential)
             {
-                label = _seqPushed == ShiftDir.Fwd ? "+" : (_seqPushed == ShiftDir.Back ? "-" : "N");
+                label = SequentialStateMachine.LabelForDirection(_seqPushed, cfg.MirrorSlots);
             }
             else if (selector)
             {

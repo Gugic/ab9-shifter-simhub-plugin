@@ -97,7 +97,7 @@ namespace AB9ActiveShifter.Core
                 * GateGeometry.Clamp(force, -100, 100) / 100.0);
         }
 
-        private static double Curve(double p, int progressionPct, HandbrakeCurveShape shape = HandbrakeCurveShape.BuildLater)
+        private static double Curve(double p, double progressionPct, HandbrakeCurveShape shape = HandbrakeCurveShape.BuildLater)
         {
             double blend = GateGeometry.Clamp(progressionPct, 0, 100) / 100.0;
             // Never use a fractional power: its unbounded slope at rest would turn the

@@ -30,6 +30,19 @@ namespace AB9ActiveShifter.Core
         public bool Armed { get { return _armed; } }
         public ShiftDir Pushed { get { return _pushed; } }
 
+        /// <summary>The shared meaning of a physical stroke, for output, status and the monitor.</summary>
+        public static int ShiftForDirection(ShiftDir direction, bool pullToUpshift)
+        {
+            int shift = direction == ShiftDir.Fwd ? 1 : direction == ShiftDir.Back ? -1 : 0;
+            return pullToUpshift ? -shift : shift;
+        }
+
+        public static string LabelForDirection(ShiftDir direction, bool pullToUpshift)
+        {
+            int shift = ShiftForDirection(direction, pullToUpshift);
+            return shift > 0 ? "+" : shift < 0 ? "-" : "N";
+        }
+
         public SeqTransition Update(int y)
         {
             int fired = 0;
@@ -42,8 +55,7 @@ namespace AB9ActiveShifter.Core
                     _engageTicks++;
                     if (_engageTicks >= _minEngageTicks)
                     {
-                        int sign = dir == ShiftDir.Fwd ? 1 : -1;
-                        fired = _geo.MirrorSlots ? -sign : sign;
+                        fired = ShiftForDirection(dir, _geo.MirrorSlots);
                         _armed = false;
                         _pushed = dir;
                     }

@@ -110,6 +110,7 @@ namespace AB9ActiveShifter.Tests
             ProfileStore store = DefaultProfiles.Create();
 
             Assert.NotNull(store.FindActive());
+            Assert.Equal(Preset(DefaultProfiles.SportShortThrowName), store.ActiveProfile);
             Assert.Equal(DefaultProfiles.ActiveName, store.FindActive().Name);
 
             HashSet<string> names = new HashSet<string>();
@@ -133,6 +134,7 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(GatePattern.H7R, Find(store, Preset(DefaultProfiles.SevenRName)).Pattern);
             Assert.Equal(GatePattern.H7R, Find(store, Preset(DefaultProfiles.SportShortThrowName)).Pattern);
             Assert.Equal(GatePattern.H5R, Find(store, Preset(DefaultProfiles.FiveRName)).Pattern);
+            Assert.Equal(GatePattern.H5R, Find(store, Preset(DefaultProfiles.FiveRSportShortThrowName)).Pattern);
             Assert.Equal(GatePattern.Prnd, Find(store, Preset(DefaultProfiles.PrndName)).Pattern);
             Assert.Equal(GatePattern.H6, Find(store, Preset(DefaultProfiles.TruckName)).Pattern);
         }
@@ -178,24 +180,35 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void TheSportShortThrowPreservesTheCapturedNativeEffectsAndExportsThem()
+        public void TheSharedShifterEffectsPreserveTheBalancedCaptureAndExportIt()
         {
             ShifterSettings s = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SportShortThrowName));
             var effects = JObject.Parse(NativeEffectsData.Validate(s.NativeEffectsJson));
             var rows = (JArray)effects["Profile"]["EffectsContainers"];
-            Assert.Equal(100, (int)effects["GlobalGain"]);
+            Assert.Equal(80.0, (double)effects["GlobalGain"], 10);
             Assert.False((bool)effects["IsMuted"]);
             Assert.Equal(9, rows.Count);
             Assert.True((bool)rows[0]["IsEnabled"]);
             Assert.Equal(15, (int)rows[0]["Output"]["Frequency"]);
             Assert.Equal("SplineFilter", (string)rows[2]["Filter"]["FilterType"]);
-            Assert.Equal(new[] { "0;0", "1;100", "100;100" }, rows[2]["Filter"]["ControlPoints"].ToObject<string[]>());
+            Assert.Equal(8, ((JArray)rows[2]["Filter"]["ControlPoints"]).Count);
+            Assert.Equal("7.45562130177515;22.6688974647061", (string)rows[2]["Filter"]["ControlPoints"][0]);
+            Assert.Equal(79.95238095238093, (double)rows[2]["Gain"], 10);
             Assert.Equal(84, (int)rows[2]["Output"]["HighFrequency"]);
             Assert.Equal(100, (int)rows[6]["Gain"]);
+            Assert.Equal(40, (int)rows[6]["Output"]["Frequency"]);
             Assert.Equal("GammaFilter", (string)rows[6]["Filter"]["FilterType"]);
             Assert.Equal(107, (int)rows[7]["Filter"]["Duration"]);
             Assert.Equal(37, (int)rows[7]["Output"]["Frequency"]);
+            Assert.Equal(79.61904761904756, (double)rows[7]["Gain"], 10);
             Assert.DoesNotContain("OutputManager", s.NativeEffectsJson);
+            using (SHA256 hash = SHA256.Create())
+            {
+                string capturedHash = BitConverter.ToString(hash.ComputeHash(
+                    Encoding.UTF8.GetBytes(NativeEffectsData.Validate(s.NativeEffectsJson))))
+                    .Replace("-", "").ToLowerInvariant();
+                Assert.Equal("6594ac1021f23abb3cc177db88c0bfcfe818bf689a7e5c2ed55c341005a6b045", capturedHash);
+            }
 
             string json = ProfileTransfer.Export(new ShifterProfile { Name = DefaultProfiles.SportShortThrowName, Settings = s });
             ProfileImportResult imported = ProfileTransfer.Import(json, new ShifterSettings());
@@ -209,6 +222,44 @@ namespace AB9ActiveShifter.Tests
             before["NativeEffectsJson"] = effects;
             after["NativeEffectsJson"] = JObject.Parse(imported.Profile.Settings.NativeEffectsJson);
             Assert.True(JToken.DeepEquals(before, after));
+        }
+
+        [Fact]
+        public void TheNarrowFiveRSportKeepsItsMechanicalTuneAndUsesTheSharedEffects()
+        {
+            ProfileStore store = DefaultProfiles.Create();
+            ShifterSettings s = Find(store, Preset(DefaultProfiles.FiveRSportShortThrowName));
+            ShifterSettings sport = Find(store, Preset(DefaultProfiles.SportShortThrowName));
+            Assert.Equal(GatePattern.H5R, s.Pattern);
+            Assert.Equal(40, s.PatternWidthPct);
+            Assert.Equal(26731, s.ReleaseDepth);
+            Assert.Equal(12006, s.ThrowFromCentre);
+            Assert.Equal(5022, s.SlotOvertravel);
+            Assert.Equal(100, s.SlotStopForcePct);
+            Assert.Equal(100, s.PatternEdgeForcePct);
+
+            var changed = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "Pattern", "PatternWidthPct", "ReleaseDepth", "NativeEffectsJson"
+            };
+            foreach (PropertyInfo prop in typeof(ShifterSettings).GetProperties())
+            {
+                if (!prop.CanRead || !prop.CanWrite || !ProfileTransfer.IsTuning(prop.Name)) continue;
+                if (changed.Contains(prop.Name)) continue;
+                Assert.Equal(prop.GetValue(sport, null), prop.GetValue(s, null));
+            }
+
+            var effects = JObject.Parse(NativeEffectsData.Validate(s.NativeEffectsJson));
+            Assert.Equal(80.0, (double)effects["GlobalGain"], 10);
+            var expected = JObject.Parse(sport.NativeEffectsJson);
+            Assert.True(JToken.DeepEquals(expected, effects));
+
+            ShifterSettings imported = ProfileTransfer.Import(ProfileTransfer.Export(new ShifterProfile
+            { Name = DefaultProfiles.FiveRSportShortThrowName, Settings = s }), new ShifterSettings()).Profile.Settings;
+            Assert.True(JToken.DeepEquals(effects, JObject.Parse(imported.NativeEffectsJson)));
+            Assert.Equal(s.Pattern, imported.Pattern);
+            Assert.Equal(s.PatternWidthPct, imported.PatternWidthPct);
+            Assert.Equal(s.ReleaseDepth, imported.ReleaseDepth);
         }
 
         [Fact]
@@ -262,22 +313,43 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void TheStiffShortSequentialPreservesItsNativeEffectsAndCurvesWithoutTransports()
+        public void EveryShifterPresetUsesTheSameBalancedEffectsWithoutHandbrakeWheelLock()
         {
-            ShifterSettings s = Find(DefaultProfiles.Create(), Preset(DefaultProfiles.SequentialStiffShortName));
-            var effects = JObject.Parse(NativeEffectsData.Validate(s.NativeEffectsJson));
-            var rows = (JArray)effects["Profile"]["EffectsContainers"];
-            Assert.Equal(40.0, (double)effects["GlobalGain"], 10);
-            Assert.False((bool)effects["IsMuted"]);
-            Assert.Equal(9, rows.Count);
-            JObject engine = (JObject)rows[2];
-            Assert.Equal("RPMContainer", (string)engine["ContainerType"]);
-            Assert.Equal("SplineFilter", (string)engine["Filter"]["FilterType"]);
-            Assert.Equal(new[] { "0;0", "1;100", "100;100" }, engine["Filter"]["ControlPoints"].ToObject<string[]>());
-            Assert.Equal(98, (int)engine["Output"]["HighFrequency"]);
-            Assert.True((bool)rows[3]["IsEnabled"]);
-            Assert.Equal("AB9LimiterEffectContainer", (string)rows[3]["ContainerType"]);
-            Assert.DoesNotContain("OutputManager", s.NativeEffectsJson);
+            ProfileStore store = DefaultProfiles.Create();
+            var expected = JObject.Parse(Find(store, Preset(DefaultProfiles.SportShortThrowName)).NativeEffectsJson);
+            int shifters = 0;
+            foreach (ShifterProfile profile in store.Profiles)
+            {
+                if (profile.Settings.IsHandbrake) continue;
+                shifters++;
+                var effects = JObject.Parse(NativeEffectsData.Validate(profile.Settings.NativeEffectsJson));
+                Assert.True(JToken.DeepEquals(expected, effects), profile.Name);
+                Assert.DoesNotContain("WheelsLockContainer", profile.Settings.NativeEffectsJson);
+                Assert.DoesNotContain("OutputManager", profile.Settings.NativeEffectsJson);
+            }
+            Assert.Equal(10, shifters);
+        }
+
+        [Fact]
+        public void RefreshingPresetEffectsLeavesAUsersEditedEffectsAlone()
+        {
+            var local = new ShifterProfile
+            {
+                Name = "My effects",
+                Settings = new ShifterSettings
+                {
+                    NativeEffectsJson = "{\"Version\":1,\"GlobalGain\":17,\"IsMuted\":true,\"Profile\":{\"EffectsContainers\":[]}}"
+                }
+            };
+            string before = local.Settings.NativeEffectsJson;
+            var store = new ProfileStore
+            {
+                ActiveProfile = local.Name,
+                Profiles = new List<ShifterProfile> { local }
+            };
+            store.EnsurePresets(DefaultProfiles.Presets());
+            Assert.Same(local, store.FindActive());
+            Assert.Equal(before, local.Settings.NativeEffectsJson);
         }
 
         [Fact]
@@ -560,12 +632,12 @@ namespace AB9ActiveShifter.Tests
         [Fact]
         public void EveryNarrowedPresetShipsTheWallItsEdgeNeeds()
         {
-            // Load-bearing for the two narrowed presets and for nothing else. Outside the
+            // Load-bearing for every narrowed preset. Outside the
             // outermost columns a narrowed pattern leaves bare travel with no gear in it, and the
             // neutral tunnel is deliberately free everywhere else - so a narrowed preset with no
             // edge wall is a lever that slides to the base's own stop with nothing to say the
             // gate ended. That is exactly what the first narrowed build did, reported from the
-            // rig, and it is why these two must never ship narrowed with the wall at zero.
+            // rig, and it is why a narrowed preset must never ship with the wall at zero.
             foreach (ShifterProfile p in DefaultProfiles.Create().Profiles)
             {
                 if (p.Settings.PatternWidthPct >= 100) continue;

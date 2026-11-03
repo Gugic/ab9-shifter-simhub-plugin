@@ -342,7 +342,7 @@ namespace AB9ActiveShifter.Core
         /// <summary>Peak force of the gate walls in DirectInput units, for the UI.</summary>
         public int WallForce { get { return _channelWallForce; } }
 
-        private static int Force(int percent, double gain)
+        private static int Force(double percent, double gain)
         {
             return (int)Math.Round(GateGeometry.ForceMax * GateGeometry.Clamp(percent, 0, 100) / 100.0 * gain);
         }
@@ -1453,7 +1453,7 @@ namespace AB9ActiveShifter.Core
                 y - GateGeometry.AxisCenter,
                 plateau,
                 _cfg.WallRamp,
-                GateGeometry.Clamp(_cfg.ChannelFreeDepth, 0, _geo.ChannelHalfEnter));
+                NeutralFreeHalfWidth);
 
             return f;
         }
@@ -1807,6 +1807,15 @@ namespace AB9ActiveShifter.Core
         /// ceiling is a single geometry fact, not a per-column minimum.
         /// </summary>
         public int ChannelFreeDepthCeiling { get { return _geo.ChannelHalfEnter; } }
+
+        /// <summary>
+        /// Actual forward/backward clearance on either side of neutral. The gate monitor uses
+        /// this same answer as ComposeNeutral, including zero and the detection-band ceiling.
+        /// </summary>
+        public int NeutralFreeHalfWidth
+        {
+            get { return GateGeometry.Clamp(_cfg.ChannelFreeDepth, 0, _geo.ChannelHalfEnter); }
+        }
 
         private int SlotCorridor(Column column)
         {

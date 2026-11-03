@@ -72,7 +72,7 @@ Seven, selectable per **profile** on Main:
 | --- | --- |
 | **7+R** | The full gate above, with the lockout |
 | **6+R** | The slot where 7 would sit genuinely does not exist — the wall over it never opens, so the lever cannot enter it at all. The stock firmware's 6+R leaves the seven-gear gate rendered with that slot merely inert, which is no guard against the misshift that choosing six gears is meant to prevent |
-| **5+R** | Three wider columns, no lockout by default. Shipped twice - narrowed to 60% of the stick so a shift is about the reach a 7+R asks for, and *wide* at the full sweep |
+| **5+R** | Three wider columns, no lockout by default. Standard presets at 60% width and *wide* at the full sweep; **5+R (narrow, short throw, stiff, sport)** uses 40% width, short slot stops, the sport detent and base resistance |
 | **Sequential** | A sprung fore/aft lever: one shift per stroke, with a click you can tune |
 | **Automatic (P R N D)** | A selector lane: four fixed positions in a line, a button held at whichever one the lever is in. No neutral to come back through and no gear to engage — the lever is always somewhere |
 | **Truck 6** | Three wider columns, six plain slots on buttons 1–6, no reverse anywhere — what each button means is your game's business. Made for Eaton-Fuller-style boxes: add the lockout between the first two columns (the shipped truck preset does exactly that) and you have a low-range gate |
@@ -93,6 +93,13 @@ the pattern, and it renders nothing at all at full width.
 A profile stores every dial together with its pattern, so each pattern keeps its own tuning and
 switching between them is one dropdown. *Next profile* and *Previous profile* are bindable actions
 if you would rather not use the dropdown.
+
+The profile picker keeps your profiles first and shipped presets together at the bottom.
+Duplicates and imports join your profiles above the presets; each group keeps its existing order.
+
+All shifter presets use the same balanced Effects tune at 80% master volume, with the captured
+engine, road-impact, shift and H-pattern grind settings. The handbrake retains its own Effects
+setup with rear-wheel lock. Preset refreshes leave your editable profiles alone.
 
 **A profile can also claim cars.** Open **Automatic profile switching** on Main and enter one
 vehicle ID per line. **Add last vehicle** uses the ID the game last reported. A matching vehicle
@@ -145,6 +152,12 @@ unless a game adapter reports a valid target. Float shifting ships off; see
 still need road testing.
 
 ## Tuning
+
+Geometry and Feel use a separate block for each setting, with a short explanation of what
+your hand or game will notice. Distances use a single decimal-friendly 0–100 scale; the old
+raw/percentage switch is gone. Existing profiles keep their saved tune. Time, frequency and
+RPM controls retain their units. In Moza AB9 mode, the software friction and damping blocks
+recommend Base friction and Base damper first.
 
 - **Feel** — master gain, base effects, wall and detent strengths, lockout resistance, attack,
   rebound absorption and software stability. Force curves come from the actual force model,

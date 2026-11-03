@@ -251,6 +251,10 @@ namespace SimHub.Plugins.UI
     /// </summary>
     public class TitledSlider : Control
     {
+        public double InputInterval { get; set; }
+        public bool IsSnapToTickEnabled { get; set; }
+        public string StringFormat { get; set; }
+
         public static readonly DependencyProperty TitleProperty =
             DependencyProperty.Register("Title", typeof(string), typeof(TitledSlider));
 

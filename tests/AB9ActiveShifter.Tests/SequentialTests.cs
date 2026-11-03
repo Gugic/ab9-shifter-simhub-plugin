@@ -182,6 +182,29 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void BothStrokeLabelsMatchTheEmittedShiftInEitherLayout()
+        {
+            foreach (bool mirrored in new[] { false, true })
+            {
+                EngineConfig cfg = SeqConfig();
+                cfg.MirrorSlots = mirrored;
+                foreach (ShiftDir direction in new[] { ShiftDir.Fwd, ShiftDir.Back })
+                {
+                    SequentialStateMachine machine = Machine(cfg);
+                    int y = direction == ShiftDir.Fwd ? 2000 : Max - 2000;
+                    int emitted = 0;
+                    for (int tick = 0; tick < 5; tick++) emitted += machine.Update(y).Shift;
+                    int expected = direction == ShiftDir.Fwd ? 1 : -1;
+                    if (mirrored) expected = -expected;
+                    Assert.Equal(expected, emitted);
+                    Assert.Equal(expected, SequentialStateMachine.ShiftForDirection(direction, mirrored));
+                    Assert.Equal(expected > 0 ? "+" : "-", SequentialStateMachine.LabelForDirection(direction, mirrored));
+                }
+                Assert.Equal("N", SequentialStateMachine.LabelForDirection(ShiftDir.None, mirrored));
+            }
+        }
+
+        [Fact]
         public void MirrorSlotsSwapsUpAndDown()
         {
             EngineConfig cfg = SeqConfig();

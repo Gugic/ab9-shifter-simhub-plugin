@@ -132,7 +132,7 @@ namespace AB9ActiveShifter.Tests
 
             ForceComposer c = Composer(cfg);
 
-            int strongest = Math.Max(cfg.PrndLockoutForcePct,
+            double strongest = Math.Max(cfg.PrndLockoutForcePct,
                 Math.Max(cfg.PrndDetentForcePct, cfg.PrndStopForcePct));
             int bound = (int)Math.Ceiling(strongest * 100 / (double)Math.Max(1, cfg.WallRamp)) + 1;
 

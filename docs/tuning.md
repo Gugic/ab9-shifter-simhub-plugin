@@ -142,61 +142,88 @@ mappings determine readiness. Calibration clears every role, including optional 
 configuration pauses the selected output along with the forces and resumes it through the same
 checked transaction as direct vJoy.
 
-## What the tuning editors show you while you turn a dial
+## Using the tuning forms
 
-Four things worth knowing before working through the rest of this guide, because they answer
-questions that used to need a trip to the rig:
+Geometry and Feel use one bordered block per setting. Each block says what the control changes
+and which direction to turn it. Start with one change, try a few shifts, then decide whether to
+keep it.
 
-- **Force curves.** Each section draws the shape its dials produce — the whole stroke into a gear,
-  the tunnel's fore/aft wall, the lateral field across the whole gate, and the corridor a slot
-  mouth opens. Each is sampled from the force code itself, not redrawn, so what you see is what
-  the gate renders. A dot tracks your actual stick position on the curve when the base is
-  connected. The slot detent curve is drawn in axis counts from centre, so it simply gets shorter
-  as the throw is shortened, and it shows the whole stroke — the landing and the end-stop included.
-- **Effective values.** Some dials are silently bounded by the geometry rather than by their
-  slider: *wall bite distance* (the room between columns), *tunnel free depth* (the state band),
-  and the *free landing* past a gear's seat (the wall bite). All print what the gate will actually
-  use, and say so when the slider is asking for more than it can have. See the bite symptom below —
-  that gap is what it feels like.
-- **Undo per slider**, and a marker on every dial changed since the profile was opened, so an
-  experiment can be walked back one dial at a time instead of by resetting the tab.
-- **Raw counts or percent of column spacing.** The lateral dials can be read either way. Percent
-  is the more portable view, because column spacing changes with the pattern — a slot width tuned
-  on 7+R is a different fraction of the room on 5+R, which has three columns instead of four — and
-  with *Pattern width* on the Geometry editor, which moves the same spacing without changing a single
-  stored count.
+**Distances use a single 0–100 scale.** Lower means the short or tight end of that control;
+higher means the long or wide end. Each dial has its own range, so numbers on different dials
+are not distances you can compare directly. Strengths that are actual percentages keep **(%)**;
+strengths with a smaller tuning range use **(0–100)**. Time, frequency, RPM and gear-confirmation
+samples keep their natural units. The old raw/percentage display switch is gone.
 
-## What Geometry shows you while you turn a dial
+Software strengths in **Feel** adjust in **0.1 steps**, including strengths with a smaller
+tuning range. **Base spring (%)**, **Base damper (%)**, **Base friction (%)** and **Base inertia (%)**
+use 0.1 steps with the Generic provider and whole percentages in Moza AB9 mode, matching the
+onboard controls. **Maximum Torque Output (%)**, **Overall Force Feedback Intensity (%)** and
+**Game Force Feedback Gain (%)** also use whole percentages. Time and sample counts keep their
+natural steps. Geometry readouts use tenths; controls that need larger steps use a clean
+increment rounded up to a tenth. Existing
+profiles keep their full saved precision: the rounded display
+does not rescale the profile. If a saved value is outside a control's usual adjustment range, a
+note appears and the value is kept until you adjust it.
 
-![Geometry editor with the gate monitor fixed above the scrolling controls](img/geometry.png)
+**Right-click a slider to undo its last adjustment.** A red marker means it differs from the
+value present when this profile was opened. Reset buttons restore the original defaults through
+the same scale. Geometry changes position and travel; Feel changes force and response.
 
-The same live gate shown on Main stays at the top of Geometry, outside its scroller, so a
-slider and its effect remain on screen together. It is a plan view drawn at
-the size the geometry actually makes it — every dial below moves something in it — and the slot
-outlines are sampled from the force code rather than redrawn, so the corridor you see is the
-corridor the lever gets.
+## A useful order for an H-pattern tune
 
-| What you see | Which dial moves it |
+**Gear layout** follows the selected pattern. H gates offer **Odd gears toward me instead
+of away**. Sequential offers **Pull toward me to shift up**: off means push up/pull down,
+on means pull up/push down. PRND offers **Park toward me instead of away**. Game bindings
+continue to follow the gear or shift action.
+The sequential monitor's +/− labels and live status follow that same setting: with pull-to-up
+enabled, + is at the end nearest you. Switching the layout requires a return to neutral before
+the next shift can fire.
+
+1. Start from a preset close to what you want.
+2. In Geometry, set **Pattern width (0–100)** and **Gear throw length (0–100)**.
+3. Set **Neutral tunnel width (0–100)** for comfortable movement across neutral, then
+   **Gear-slot width (0–100)** for the wiggle room you want while in gear.
+4. In Feel, start low with **Overall gain (%)**. Use the side-wall and end-stop controls to
+   give the lever the firmness you want.
+5. Fine-tune **Wall bite distance (0–100)** and **Gate wall fade width (0–100)** for contact
+   and corners. Change one at a time.
+6. Open **Advanced gear detection** only if the game registers or releases gears at the wrong
+   point, or the openings are hard to find.
+
+For a realistic hard-gate feel, aim toward zero **Wall bite distance**. Very short distances
+can cause oscillation, so increase it until the gate is stable and feels right to you.
+For crisp gear openings, keep **Gate wall fade width** narrow. Very small widths can cause
+chatter or oscillation at the corners; widen it until contact is smooth and stable. Too wide
+can feel vague.
+
+## Reading the gate monitor
+
+The same gate appears on Main and at the top of Geometry. It stays visible while the controls
+scroll, so you can see the effect of a change.
+
+| What you see | What it means |
 | --- | --- |
-| The shaded area | The gate's free space: where nothing pushes you sideways |
-| Depth of the horizontal band | *Neutral tunnel half-depth (enter)* |
-| Grey dashed lines above and below it | *Neutral tunnel half-depth (leave)* |
-| Width of each slot, and its funnel at the mouth | *Slot width, free corridor*, *mouth reach* and *mouth opening* in Geometry |
-| Blue brackets on the tunnel edge | *Outer* / *Inner column half-width* — how wide each doorway opens |
-| Solid blue line across each slot | *Engage depth* — where the gear registers |
-| Dashed blue line across each slot | *Release depth* — where it lets go |
-| Thick grey bar across each slot | The slot's own bottom, when *Slot end-stop wall* has given it one. Grey, not blue: a wall the hand meets, not a line anything is decided at. Absent unless the profile has given the slots a bottom — of the shipped presets, only *short throw* does |
-| Dashed blue pairs inside the tunnel | *Column handover width* |
-| Faint dashed verticals, full height | The ownership boundaries: past one, a push that beats the wall lands in the next column's slot |
-| Orange band | The lockout gate, at the width and position the geometry gives it. It reaches only as deep as the tunnel because barriers fade out with depth |
+| Blue strip through neutral | The actual free forward/backward room selected by **Neutral tunnel width**. At zero it becomes a centre line. |
+| Grey outline and dashed neutral boundary | Where the lever is treated as returning to or leaving neutral. These are separate from its free wiggle room. |
+| Gear-slot outlines and widened entrances | The room the lever has inside a slot and its eased entrance. |
+| Hatched tunnel ends | Edge walls outside the usable narrowed gate. They disappear at full pattern width or when **Outer edge walls (%)** is zero. |
+| Solid blue marks across a slot | Where a gear engages. |
+| Dashed blue marks across a slot | Where the game releases the gear as you return. |
+| Thick grey bar | The gear-slot end stop, when one is enabled. |
+| Grey hatching beyond a gear-slot stop | Unused travel past the configured stop. The active green outline ends at the stop too. With the end stop disabled, the whole slot remains available. |
+| Orange band | A lockout, guarding the selected gear or gap. |
+| White dot | The live lever position when connected. |
 
-The blue marks are all things the plugin *measures* rather than things the hand feels, which is
-why they are a different colour from the gate itself. In sequential the same two marks show where
-a shift fires and how far back the lever must come before it can fire again; in the automatic they
-show the four positions, with the one currently held lit, and a dashed mark at each point the
-button changes hands.
+The previews read the same force and geometry model as the lever. Some settings need space
+to work: if the selected gate leaves too little room, a short notice shows the effective
+0–100 value and suggests what to change. The requested tune stays saved.
 
-## Start here
+## Base effects
+
+In **Moza AB9** mode, prefer **Base damper (%)** and **Base friction (%)** before adding
+**Software damping (0–100)** or **Wall friction (0–100)**. The first pair is applied in the
+base. The software pair remains available for extra tuning, and the reminder appears beside
+each control in AB9 mode.
 
 ### Base effects: one tune, two providers
 
@@ -257,164 +284,182 @@ protocol evidence and current hardware verification limits.
 
 ![Feel editor identifies onboard processing under Base-driven effects](img/feel.png)
 
-### Virtual profile dials
+## Geometry controls
 
-These controls are shared by both virtual modes. Strengths live in **Feel**; positions,
-distances, widths and mouth shapes live in **Geometry**.
 
-| Dial | Default | What it does |
-| --- | --- | --- |
-| Overall gain | 25% | Master scale. This is a 12 Nm base; raise it slowly. |
-| Gate wall, between columns | 90% | The fore/aft wall that stops you entering a gear you are not lined up with. |
-| Slot wall / lateral rail (%) | 90% | The sideways walls of a slot. |
-| Lockout position | Pattern default | Where the lockout lives: the pattern's traditional gap (7+R and 6+R guard 7/R, others none), off, any adjacent column gap, or one slot's mouth. The line under the dials says where it actually landed. |
-| Direction | One-way, higher column pays | Which crossings pay: toward the higher gears (the classic 7/R gate), toward the lower (the truck's low-range gate), or both ways — for a slot, into the gear, out of it, or both. |
-| Lockout mode | Push through | A toll your hand pays, or a hard gate at 100% released only by the bound key (Options, hotkeys). Hard-locked gears do not register until released; the gate re-engages on every start and profile switch. |
-| Lockout force (%) | 70% | The push-through toll's strength; width sets the toll with it. Idle in the hard modes, which pin the gate to 100%. |
-| Neutral spring toward 3/4 | 0% (off) | The home spring: pulls the lever along the channel toward the 3/4 column, where a real H lever rests. Around 25–30% a released lever walks home past the humps; fades out with depth so a held gear feels nothing. Follows the mirror flags. |
-| Wall attack | 0 ms (off) | Smooths contact and freezes force while you press and hold still. Applies to the lockout too. |
-| Wall friction | 15% | The gate surfaces' own grip: drag equal to this share of whatever force you are pressed against. Zero in free travel by construction, so it costs no lightness. Note: for lean-flutter the effective fix is MOZA Cockpit's Damper at ~15% (zero-latency, at the servo); this dial is the software-side supplement. |
-| Slot mouth | Square | Shape of the divider ends where they meet the tunnel. Square is the plain notch and changes nothing. |
-| Pattern width | 100% (60% in the 5+R and truck presets) | Geometry editor. How much of the stick the columns are spread over, centred. Mainly for 5+R and the truck 6, which put three columns across the same stick 7+R puts four across; the shipped presets use 60%, a little tighter than that. |
-| Wall at the pattern edge | 100% | Feel. The wall outside the outermost columns, which is bare travel with no gear in it once the pattern is narrowed. One-way, inward only. Renders nothing at all at 100% width. |
-| Wall bite distance | 600 counts | How far into a wall force takes to reach full. **The most important stability dial.** |
-| Neutral tunnel depth | 2600 counts | The state band: where "in the tunnel" ends and the lateral field's rise lives. Must exceed your fore/aft slop while sliding sideways, or you spend your time in the transition band instead. Measured on real hands: p50 1848, p90 3215. |
-| Tunnel depth, free corridor | 2600 counts | Where the tunnel's fore/aft centring force begins. Ships equal to the state band, so the tunnel is simply free; dial to zero for the rail gate. Capped at the state band. |
-| Seated hold | 55% | What keeps a gear engaged against the base's own centring. |
-| Throw from centre to a seated gear | 28767 counts | How far the lever travels to a gear. On its own it only moves where the gear *registers* — see *Short throw* below. |
-| Slot end-stop wall | 0% (off) | Gives the slot a bottom of its own instead of running on to the base's mechanical stop. This, not the throw, is what shortens the travel. |
-| Free landing past the seat | 4000 counts | Room between the seat and that wall, carrying no fore/aft force, so a seated gear rests in a stretch of travel rather than on a point. |
+### HANDBRAKE TRAVEL AND OUTPUT
 
-## Patterns
+| Control | What it changes |
+| --- | --- |
+| **Released position (0–100)** | Where the handbrake rests with no braking. This is shared by your profiles; set it to your actual released position. |
+| **Full-pull position (0–100)** | Where a complete handbrake pull ends. It can be on either side of the released position and is shared by your profiles. |
+| **Handbrake pull length (0–100)** | How much of your calibrated movement is used. Lower makes full braking arrive sooner; higher uses more of the pull. |
+| **Free movement before braking (0–100)** | The small slack at the released end. Increase if braking does not fully release; too much delays braking on the next pull. |
+| **Braking progression (%)** | How gently braking builds as you pull. Increase for more fine control at the start of the pull. |
 
-The **pattern** lives on Main, per profile: 7+R (lockout), 6+R (no 7th slot — its divider
-just continues across), 5+R (three wider columns, no lockout), Sequential, Automatic (P R N D), or
-the truck 6 (three wider columns, six plain slots, no reverse at all). In direct vJoy mode, forward gears map to vJoy
-buttons 1..N and **reverse — where the pattern has one — is always button 8** — so one set of game
-bindings covers every pattern and switching profiles never needs a rebind. (Reverse used to be the
-highest gear of the pattern, which put 5+R's R on button 6 — read by a game bound for 7+R as sixth
-gear, at speed.) The truck 6 has no reverse and uses buttons 1–6 only; what each button means is
-the game's business, which is the point — an Eaton-Fuller-style box binds them however its
-transmission mod expects. Everything else stacks above the gears: sequential up/down on 9 and 10,
-the automatic's P, R, N and D on 11 to 14.
+### PATTERN SIZE AND LAYOUT
 
-**Configuring the lockout (H patterns).** Lockout placement, direction and width live in Geometry; its behavior and force live in Feel, on every H pattern. ***Lockout position*** picks the pattern default,
-off, one of the column gaps, or ***On one slot (pick the gear below)*** with the ***Locked slot***
-picker; the gap numbering is in gear-map columns, so mirroring moves the gate with the gears, and
-a gap the pattern does not have guards its last one instead (the line under the dials says so).
-***Direction*** decides which crossings pay — a gap's higher/lower/both, a slot's into/out-of/both;
-one-way gates assist the return, like a real range gate. ***Lockout mode*** is push-through, or
-one of the two hard modes: full force, gears refused, released only by the key bound in Options under Hotkeys (*Release or re-engage the lockout*), with the second hard mode re-arming itself
-once the crossing completes. The truck recipe, shipped as the *Truck 6-gear (low-range lockout)*
-preset: truck 6 pattern, position *Between columns 1 and 2*, direction *One-way - entering the
-lower column pays*, push-through at the 7+R tune's strength.
+| Control | What it changes |
+| --- | --- |
+| **Pattern width (0–100)** | How far apart the gear pairs feel. Lower gives a compact gate; higher gives a wider sweep. At 100 the outer pairs use the full sideways travel. |
 
-**The PRND lockout** has its own block in the *PRND lane* section: ***Lockout between positions***
-(P–R, R–N or N–D — by label, so mirroring the lane moves it), a direction (toward P, toward D, or
-both), the same three modes, ***PRND lockout force (%)*** and ***PRND lockout half-width (axis
-counts)***. Its band replaces that gap's detent hump and is clamped to end before both
-neighbouring notches — the lane summary reports the effective width. Force only, always: the
-selector still registers whichever position the lever physically reaches, hard mode included.
+### FREE MOVEMENT AND WALL CONTACT
 
-**Sequential** turns the fore/aft axis into a sprung lever: push past the engage threshold and it
-fires one press of button 9 (up) or 10 (down) — above every gear button, so a game still carrying
-H-pattern bindings cannot read a shift pulse as a gear — re-armed when the lever comes home. Its feel is set
-by dials that pull double duty: **detent resist** is the push-out resistance (rises to full at the
-threshold), **detent hold** is what remains past the click, **slot wall** sets the lateral rail,
-and the pulse length sits next to the pattern selector. Swap up/down with **MirrorSlots** (gear
-layout section). The **sequential stroke** controls (Geometry for travel, Feel for force; sequential only) owns the stroke
-itself: **actuation throw** is the distance from centre to the firing line, in the sequential
-hand's own units — shorten it for a quicker shift, and it moves the re-arm line with it so a
-short throw cannot machine-gun (it is the same stored fact as the Geometry editor's engage depth,
-which measures from the end of travel instead). **Shift click kick** is what makes the click
-*hit*: a 25 ms burst in the stroke's direction the instant the shift registers, which then
-throws the lever onto the end-stop — raise the kick for a sharper mechanism, the **end-stop
-wall** for a harder landing, and use detent resist/hold for the lean of the stroke around them.
-The spring reaches full resistance exactly at the threshold and the click moves with it, so a
-short throw stays progressive rather than becoming a wall. The landing past the click and the
-end-stop are both measured from the firing point, so the whole stroke shortens as one thing.
+| Control | What it changes |
+| --- | --- |
+| **Sideways freedom (0–100)** | Room to move left and right in the sequential, PRND or handbrake lane. Increase for more freedom; zero guides the lever along a centre line. |
+| **Gear-slot width (0–100)** | Sideways wiggle room while in gear. Increase for roomier slots; lower it for tighter guidance. If a tight slot trembles, widen it or reduce its side-wall force in Feel. |
+| **Neutral tunnel width (0–100)** | Forward/backward wiggle room while sliding left and right through neutral. Increase for more room; zero guides the lever along a centre line. The blue monitor band shows the space in use. |
+| **Wall bite distance (0–100)** | How gradually resistance builds as you press into a wall. Lower feels harder and sharper; higher feels softer. Set the maximum wall force in Feel. |
+| **Gate wall fade width (0–100)** | How gradually the wall closes beside a gear opening while you move sideways through neutral. Lower gives a sharper corner; higher gives a gentler edge. |
 
-**Short throw (H patterns).** Throw and landing are in Geometry; slot end-stop strength is in Feel. Two dials, and
-the order matters because only one of them shortens anything:
+### GEAR TRAVEL
 
-- ***Throw from centre to a seated gear*** moves the line a gear registers at, and it moves the
-  release line with it so the hysteresis gap survives. It is the same stored fact as the Geometry
-  editor's *engage depth*, which measures from the end of travel instead, and the same dial the
-  sequential stroke calls *actuation throw*.
-- ***Slot end-stop wall*** is what actually shortens the travel. At 0% — the default, and how the
-  gate has always worked — the seated hold keeps pulling past the seat and the lever runs on to the
-  base's own mechanical stop, so a shorter throw gets you an *earlier click on the same long
-  travel*. Above 0% the slot gets a bottom.
-- ***Free landing past the seat*** is the room between the two. It carries no fore/aft force at all,
-  deliberately: a gear's resting place has to be a stretch of travel and not a point, for the same
-  reason a slot is a corridor rather than a centre line. Anything shorter than the wall bite is
-  raised to it, and the line under the sliders tells you where the gear seats and where the lever
-  stops, so nothing is clamped silently.
+| Control | What it changes |
+| --- | --- |
+| **Gear throw length (0–100)** | How far the lever moves from neutral to a seated gear. Lower makes a shorter throw. Enable Gear-slot end stop in Feel to give the shorter stroke a definite bottom. |
+| **Room past the seated gear (0–100)** | Extra travel after the gear seats, before its end stop. Lower gives a shorter, more definite finish; higher leaves more room to settle. |
 
-Set the throw first, then raise the end-stop until the bottom feels solid. Both marks — and the
-*stop* bar on the gate plan view — move together as you shorten the throw. This only behaves
-because the base is not self-centring: **MOZA Cockpit's Spring must be at 0**, which it has to be
-anyway. On a base still centring in firmware, leave the end-stop off.
+### SEQUENTIAL TRAVEL
 
-**Automatic (P R N D)** turns the fore/aft axis into a selector lane: four fixed positions, with
-the selected output's button or role held at whichever one the lever is in. There is no neutral to come back
-through and no gear to engage — the lever is always somewhere, which is why the Main monitor reads
-*Engaged* the whole time. Its own section, **PRND LANE** controls are split between Geometry (travel, notches and placement) and Feel (forces and lockout behavior):
+| Control | What it changes |
+| --- | --- |
+| **Travel before the shift click (0–100)** | How far you push or pull before a sequential shift registers. Lower makes a short, quick stroke; higher requires more travel. |
+| **Travel after the shift click (0–100)** | How far the lever can move after a sequential shift registers, before meeting the end stop. |
 
-- ***Lane half-length from centre*** puts P and D that far either side of centre, the other two
-  dividing the rest evenly. It is the lane's own dial rather than the throw the H and sequential
-  patterns share — a selector lane is a fraction of the length a gear lever wants, and sharing one
-  would retune the other every time the pattern changed.
-- ***Detent between positions*** is how hard it is to move between them. The shape is a smooth
-  hump — nothing at a position, nothing again at the halfway point, one rise either side — so
-  leaving a position resists and arriving at the next one is assisted, the way a real detent works.
-- ***Free notch at each position*** is the room the lever has at a position with no force at all,
-  so a selection is a place it rests rather than a point it is pulled to. Zero turns each position
-  into a line, which is stable only at moderate detent force, exactly like the rail gate. It is
-  clamped by the room the hump beside it needs; the line under the sliders prints the effective
-  value and where all four positions landed.
-- ***End-stop wall past P and D*** is the wall at either end of the lane. Always back down the
-  lane, never a pocket.
+### GEAR ENTRANCES
 
-Sideways, **Slot wall / lateral rail (%)** sets the wall force, as in sequential. In Geometry,
-**Sideways free corridor, either side (axis counts)** sets the distance either side of centre
-with no sideways force. It uses the existing `SlotHalfWidth` saved with the profile; the usual
-Sequential and PRND presets now use the sport H profile's 468. **Wall bite distance (axis counts)** is the rise beyond
-each corridor edge, with no H-column spacing ceiling in either pattern. The monitor draws the
-actual corridor width. Zero restores a centred rail, which can hunt at high force even with
-onboard damping. This setting also applies to Sequential; it does not move any fore/aft firing
-line, PRND position or button boundary.
-**MirrorSlots** (gear layout) turns the lane round so P is nearest you; the buttons follow the
-labels, so R stays on button 12 either way.
+| Control | What it changes |
+| --- | --- |
+| **Gear-entry easing length (0–100)** | How far into the slot its softened entrance continues. Increase if the easing feels too brief during a quick shift. |
+| **Gear-entry opening (%)** | How much the entrance opens to help your hand slide into a gear. Increase for more forgiving entries. |
 
-Keep one **profile** per pattern you actually use — every dial, the pattern included, is stored
-per profile, so switching is one dropdown.
+### PRND LANE AND LOCKOUT
 
-**Switching without the dropdown.** *Next profile* and *Previous profile* bind to a wheel button
-or key under **Options → Hotkeys → PROFILE HOTKEYS**, or in SimHub's **Controls and events**.
-Tick the profiles you want in that cycle, or tick
-none and they walk through all of them. Switching releases any held gear and clears a sequential
-pulse in flight before the new gate is applied, so it is safe to press while driving — which is
-the point, if you keep an H profile and a sequential one for different cars.
+| Control | What it changes |
+| --- | --- |
+| **PRND selector travel (0–100)** | How far apart P, R, N and D sit along the lever travel. Lower makes a compact selector; higher spreads the positions out. |
+| **Free movement at each PRND position (0–100)** | Wiggle room while sitting in P, R, N or D. Increase if a selected position feels too tightly pinned. |
+| **PRND lockout width (0–100)** | How far you must move through the guarded gap. Wider makes it take a more deliberate movement. |
 
-**Switching by car.** **Automatic profile switching** on Main takes one vehicle id per line —
-whatever the game's own telemetry reports for the current car. When the running car matches a line,
-that profile activates on its own. Leave the box empty to keep a profile out of it entirely, which
-is the default and what a fresh install does.
+### LOCKOUT POSITION AND WIDTH
 
-- **Add last vehicle** fills in whatever the running game most recently reported, which is the
-  easy way to learn the exact string: start the game, sit in the car, come back and press it. It
-  shows the raw telemetry value rather than a tidy name, because that is all a plugin can see. The
-  plugin only looks the car up while this page is open or some profile already lists one. The
-  separate status line says **No vehicle reported yet** until a game supplies an ID.
-- **Add manually** opens a blank line to type an id into. The box commits when you click away
-  from it.
-- If two profiles claim the same car, the one **earlier in the list** wins. That is deliberate
-  rather than clever: a genuine clash is yours to resolve.
-- It only fires when the car itself changes, so picking a profile by hand is never overridden until
-  you change car again. Because the switch goes through the same path as the hotkey, changing car
-  re-seats the gear the same way — which is nothing while you are in the pits, and the reason not to
-  map two profiles to cars you swap between mid-session.
+| Control | What it changes |
+| --- | --- |
+| **Lockout width (0–100)** | How far you must push through the lockout. Wider makes accidental crossings harder, even during a quick movement. |
+| **Width of clicks between gear pairs (0–100)** | How broad the small bumps between gear pairs feel. Lower gives short clicks; higher gives broader rises. |
+
+### Advanced gear detection
+
+| Control | What it changes |
+| --- | --- |
+| **Returning to neutral (0–100)** | How close to the neutral lane the lever needs to return before it is treated as back in neutral. Increase if normal hand movement struggles to find neutral. |
+| **Leaving neutral (0–100)** | How far you can push or pull before the lever is treated as leaving the neutral lane. Increase if it switches too quickly from sliding across neutral to entering a gear. |
+| **Outside gear-pair openings (0–100)** | How much room you have to line up with the first and last gear pairs. Wider makes their entrances more forgiving. |
+| **Middle gear-pair openings (0–100)** | How much room you have to line up with the middle gear pairs. Wider makes their entrances more forgiving. |
+| **Room beside the lockout (0–100)** | Space to rest beside the gear pair next to the lockout before meeting its resistance. This matters only for a lockout between gear pairs. |
+| **Travel before a gear engages (0–100)** | How far you must push or pull before the game registers the gear. Higher requires a longer movement; lower registers it sooner. |
+| **Return needed to release a gear (0–100)** | How far you must bring the lever back before the game releases the gear. Increase if a small movement drops the gear too easily. |
+| **Smoothness between gear pairs (0–100)** | Softens the sideways change in guidance as you pass from one gear pair to the next. Increase if it feels notchy; too much can feel vague. |
+| **Gear confirmation delay (samples)** | Waits for a few steady readings before registering a gear. Increase only if gears register by accident; extra delay makes shifting less immediate. |
+
+## Feel controls
+
+
+### MASTER
+
+| Control | What it changes |
+| --- | --- |
+| **Overall gain (%)** | Makes the whole shifter lighter or stronger, including feedback effects. Raise it gradually with a hand on the lever. An uncalibrated base stays limited to 10%. |
+
+### BASE EFFECTS
+
+| Control | What it changes |
+| --- | --- |
+| **Base spring (%)** | Pulls the lever toward the base centre. Keep it low if you want the lever to rest naturally in a gear. |
+| **Base damper (%)** | Slows lever movement, like a damper on a real mechanism. Increase for a heavier, calmer movement; too much makes shifting sluggish. |
+| **Base friction (%)** | Adds steady drag as the lever moves. Increase for a weightier mechanical feel; decrease for a freer lever. |
+| **Base inertia (%)** | Makes the lever feel heavier when starting or stopping a movement. |
+| **Maximum Torque Output (%)** | Sets the base hardware torque limit. Overall gain above still controls the strength of this profile. |
+| **Overall Force Feedback Intensity (%)** | Adjusts the AB9 hardware strength. Prefer Overall gain for everyday profile tuning. |
+| **Game Force Feedback Gain (%)** | Adjusts how strongly the AB9 applies the plugin effects. |
+
+### GATE WALL STRENGTH
+
+| Control | What it changes |
+| --- | --- |
+| **Gate wall between gears (%)** | How firmly the gate stops you pushing forward or backward between gear openings. |
+| **Gear-slot side walls (%)** | How firmly the lever is kept inside a gear slot. In sequential, PRND and handbrake, this supplies the sideways lane walls. |
+| **Forward/backward guide (0–100)** | The light resistance you feel pushing or pulling while lined up with a gear opening. Increase for more guidance; decrease for a freer entry. |
+| **Outer edge walls (%)** | Stops the lever wandering beyond the first and last gear pairs on a narrowed gate. It has no effect at full pattern width. |
+
+### GEAR END STOPS
+
+| Control | What it changes |
+| --- | --- |
+| **Gear-slot end stop (%)** | How firmly each gear slot ends. Raise this to give a short-throw shifter a definite bottom; zero lets the lever travel to the base stop. |
+
+### HANDBRAKE RESISTANCE AND RETURN
+
+| Control | What it changes |
+| --- | --- |
+| **Pull resistance (%)** | How hard you need to pull the handbrake. |
+| **Return strength (%)** | How firmly the handbrake returns to its released position. Return is limited to the pull resistance. |
+| **Curve amount (%)** | How strongly the selected resistance curve is applied. Low feels more even; high makes the chosen curve more noticeable. |
+| **Handbrake end stop (%)** | How firmly the lever stops at the end of the pull. |
+
+### SEQUENTIAL STROKE STRENGTH
+
+| Control | What it changes |
+| --- | --- |
+| **Shift click (%)** | The kick you feel when a sequential shift registers. Increase for a sharper click. |
+| **Sequential end stop (%)** | How firmly the lever stops after the shift click. |
+
+### PRND DETENTS AND LOCKOUT
+
+| Control | What it changes |
+| --- | --- |
+| **PRND position clicks (%)** | Resistance as you move between P, R, N and D. Increase for more definite positions. |
+| **PRND end stops (%)** | How firmly the lever stops beyond P and D. |
+| **PRND lockout force (%)** | Resistance crossing the guarded gap between selector positions. Hard lockout modes set their own full strength. |
+
+### CROSSING THE GATE
+
+| Control | What it changes |
+| --- | --- |
+| **Lockout force (%)** | The effort needed to cross a push-through lockout, such as the guard before reverse. Hard lockout modes set their own full strength. |
+| **Clicks between gear pairs (%)** | The small bumps you feel sliding past the ordinary gear pairs in neutral. |
+| **Guidance toward gear pairs (0–100)** | The light pull that helps your hand line up with a gear pair while moving across neutral. |
+| **Return toward 3rd/4th (0–100)** | Pulls a released lever toward the 3rd/4th gear pair in neutral. Lower this if the lever trembles there. |
+
+### GEAR ENGAGEMENT FEEL
+
+| Control | What it changes |
+| --- | --- |
+| **Resistance entering a gear (%)** | The resistance you push through before a gear clicks into place. In sequential, this sets resistance before the shift click. |
+| **Pull into gear (%)** | The snick that draws the lever into a gear after you push through the entry resistance. |
+| **Hold in gear (%)** | Keeps the lever seated after the shift. Increase if a seated gear feels too easy to pull out. |
+
+### SOFTWARE STABILITY
+
+| Control | What it changes |
+| --- | --- |
+| **Wall contact smoothing (ms)** | How gradually a wall pushes back after contact. Zero is immediate; a little smoothing can make contact calmer. |
+| **Rebound absorption (0–100)** | Takes energy out of a bounce away from a wall. Increase if the lever kicks back too strongly. |
+| **Wall friction (0–100)** | Adds grip while the lever is pressed against a gate wall. It stays free when you are clear of the walls. |
+| **Software damping (0–100)** | Slows lever movement throughout its travel. Increase for a calmer lever; too much makes shifts feel heavy or sluggish. |
+
+### Gear entrances and guards
+
+**Gear-entry shape** chooses Square, Rounded or Angled. Square gives a plain opening;
+Rounded softens both corners; Angled eases the route toward the next gear.
+**Lockout position** chooses the guarded gear pair or individual gear. **Direction** chooses
+which crossing meets resistance.
+
+**Push through** lets a deliberate hand cross the guard. The hard modes require a release
+action bound in **Options → Hotkeys**, and guarded H-pattern gears do not register until
+released. A PRND selector always reports the position the lever physically reaches: its lockout
+adds resistance rather than hiding that position from the game.
 
 ## Telemetry effects (Effects)
 
@@ -538,516 +583,92 @@ Two things use it: the bite-point pulse on the Effects editor, and the grind's *
 
 ## The rail gate recipe
 
-The native shifter mode's topology — one axis guided everywhere, no free 2D space, nothing to
-float across or lean on — reached by closing both free corridors
-(see [force-model.md](force-model.md), "The rail gate"):
-
-| Dial | Rail value | Why |
-| --- | --- | --- |
-| Slot width, free corridor | **0** | The column becomes a rail: any lateral displacement is pulled straight back to the column line. |
-| Tunnel depth, free corridor | **0** | The tunnel becomes a rail: any fore/aft wander meets immediate centring, hardening between columns so a push there resolves sideways into a column instead of finding a wall to lean on. |
-| Slot wall / lateral rail (%) | **50–60% to start** | The rail's stiffness. The interior equilibrium is back, so this has a hunt ceiling — raise until a *middle* column trembles, then back off. The outer columns cannot hunt and tolerate more. |
-| Gate wall, between columns | **70–80% to start** | The tunnel rail's stiffness between columns. Too high reads as the tunnel grabbing your fore/aft wander. |
-| Wall attack | **10–20 ms, on** | Load-bearing for rails: static hold is what lets a railed lever sit quietly under a leaning hand. |
-| Wall absorption | keep high (~55–65%) | The other half of the hunt ceiling. |
-
-What to feel for, in order: a railed **middle gear trembling** → lower the slot wall (never
-damping); the **tunnel fighting fore/aft wobble** while sliding → lower the gate wall or lengthen
-the bite; **notches too faint** between columns → raise barrier force — the notch feel is the
-barrier humps, unchanged by the rails.
+For a closely guided lever, set **Gear-slot width (0–100)** and **Neutral tunnel width (0–100)**
+to zero. The lever then follows a centre line in each direction instead of resting in free space.
+Start with moderate side-wall and gate-wall strength. If it trembles, lower the relevant wall
+force or add clearance again. In AB9 mode, try Base damper before extra software damping.
 
 ## Symptom → dial
 
-**Sequential or PRND shakes sideways after a small touch or when an effect starts.**
-In Geometry, widen **Sideways free corridor, either side (axis counts)**. Older builds ignored
-this saved width in both patterns and always pulled onto the centre line. The 2026-10-28
-sequential recordings still hunted at roughly 17 Hz with base damper 35%, lateral force 80%,
-and wall attack at 5 ms or off, so more damping or attack tuning alone is not the answer.
-Use **Slot wall / lateral rail (%)** for the force outside that corridor. Keep the other dials
-steady while testing the new width. A new trace and the hand at the lever must confirm the
-result; removing the point equilibrium does not establish stability at every wall setting.
+| What you feel or see | What to try |
+| --- | --- |
+| Gear pairs feel too far apart | Lower **Pattern width (0–100)**. |
+| Too much sideways play while in gear | Lower **Gear-slot width (0–100)** gradually. |
+| A gear trembles while seated | Widen **Gear-slot width** or lower **Gear-slot side walls**. |
+| Neutral feels too tightly guided | Raise **Neutral tunnel width (0–100)**. |
+| Corners kick or chatter | Raise **Gate wall fade width (0–100)** gradually. |
+| Walls feel sharp or buzz at contact | Increase **Wall bite distance (0–100)**; in AB9 mode try Base damper first. |
+| Walls feel soft or vague | Lower **Wall bite distance** gradually, checking for oscillation. |
+| Reverse is too easy to enter | Increase the lockout force or width, or use a hard mode with a release action. |
+| Shorter throw does not shorten the lever movement | Enable **Gear-slot end stop (%)** in Feel. |
+| A gear engages before the movement feels complete | Increase **Travel before a gear engages (0–100)** under Advanced gear detection. |
+| A small retreat releases a gear too easily | Increase **Return needed to release a gear (0–100)**. |
+| A shift registers from a stray movement | Add a little **Gear confirmation delay (samples)**. |
+| The lever feels sluggish everywhere | Reduce Base damper or Software damping. |
+| The lever snaps back off walls | Increase Rebound absorption gradually. |
+| A narrowed gate has no outer boundary | Raise **Outer edge walls (%)**. |
+| Force feedback is unexpectedly light | Check Overall gain, the master switch and polarity calibration in Options. |
+| Sequential, PRND or handbrake shakes sideways | Increase **Sideways freedom (0–100)** or lower its side-wall strength. |
+| A limit notice appears | Follow the note in that setting's block; the gate may need more room for the selected shape. |
 
-**FFB disappears when a game starts and only returns after re-enabling the plugin.** Check
-**Options → Base and output → Automatically retake the base**. On restores recovery during
-the game; off deliberately waits for no game. If retaking disrupts the game, leave it off.
-This connection policy is separate from protection shutoff and force-strength tuning.
-
-**5+R or the truck 6 feels sprawling — every shift is a reach across the whole stick.**
-It is, and it is arithmetic rather than tuning: three columns spread over the same stick that 7+R
-spreads four over puts 32767 counts between them against 21845. ***Pattern width, side to side (%
-of stick travel)*** on the Geometry editor is the dial. **60%** is what the shipped *5+R* and *Truck*
-presets use — a little tighter than a four-column reach — and the live gate above the slider shows
-it happening. It squeezes the pattern in from both sides, so the middle column does not move. The
-*5+R wide* preset is the same gate left at 100% if you prefer the full sweep.
-
-Nothing else rescales with it, which is the thing to watch. Slot corridors, wall bites and column
-doorways stay the raw counts you set, so each becomes a bigger share of a narrower gate — check the
-*wall bite distance* effective ceiling on the Geometry after a big change, because that is the one
-that starts biting first. The percent-of-column-spacing readouts move for the same reason, without
-anything stored having changed.
-
-The pattern gets an edge when you narrow it, and that is a second dial. ***Wall at the pattern
-edge (%)*** in Feel is what stops the lever sliding off the side into the
-bare travel a narrowed pattern leaves — the neutral tunnel is deliberately free everywhere else, so
-without it there is nothing out there at all. It only ever pushes back in, it is zero everywhere
-inside the pattern, and at 100% width it renders nothing whatever it is set to. Turn it down for a
-soft edge, off to have none.
-
-**I want the low-range gate of a truck box.**
-Start from the *Truck 6-gear (low-range lockout)* preset — it is exactly this, and unlike the other
-H presets it also carries a truck's *feel*, tuned against a real Eaton-Fuller box rather than
-copied from the racing gate, and it ships narrowed to 60% width for the same reason 5+R does. By
-hand: pattern *H pattern, 6 gears, no reverse (truck)*, then in Geometry, ***Lockout position***
-*Between columns 1 and 2* and ***Direction*** *One-way - entering the
-lower column pays*. Tune the toll with ***Lockout force (%)*** and the half-width, like any lockout.
-
-**My truck gate feels like a racing gate — too quick and too easy.**
-Four dials carry the difference, and the truck preset ships all four. ***Throw from centre to a
-seated gear*** near the top of its range (30000 counts in the preset, against 11915 in the racing
-gate), so a gear is the end of a long push. ***Resistance entering the slot (%)*** well up (57)
-where a racing tune has none, so the slot is something the hand pushes *into*. ***Seated hold,
-keeps the gear in (%)*** down (25 against 40), so the box holds the lever rather than the lever
-holding itself. And ***Lockout force (%)*** *down* (62 against 90) with ***Slot wall / lateral
-rail (%)*** up (89 against 80) — a low-range gate is crossed on nearly every downshift, so it
-cannot cost what a 7/R gate crossed twice a session costs, and the columns are what have to be
-solid instead.
-
-**The hard lockout will not let go.**
-Working as designed until proven otherwise: the hard modes only open from the key bound on the
-Options under hotkeys (*Release or re-engage the lockout*), and the gate re-engages on every
-start, every profile switch, and — in the re-arming mode — the moment a released crossing
-completes. Check the `LockoutEngaged` property, or the Main monitor's band, which dims while
-released. If you wanted a gate a shove can beat, that is ***Lockout mode*** *Push through*.
-
-**I put the lockout on a slot and feel nothing.**
-Read the line under the lockout dials: if the chosen gear does not exist in this pattern (7 on
-6+R, R on the truck 6), the lockout is off and the line says so. Otherwise remember an *entry*
-toll is spent before the crossover — it stiffens the first half of the push, not the snick — and
-an *exit* toll is only met pulling back out of the seated gear.
-
-**The lockout rejects the lever hard, unlike the walls, and sets it oscillating.**
-Fixed twice over. It was the only force exempted from **wall attack**, so it alone arrived raw — that
-exemption is gone, since a crossing takes tens of milliseconds and the attack lasts fifteen, so the
-toll is unaffected. And its faces used to overhang its band by a whole bite distance, which put the
-onset of the toll on top of the 5/6 column; they are inside the band now.
-
-**A wall buzzes or vibrates while I lean on it.**
-Raise **wall bite distance** until it stops, and no further. Past its bite a wall is flat and cannot
-oscillate; all trouble lives on the bite itself. If a longer bite makes the wall feel spongy before
-the buzz clears, leave the bite moderate and raise **wall attack** to 10–25 ms instead — that
-freezes force while you hold still, which is what quiets a sustained press.
-
-The diagnostic signature, reported from the stick and worth recognising: *"it starts slow as I touch
-the wall, grows as I press harder, then reduces and stops while I am still far from pushing through."*
-That is the hand walking up the **bite** and arriving on the flat top — ringing where the gradient is,
-silence where it is flat. It is the bite, not the wall's strength.
-
-Note that **wall attack is the only way to get the static hold at all** — at 0 ms the whole time-shaping
-stage is bypassed, static friction included. If you are chasing the lightest possible shifter and are
-reluctant to turn it on: static hold is **not damping**. It freezes force updates while the lever is
-nearly still and never opposes motion, so it costs nothing in throw speed or lightness, and the slot
-detent is deliberately exempt so the snick still arrives whole.
-
-**The lever chatters rhythmically while I hold it against force — held in a gear, or leaning on
-the lockout, which pumps the lever back out in kicks.**
-Fixed structurally, in two layers, and worth telling apart from the bite oscillation above: it is
-slower (12–26 Hz on the traces that caught it), it needs a hand leaning on the lever to sustain
-it, and it happens even on *flat* force — the lockout's core has no gradient at all, and it
-chattered anyway. The first layer was the rebound absorber's velocity deadband sitting at
-sensor-noise level, below hand tremor, so every micro-reversal of a lean fired a fresh cut: the
-force stepped between full and the yield floor across zero velocity like a relay, and each step
-kicked the lever into a bigger reversal — up to 20000-count swings off the lockout. The deadband
-now sits above the measured envelope of a leaning hand and below deliberate strokes, so a lean
-feels one continuous force whichever way tremor points. The second layer surfaced the moment the
-first was fixed: a smaller, faster hunt (17.7 Hz on the follow-up trace) riding the *face*,
-because the sub-deadband band then had no dissipation at all — no cut is allowed there, damping
-was zero, and the static hold only guards a hand already settled. That is what **wall friction**
-was built for: drag proportional to the engaged force, zero in free travel — and the hardware
-verdict is that it was *not enough*, because everything the plugin renders arrives 3–4 ms late,
-a large slice of a 17 Hz cycle. What settles the lean-hunt on this base is **MOZA Cockpit's
-Damper at ~15%** — real damping at the servo loop, ahead of the delay, and free of the
-throw-weight cost software damping has (see hardware.md). If a flutter while leaning returns:
-Cockpit damper first, wall friction second, software damping last.
-
-**With a long bite I can push to gear depth *between* columns.**
-The bite's hidden upper bound. The bite is spent twice over between two columns: the slot wall's
-face rises over one bite, and the fore/aft wall's rise stretches over it too. The space between two
-corridors is fixed — at a slot width of 2400 it is about 8500 counts a side — so a long enough bite
-leaves the divider with **no full-strength plateau at all**: the "wall" between gears is two ramps
-meeting at a point, soft enough to hold a lever inside at depth. You now get the nearer gear rather
-than nothing (see the next entry), so this is no longer a silent failure — but it is still a divider
-that is not doing its job. Keep the bite at or below ~3000 with the default slot width, which leaves
-~1500 counts of solid divider. Raising **slot width** eats the same budget from the other end.
-
-Geometry shows this rather than leaving it to be discovered on the rig. Under *Wall bite
-distance* it prints the **effective** bite — what the gate actually renders after the room between
-columns has had its say — and says "capped down from N" when the slider is asking for more than
-the geometry allows. If the two numbers differ, the slider has been lying to you, and this symptom
-is what that feels like. The **Gate Walls** graph beside it draws the resulting curve, so a
-divider with no plateau left is visible as a shape rather than inferred from a number.
-
-**I pushed the lever all the way home and nothing happened.**
-Fixed, and it was a real bug rather than a tuning problem. Selecting a gear used to need the lever
-inside a narrow band around the column's centre line, while the fore/aft wall opens over a wider one
-and blends shut over wider still — so between them lay a strip where the gate was passable and there
-was no gear to select. And past that strip the wall is only 12 Nm, which a hand beats anyway.
-Measured on the rig: two pushes to full deflection, held nearly a second each, about 2400 counts
-right of 5/6 — resting on the lockout gate's entry face — with the game told nothing. Every position
-in the gate now belongs to the column it is nearest, so a push that gets through always lands in a
-slot. If you are getting the *wrong* gear this way, the divider between those two columns is too
-soft: see the bite entry above, and raise **gate wall** strength.
-
-**Dragging the lever sideways while in gear, I feel extra slots that aren't gears.**
-Also fixed. The lateral field is faded to nothing across a narrow window at each column boundary, so
-that the guide can change hands there without the force reversing — necessary in the tunnel, where
-the lever really does pass from one column to the next. It was being applied at every depth,
-including down in a slot, where the guide never changes hands at all. The result was a hole in the
-slot wall at each gap: measured at exactly zero force, and a hand hunting sideways settles into every
-one. They feel like half-slots because that is what they were. The window is now spent by the time
-the tunnel is left, so a latched gear's wall is solid the entire width of the gate.
-
-**Pressing toward a wall grinds instantly — not a bounce or a buzz, but like pushing the lever
-against a running gear.**
-Fixed structurally, and worth recognising because it is *not* the wall-face oscillation above: it
-needs no build-up, it starts the moment the lever moves under pressure, and it scales with **wall
-absorption** rather than with the bite. The absorber keys on a speed estimate, and under write
-contention the device only delivers distinct positions at ~500 Hz — differencing adjacent 1 kHz
-polls turned a smooth pull into a 2:1 speed sawtooth, and the absorber rendered it as a 25–50%
-force ripple at 250–500 Hz. Two fixes landed together: velocity is now measured across a 4 ms
-window, and the absorber's scale cuts instantly but recovers over `YieldRecoveryMs`
-(EngineConfig-only, default 20 ms). If a texture like this ever returns, suspect anything newly
-keyed on per-tick velocity before touching the feel dials.
-
-**The lever trembles resting at the 3/4 column with the neutral spring on.**
-The home spring is a pull toward a place, so it has the rail gate's hunt ceiling: an interior
-equilibrium rendered through delay is only stable at moderate strength. Lower the **neutral
-spring**, never raise damping. The spring is deliberately dead across the home column's own
-width — a lever parked there sits on flat ground — so trembling means the plateau just outside
-that dead zone is too strong for the loop's delay, exactly like a railed column that trembles.
-
-**Touching a wall kicks back at me, like ABS.**
-The bite is too short — force is arriving as a step and landing late. Lengthen the bite, or add
-**wall attack** (10–25 ms), which winds contact up over milliseconds instead of striking.
-
-**Corners are the worst part.**
-Expected: corners are where both axes' walls land at once, and the fore/aft wall's height is also
-changing with sideways motion over the **gate wall blend width**. Widen the blend, or use **wall
-attack** — it is the only control that covers force change regardless of which gradient caused it.
-
-**A middle gear shakes while seated; the outer gears are fine.**
-Widen **slot width (free corridor)**. A narrow corridor leaves the stick balanced on a point it can
-hunt around. Outer columns never do this because their wall only pushes one way, against the end of
-travel. In the rail gate (slot width zero) the equilibrium is the design — there the fix is
-lowering **slot wall** strength instead.
-
-**It oscillates around the wall ends, where one slot meets the tunnel, though deep walls are calm.**
-Fixed, and it was two measured faults rather than a tuning problem. The lateral force was computed by
-two different branches - one for the tunnel, one for once a gear was latched - and they disagreed by
-about six newton-metres at the same physical position, with the channel's hysteresis deciding which
-one you got. Going around a divider end is the manoeuvre that crosses that boundary. It is now one
-function called by both, provably identical. Second, the funnel had its own ramp dial, and at its
-floor that made it the steepest gradient in the gate at three and a half times the wall face, present
-only in the mouth. Every lateral force now rises at the wall's own stiffness, and the dial is gone.
-
-**Sliding along neutral, the notches kick the lever sideways as I pass them.**
-Fixed, and it was the largest discontinuity the gate has ever had. The guide pushes toward the nearest
-column, so at every boundary between two columns the force reverses — and because it held its full
-plateau flat right up to that boundary, the reversal was a step of twice the plateau in a single tick.
-Measured from a recorded trace at real settings: 20 000 DI, a clamped ±12 Nm, from 100 counts of drift.
-The field is now faded to zero across every position the guide can change hands at, so a handover
-happens where there is no force to reverse; the same sweep now measures 553 DI worst case anywhere.
-
-Two things make it worse if they are set wrong, and both are now defaults. **Neutral tunnel depth**
-below your actual fore/aft slop puts you inside the transition band while you slide, where the plateau
-is ramping up — measured, 65% of one recording's sliding time was in that band at the old 1400. And a
-large **column handover width** widens the dead strip at each divider, because the window must cover it; it
-used to be 1500 and only ever existed to hide the cliff that is now gone. (It is called
-`DetentHysteresis` in the settings file and in the code — a name left over from a job it no longer
-does. It has nothing to do with the slot detents.)
-
-**The guides leading down to each gear oscillate, though the deep walls are calm.**
-Fixed. The guide's rise from the tunnel's light pull to the full slot wall used to continue past the
-channel's exit band, which gave every slot wall a cross-gradient it had never had - the wall grew
-stronger under the hand as the lever was pushed in. Below the exit band nothing varies with depth now.
-If it persists with the mouth shape on Square, tell me; if only with Rounded or Angled, that is the
-mouth's own flank and *Mouth opening* is the dial.
-
-**A slot wall oscillates half-way into a gear, though the channel walls are calm.**
-This was a real bug, now fixed: the slot wall's face was squeezed into the state machine's lateral
-exit band, about a fifth of the bite you had set, so it was far steeper than the channel walls you
-were comparing it against. Both kinds of wall now use the full **wall bite distance**. If it still
-shakes, the bite is genuinely too short for both.
-
-**I pushed through the lockout but no gear engaged, and I got shoved back unexpectedly.**
-Also fixed, in three steps over time. The gate used to sit at the middle of the gap, thousands of
-counts right of the 5/6 column, so stopping at the gate left you nowhere near a slot; it now sits
-directly against the 5/6 column. The **funnel** steers an off-column push into the slot instead of
-just blocking it — and if you turned **pull into a column** down to 0 the funnel still works, it is
-a separate dial. And stopping anywhere short of the gate's crest now selects 5 or 6 rather than
-nothing, because every position belongs to a column. Past the crest it is 7/R, as it should be.
-
-**I can drag the lever sideways from gear to gear along the top or bottom of the gate.**
-You can still *move* it — no wall can out-push a hand on a 12 Nm base — but it can no longer
-accomplish anything. The gear stays the gear you are in, at any lateral distance, and the slot wall
-pushes back the whole way; the only route to another gear is back through the tunnel. Three things
-had to change for that: lateral confinement belongs to the depth rather than to the state machine's
-latch (overpowering one wall used to leave no lateral wall at all, and the guide then helped you
-along to each column you passed); the lateral release is gone entirely, because any distance at
-which it fired was a distance at which the rest of the pattern came back and could capture you; and
-the handover window no longer applies at gear depth, which is what used to leave a hole in that wall
-at every gap.
-
-**A gear changed without my going through neutral.**
-It cannot any more: a latched gear is released only by returning through the tunnel. If you see it
-happen, that is a fault being reported, and worth telling me about.
-
-**A bounce off a wall builds instead of dying.**
-Raise **rebound absorption**. Full force while you lean, less on the throw-out, so each bounce
-returns less energy than the last. Turning it *down* makes oscillation slower and stronger.
-
-**The gear falls back out on its own.**
-Raise **seated hold**. At full deflection the base drags the stick home with ~90% of its available
-force, and a light hold simply loses.
-
-**The throw is too long — I want a short-throw box.**
-In Geometry, shorten **throw from centre to a seated gear**; in Feel, raise **slot end-stop
-wall** above zero. The throw alone is not enough and this is the part that surprises
-people: with no end-stop the seated hold keeps pulling past the seat, so the lever still runs on to
-the base's mechanical stop and all you moved was where the gear registers. The line under the
-sliders spells out where the gear seats and where the lever stops.
-
-**I shortened the throw and the travel did not change.**
-The same thing, from the other end: **slot end-stop wall** is still at 0%, so the slot has no bottom
-of its own. Raise it. If it is already up and nothing changed, the *free landing* is long enough to
-reach the end of travel anyway - shorten the landing, or the throw.
-
-**A fast short-throw shift runs past the slot, and the game stays in neutral.**
-This can be a logic fault rather than a weak wall. In `trace-20261005-025027.csv`, the final
-attempt at first gear reached the forward mechanical stop, but the machine retained second's
-Back direction after a late release skipped the last neutral-tunnel report. The old end-stop
-then applied full force farther into the wrong end. The return now clears on the release report,
-including one already beyond the tunnel, and an end-stop acts only on its own side of centre.
-The bottom also receives wall attack and rebound absorption instead of the snick's exemptions.
-The same fault appeared during 5→6 in `trace-20261008-011524.csv` on the older 0.15.0 DLL,
-after the fix had merged into source. Check the loaded build in the trace's first comment or
-Options' About section; install a build containing PR #48 and restart SimHub before retuning.
-Retest fast 2→1 and 1→2 strokes: the requested gear should latch and hold, and any bottom contact
-should push back toward centre. Feel and physical stopping distance still need that rig test.
-
-**I can flick through the lockout too easily.**
-The toll is **lockout force × lockout gate half-width** — widen the band or raise the force. Check
-overall gain too: at 25% gain a 70% lockout is only ~2 Nm, which momentum beats easily.
-
-**The wall ends at the tunnel feel square and catch the lever going past them.**
-Geometry → SLOT MOUTHS. *Rounded* fillets both flanks of every slot mouth, so the lever is eased past a
-divider end instead of cornered on it. *Angled* chamfers one flank only, the side the next gear in
-sequence lies on, so withdrawing with a little lateral pressure is carried that way - out of 2 toward
-3, out of 5 toward 4, and so on. All three only ever remove force; none of them pushes.
-
-*Mouth reach down the slot* (5000) is the one that matters. The base answers in 3-4 ms, in which a
-lever being shifted travels 1500 counts or more, so shaping confined to a shorter stretch than that is
-over before a single corrected force arrives - which is exactly why the first version of this feature
-was thrown away. *Mouth opening* is a share of what the geometry safely allows, so it can never reach
-the next column's slot or the lockout's band. Angled does nothing where there is no next gear (1, R)
-or where the crossing would be the lockout (6 to 7), because a range gate does not help you across
-itself.
-
-**Entering a gear feels like it fights me sideways.**
-That is the pull onto the column growing as you leave the tunnel. There is no separate funnel dial —
-one stiffness serves every lateral force — so lower **pull into a column** if it is too pushy. If
-entries near a column edge dead-end against the wall instead, open the **slot mouths**: set the mouth
-shape to angled and raise its reach and opening.
-
-**The shift does not feel like it seats itself.**
-Raise **pull into the slot (the snick)**, and check **resistance entering the slot** is not so high
-that it masks the flip over centre.
-
-**Everything feels dead, especially the lockout and detents.**
-Confirm **Measure polarity** reported a real result for both push axes rather than "barely moved",
-and that overall gain is not near zero. Then tick **Release all forces (free stick)**: if the stick
-is *still* stiff with that on, what you are feeling is the hardware, not the gate — check the MOZA
-Cockpit settings in [hardware.md](hardware.md).
-
-**The stick fights me everywhere or drifts to the stops.**
-Polarity is wrong — forces are pushing the opposite way. Run **Measure polarity**.
-
-## The rest of the dials
-
-**Sliding across the gate.** *Humps between the other columns* (15%) is the light click between 1/2,
-3/4, 5/6; *hump width* (2500) how far either side of a crest it peaks. *Pull into a column* (12%) is
-the gentle centring onto the nearest column while in neutral, which grows into the full slot wall as
-you push out of the tunnel toward a gear. It does not act across a column's own width, so there is no
-centre line to hunt around.
-*Fore/aft drag while on a column* (5%) is residual resistance when lined up — keep it low or gears
-get hard to take.
-
-**Slot detent.** *Resistance entering the slot* (22%) → *pull into the slot* (35%) → *seated hold*
-(55%). The profile resists, flips over centre, then settles.
-
-**Damping** (25%) thickens the lever and calms free travel. It will not fix a buzz by itself — the
-device's own damper is too weak to matter here, so this is computed in software from measured
-velocity.
-
-**Geometry editor.** *Gate wall fade width* (1500) is how far sideways the fore/aft wall takes to go
-from open on a column to solid between columns — the mouth of each slot, seen from the tunnel, and
-the sideways gradient that corners are made of. It is now the largest remaining gradient in the gate
-at about 1.5× the wall face, so it is the one to widen if corners still feel harsh. The lateral guide
-no longer has a ramp of its own: every sideways force rises at the wall's stiffness, so a gentler
-force gets a shorter face instead of a steeper one. The enter/exit pairs are hysteresis bands — the
-exit value must always be the looser one. The lockout's position is in Geometry; within
-the chosen gap the gate still places itself against the near column's band (a Both-direction gate
-sits on the midpoint), and both the plan view at the top of Geometry and the Main monitor draw the
-band where it actually is. *FFB loop rate* in Options should stay at 1000; see
-[hardware.md](hardware.md) for why higher buys nothing.
+Force cannot guarantee the lever stays inside a slot. A held H gear releases through neutral;
+pushing through a sideways wall does not select another gear. The game also needs its own
+button bindings and clutch behavior set correctly.
 
 ## Handbrake
 
-Choose **Handbrake (analog)** under **Pattern**, or start with **(Preset) Handbrake (progressive)**.
-The preset captures the user's **Handbrake (progressive) 4** tune, including its enabled engine
-and rear-wheel lock effects. In **Effects**, wheel lock uses SimHub's native ShakeIt telemetry
-effect, routed from the rear wheels to the lever. Its sensitivity, brake filter, response curve
-and vibration remain configurable; feedback depends on the wheel telemetry available from the
-game.
+Choose **Handbrake (analog)** on Main or start from **(Preset) Handbrake (progressive)**.
+Calibrate the released and full-pull positions in **Options → Handbrake travel calibration**.
+Those positions belong to the rig and are shared by all profiles. Either pull direction works.
+Release the lever after changing them or acquiring output before braking can arm.
 
-The captured preset uses the full S curve, 100% pull/return/end-stop strength and overall gain,
-95% usable travel, quadratic braking input, an 844-count sideways corridor and a 3815-count
-wall bite. Wall attack is 15 ms; software damping, rebound absorption and wall friction are zero,
-with 15.22% base damping. It ships disabled and unconfirmed, retains the polarity gain cap,
-and uses each rig's own endpoints and bindings. The tables below list bare/reset defaults;
-the captured preset deliberately differs from them.
+In Geometry, **Handbrake pull length (0–100)** controls how much travel reaches full braking;
+**Free movement before braking (0–100)** adds slack at rest; **Braking progression (%)** adjusts
+how braking builds. In Feel, Pull resistance and Return strength set the lever weight.
 
-In **Options → Handbrake travel calibration**, run the plugin with **Release all forces (free
-stick)** enabled. Choose the released starting position and press **Capture start**, then pull
-to the ending position and press **Capture end**. **Start Y** and **End Y** can also be entered directly. Either
-direction works; endpoints need at least 8000 counts between them. Calibration belongs to the
-rig, survives profile switches and does not travel in exported profiles. Turn free stick off
-and release the lever before pulling again. Enable vJoy's **Z axis** in vJoyConf and bind that
-axis as the game's handbrake; after changing vJoy configuration, refresh and re-enable the plugin.
+**Resistance curve** chooses how that weight builds: Build later starts light, Build early
+firms up sooner, Linear stays even, and S curve eases both ends. **Curve amount (%)** blends
+the chosen shape in. Mechanical feel and braking response can be tuned separately.
+The base spring is suppressed in this pattern so it does not pull toward the wrong rest point.
 
-**Geometry → HANDBRAKE TRAVEL AND OUTPUT** controls game input:
-
-**Start position (axis counts)** and **End position (axis counts)** cover the full 0–65535 Y axis.
-Choose either direction and keep at least 8000 counts between them. Start is both the zero-braking
-position and the return anchor; it can sit away from the base centre to use more of the available
-travel. The monitor labels **start / released** and **end / full pull** and draws the real sideways
-corridor. Endpoint edits ease in the moved geometry and require release to start before braking
-arms. These two controls are rig calibration, shared across profiles; **Reset geometry** keeps them.
-
-| UI label | Default | Meaning |
-| --- | --- | --- |
-| **Usable handbrake travel (%)** | 100 | Share of measured travel, with an 8000-count minimum |
-| **Released dead zone (%)** | 2 | Initial travel that sends zero braking |
-| **Braking progression (%)** | 0 | 0 is linear input; 100 is quadratic |
-
-**Feel → HANDBRAKE RESISTANCE AND RETURN** controls physical feedback:
-
-| UI label | Default | Meaning |
-| --- | --- | --- |
-| **Pull resistance (%)** | 40 | Resistance reached at full usable pull, before overall gain |
-| **Return strength (%)** | 20 | Lighter return resistance, limited to pull resistance |
-| **Resistance curve** | Build later (progressive) | Select where resistance builds through the stroke |
-| **Curve amount (%)** | 70 | Blend from linear (0) to the full selected shape (100) |
-| **Handbrake end-stop (%)** | 60 | Broad restoring walls beyond rest and usable pull |
-
-**Build early (flatten toward end)** raises resistance quickly near the start, then adds less
-as the lever approaches the end. This is the choice for a firm initial pull with a flatter
-finish. **Build later (progressive)** stays lighter initially and builds most near the end,
-preserving the original curve for saved tunes. **Linear (even build)** increases resistance
-evenly and disables **Curve amount (%)**. **S curve (gentle ends)** builds most in the middle.
-At 0% amount all families are linear; at 100% the selected shape is fully applied. With full
-early build, half the stroke reaches 75% of the configured pull resistance. Pull and return
-share the selected shape; **Braking progression (%)** remains independent. The live graph
-uses the same model as the force loop. Curve choice and amount travel with shared profiles,
-and **Reset feel to defaults** restores Build later at 70%. Adding the selector does not
-change an existing tune until a different family is chosen.
-
-Use **Sideways free corridor, either side (axis counts)** and **Wall bite distance (axis counts)**
-in **CORRIDORS AND WALL SHAPE** to tune the same lateral corridor as Sequential and PRND after
-PR #52. The handbrake preset uses the captured 844-count corridor and 3815-count bite.
-Existing custom profiles keep their stored dials. Zero corridor width explicitly selects a rail
-and can hunt at high force. Use **Slot wall / lateral rail (%)** for lateral strength and **Damping (%)** to calm return
-motion. Existing stability and overall-gain controls apply, including the unconfirmed polarity
-cap. The graph samples the same model as the force loop and plots pull, return and braking
-separately; the monitor marks rest and full usable pull. Gear-only controls are hidden.
-
-The optional **Base spring (%)** is suppressed in handbrake mode in both virtual providers;
-**Return strength (%)** supplies return toward the chosen start instead. Its saved base-spring
-percentage is kept for other patterns. Other base effects remain available. Handbrake requires
-direct vJoy output with Z enabled; Control Mapper button roles remain available for the shifter
-patterns, with their mappings preserved when switching back.
-
-Output clears on free stick, calibration, device loss, stop and pattern change. Restart,
-reconnect and changed output mapping require a release before braking can arm; a held lever
-cannot suddenly apply braking on reconnect. The monitor reports sent input and release-to-arm
-status. Resistance continues without a game; stale telemetry effects fall silent. Output is
-position based, so motor feedback can move braking input. Profile confirmation thumps are
-suppressed for handbrake mode. **Reset feel to defaults** preserves travel calibration, and
-**Reset geometry** restores the three input dials while keeping the rig's endpoints.
-
-If full pull cannot reach 100%, recapture the endpoints or reduce usable travel. If input remains
-at zero, release to arm, check the Z axis and check the calibration span. If return feels abrupt,
-reduce return strength or increase damping before steepening any force curve.
+Analog handbrake uses vJoy Z. Enable that axis in vJoyConf and bind it in the game.
+Control Mapper remains button-only. The handbrake preset also includes engine and rear-wheel
+lock feedback in Effects.
 
 ## Presets, and why your profile just renamed itself
 
-The ten shipped tunes are marked `(Preset)` and sit at the end of the profile list. They never
-change and they cannot be renamed or deleted — the Rename and Delete buttons grey out while one is
-selected. They exist so there is always a known-good gate to come back to when a tuning session has
-wandered.
+The eleven shipped tunes are marked `(Preset)` and stay at the bottom of the profile list.
+Your profiles, including duplicates and imports, stay above them. Each group keeps its order.
 
-The regular Sequential preset and **(Preset) Automatic (PRND)** take their sideways and base feel
-from **(Preset) 7+R lockout (short throw, stiff, sport)**: 468 counts of free corridor either
-side, 80% **Slot wall / lateral rail (%)**, 3816-count wall bite, 15 ms wall attack, 10%
-rebound absorption, 5% wall friction, 35.15% base damping and 35% base friction. Software
-damping remains zero. The user found the first 2400-count lane too wide and requested the
-sport tune on 2026-10-29. Stroke, PRND positions and each preset's Effects tree retain their
-own tuning. Existing custom profiles keep their saved values. The shared values are proven
-on the H profile; their lane feel still needs a comparison at the lever.
+Fresh installs select **(Preset) 7+R lockout (short throw, stiff, sport)**. Existing installs keep
+their selected profile. The standard H gates, wide/narrow 5+R choices, sport short-throw gates,
+truck gate, sequential choices, PRND and progressive handbrake offer different starting points.
+All ten shifter presets share the balanced Effects setup captured from **5+R (narrow, short
+throw, stiff, sport) 3** on 2026-11-03: 80% master volume, engine vibration, road impacts,
+shift feedback and H-pattern grind, including the saved curves, row volumes and frequencies.
+The handbrake keeps its own engine and rear-wheel-lock Effects tune. Each preset retains its
+mechanical feel and geometry. Editable profiles keep their own Effects settings.
 
-**(Preset) Sequential (stiff, short)** now captures **Sequential (stiff, short) 2**, saved on
-the development rig on 2026-10-29. Its throw is 7,552 counts from centre, with 2,010 counts of
-overtravel and a 100 ms output pulse. Lateral wall is 100%, wall bite 6000 counts, click 70%
-and push resistance 45%. It retains the 468-count corridor, 15 ms attack, 35.15% base damping
-and 35% base friction. Its complete native Effects tree is retained, including the engine
-curve and enabled limiter; master effects gain is 40% and the saved global mute flag is off.
-Like every preset, it starts disabled and needs the receiving rig's own calibration.
+Changing a tuning control on a preset creates an editable copy and restores the preset beside
+it. You can keep dragging the same slider; no adjustment is lost. **Duplicate** makes a copy
+deliberately. A preset cannot be renamed or deleted.
 
-**(Preset) 7+R lockout (short throw, stiff, sport)** copies the short-throw H tune captured on
-the development rig on 2026-10-08. Its throw is 12,006 counts from centre, pattern width 65%
-and slot half-width 468 counts. Entry resistance is 25%, pull into the gear 40% and seated hold
-50%, with 35.15% base damping and 35% base friction. Float shifting is enabled. The complete
-native Effects configuration travels with it, including its engine curve, grind, curb and shift
-effects. It starts disabled and uses the receiving rig's calibration, output and clutch binding.
-
-Turning any dial while a preset is selected therefore does not edit it. The edit moves to a profile
-of your own, carrying the preset's name without the marker — `(Preset) 7+R lockout` becomes
-`7+R lockout`, or `7+R lockout 2` if you already have one — and the preset goes back untouched.
-Nothing is lost and nothing is interrupted: you carry on turning the same dial, and the change you
-just made is already in the new profile. The only visible sign is the name in the box.
-
-What does *not* fork: arming the shifter, freeing the stick, running polarity calibration, picking a
-gear output and its mappings, and binding the clutch pedal. Those describe your machine rather than a tune — a copy of
-the gate is not what you wanted when you pressed Calibrate.
-
-They are also not stored in the profile at all. Measured polarity, the device and vJoy ids, output mode and role mappings, the loop
-rate and the clutch binding belong to the rig, so they are held once and stamped onto whichever
-profile you switch to. That is why selecting a preset does not throw away your calibration and drop
-you back to the 10% force cap, and why calibrating while a preset is selected is not lost when the
-preset is rebuilt at the next start. Calibrate once, on any profile, and every profile has it.
-
-**Duplicate** is the deliberate way to start from a preset without touching a dial first.
+Calibration, devices, output mappings and pedal bindings belong to the rig. They do not fork
+a preset, and switching profiles does not discard them. Every preset starts with forces off
+and leaves the receiving rig's measured polarity and force cap in control.
 
 ## Resets
 
-Each editor has its own reset: Feel resets strengths and resistance, Geometry resets dimensions
-and placement, and Effects resets game effects. Calibration and complete resets live in Options.
-Resetting Feel does not move the geometry; resetting Geometry does not change the loop rate.
-Measured polarity is deliberately *not* part of Feel or Geometry — it describes the hardware, not
-a preference, and discarding it would silently re-arm the 10% force cap.
+**Reset geometry** restores dimensions and gear detection for this profile.
+**Reset feel to defaults** restores strengths and response. Neither changes measured polarity
+or device identity. Resetting Effects is separate. Calibration and a complete reset live in
+Options.
 
 ## If you are an agent changing a default
 
-Changing a default in `EngineConfig.cs` and `ShifterSettings.cs` does **not** move a user who
-already has that key saved. Also update the slider's `ResetValue` in the XAML, and patch
-`PluginsData\Common\AB9ShifterPlugin.GeneralSettings.json` while SimHub is stopped — then say that
-you did.
+The saved model still uses its original units. The forms bind `ScaledTitledSlider.RawValue`
+to those settings; the 0–100 value is a separate display. Keep `RawResetValue` in saved units,
+and preserve the same raw value on initialization, layout, profile changes and undo.
+Do not migrate settings just because their displayed numbers changed. The pure `TuningScale`
+tests and the real-control binding verification cover round trips, decimals and preserved
+out-of-range values. Keep this guide's control labels aligned with the XAML.

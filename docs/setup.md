@@ -24,7 +24,8 @@ Handbrake output requires direct vJoy with its **Z axis** enabled.
 3. Start SimHub and enable **AB9 Active Shifter** under **Settings → Plugins**. Open
    **AB9 Shifter** in the sidebar.
 
-A fresh install starts with forces off, the 10% polarity cap in place, and the **Setup** page.
+A fresh install selects **(Preset) 7+R lockout (short throw, stiff, sport)**, with forces off,
+the 10% polarity cap in place, and the **Setup** page.
 Building from source instead: [DEVELOPMENT.md](../DEVELOPMENT.md).
 
 ## 2. Choose the mode and prepare the base
@@ -143,8 +144,9 @@ before enabling force. Start low and raise it gradually with a hand on the lever
 
 The screenshots show example settings, not recommended starting strengths.
 
-There are ten presets: **7+R lockout**, **7+R lockout (short throw, loose)**,
-**7+R lockout (short throw, stiff, sport)**, **5+R**, **5+R wide**,
+There are eleven presets: **7+R lockout**, **7+R lockout (short throw, loose)**,
+**7+R lockout (short throw, stiff, sport)**, **5+R**,
+**5+R (narrow, short throw, stiff, sport)**, **5+R wide**,
 **Sequential**, **Sequential (stiff, short)**, **Automatic (PRND)**,
 **Truck 6-gear (low-range lockout)** and **Handbrake (progressive)**. They are marked `(Preset)` in the picker. Changing a
 profile dial automatically creates an editable copy and keeps the preset available; use

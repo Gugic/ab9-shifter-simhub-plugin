@@ -33,7 +33,7 @@ namespace AB9ActiveShifter.UI
             _sliderContextMenu.Opened += OnSliderContextMenuOpened;
 
             IndexSliders();
-            BindGeometryUnits();
+            BindScaleNotices(this);
 
             VersionText.Text = "Version " + PluginInfo.Version;
             AboutVersionText.Text = "AB9 Active Shifter " + PluginInfo.Version;
@@ -59,18 +59,12 @@ namespace AB9ActiveShifter.UI
         // because at this point SHTabControl's tab content and SHSection's template have not
         // necessarily had ApplyTemplate() called yet, and the logical tree reflects the
         // XAML-declared content regardless of template realization timing.
-        private readonly Dictionary<string, TitledSlider> _sliderByProperty = new Dictionary<string, TitledSlider>();
+        private readonly Dictionary<string, List<TitledSlider>> _slidersByProperty = new Dictionary<string, List<TitledSlider>>();
         private readonly Dictionary<TitledSlider, string> _propertyBySlider = new Dictionary<TitledSlider, string>();
         private readonly Dictionary<TitledSlider, string> _originalTitle = new Dictionary<TitledSlider, string>();
 
-        // Keyed by the canonical RAW property name (see CanonicalKeyFor), not by TitledSlider
-        // instance: a percent-of-spacing dial and its raw counterpart are two separate slider
-        // instances sharing one backing field, and undo has to survive switching the display
-        // toggle between an edit and the right-click - otherwise adjusting a value while the
-        // percent view is showing left the raw slider's own history untouched, so undo worked
-        // right up until the display was toggled and then silently had nothing to restore.
-        // Values are always stored as the raw count, converted to whichever unit a given
-        // slider displays only when shown or written back - see ToSliderUnits.
+        // Undo stores exact settings values. Pattern-specific slider instances share one
+        // history; their 0-100 display values never replace that saved history.
         private readonly Dictionary<string, double> _previousValue = new Dictionary<string, double>();
         private readonly HashSet<TitledSlider> _gestureActive = new HashSet<TitledSlider>();
         private Dictionary<string, object> _profileBaseline = new Dictionary<string, object>();
@@ -176,16 +170,22 @@ namespace AB9ActiveShifter.UI
         {
             foreach (TitledSlider slider in FindTitledSliders(this))
             {
-                BindingExpression expr = BindingOperations.GetBindingExpression(slider, TitledSlider.ValueProperty);
+                DependencyProperty valueProperty = slider is ScaledTitledSlider
+                    ? ScaledTitledSlider.RawValueProperty : TitledSlider.ValueProperty;
+                BindingExpression expr = BindingOperations.GetBindingExpression(slider, valueProperty);
                 string property = expr != null && expr.ParentBinding != null && expr.ParentBinding.Path != null
                     ? expr.ParentBinding.Path.Path
                     : null;
                 if (string.IsNullOrEmpty(property)) continue;
 
-                _sliderByProperty[property] = slider;
+                List<TitledSlider> sliders;
+                if (!_slidersByProperty.TryGetValue(property, out sliders))
+                    _slidersByProperty[property] = sliders = new List<TitledSlider>();
+                sliders.Add(slider);
                 _propertyBySlider[slider] = property;
                 _originalTitle[slider] = slider.Title;
                 slider.ContextMenu = _sliderContextMenu;
+                slider.IsVisibleChanged += (s, e) => RefreshDirtyMarker(property);
             }
         }
 
@@ -201,24 +201,6 @@ namespace AB9ActiveShifter.UI
 
                 foreach (TitledSlider nested in FindTitledSliders(element)) yield return nested;
             }
-        }
-
-        /// <summary>The raw dials with a percent-of-spacing counterpart - see ShifterSettings.</summary>
-        private static readonly string[] PercentPairedProperties =
-        {
-            "WallRamp", "SlotHalfWidth", "LockoutHalfWidth", "BarrierWidth", "WallBlend",
-            "ColumnEdgeEnter", "ColumnInnerHalfEnter", "ColumnInnerHalfExit", "DetentHysteresis"
-        };
-
-        /// <summary>
-        /// Flipping the geometry percent-display checkbox changes which of a raw/percent pair
-        /// is visible without firing any ShifterSettings.PropertyChanged - nothing else would
-        /// otherwise re-run RefreshDirtyMarker, so a dial already marked dirty on the hidden
-        /// side of the pair would show no marker at all once revealed.
-        /// </summary>
-        private void OnGeometryPercentToggleChanged(object sender, RoutedEventArgs e)
-        {
-            foreach (string name in PercentPairedProperties) RefreshDirtyMarker(name);
         }
 
         // ---------------------------------------------------------------- slider undo
@@ -250,20 +232,15 @@ namespace AB9ActiveShifter.UI
         private void OnSliderGestureEndKey(object sender, KeyEventArgs e) { EndGesture(sender as TitledSlider); }
 
         /// <summary>
-        /// The raw property name a slider's undo history is filed under: its own bound property,
-        /// or - for a percent-of-spacing view - the raw dial it shares a backing field with.
-        /// Without this, editing through one view of a paired dial and then switching the
-        /// display toggle before right-clicking found no history at all, because the two views
-        /// are separate TitledSlider instances that had never independently tracked each other.
+        /// Undo is filed under the saved property, independent of its display scale or which
+        /// pattern-specific control currently shows it.
         /// </summary>
         private string CanonicalKeyFor(TitledSlider slider)
         {
             string property;
             if (slider == null || !_propertyBySlider.TryGetValue(slider, out property)) return null;
 
-            return property.EndsWith("Percent", StringComparison.Ordinal)
-                ? property.Substring(0, property.Length - "Percent".Length)
-                : property;
+            return property;
         }
 
         /// <summary>The live raw count for a canonical key, read from the settings object itself rather than any slider's Value - so it is correct regardless of which view (if either) is currently on screen.</summary>
@@ -274,19 +251,11 @@ namespace AB9ActiveShifter.UI
             return prop != null ? Convert.ToDouble(prop.GetValue(Plugin.Settings, null)) : 0;
         }
 
-        /// <summary>Converts a raw count to whatever unit a specific slider displays - itself, or a percentage of the current ColumnSpacing if that slider is the percent view of its pair.</summary>
+        /// <summary>Formats an undo value in the control's displayed scale.</summary>
         private double ToSliderUnits(TitledSlider slider, double rawValue)
         {
-            string property;
-            if (slider != null && _propertyBySlider.TryGetValue(slider, out property)
-                && property.EndsWith("Percent", StringComparison.Ordinal)
-                && Plugin != null && Plugin.Settings != null)
-            {
-                int spacing = Plugin.Settings.ToEngineConfig().BuildGeometry().ColumnSpacing;
-                return spacing > 0 ? rawValue * 100.0 / spacing : 0;
-            }
-
-            return rawValue;
+            var scaled = slider as ScaledTitledSlider;
+            return scaled != null ? scaled.ToDisplayValue(rawValue) : rawValue;
         }
 
         private void OnSliderContextMenuOpened(object sender, RoutedEventArgs e)
@@ -311,7 +280,12 @@ namespace AB9ActiveShifter.UI
             if (key == null) return;
 
             double previousRaw;
-            if (_previousValue.TryGetValue(key, out previousRaw)) slider.Value = ToSliderUnits(slider, previousRaw);
+            if (_previousValue.TryGetValue(key, out previousRaw))
+            {
+                var scaled = slider as ScaledTitledSlider;
+                if (scaled != null) scaled.RestoreRawValue(previousRaw);
+                else slider.Value = previousRaw;
+            }
         }
 
         // ---------------------------------------------------------------- modified-since-open marker
@@ -327,42 +301,27 @@ namespace AB9ActiveShifter.UI
             _profileBaseline = new Dictionary<string, object>();
             if (Plugin == null || Plugin.Settings == null) return;
 
-            foreach (KeyValuePair<string, TitledSlider> pair in _sliderByProperty)
+            foreach (KeyValuePair<string, List<TitledSlider>> pair in _slidersByProperty)
             {
                 PropertyInfo prop = typeof(ShifterSettings).GetProperty(pair.Key);
                 if (prop == null) continue;
 
                 _profileBaseline[pair.Key] = prop.GetValue(Plugin.Settings, null);
-                SetDirty(pair.Value, false);
+                foreach (TitledSlider slider in pair.Value) SetDirty(slider, false);
             }
         }
 
         /// <summary>
-        /// A percent-of-spacing view shares its backing field with a raw property, and both get
-        /// their own TitledSlider (one always Visibility=Collapsed, per the toggle). Dirtiness
-        /// always has to be judged from the RAW value: comparing the percent value directly
-        /// would flag every lateral dial as dirty the moment Pattern changes ColumnSpacing,
-        /// even though nothing was actually set.
-        ///
-        /// The computed state is applied to whichever of the pair is meant to be showing - read
-        /// off GeometryPercentToggle.IsChecked directly, not either slider's own Visibility.
-        /// Both sliders' Visibility bindings point at that same checkbox, and asking a slider
-        /// "are you visible" right as the checkbox that drives it changes risks reading a
-        /// binding that has not been re-evaluated yet. That race is exactly what left both
-        /// labels drawn on top of each other after toggling off - the Adorner renders even
-        /// while its element is Collapsed, so a stale "still visible" answer for the slider
-        /// about to hide was enough to keep its marker painted alongside the other one's.
+        /// Compare saved values, never rounded display values. Pattern-specific controls share
+        /// one history; visibility changes refresh the appropriate control when its form opens.
         /// </summary>
         private void RefreshDirtyMarker(string propertyName)
         {
             if (string.IsNullOrEmpty(propertyName)) return;
 
-            string rawName = propertyName.EndsWith("Percent", StringComparison.Ordinal)
-                ? propertyName.Substring(0, propertyName.Length - "Percent".Length)
-                : propertyName;
-
-            TitledSlider rawSlider;
-            if (!_sliderByProperty.TryGetValue(rawName, out rawSlider)) return;
+            string rawName = propertyName;
+            List<TitledSlider> sliders;
+            if (!_slidersByProperty.TryGetValue(rawName, out sliders)) return;
 
             PropertyInfo prop = typeof(ShifterSettings).GetProperty(rawName);
             if (prop == null || Plugin == null || Plugin.Settings == null) return;
@@ -371,17 +330,7 @@ namespace AB9ActiveShifter.UI
             object current = prop.GetValue(Plugin.Settings, null);
             bool dirty = !_profileBaseline.TryGetValue(rawName, out baseline) || !Equals(baseline, current);
 
-            TitledSlider percentSlider;
-            if (_sliderByProperty.TryGetValue(rawName + "Percent", out percentSlider))
-            {
-                bool percentMode = GeometryPercentToggle.IsChecked == true;
-                SetDirty(rawSlider, dirty && !percentMode);
-                SetDirty(percentSlider, dirty && percentMode);
-            }
-            else
-            {
-                SetDirty(rawSlider, dirty && rawSlider.Visibility == Visibility.Visible);
-            }
+            foreach (TitledSlider slider in sliders) SetDirty(slider, dirty && slider.IsVisible);
         }
 
         private readonly Dictionary<TitledSlider, Adorner> _dirtyAdorners = new Dictionary<TitledSlider, Adorner>();
@@ -534,18 +483,25 @@ namespace AB9ActiveShifter.UI
             _refreshingProfiles = true;
             try
             {
+                // Own the view order: local profiles first, presets last, even if an older
+                // session appended a duplicate/import after the preset block. Preserve the
+                // existing order within each group rather than sorting names together.
+                if (ProfileCombo.Items.CanSort) ProfileCombo.Items.SortDescriptions.Clear();
                 ProfileCombo.Items.Clear();
-                foreach (ShifterProfile p in Plugin.Store.Profiles)
+                for (int group = 0; group < 2; group++)
                 {
-                    if (p == null) continue;
-                    var item = new ComboBoxItem
+                    foreach (ShifterProfile p in Plugin.Store.Profiles)
                     {
-                        Content = p.Name,
-                        Tag = p.Name,
-                        IsEnabled = Plugin.CanActivateProfile(p)
-                    };
-                    ProfileCombo.Items.Add(item);
-                    if (p.Name == Plugin.Store.ActiveProfile) ProfileCombo.SelectedItem = item;
+                        if (p == null || DefaultProfiles.IsPreset(p.Name) != (group == 1)) continue;
+                        var item = new ComboBoxItem
+                        {
+                            Content = p.Name,
+                            Tag = p.Name,
+                            IsEnabled = Plugin.CanActivateProfile(p)
+                        };
+                        ProfileCombo.Items.Add(item);
+                        if (p.Name == Plugin.Store.ActiveProfile) ProfileCombo.SelectedItem = item;
+                    }
                 }
                 ProfileCombo.Text = Plugin.Store.ActiveProfile;
             }
@@ -1445,6 +1401,20 @@ namespace AB9ActiveShifter.UI
             return (fwd > 0 ? geo.LabelFor(fwd) : "-") + "/" + (back > 0 ? geo.LabelFor(back) : "-");
         }
 
+        private double DisplayedTuningValue(string property, double raw)
+        {
+            List<TitledSlider> sliders;
+            if (_slidersByProperty.TryGetValue(property, out sliders))
+            {
+                foreach (TitledSlider slider in sliders)
+                {
+                    var scaled = slider as ScaledTitledSlider;
+                    if (scaled != null) return scaled.ToDisplayValue(raw);
+                }
+            }
+            return raw;
+        }
+
         /// <summary>
         /// The line under the lockout dials: where the gate actually landed, in the gears'
         /// own labels, with any repair spelled out. Asks a freshly built geometry - the
@@ -1504,14 +1474,14 @@ namespace AB9ActiveShifter.UI
 
             WallRampSummary.Text = ceiling < s.WallRamp
                 ? string.Format(
-                    "Effective bite: {0} counts, capped down from {1} - the tightest column has no room for a longer bite at the current geometry. Lowering Slot width, free corridor (SlotHalfWidth) would raise this ceiling.",
-                    ceiling, s.WallRamp)
-                : string.Format("Effective bite: {0} counts.", s.WallRamp);
+                    "Limited here to {0:0.##} / 100. Widen Pattern width or narrow Gear-slot width to allow a softer wall. Your requested value is kept.",
+                    DisplayedTuningValue("WallRamp", ceiling))
+                : "The wall uses the bite distance you selected.";
         }
 
         /// <summary>
         /// Same clamp-visibility treatment as <see cref="RefreshWallRampSummary"/>, for item #2
-        /// of the enhancement brief: the Tunnel depth slider accepts up to 4000, but
+        /// of the enhancement brief: the Neutral tunnel width slider accepts up to 4000, but
         /// <see cref="ForceComposer.ChannelFreeDepthCeiling"/> silently clamps it to the neutral
         /// channel's own enter band. One mechanism for both dials rather than two one-off
         /// displays.
@@ -1524,12 +1494,13 @@ namespace AB9ActiveShifter.UI
             EngineConfig cfg = s.ToEngineConfig();
             ForceComposer composer = new ForceComposer(cfg.BuildGeometry(), cfg);
             int ceiling = composer.ChannelFreeDepthCeiling;
+            int halfWidth = composer.NeutralFreeHalfWidth;
 
             ChannelFreeDepthSummary.Text = ceiling < s.ChannelFreeDepth
                 ? string.Format(
-                    "Effective depth: {0} counts, capped down from {1} - the neutral channel's own enter band leaves no more free room at the current geometry. Raising Neutral tunnel half-depth (enter) (ChannelHalfEnter), under Advanced gate geometry, would allow more.",
-                    ceiling, s.ChannelFreeDepth)
-                : string.Format("Effective depth: {0} counts.", s.ChannelFreeDepth);
+                    "Free width in use: {0:0.##} / 100. Returning to neutral currently limits this width. Your requested value is kept.",
+                    DisplayedTuningValue("ChannelFreeDepth", halfWidth))
+                : "The blue band shows the free space you selected.";
         }
 
         /// <summary>
@@ -1556,33 +1527,25 @@ namespace AB9ActiveShifter.UI
             string text;
             if (s.SlotStopForcePct <= 0)
             {
-                text = string.Format(
-                    "A gear seats {0} counts from centre, and then the lever carries on to the base's own mechanical stop {1} counts further, because the slot has no bottom. Raise the end-stop wall above zero to give it one.",
-                    seat, GateGeometry.AxisCenter - seat);
+                text = "The gear can register early, but the lever still travels to the base stop. Enable Gear-slot end stop in Feel to give it a shorter, definite finish.";
             }
             else if (stop >= GateGeometry.AxisCenter)
             {
-                text = string.Format(
-                    "A gear seats {0} counts from centre and the landing already reaches the end of the base's travel, so the wall begins past it and is never met - the base's own stop is still the bottom. The seated hold does now fade out over the first {1} counts past the seat, so the gear rests freely instead of being pressed home. Shorten the throw, or the landing, for a wall you can feel.",
-                    seat, s.WallRamp);
+                text = "The selected end stop is beyond the base travel. Shorten Gear throw length or Room past the seated gear to bring it within reach.";
             }
             else
             {
-                text = string.Format(
-                    "A gear seats {0} counts from centre and the lever meets the wall at {1}, leaving {2} counts of the base's travel unused. That is the throw.",
-                    seat, stop, GateGeometry.AxisCenter - stop);
+                text = "The gear has its own end stop, with room to settle after it engages.";
             }
 
             if (s.SlotOvertravel < s.WallRamp)
             {
-                text += string.Format(
-                    " Landing raised to {0} counts from {1}: it can never be shorter than the wall bite, or the seated hold would have to vanish in a couple of counts and would arrive as a bang.",
-                    s.WallRamp, s.SlotOvertravel);
+                text += " Extra room has been kept for smooth contact. Lower Wall bite distance if you want a shorter finish.";
             }
 
             if (seat <= s.ChannelHalfExit)
             {
-                text += " The seat is inside the neutral tunnel, so a gear registers before the lever has finished leaving neutral. Lengthen the throw, or narrow the tunnel under Advanced gate geometry.";
+                text += " The gear registers while the lever is still close to neutral. Increase Gear throw length or reduce Leaving neutral under Advanced gear detection.";
             }
 
             SlotThrowSummary.Text = text;
@@ -1605,22 +1568,17 @@ namespace AB9ActiveShifter.UI
             ForceComposer composer = new ForceComposer(cfg.BuildGeometry(), cfg);
             PrndLane lane = cfg.BuildPrndLane();
 
-            string text = string.Format(
-                "{0} counts between positions: {1} at {2}, {3} at {4}, {5} at {6}, {7} at {8}.",
-                lane.Spacing,
-                lane.LabelFor(0), lane.PositionY(0),
-                lane.LabelFor(1), lane.PositionY(1),
-                lane.LabelFor(2), lane.PositionY(2),
-                lane.LabelFor(3), lane.PositionY(3));
+            string text = string.Format("Selector order: {0} / {1} / {2} / {3}.",
+                lane.LabelFor(0), lane.LabelFor(1), lane.LabelFor(2), lane.LabelFor(3));
 
             int ceiling = composer.PrndNotchHalfWidthCeiling;
             if (ceiling < s.PrndNotchHalfWidth)
             {
                 text += ceiling > 0
                     ? string.Format(
-                        " Effective notch: {0} counts, capped down from {1} - the hump beside it needs room to rise at no more than the wall's own stiffness. Lengthen the lane, or shorten Wall bite distance, to allow more.",
-                        ceiling, s.PrndNotchHalfWidth)
-                    : " Effective notch: 0 counts - the lane is short enough that the detent has less room than one wall bite to rise in, so it will feel abrupt however the notch is set. Lengthen the lane.";
+                        " Free movement is limited here to {0:0.##} / 100. Increase PRND selector travel or lower Wall bite distance for more room.",
+                        DisplayedTuningValue("PrndNotchHalfWidth", ceiling))
+                    : " The positions are too close for free movement. Increase PRND selector travel for smoother clicks.";
             }
 
             if (s.HasPrndLockout)
@@ -1628,17 +1586,15 @@ namespace AB9ActiveShifter.UI
                 int band = composer.PrndLockoutEffectiveHalfWidth;
                 if (band <= 0)
                 {
-                    text += " The lockout band has no room at all between the notches - lengthen the lane or narrow the notch.";
+                    text += " There is no room for this lockout. Increase selector travel or reduce free movement at each position.";
                 }
                 else if (band != s.PrndLockoutHalfWidth)
                 {
-                    text += string.Format(
-                        " Effective lockout half-width: {0} counts (asked {1}) - the band ends before both neighbouring notches, and its faces never exceed the wall's own stiffness.",
-                        band, s.PrndLockoutHalfWidth);
+                    text += " The lockout is narrower than requested so both neighbouring positions remain usable.";
                 }
                 else
                 {
-                    text += string.Format(" Lockout band half-width: {0} counts.", band);
+                    text += " The lockout uses the width you selected.";
                 }
             }
 

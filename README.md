@@ -26,7 +26,7 @@ with low gain, and read the [full safety notice](docs/safety.md) before enabling
   traction control, road impacts and shift pulses through SimHub's effect editor.
 - **Optional float shifting:** rev-matched clutchless shifts across all H patterns, with
   game targets, configured ratios or session learning. [Setup and limits](docs/usage.md#float-shifting).
-- **Profiles:** ten presets, editable copies, import/export, hotkey cycling and automatic
+- **Profiles:** eleven presets, editable copies, import/export, hotkey cycling and automatic
   selection by vehicle.
 - **One-time setup:** AB9 preparation, measured polarity and output configuration; Main then
   brings together the profile picker, live gate and Geometry, Feel and Effects editors.
@@ -50,7 +50,8 @@ You need **SimHub**, **.NET Framework 4.8**, a DirectInput FFB stick, and either
 4. **Measure polarity.** Take your hands off the lever, click **Measure polarity**, and wait for
    all four probes to succeed. Then click **Finish setup**. Leave the 10% cap in place if measurement
    is inconclusive. [Calibration walkthrough](docs/setup.md#4-measure-polarity-and-finish-setup).
-5. **Try a profile.** On Main, pick a preset, check **Feel → Overall gain** and start low. Turn on
+5. **Try a profile.** Fresh installs select **7+R lockout (short throw, stiff, sport)**. On Main,
+   pick a preset, check **Feel → Overall gain** and start low. Turn on
    **Shifter enabled**, bind the selected output in your game and check every gear.
    [Bindings and checks](docs/setup.md#6-bind-and-check-the-game-output).
 

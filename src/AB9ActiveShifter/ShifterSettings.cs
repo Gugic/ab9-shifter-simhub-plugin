@@ -40,10 +40,10 @@ namespace AB9ActiveShifter
             {
                 Torque = PolarityConfirmed ? NativeTorquePct : Math.Min(10, NativeTorquePct),
                 OverallIntensity = NativeOverallIntensityPct,
-                Spring = PolarityConfirmed && !IsHandbrake ? BaseSpringPct : 0,
+                Spring = PolarityConfirmed && !IsHandbrake ? (int)Math.Round(BaseSpringPct) : 0,
                 Damper = (int)Math.Round(BaseDamperPct),
-                Inertia = BaseInertiaPct,
-                Friction = BaseFrictionPct,
+                Inertia = (int)Math.Round(BaseInertiaPct),
+                Friction = (int)Math.Round(BaseFrictionPct),
                 GameGain = NativeGameGainPct,
                 FfbMode = 1
             };
@@ -53,8 +53,8 @@ namespace AB9ActiveShifter
         // force. That must be a deliberate act, after the MOZA Cockpit setup and the rest of
         // the pre-flight steps, with the user at the stick.
         private bool _enabled;
-        private int _overallGainPct = 25;
-        private int _lockoutForcePct = 70;
+        private double _overallGainPct = 25;
+        private double _lockoutForcePct = 70;
         private int _calibrationForcePct = 10;
         private bool _polarityConfirmed;
         private bool _invertConstantX;
@@ -73,13 +73,13 @@ namespace AB9ActiveShifter
         private int _tickHz = 1000;
         private bool _autoRetakeBase = true;
 
-        private int _columnPinForcePct = 90;
-        private int _channelWallForcePct = 90;
-        private int _channelGuideForcePct = 5;
-        private int _columnDetentForcePct = 12;
-        private int _patternEdgeForcePct = 100;
-        private int _barrierForcePct = 15;
-        private int _homeSpringPct;
+        private double _columnPinForcePct = 90;
+        private double _channelWallForcePct = 90;
+        private double _channelGuideForcePct = 5;
+        private double _columnDetentForcePct = 12;
+        private double _patternEdgeForcePct = 100;
+        private double _barrierForcePct = 15;
+        private double _homeSpringPct;
         private int _lockoutHalfWidth = 2200;
         private SlotMouthShape _mouthShape = SlotMouthShape.Square;
         private int _mouthDepth = 5000;
@@ -97,18 +97,18 @@ namespace AB9ActiveShifter
         private int _handbrakeDeadzonePct = 2;
         private int _handbrakeOutputProgressionPct = 0;
         private HandbrakeCurveShape _handbrakeForceCurve = HandbrakeCurveShape.BuildLater;
-        private int _handbrakeForceProgressionPct = 70;
-        private int _handbrakePullForcePct = 40;
-        private int _handbrakeReturnForcePct = 20;
-        private int _handbrakeStopForcePct = 60;
+        private double _handbrakeForceProgressionPct = 70;
+        private double _handbrakePullForcePct = 40;
+        private double _handbrakeReturnForcePct = 20;
+        private double _handbrakeStopForcePct = 60;
         private int _seqPulseMs = 120;
         private int _seqOvertravel = 2500;
-        private int _seqStopForcePct = 90;
-        private int _seqClickPct = 60;
+        private double _seqStopForcePct = 90;
+        private double _seqClickPct = 60;
         private int _prndLaneHalfLength = 12000;
-        private int _prndDetentForcePct = 45;
+        private double _prndDetentForcePct = 45;
         private int _prndNotchHalfWidth = 600;
-        private int _prndStopForcePct = 90;
+        private double _prndStopForcePct = 90;
 
         // The lockout's configuration. Every default is the shipped behaviour - the pattern's
         // traditional gate, one-way, push-through - so a saved file without these keys builds
@@ -122,7 +122,7 @@ namespace AB9ActiveShifter
         private PrndLockoutGap _prndLockoutGap = PrndLockoutGap.Off;
         private PrndLockoutDirection _prndLockoutDirection = PrndLockoutDirection.TowardD;
         private LockoutMode _prndLockoutMode = LockoutMode.PushThrough;
-        private int _prndLockoutForcePct = 70;
+        private double _prndLockoutForcePct = 70;
         private int _prndLockoutHalfWidth = 1200;
 
         // Telemetry effects, all off by default: they are additions to the gate, not part of it.
@@ -177,17 +177,17 @@ namespace AB9ActiveShifter
         private int _pedalDeadzoneLow;
         private int _pedalDeadzoneHigh = AxisCalibration.ScaledMax;
         private bool _pedalInvert;
-        private int _dampingPct = 25;
-        private int _wallFrictionPct = 15;
-        private int _wallYieldPct = 45;
+        private double _dampingPct = 25;
+        private double _wallFrictionPct = 15;
+        private double _wallYieldPct = 45;
         private int _damperCoeff = 800;
-        private int _baseSpringPct;
-        private int _baseFrictionPct;
-        private int _baseInertiaPct;
-        private int _detentResistPct = 22;
-        private int _detentPullPct = 35;
-        private int _detentHoldPct = 55;
-        private int _slotStopForcePct;
+        private double _baseSpringPct;
+        private double _baseFrictionPct;
+        private double _baseInertiaPct;
+        private double _detentResistPct = 22;
+        private double _detentPullPct = 35;
+        private double _detentHoldPct = 55;
+        private double _slotStopForcePct;
         private int _slotOvertravel = 4000;
 
         private int _channelHalfEnter = 2600;
@@ -203,10 +203,10 @@ namespace AB9ActiveShifter
         public bool Enabled { get { return _enabled; } set { Set(ref _enabled, value); } }
 
         /// <summary>Master force scale. Capped to 10% until the polarity wizard has run.</summary>
-        public int OverallGainPct { get { return _overallGainPct; } set { Set(ref _overallGainPct, value); } }
+        public double OverallGainPct { get { return _overallGainPct; } set { Set(ref _overallGainPct, value); } }
 
         /// <summary>Force needed to push through the lockout, as a share of the overall gain.</summary>
-        public int LockoutForcePct { get { return _lockoutForcePct; } set { Set(ref _lockoutForcePct, value); } }
+        public double LockoutForcePct { get { return _lockoutForcePct; } set { Set(ref _lockoutForcePct, value); } }
 
         /// <summary>Half-width of the lockout gate: a dot on the neutral channel, not a zone.</summary>
         public int LockoutHalfWidth
@@ -376,7 +376,7 @@ namespace AB9ActiveShifter
         }
 
         /// <summary>The PRND lockout band's force, as a share of the overall gain.</summary>
-        public int PrndLockoutForcePct { get { return _prndLockoutForcePct; } set { Set(ref _prndLockoutForcePct, value); } }
+        public double PrndLockoutForcePct { get { return _prndLockoutForcePct; } set { Set(ref _prndLockoutForcePct, value); } }
 
         /// <summary>Half-width of the PRND lockout band, fore/aft counts. Clamped by the lane; the Feel tab reports the ceiling.</summary>
         public int PrndLockoutHalfWidth { get { return _prndLockoutHalfWidth; } set { Set(ref _prndLockoutHalfWidth, value); } }
@@ -484,22 +484,22 @@ namespace AB9ActiveShifter
 
         // Walls are constant forces expressed as a percentage of full scale. Spring
         // coefficients used to live here and could not produce a usable wall; see ForceComposer.
-        public int ColumnPinForcePct { get { return _columnPinForcePct; } set { Set(ref _columnPinForcePct, value); } }
-        public int ChannelWallForcePct { get { return _channelWallForcePct; } set { Set(ref _channelWallForcePct, value); } }
-        public int ChannelGuideForcePct { get { return _channelGuideForcePct; } set { Set(ref _channelGuideForcePct, value); } }
-        public int ColumnDetentForcePct { get { return _columnDetentForcePct; } set { Set(ref _columnDetentForcePct, value); } }
+        public double ColumnPinForcePct { get { return _columnPinForcePct; } set { Set(ref _columnPinForcePct, value); } }
+        public double ChannelWallForcePct { get { return _channelWallForcePct; } set { Set(ref _channelWallForcePct, value); } }
+        public double ChannelGuideForcePct { get { return _channelGuideForcePct; } set { Set(ref _channelGuideForcePct, value); } }
+        public double ColumnDetentForcePct { get { return _columnDetentForcePct; } set { Set(ref _columnDetentForcePct, value); } }
 
         /// <summary>
         /// The wall outside the outermost columns, which only has anywhere to be once
         /// <see cref="PatternWidthPct"/> is under 100. At full width the outer columns are at the
         /// stops and this renders nothing at all, whatever it is set to.
         /// </summary>
-        public int PatternEdgeForcePct { get { return _patternEdgeForcePct; } set { Set(ref _patternEdgeForcePct, value); } }
+        public double PatternEdgeForcePct { get { return _patternEdgeForcePct; } set { Set(ref _patternEdgeForcePct, value); } }
 
-        public int BarrierForcePct { get { return _barrierForcePct; } set { Set(ref _barrierForcePct, value); } }
+        public double BarrierForcePct { get { return _barrierForcePct; } set { Set(ref _barrierForcePct, value); } }
 
         /// <summary>Neutral spring toward the 3/4 column. Zero - the default - is off.</summary>
-        public int HomeSpringPct { get { return _homeSpringPct; } set { Set(ref _homeSpringPct, value); } }
+        public double HomeSpringPct { get { return _homeSpringPct; } set { Set(ref _homeSpringPct, value); } }
 
         /// <summary>Shape of the slot mouths. Square is today's rectangular notch, and the default.</summary>
         public SlotMouthShape MouthShape { get { return _mouthShape; } set { Set(ref _mouthShape, value); } }
@@ -654,10 +654,10 @@ namespace AB9ActiveShifter
             set { HandbrakeForceCurve = (HandbrakeCurveShape)GateGeometry.Clamp(value, 0, 3); }
         }
         public bool HandbrakeCurveUsesAmount { get { return _handbrakeForceCurve != HandbrakeCurveShape.Linear; } }
-        public int HandbrakeForceProgressionPct { get { return _handbrakeForceProgressionPct; } set { Set(ref _handbrakeForceProgressionPct, value); } }
-        public int HandbrakePullForcePct { get { return _handbrakePullForcePct; } set { Set(ref _handbrakePullForcePct, value); } }
-        public int HandbrakeReturnForcePct { get { return _handbrakeReturnForcePct; } set { Set(ref _handbrakeReturnForcePct, value); } }
-        public int HandbrakeStopForcePct { get { return _handbrakeStopForcePct; } set { Set(ref _handbrakeStopForcePct, value); } }
+        public double HandbrakeForceProgressionPct { get { return _handbrakeForceProgressionPct; } set { Set(ref _handbrakeForceProgressionPct, value); } }
+        public double HandbrakePullForcePct { get { return _handbrakePullForcePct; } set { Set(ref _handbrakePullForcePct, value); } }
+        public double HandbrakeReturnForcePct { get { return _handbrakeReturnForcePct; } set { Set(ref _handbrakeReturnForcePct, value); } }
+        public double HandbrakeStopForcePct { get { return _handbrakeStopForcePct; } set { Set(ref _handbrakeStopForcePct, value); } }
 
         // Visibility facts for the lockout group. Deliberately the user's CHOICE, not the
         // geometry's effective answer: the old HasLockout duplicated the geometry's rule and
@@ -704,22 +704,22 @@ namespace AB9ActiveShifter
         public int SeqOvertravel { get { return _seqOvertravel; } set { Set(ref _seqOvertravel, value); } }
 
         /// <summary>The end-stop wall at the bottom of a sequential stroke.</summary>
-        public int SeqStopForcePct { get { return _seqStopForcePct; } set { Set(ref _seqStopForcePct, value); } }
+        public double SeqStopForcePct { get { return _seqStopForcePct; } set { Set(ref _seqStopForcePct, value); } }
 
         /// <summary>The click's kick: a 25 ms burst in the stroke's direction when a shift fires.</summary>
-        public int SeqClickPct { get { return _seqClickPct; } set { Set(ref _seqClickPct, value); } }
+        public double SeqClickPct { get { return _seqClickPct; } set { Set(ref _seqClickPct, value); } }
 
         /// <summary>Distance from centre to each end of the PRND lane. Its own dial, not the throw.</summary>
         public int PrndLaneHalfLength { get { return _prndLaneHalfLength; } set { Set(ref _prndLaneHalfLength, value); } }
 
         /// <summary>How hard it is to move between PRND positions.</summary>
-        public int PrndDetentForcePct { get { return _prndDetentForcePct; } set { Set(ref _prndDetentForcePct, value); } }
+        public double PrndDetentForcePct { get { return _prndDetentForcePct; } set { Set(ref _prndDetentForcePct, value); } }
 
         /// <summary>Free half-width of the notch at each PRND position. Zero pulls to a line.</summary>
         public int PrndNotchHalfWidth { get { return _prndNotchHalfWidth; } set { Set(ref _prndNotchHalfWidth, value); } }
 
         /// <summary>The wall past either end of the PRND lane.</summary>
-        public int PrndStopForcePct { get { return _prndStopForcePct; } set { Set(ref _prndStopForcePct, value); } }
+        public double PrndStopForcePct { get { return _prndStopForcePct; } set { Set(ref _prndStopForcePct, value); } }
 
         /// <summary>
         /// The throw: axis counts from centre to the line a push registers at. The same stored
@@ -910,16 +910,16 @@ namespace AB9ActiveShifter
         }
 
         /// <summary>Velocity damping. This, not the device damper, is what settles a stiff wall.</summary>
-        public int DampingPct { get { return _dampingPct; } set { Set(ref _dampingPct, value); } }
+        public double DampingPct { get { return _dampingPct; } set { Set(ref _dampingPct, value); } }
 
         /// <summary>
         /// Friction at the walls, as a share of the force being applied. Zero in free travel by
         /// construction, so it settles a lean on a face without costing any throw lightness.
         /// </summary>
-        public int WallFrictionPct { get { return _wallFrictionPct; } set { Set(ref _wallFrictionPct, value); } }
+        public double WallFrictionPct { get { return _wallFrictionPct; } set { Set(ref _wallFrictionPct, value); } }
 
         /// <summary>How much of a wall's force is given up on the rebound. The anti-buzz control.</summary>
-        public int WallYieldPct { get { return _wallYieldPct; } set { Set(ref _wallYieldPct, value); } }
+        public double WallYieldPct { get { return _wallYieldPct; } set { Set(ref _wallYieldPct, value); } }
 
         public int DamperCoeff
         {
@@ -927,19 +927,19 @@ namespace AB9ActiveShifter
             set { if (_damperCoeff == value) return; Set(ref _damperCoeff, value); OnChanged(nameof(BaseDamperPct)); }
         }
         public double BaseDamperPct { get { return DamperCoeff / 100.0; } set { DamperCoeff = (int)Math.Round(Math.Max(0, Math.Min(100, value)) * 100); } }
-        public int BaseSpringPct { get { return _baseSpringPct; } set { Set(ref _baseSpringPct, value); } }
-        public int BaseFrictionPct { get { return _baseFrictionPct; } set { Set(ref _baseFrictionPct, value); } }
-        public int BaseInertiaPct { get { return _baseInertiaPct; } set { Set(ref _baseInertiaPct, value); } }
-        public int DetentResistPct { get { return _detentResistPct; } set { Set(ref _detentResistPct, value); } }
-        public int DetentPullPct { get { return _detentPullPct; } set { Set(ref _detentPullPct, value); } }
-        public int DetentHoldPct { get { return _detentHoldPct; } set { Set(ref _detentHoldPct, value); } }
+        public double BaseSpringPct { get { return _baseSpringPct; } set { Set(ref _baseSpringPct, value); } }
+        public double BaseFrictionPct { get { return _baseFrictionPct; } set { Set(ref _baseFrictionPct, value); } }
+        public double BaseInertiaPct { get { return _baseInertiaPct; } set { Set(ref _baseInertiaPct, value); } }
+        public double DetentResistPct { get { return _detentResistPct; } set { Set(ref _detentResistPct, value); } }
+        public double DetentPullPct { get { return _detentPullPct; } set { Set(ref _detentPullPct, value); } }
+        public double DetentHoldPct { get { return _detentHoldPct; } set { Set(ref _detentHoldPct, value); } }
 
         /// <summary>
         /// The wall at the bottom of an H slot. Zero - the default - gives the slot no bottom of
         /// its own, which is the gate as it has always been and the reason a short throw is not
         /// simply a matter of shortening <see cref="ThrowFromCentre"/>.
         /// </summary>
-        public int SlotStopForcePct { get { return _slotStopForcePct; } set { Set(ref _slotStopForcePct, value); } }
+        public double SlotStopForcePct { get { return _slotStopForcePct; } set { Set(ref _slotStopForcePct, value); } }
 
         /// <summary>Free landing between where a gear seats and where the lever meets that wall.</summary>
         public int SlotOvertravel { get { return _slotOvertravel; } set { Set(ref _slotOvertravel, value); } }

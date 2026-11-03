@@ -5,7 +5,7 @@ using AB9ActiveShifter.Core;
 namespace AB9ActiveShifter
 {
     /// <summary>
-    /// What a machine with no saved settings starts with: ten profiles rather than bare
+    /// What a machine with no saved settings starts with: eleven profiles rather than bare
     /// defaults, written out to disk on that first start so they are ordinary settings from then
     /// on - editable, resettable, and never re-applied over anything a user has tuned.
     /// <para>
@@ -78,6 +78,7 @@ namespace AB9ActiveShifter
         public const string ShortThrowName = "7+R lockout (short throw, loose)";
         public const string SportShortThrowName = "7+R lockout (short throw, stiff, sport)";
         public const string FiveRName = "5+R";
+        public const string FiveRSportShortThrowName = "5+R (narrow, short throw, stiff, sport)";
         public const string FiveRWideName = "5+R wide";
         public const string SequentialName = "Sequential";
         public const string SequentialStiffShortName = "Sequential (stiff, short)";
@@ -87,12 +88,12 @@ namespace AB9ActiveShifter
 
         private static readonly string[] BareNames =
         {
-            SevenRName, ShortThrowName, SportShortThrowName, FiveRName, FiveRWideName, SequentialName, SequentialStiffShortName, PrndName,
+            SevenRName, ShortThrowName, SportShortThrowName, FiveRName, FiveRSportShortThrowName, FiveRWideName, SequentialName, SequentialStiffShortName, PrndName,
             TruckName, HandbrakeName
         };
 
         /// <summary>The profile a fresh install comes up in.</summary>
-        public static string ActiveName { get { return Preset(SevenRName); } }
+        public static string ActiveName { get { return Preset(SportShortThrowName); } }
 
         /// <summary>The shipped name for a bare one.</summary>
         public static string Preset(string bareName) { return PresetPrefix + bareName; }
@@ -171,6 +172,7 @@ namespace AB9ActiveShifter
                 new ShifterProfile { Name = Preset(ShortThrowName), Settings = ShortThrow() },
                 new ShifterProfile { Name = Preset(SportShortThrowName), Settings = SportShortThrow() },
                 new ShifterProfile { Name = Preset(FiveRName), Settings = fiveR },
+                new ShifterProfile { Name = Preset(FiveRSportShortThrowName), Settings = FiveRSportShortThrow() },
                 new ShifterProfile { Name = Preset(FiveRWideName), Settings = fiveRWide },
                 new ShifterProfile { Name = Preset(SequentialName), Settings = Sequential() },
                 new ShifterProfile { Name = Preset(SequentialStiffShortName), Settings = SequentialStiffShort() },
@@ -182,7 +184,14 @@ namespace AB9ActiveShifter
             // The hardware's maximum is not the profile's virtual gate strength. Every shipped
             // tune uses the full hardware range; its OverallGainPct still sets the gate's gain,
             // and ToNativeSettings retains the 10% cap until this rig's polarity is confirmed.
-            foreach (ShifterProfile profile in profiles) profile.Settings.NativeTorquePct = 100;
+            foreach (ShifterProfile profile in profiles)
+            {
+                profile.Settings.NativeTorquePct = 100;
+                // Share the full balanced capture without touching each pattern's mechanics.
+                // Handbrake retains its separate engine/rear-wheel-lock setup.
+                if (profile.Settings.Pattern != GatePattern.Handbrake)
+                    profile.Settings.NativeEffectsJson = BalancedShifterEffects;
+            }
             return profiles;
         }
 
@@ -387,7 +396,7 @@ namespace AB9ActiveShifter
         /// <summary>
         /// The user-verified H sport tune is the authority for sideways clearance, wall
         /// shaping and base resistance in the standard lane presets. Captured short tunes
-        /// can override these; stroke, positions and effects remain owned by each pattern.
+        /// can override these; stroke and positions remain owned by each pattern.
         /// Called last so an inert H dial cannot undo it.
         /// </summary>
         private static void ApplySportLaneFeel(ShifterSettings lane)

@@ -1,5 +1,10 @@
 # Documentation screenshots
 
+The Geometry and Feel captures predate the single 0–100 tuning scales and setting blocks.
+Use the current [tuning guide](../tuning.md) for control names and scale meanings. The images
+below retain their original capture provenance; they have not been retouched to imitate the
+new controls.
+
 The plugin screenshots were captured from the running SimHub application on 2026-10-04,
 using SimHub 9.12.9 and a local `0.14.1-preview` build of commit `0557b36`. They show the
 merged Main/Options layout and Control Mapper output introduced after v0.14.0.
