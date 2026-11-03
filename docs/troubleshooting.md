@@ -28,12 +28,12 @@ check **Base spring (%)** there. In generic mode, re-check that centring is off 
 own software.
 
 **A wall buzzes, or kicks back like ABS** — see [docs/tuning.md](tuning.md). Short answer:
-adjust *wall bite distance* first, then *wall attack*.
+adjust **Wall bite distance (0–100)** first, then **Wall contact smoothing (ms)**.
 
-**Sequential or PRND hunts sideways after a light touch** — check **Geometry → Sideways free
-corridor, either side (axis counts)**. Older builds forced a zero-width rail in both patterns,
+**Sequential or PRND hunts sideways after a light touch** — check **Geometry → Sideways freedom
+(0–100)**. Older builds forced a zero-width rail in both patterns,
 ignoring the saved slot width. Onboard damping and a shorter wall attack improved the recorded
-oscillation but did not cure it. Use a nonzero corridor and moderate **Slot wall / lateral rail
+oscillation but did not cure it. Use a nonzero corridor and moderate **Gear-slot side walls
 (%)**, then verify at the lever. See the [tuning reference](tuning.md#symptom--dial).
 
 **A fast short-throw shift pulls into the wrong end-stop and reports neutral** — check the

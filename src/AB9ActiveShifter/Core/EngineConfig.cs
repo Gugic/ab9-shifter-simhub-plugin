@@ -47,10 +47,10 @@ namespace AB9ActiveShifter.Core
         public int HandbrakeDeadzonePct = 2;
         public int HandbrakeOutputProgressionPct;
         public HandbrakeCurveShape HandbrakeForceCurve = HandbrakeCurveShape.BuildLater;
-        public int HandbrakeForceProgressionPct = 70;
-        public int HandbrakePullForcePct = 40;
-        public int HandbrakeReturnForcePct = 20;
-        public int HandbrakeStopForcePct = 60;
+        public double HandbrakeForceProgressionPct = 70;
+        public double HandbrakePullForcePct = 40;
+        public double HandbrakeReturnForcePct = 20;
+        public double HandbrakeStopForcePct = 60;
 
         /// <summary>
         /// How long a sequential shift holds its vJoy button down, in milliseconds. Long
@@ -75,7 +75,7 @@ namespace AB9ActiveShifter.Core
         /// returns the lever home. It gets the walls' full rebound absorption rather than
         /// the return spring's mild one, because banging shifts against it is its job.
         /// </summary>
-        public int SeqStopForcePct = 90;
+        public double SeqStopForcePct = 90;
 
         /// <summary>
         /// The click's kick: a 25 ms burst of force fired the instant a sequential shift
@@ -92,7 +92,7 @@ namespace AB9ActiveShifter.Core
         /// and a 15 ms attack would blunt most of a 25 ms hit. Scaled by the effective gain,
         /// the 10% polarity cap included, and clamped with everything else.
         /// </summary>
-        public int SeqClickPct = 60;
+        public double SeqClickPct = 60;
 
         /// <summary>
         /// Distance from centre to each end of the PRND lane, in axis counts: P and D sit there
@@ -119,7 +119,7 @@ namespace AB9ActiveShifter.Core
         /// the discontinuity <see cref="GateGeometry.HandoverClearance"/> exists to pay for on the
         /// lateral axis; here it is avoided by construction rather than relieved.
         /// </summary>
-        public int PrndDetentForcePct = 45;
+        public double PrndDetentForcePct = 45;
 
         /// <summary>
         /// Free half-width of the notch at each PRND position, in axis counts. Inside it there is
@@ -140,7 +140,7 @@ namespace AB9ActiveShifter.Core
         /// wall bite and always points back down the lane, so there is nothing past P or D to be
         /// held in - it is a wall, never a pocket, the same rule the sequential end-stop follows.
         /// </summary>
-        public int PrndStopForcePct = 90;
+        public double PrndStopForcePct = 90;
 
         // Telemetry-driven effects: vibration carriers summed onto the composed forces, and
         // the clutch grind. All off by default - they are additions to the gate, not part of
@@ -325,7 +325,7 @@ namespace AB9ActiveShifter.Core
         public bool PolarityConfirmed;
 
         /// <summary>Master force scale, 0..100. Hard-capped until the polarity wizard has run.</summary>
-        public int OverallGainPct = 25;
+        public double OverallGainPct = 25;
 
         /// <summary>Ceiling applied to <see cref="OverallGainPct"/> while polarity is unconfirmed.</summary>
         public const int UnconfirmedGainCapPct = 10;
@@ -393,30 +393,30 @@ namespace AB9ActiveShifter.Core
         // this hardware (see ForceComposer).
 
         /// <summary>Vertical guide: how firmly the stick is held on a column once in one.</summary>
-        public int ColumnPinForcePct = 90;
+        public double ColumnPinForcePct = 90;
 
         /// <summary>Horizontal guide: the gate wall between columns.</summary>
-        public int ChannelWallForcePct = 90;
+        public double ChannelWallForcePct = 90;
 
         /// <summary>Residual fore/aft resistance while lined up with a column. Keep this low.</summary>
-        public int ChannelGuideForcePct = 5;
+        public double ChannelGuideForcePct = 5;
 
         /// <summary>
         /// Light pull onto the nearest column while sliding along the channel. It is the shallow end
         /// of one straight line that rises to the slot wall by the channel's exit, so it also sets
         /// how firmly an off-column entry is steered into its slot on the way in.
         /// </summary>
-        public int ColumnDetentForcePct = 12;
+        public double ColumnDetentForcePct = 12;
 
         /// <summary>
         /// The wall outside the outermost columns, once <see cref="PatternWidthPct"/> has left bare
         /// axis out there for a lever to wander into. Inert at full width by construction - the
         /// outer columns sit at the stops, so there is no room outside them to render anything in.
         /// </summary>
-        public int PatternEdgeForcePct = 100;
+        public double PatternEdgeForcePct = 100;
 
         /// <summary>Humps between the ordinary columns, felt as you slide across the gate.</summary>
-        public int BarrierForcePct = 15;
+        public double BarrierForcePct = 15;
 
         /// <summary>
         /// The neutral spring: a lateral pull toward the 3/4 column while in the channel, so a
@@ -433,10 +433,10 @@ namespace AB9ActiveShifter.Core
         /// 25-30% it out-pulls the default detent and humps and the lever self-returns from
         /// anywhere in the channel; like every pull toward a place, raise it in moderation.
         /// </summary>
-        public int HomeSpringPct = 0;
+        public double HomeSpringPct = 0;
 
         /// <summary>The lockout gate: a flat fight at this force, all the way across its band.</summary>
-        public int LockoutForcePct = 70;
+        public double LockoutForcePct = 70;
 
         /// <summary>
         /// Half-width of the lockout gate. The lockout is a dot on the neutral channel, not a
@@ -504,7 +504,7 @@ namespace AB9ActiveShifter.Core
         public LockoutMode PrndLockoutMode = LockoutMode.PushThrough;
 
         /// <summary>The PRND lockout band's force, as a share of the overall gain.</summary>
-        public int PrndLockoutForcePct = 70;
+        public double PrndLockoutForcePct = 70;
 
         /// <summary>
         /// Half-width of the PRND lockout band, fore/aft counts. Clamped so the band stays
@@ -587,7 +587,7 @@ namespace AB9ActiveShifter.Core
         /// also how a real gate behaves - mechanical gates are friction-damped and do not
         /// fling the lever back.
         /// </summary>
-        public int WallYieldPct = 45;
+        public double WallYieldPct = 45;
 
         /// <summary>
         /// Milliseconds for a wall's force to build to full scale once contact begins. Zero
@@ -686,7 +686,7 @@ namespace AB9ActiveShifter.Core
         /// this default, which is what lets a lean settle instead of hunt. The honest render,
         /// too: real gates are friction-damped exactly like this.
         /// </summary>
-        public int WallFrictionPct = 15;
+        public double WallFrictionPct = 15;
 
         /// <summary>
         /// Velocity damping, as a percentage of full force at <see cref="DampingReferenceSpeed"/>.
@@ -694,7 +694,7 @@ namespace AB9ActiveShifter.Core
         /// readings rather than asked of the device, because a damper is a condition effect and
         /// conditions are far too weak on this base to settle anything.
         /// </summary>
-        public int DampingPct = 25;
+        public double DampingPct = 25;
 
         /// <summary>Speed at which damping reaches its full percentage, in axis counts per second.</summary>
         public int DampingReferenceSpeed = 120000;
@@ -708,25 +708,25 @@ namespace AB9ActiveShifter.Core
         /// applies the corresponding settings onboard and disables these DI conditions.
         /// </summary>
         public bool BaseEffectsViaDirectInput = true;
-        public int BaseSpringPct;
-        public int BaseFrictionPct;
-        public int BaseInertiaPct;
+        public double BaseSpringPct;
+        public double BaseFrictionPct;
+        public double BaseInertiaPct;
 
         // Slot detent, on the same percent-of-full-force scale as the walls so the two can be
         // compared at a glance.
 
         /// <summary>Resistance felt on the way into a slot.</summary>
-        public int DetentResistPct = 22;
+        public double DetentResistPct = 22;
 
         /// <summary>The pull over centre that seats the gear - the snick.</summary>
-        public int DetentPullPct = 35;
+        public double DetentPullPct = 35;
 
         /// <summary>
         /// What keeps a gear engaged. This has to out-pull whatever the base does on its own:
         /// an AB9 that is still self-centring drags the stick home with most of its available
         /// force at full deflection, and a light hold simply loses that argument.
         /// </summary>
-        public int DetentHoldPct = 55;
+        public double DetentHoldPct = 55;
 
         /// <summary>
         /// The wall at the bottom of an H slot, as a percentage of full scale - the fore/aft twin
@@ -741,7 +741,7 @@ namespace AB9ActiveShifter.Core
         /// throw becomes the number it claims to be.
         /// </para>
         /// </summary>
-        public int SlotStopForcePct;
+        public double SlotStopForcePct;
 
         /// <summary>
         /// How much stroke remains past the engage line before that end-stop begins, in axis
@@ -769,7 +769,7 @@ namespace AB9ActiveShifter.Core
         {
             get
             {
-                int pct = OverallGainPct;
+                double pct = OverallGainPct;
                 if (!PolarityConfirmed && pct > UnconfirmedGainCapPct) pct = UnconfirmedGainCapPct;
                 return GateGeometry.Clamp(pct, 0, 100) / 100.0;
             }

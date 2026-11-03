@@ -8,8 +8,8 @@ namespace AB9ActiveShifter.UI
     /// <summary>
     /// The configured pattern drawn as a plan view, with the live stick position on top.
     ///
-    /// It draws the gate's actual free space rather than a schematic of it: the neutral tunnel is
-    /// as deep as <see cref="GateGeometry.ChannelHalfEnter"/> says, each slot is as wide as the
+    /// It separates the neutral tunnel's detection outline from its actual free width, read from
+    /// <see cref="ForceComposer.NeutralFreeHalfWidth"/>. Each slot is as wide as the
     /// corridor the lever really has, and the marks on top are the depths and widths the state
     /// machine keys on. That is the whole point of it - every geometry dial moves something here,
     /// so "what does this slider do" has a picture rather than a paragraph.
@@ -50,6 +50,8 @@ namespace AB9ActiveShifter.UI
         private static readonly Pen MarkPen = MakePen(MarkBrush, 1.4, false);
         private static readonly Pen MarkDashPen = MakePen(MarkBrush, 1.4, true);
         private static readonly Pen OwnershipPen = MakePen(GateBrush, 1, true);
+        private static readonly Brush NeutralFreeBrush = MakeBrush(Color.FromArgb(0x38, 0x4A, 0x9E, 0xD8));
+        private static readonly Brush EdgeWallBrush = MakeEdgeWallBrush();
 
         /// <summary>The slot's own bottom. Drawn in the gate's colour, not the state machine's
         /// blue: it is a wall the hand meets, not a line anything is decided at.</summary>
@@ -100,6 +102,9 @@ namespace AB9ActiveShifter.UI
             DrawOwnershipBoundaries(dc, geo, left, right, top, bottom);
             DrawLockoutBand(dc, geo, snap, left, right, top, bottom);
             DrawFreeSpace(dc, geo, composer, snap, left, right, top, bottom);
+            DrawUnusedSlotEnds(dc, geo, composer, left, right, top, bottom);
+            DrawNeutralFreeWidth(dc, composer, left, right, top, bottom);
+            DrawPatternEdgeWalls(dc, geo, cfg, composer, left, right, top, bottom);
             DrawTunnelExitEdges(dc, geo, left, right, top, bottom);
             DrawColumns(dc, geo, snap, left, right, top, bottom);
             DrawEngageNotches(dc, geo, composer, left, right, top, bottom);
@@ -109,10 +114,83 @@ namespace AB9ActiveShifter.UI
             DrawStick(dc, snap, left, right, top, bottom);
         }
 
+        private void DrawNeutralFreeWidth(DrawingContext dc, ForceComposer composer,
+                                          double left, double right, double top, double bottom)
+        {
+            int halfWidth = composer.NeutralFreeHalfWidth;
+            double from = MapY(AxisCenter - halfWidth, top, bottom);
+            double to = MapY(AxisCenter + halfWidth, top, bottom);
+            if (halfWidth > 0)
+                dc.DrawRectangle(NeutralFreeBrush, null, new Rect(left, from, right - left, to - from));
+            dc.DrawLine(MarkPen, new Point(left, from), new Point(right, from));
+            if (halfWidth > 0) dc.DrawLine(MarkPen, new Point(left, to), new Point(right, to));
+            DrawLabel(dc, "neutral free space",
+                      (left + right) / 2, bottom + 20, TextAlign.Center);
+        }
+
         /// <summary>
-        /// The gate's free space: the neutral tunnel across the whole width, and each slot that
-        /// holds a gear opening off it. Filled as one region, so what is drawn is exactly where
-        /// the lever is pushed nowhere sideways.
+        /// Shade the unused ends of a narrowed tunnel only when its edge wall is configured.
+        /// Ask the composer for each outer corridor's edge at every depth, so mouth shaping
+        /// cannot make the picture claim resistance inside space the hand can still use.
+        /// </summary>
+        private void DrawPatternEdgeWalls(DrawingContext dc, GateGeometry geo, EngineConfig cfg,
+                                          ForceComposer composer, double left, double right, double top, double bottom)
+        {
+            if (geo.PatternWidthPct >= 100 || cfg.PatternEdgeForcePct <= 0) return;
+
+            const int samples = 32;
+            foreach (int side in new[] { -1, 1 })
+            {
+                Column column = side < 0 ? Column.C1 : (Column)(geo.ColumnCount - 1);
+                double outsideX = side < 0 ? left : right;
+                double fromY = MapY(AxisCenter - geo.ChannelHalfEnter, top, bottom);
+                double toY = MapY(AxisCenter + geo.ChannelHalfEnter, top, bottom);
+                var edge = new StreamGeometry();
+                using (StreamGeometryContext ctx = edge.Open())
+                {
+                    ctx.BeginFigure(new Point(outsideX, fromY), true, true);
+                    for (int i = 0; i < samples; i++)
+                    {
+                        int y = AxisCenter - geo.ChannelHalfEnter
+                                + (int)Math.Round(2.0 * geo.ChannelHalfEnter * i / (samples - 1));
+                        int corridor = composer.SlotCorridorHalfWidthAt(column, side, Math.Abs(y - AxisCenter), y);
+                        double x = MapX(geo.ColumnTarget(column) + side * corridor, left, right);
+                        ctx.LineTo(new Point(x, MapY(y, top, bottom)), true, false);
+                    }
+                    ctx.LineTo(new Point(outsideX, toY), true, false);
+                }
+                edge.Freeze();
+                dc.DrawGeometry(EdgeWallBrush, GatePen, edge);
+
+                int centreCorridor = composer.SlotCorridorHalfWidthAt(column, side, 0, AxisCenter);
+                double innerX = MapX(geo.ColumnTarget(column) + side * centreCorridor, left, right);
+                if (Math.Abs(innerX - outsideX) > 60)
+                    DrawLabel(dc, "edge wall", (innerX + outsideX) / 2, toY + 6, TextAlign.Center);
+            }
+        }
+
+        private static Brush MakeEdgeWallBrush()
+        {
+            var drawing = new DrawingGroup();
+            using (DrawingContext dc = drawing.Open())
+            {
+                dc.DrawRectangle(MakeBrush(Color.FromArgb(0xE0, 0x30, 0x30, 0x30)), null, new Rect(0, 0, 8, 8));
+                dc.DrawLine(MakePen(LabelBrush, 1, false), new Point(0, 8), new Point(8, 0));
+            }
+            drawing.Freeze();
+            var brush = new DrawingBrush(drawing)
+            {
+                TileMode = TileMode.Tile,
+                ViewportUnits = BrushMappingMode.Absolute,
+                Viewport = new Rect(0, 0, 8, 8)
+            };
+            brush.Freeze();
+            return brush;
+        }
+
+        /// <summary>
+        /// The gate layout: the tunnel's detection band and each slot opening off it. Its
+        /// actual neutral free width and the narrowed pattern's edge walls are drawn on top.
         /// </summary>
         private void DrawFreeSpace(DrawingContext dc, GateGeometry geo, ForceComposer composer, EngineSnapshot snap,
                                    double left, double right, double top, double bottom)
@@ -143,10 +221,47 @@ namespace AB9ActiveShifter.UI
             // middle claiming a rail that only a zero-width corridor actually has.
             if (snap.Gear <= 0 || snap.Column == Column.None) return;
 
+            int stopDepth = composer.StrokeStopDepth;
+            bool shortened = stopDepth < AxisCenter;
+            if (shortened)
+            {
+                double from = MapY(AxisCenter - stopDepth, top, bottom);
+                double to = MapY(AxisCenter + stopDepth, top, bottom);
+                dc.PushClip(new RectangleGeometry(new Rect(left - 3, from, right - left + 6, to - from)));
+            }
             foreach (ShiftDir dir in new[] { ShiftDir.Fwd, ShiftDir.Back })
             {
                 if (geo.SlotExists(snap.Column, dir))
                     dc.DrawGeometry(null, ActivePen, SlotOutline(geo, composer, snap.Column, dir, left, right, top, bottom));
+            }
+            if (shortened) dc.Pop();
+        }
+
+        /// <summary>
+        /// Keep the full device travel visible, but mute the part beyond each configured stop.
+        /// Clip the same sampled corridor used by the slot outline so even a stop inside a
+        /// widened mouth shades only that slot, never neighbouring free space.
+        /// </summary>
+        private void DrawUnusedSlotEnds(DrawingContext dc, GateGeometry geo, ForceComposer composer,
+                                        double left, double right, double top, double bottom)
+        {
+            int stopDepth = composer.StrokeStopDepth;
+            if (stopDepth >= AxisCenter) return;
+
+            for (int i = 0; i < geo.ColumnCount; i++)
+            {
+                Column col = (Column)i;
+                foreach (ShiftDir dir in new[] { ShiftDir.Fwd, ShiftDir.Back })
+                {
+                    if (!geo.SlotExists(col, dir)) continue;
+                    int stopY = dir == ShiftDir.Fwd ? AxisCenter - stopDepth : AxisCenter + stopDepth;
+                    double stop = MapY(stopY, top, bottom);
+                    double from = dir == ShiftDir.Fwd ? top : stop;
+                    double to = dir == ShiftDir.Fwd ? stop : bottom;
+                    dc.PushClip(new RectangleGeometry(new Rect(left - 3, from, right - left + 6, to - from)));
+                    dc.DrawGeometry(EdgeWallBrush, GatePen, SlotOutline(geo, composer, col, dir, left, right, top, bottom));
+                    dc.Pop();
+                }
             }
         }
 
@@ -515,8 +630,10 @@ namespace AB9ActiveShifter.UI
             // Opposite sides stay readable even when the two thresholds nearly coincide.
             DrawLabel(dc, "re-arms here", cx - markReach - 4, MapY(geo.ReleaseDepth, top, bottom) - 6, TextAlign.Right);
 
-            DrawGearLabel(dc, "+", cx, top - 17, snap.GearLabel == "+");
-            DrawGearLabel(dc, "-", cx, bottom + 4, snap.GearLabel == "-");
+            string forward = SequentialStateMachine.LabelForDirection(ShiftDir.Fwd, geo.MirrorSlots);
+            string backward = SequentialStateMachine.LabelForDirection(ShiftDir.Back, geo.MirrorSlots);
+            DrawGearLabel(dc, forward, cx, top - 17, snap.GearLabel == forward);
+            DrawGearLabel(dc, backward, cx, bottom + 4, snap.GearLabel == backward);
 
             DrawStick(dc, snap, left, right, top, bottom);
         }

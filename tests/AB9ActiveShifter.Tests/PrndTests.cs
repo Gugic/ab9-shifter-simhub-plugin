@@ -300,7 +300,7 @@ namespace AB9ActiveShifter.Tests
         /// </summary>
         private static void AssertNoStep(ForceComposer c, EngineConfig cfg, int boundOverride = 0)
         {
-            int steepest = Math.Max(cfg.PrndDetentForcePct, cfg.PrndStopForcePct) * 100;
+            double steepest = Math.Max(cfg.PrndDetentForcePct, cfg.PrndStopForcePct) * 100;
             int bound = boundOverride > 0
                 ? boundOverride
                 : (int)Math.Ceiling(steepest / (double)Math.Max(1, cfg.WallRamp)) + 1;

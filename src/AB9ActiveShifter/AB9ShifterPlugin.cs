@@ -555,7 +555,7 @@ namespace AB9ActiveShifter
                 Settings = SettingsCloner.Clone(Settings)
             };
 
-            Store.Profiles.Add(profile);
+            Store.Profiles.Insert(Store.FirstPresetIndex(), profile);
             ActivateProfile(profile.Name);
             if (Store.ActiveProfile != profile.Name)
             {
@@ -575,7 +575,7 @@ namespace AB9ActiveShifter
             if (Store.Profiles == null) Store.Profiles = new System.Collections.Generic.List<ShifterProfile>();
 
             imported.Name = Store.UniqueName(imported.Name);
-            Store.Profiles.Add(imported);
+            Store.Profiles.Insert(Store.FirstPresetIndex(), imported);
             Settings.Enabled = false;
             // Imported profiles follow the same provider routing, with virtual output off.
             ActivateProfile(imported.Name);

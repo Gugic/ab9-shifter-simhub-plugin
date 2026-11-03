@@ -40,7 +40,7 @@ namespace AB9ActiveShifter.Core
             return frame;
         }
 
-        private static int Coefficient(int percent, double gain)
+        private static int Coefficient(double percent, double gain)
         {
             return (int)Math.Round(GateGeometry.Clamp(percent, 0, 100) * 100.0 * gain);
         }

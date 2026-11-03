@@ -64,6 +64,35 @@ namespace AB9ActiveShifter.Tests
         // ---------------------------------------------------------------- gate walls
 
         [Fact]
+        public void FractionalStrengthAndGainReachTheForceBeforeRounding()
+        {
+            var cfg = FullGainConfig();
+            cfg.ChannelWallForcePct = 40.1;
+            Assert.Equal(4010, Composer(cfg).WallForce);
+            cfg.OverallGainPct = 50.1;
+            Assert.Equal(2009, Composer(cfg).WallForce);
+            cfg.PolarityConfirmed = false;
+            Assert.Equal(0.1, cfg.EffectiveGain, 8);
+            Assert.Equal(401, Composer(cfg).WallForce);
+        }
+
+        [Fact]
+        public void NonFinitePercentagesCannotBypassForceLimits()
+        {
+            var cfg = FullGainConfig();
+            cfg.OverallGainPct = double.NaN;
+            Assert.Equal(0, cfg.EffectiveGain);
+            Assert.Equal(0, Composer(cfg).WallForce);
+            cfg.OverallGainPct = double.PositiveInfinity;
+            cfg.ChannelWallForcePct = double.NaN;
+            Assert.Equal(0, Composer(cfg).WallForce);
+            cfg.ChannelWallForcePct = double.PositiveInfinity;
+            Assert.Equal(10000, Composer(cfg).WallForce);
+            cfg.PolarityConfirmed = false;
+            Assert.Equal(1000, Composer(cfg).WallForce);
+        }
+
+        [Fact]
         public void GateWallIsAsStrongAsRequestedWithinTheBiteDistance()
         {
             // The whole point of using constant force: a wall must reach its plateau in a few
@@ -1892,6 +1921,27 @@ namespace AB9ActiveShifter.Tests
 
             int past = cfg.ChannelHalfEnter + cfg.WallRamp + 200;
             Assert.NotEqual(0, Neutral(c, (C2 + C3) / 2, Center - past).ConstantY);
+        }
+
+        [Fact]
+        public void NeutralPreviewBoundaryIsWhereTheRealGateStartsPushingBack()
+        {
+            foreach (int requested in new[] { 0, 1100, 3944 })
+            {
+                EngineConfig cfg = FullGainConfig();
+                cfg.ChannelHalfEnter = 3268;
+                cfg.ChannelFreeDepth = requested;
+                ForceComposer composer = Composer(cfg);
+                int width = composer.NeutralFreeHalfWidth;
+                Assert.Equal(Math.Min(requested, cfg.ChannelHalfEnter), width);
+                foreach (int direction in new[] { -1, 1 })
+                {
+                    int betweenColumns = (C2 + C3) / 2;
+                    Assert.Equal(0, Neutral(composer, betweenColumns, Center + direction * width).ConstantY);
+                    int outside = Neutral(composer, betweenColumns, Center + direction * (width + 100)).ConstantY;
+                    Assert.True(outside * direction < 0, "Outside the drawn boundary the gate must push back.");
+                }
+            }
         }
 
         [Fact]
