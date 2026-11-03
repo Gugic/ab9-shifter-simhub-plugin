@@ -5,6 +5,19 @@ namespace AB9ActiveShifter.Tests
 {
     public class BaseEffectComposerTests
     {
+        [Fact]
+        public void FractionalBaseStrengthReachesDirectInputWithoutWholePercentRounding()
+        {
+            var config = AllConditions();
+            config.BaseSpringPct = 12.3;
+            config.BaseFrictionPct = 34.6;
+            config.BaseInertiaPct = 56.7;
+            var frame = BaseEffectComposer.Apply(ForceComposer.FreeFrame(), config);
+            Assert.Equal(1230, System.Math.Abs(frame.SpringX.PositiveCoefficient));
+            Assert.Equal(3460, frame.FrictionCoefficient);
+            Assert.Equal(5670, frame.InertiaCoefficient);
+        }
+
         [Theory]
         [InlineData(GatePattern.H7R)]
         [InlineData(GatePattern.Sequential)]

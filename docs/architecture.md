@@ -599,6 +599,11 @@ reported from the settings page as "settings won't save".
 
 ## SimHub surface
 
+Sequential output, monitor labels and the live +/− status share
+`SequentialStateMachine.ShiftForDirection` / `LabelForDirection`. The mirror setting changes
+stroke meaning, never device coordinates. Changing it uses the existing geometry rebuild,
+clears pending pulses and resyncs without firing a shift.
+
 Properties: `CurrentGear`, `GearIndex`, `InGear`, `GateState`, `GateColumn`, `StickX`, `StickY`,
 `DeviceConnected`, `DeviceName`, `VJoyConnected`, `OutputConnected`, `OutputError`, `LoopHz`, `StatusMessage`, `LockoutEngaged`.
 Events: `GearEngaged`, `GearReleased`, `LockoutEngaged`, `LockoutReleased`.
@@ -634,6 +639,34 @@ and namescope bindings remain intact when a panel is temporarily hosted by a mod
 ShakeIt editor instance moves with its panel; changing presentation does not recreate a profile.
 Geometry resets dimensions and placement, Feel resets strengths and response, and neither
 resets measured polarity or machine identity. Calibration and complete resets live in Options.
+
+Geometry and Feel use separate bordered blocks with short help and local limit notices.
+Distances and limited-strength ranges have a single 0–100 view; times and samples keep their
+units. `ScaledTitledSlider` binds `RawValue` to the saved settings and owns its
+separate display `Value`. Source/scale/layout updates never feed a coerced display value back
+into settings. Only a user edit/reset writes through. Integer settings round to their existing
+step. Feel's software percentages are doubles throughout settings, transfer and `EngineConfig`,
+so a displayed 0.1 step reaches composition without whole-percent rounding. Limited ranges
+use the corresponding fractional raw step. Base spring/friction/inertia retain fractions for
+DirectInput; only `ToNativeSettings` rounds them for the integer onboard protocol. The four
+base-effect sliders use whole-percent steps in Moza AB9 mode. Readouts and new edits snap to
+tenths, with clean larger button increments for coarser geometry settings. Saved keys, units
+and defaults stay the same. Source loads and undo retain full saved precision, including Base damper's
+hundredth-percent coefficient. Reset uses the unrounded mapped default to restore it exactly.
+An out-of-range saved
+value gets a notice and remains intact until edited. Undo restores its exact raw value.
+Slider indexing tracks all pattern-specific instances under one saved property; marker
+visibility updates when a form opens. No display adapters are persisted or exported.
+
+**Neutral tunnel width** keeps the saved `ChannelFreeDepth` value as clearance on each side.
+Both monitors draw the clamped `ForceComposer.NeutralFreeHalfWidth`
+as a blue band inside the separate grey detection outline. Narrowed outer tunnel sections
+are hatched where the configured edge wall begins; the boundary is sampled from the same
+composer corridor/mouth function as the slot outlines. No live engine state is used for
+these configured dimensions.
+H-slot tips beyond `ForceComposer.StrokeStopDepth` use the same grey hatching, clipped to
+the sampled corridor. Active column outlines are clipped at the stop too. A disabled stop
+or one at full device travel leaves the slot unshaded; missing slots remain absent.
 
 All profiles share plugin geometry, extra effects and base-effect percentages between virtual
 modes. In Moza AB9, onboard changes apply automatically after the quiet period. Profile

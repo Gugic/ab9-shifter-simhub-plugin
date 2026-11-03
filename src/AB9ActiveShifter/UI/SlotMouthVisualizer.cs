@@ -23,7 +23,7 @@ namespace AB9ActiveShifter.UI
 
         protected override void DrawGraph(DrawingContext dc, double left, double right, double top, double bottom)
         {
-            DrawLabel(dc, "shown from above: depth right, lateral room up/down", right, top - TopLabelSpace, TextAlign.Right);
+            DrawLabel(dc, "viewed from above: moving into gear goes right", right, top - TopLabelSpace, TextAlign.Right);
 
             if (Settings == null) return;
 

@@ -192,20 +192,27 @@ namespace AB9ActiveShifter.UI
             return SystemColors.ControlBrush;
         }
 
-        private void BindGeometryUnits()
+        private void BindScaleNotices(DependencyObject root)
         {
-            // Explicit source survives moving the existing controls into a modal namescope.
-            // IndexSliders still runs once over the complete precreated logical tree.
-            foreach (var slider in FindTitledSliders(this))
+            // Explicit sources survive moving the precreated form into a modal namescope.
+            foreach (object child in LogicalTreeHelper.GetChildren(root))
             {
-                BindingExpression expression = BindingOperations.GetBindingExpression(slider, VisibilityProperty);
-                Binding binding = expression != null ? expression.ParentBinding : null;
-                if (binding == null || binding.ElementName != "GeometryPercentToggle") continue;
-                BindingOperations.SetBinding(slider, VisibilityProperty, new Binding("IsChecked")
+                var element = child as DependencyObject;
+                if (element == null) continue;
+                if (element is TextBlock)
                 {
-                    Source = GeometryPercentToggle,
-                    Converter = binding.Converter
-                });
+                    BindingExpression expression = BindingOperations.GetBindingExpression(element, VisibilityProperty);
+                    Binding binding = expression != null ? expression.ParentBinding : null;
+                    if (binding != null && binding.Path?.Path == "HasValueOutsideScale" && !string.IsNullOrEmpty(binding.ElementName))
+                    {
+                        BindingOperations.SetBinding(element, VisibilityProperty, new Binding("HasValueOutsideScale")
+                        {
+                            Source = FindName(binding.ElementName),
+                            Converter = binding.Converter
+                        });
+                    }
+                }
+                BindScaleNotices(element);
             }
         }
     }

@@ -48,7 +48,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-818 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+832 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -91,12 +91,12 @@ src/AB9ActiveShifter/
   ShifterSettings.cs       Persisted POCO (INotifyPropertyChanged) -> ToEngineConfig()
   ShifterProfiles.cs       ProfileStore (named settings + active + the rig's own facts), legacy
                            migration, cloning, the preset fork
-  DefaultProfiles.cs       The ten presets every install carries, as deltas from bare defaults,
+  DefaultProfiles.cs       The eleven presets every install carries, as deltas from bare defaults,
                            plus the reserved name prefix that marks them (see "Shipped
                            profiles" below)
   DefaultProfiles.Handbrake.cs Captured progressive handbrake tune, engine and rear wheel-lock effects
   DefaultProfiles.SequentialStiffShort.cs Captured short sequential tune and its portable native Effects tree
-  DefaultProfiles.SportShortThrow.cs Captured short H sport tune and its portable native Effects tree
+  DefaultProfiles.SportShortThrow.cs Captured 7+R and narrow 5+R sport tunes and portable native Effects tree
   ProfileTransfer.cs       One profile as a shareable file: what travels, and what is refused
   NativeEffectsData.cs     Validates the portable native tree without constructing a transport
   ScsShiftTelemetryReader.cs Optional cached raw-data adapter; copies truck target RPMs only
@@ -111,6 +111,7 @@ src/AB9ActiveShifter/
     BaseEffectComposer.cs  Optional generic spring/friction/inertia, capped and polarity-aware
     OperatingMode.cs       Rig-wide effect provider; shared profiles keep the same percentages
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
+    TuningScale.cs         Pure reversible 0–100 display mapping; saved tuning stays in original units
     GateGeometry.cs        Column targets, hysteresis bands, gear map, unit conversions
     GateStateMachine.cs    Neutral / Traveling / Engaged with hysteresis and resync
     SequentialStateMachine.cs One shift per stroke, engage/release hysteresis, resync
@@ -168,6 +169,7 @@ src/AB9ActiveShifter/
     SettingsControl.Updates.cs Update banner, app preferences, release notes and install/restart
     SettingsControl.Native.cs Native setup actions and control availability
     SettingsControl.Outputs.cs Output selector, all-pattern native role pickers and readiness
+    ScaledTitledSlider.cs  SimHub slider with separate saved/display values, decimal edits and exact undo
     ControlMapperFeatureSettings.cs Guarded public host feature setting, explicit enable/restart
     GateVisualizer.cs      The gate plan view with the live stick position, on Monitor and again
                            at the top of Geometry. Draws the gate's real free space, the mouths
@@ -182,7 +184,7 @@ src/AB9ActiveShifter/
     SlotMouthVisualizer.cs        The corridor a mouth opens as the slot is approached
     PrndLaneVisualizer.cs         The selector lane's force across the whole of travel
     HandbrakeCurveVisualizer.cs   Pull, return and braking curves sampled from HandbrakeModel
-    InverseBooleanToVisibilityConverter.cs  The negation the raw/percent toggle needs
+    InverseBooleanToVisibilityConverter.cs  Inverse visibility for pattern-specific controls
 tests/AB9ActiveShifter.Tests/
   Ab9NativeTests.cs        Wire captures, escaping, firmware order, transaction ordering,
                            mode eligibility, imports and generic-stick independence
@@ -214,6 +216,7 @@ tests/AB9ActiveShifter.Tests/
                            cap/polarity, calibration ownership and safe profile transfer
   SettingsMappingTests.cs  ShifterSettings' derived dials (ThrowFromCentre moves both threshold
                            lines)
+  TuningScaleTests.cs      Display round trips, decimal precision and out-of-range saved values
   SlotEndStopTests.cs      The bottom of an H slot: the default changes nothing, the landing is
                            free, the wall only pushes home, and no axis count steps the stroke
   PatternWidthTests.cs     How wide the pattern stands: the default is the old geometry to the
@@ -622,7 +625,9 @@ runners cannot load, so anything worth testing must not touch it.
   geometry as much as force: `GateVisualizer` gets each slot's corridor from
   `SlotCorridorHalfWidthAt` rather than re-deriving the mouth, and asks `GateGeometry` where the
   lockout is rather than keeping a second copy of the position (the Monitor tab's shading used to
-  be exactly that bug). Every one of them builds its **own** `ForceComposer` from
+  be exactly that bug). The neutral free band reads `NeutralFreeHalfWidth`, not the detection
+  band's width; narrowed outer tunnel walls use that same sampled corridor boundary for hatching.
+  Every one of them builds its **own** `ForceComposer` from
   `Settings.ToEngineConfig()`, never the live engine's: it must render with the plugin disabled,
   when no engine thread exists, and reaching into the running one would be a cross-thread read of
   engine state. Where a graph needs an internal shape, make the method public with a comment
@@ -767,7 +772,7 @@ rolling copies in `_Backups\` beside it and restores the newest when the primary
 first-start test that only deletes the primary silently measures the old settings. See
 DEVELOPMENT.md for the command that clears both and the two log lines that prove it worked.
 
-**Shipped profiles.** The ten tunes in `DefaultProfiles.cs` are **presets**: rebuilt by
+**Shipped profiles.** The eleven tunes in `DefaultProfiles.cs` are **presets**: rebuilt by
 `EnsurePresets` on *every* start, not just the first, so they are always present and always
 current. They are written as *deltas* from a bare `ShifterSettings`, so the tuning reads as
 tuning and a dial that gains a better default inherits it. This used to be a JSON file copied in

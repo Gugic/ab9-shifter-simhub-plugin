@@ -12,6 +12,11 @@ All of this lives in `Core/ForceComposer.cs`, which is pure and fully unit-teste
 - **DI force units**: ±10000 full scale.
 - Wall and detent strengths are configured as **percentages of full scale**, then scaled by the
   master gain, so raising overall force keeps every tuned ratio intact.
+  Software Feel percentages retain fractions through the engine snapshot; 0.1 steps on the
+  displayed scale are converted to DI units only at the existing force-rounding point.
+  Saved whole-number tunes keep the same forces, shapes and gain caps. The AB9 onboard adapter
+  alone rounds base effects to whole percentages. Non-finite percentage inputs remain bounded:
+  the double clamp treats NaN as its lower limit and infinities as the appropriate endpoint.
 - Composition happens in the **gate's own frame**. The four measured polarity signs are applied
   once, at the very end. The yield and shaping stages compare force sign against velocity sign, so
   flipping earlier would make them compare unlike things.
@@ -429,6 +434,16 @@ lean against. No dimensions or strengths change here. Recorded-position replay a
 verify the force direction and state recovery; stopping distance and feel still need a rig test.
 
 ## The rail gate
+
+The Geometry control is named **Neutral tunnel width (0–100)**. Its persisted field
+remains `ChannelFreeDepth`, measured from centre on each side, so existing profiles keep
+their exact values. `ForceComposer.NeutralFreeHalfWidth` is the shared clamped answer used
+by both the neutral force and the monitor's blue band. The grey detection outline remains
+separate. Narrowed tunnel ends are hatched only when the edge wall is enabled, using
+`SlotCorridorHalfWidthAt` for their boundary, including mouth shaping. These are naming and
+visualization changes; the force arithmetic is unchanged. Geometry and Feel use display-only
+scales through `TuningScale`/`ScaledTitledSlider`; this does not rescale profile settings or
+change the engine's thresholds, strengths, caps or stabilisers.
 
 Trying MOZA's native shifter mode on the same base produced one load-bearing observation: **the
 native gate never has free 2D space.** At every moment exactly one axis is unlocked — in a column

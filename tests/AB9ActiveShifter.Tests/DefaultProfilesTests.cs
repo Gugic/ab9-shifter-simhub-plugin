@@ -134,6 +134,7 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(GatePattern.H7R, Find(store, Preset(DefaultProfiles.SevenRName)).Pattern);
             Assert.Equal(GatePattern.H7R, Find(store, Preset(DefaultProfiles.SportShortThrowName)).Pattern);
             Assert.Equal(GatePattern.H5R, Find(store, Preset(DefaultProfiles.FiveRName)).Pattern);
+            Assert.Equal(GatePattern.H5R, Find(store, Preset(DefaultProfiles.FiveRSportShortThrowName)).Pattern);
             Assert.Equal(GatePattern.Prnd, Find(store, Preset(DefaultProfiles.PrndName)).Pattern);
             Assert.Equal(GatePattern.H6, Find(store, Preset(DefaultProfiles.TruckName)).Pattern);
         }
@@ -210,6 +211,45 @@ namespace AB9ActiveShifter.Tests
             before["NativeEffectsJson"] = effects;
             after["NativeEffectsJson"] = JObject.Parse(imported.Profile.Settings.NativeEffectsJson);
             Assert.True(JToken.DeepEquals(before, after));
+        }
+
+        [Fact]
+        public void TheNarrowFiveRSportKeepsTheCapturedTuneAndEffectsVolume()
+        {
+            ProfileStore store = DefaultProfiles.Create();
+            ShifterSettings s = Find(store, Preset(DefaultProfiles.FiveRSportShortThrowName));
+            ShifterSettings sport = Find(store, Preset(DefaultProfiles.SportShortThrowName));
+            Assert.Equal(GatePattern.H5R, s.Pattern);
+            Assert.Equal(40, s.PatternWidthPct);
+            Assert.Equal(26731, s.ReleaseDepth);
+            Assert.Equal(12006, s.ThrowFromCentre);
+            Assert.Equal(5022, s.SlotOvertravel);
+            Assert.Equal(100, s.SlotStopForcePct);
+            Assert.Equal(100, s.PatternEdgeForcePct);
+
+            var changed = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "Pattern", "PatternWidthPct", "ReleaseDepth", "NativeEffectsJson"
+            };
+            foreach (PropertyInfo prop in typeof(ShifterSettings).GetProperties())
+            {
+                if (!prop.CanRead || !prop.CanWrite || !ProfileTransfer.IsTuning(prop.Name)) continue;
+                if (changed.Contains(prop.Name)) continue;
+                Assert.Equal(prop.GetValue(sport, null), prop.GetValue(s, null));
+            }
+
+            var effects = JObject.Parse(NativeEffectsData.Validate(s.NativeEffectsJson));
+            Assert.Equal(50.0, (double)effects["GlobalGain"]);
+            var expected = JObject.Parse(sport.NativeEffectsJson);
+            expected["GlobalGain"] = 50.0;
+            Assert.True(JToken.DeepEquals(expected, effects));
+
+            ShifterSettings imported = ProfileTransfer.Import(ProfileTransfer.Export(new ShifterProfile
+            { Name = DefaultProfiles.FiveRSportShortThrowName, Settings = s }), new ShifterSettings()).Profile.Settings;
+            Assert.True(JToken.DeepEquals(effects, JObject.Parse(imported.NativeEffectsJson)));
+            Assert.Equal(s.Pattern, imported.Pattern);
+            Assert.Equal(s.PatternWidthPct, imported.PatternWidthPct);
+            Assert.Equal(s.ReleaseDepth, imported.ReleaseDepth);
         }
 
         [Fact]
@@ -561,12 +601,12 @@ namespace AB9ActiveShifter.Tests
         [Fact]
         public void EveryNarrowedPresetShipsTheWallItsEdgeNeeds()
         {
-            // Load-bearing for the two narrowed presets and for nothing else. Outside the
+            // Load-bearing for every narrowed preset. Outside the
             // outermost columns a narrowed pattern leaves bare travel with no gear in it, and the
             // neutral tunnel is deliberately free everywhere else - so a narrowed preset with no
             // edge wall is a lever that slides to the base's own stop with nothing to say the
             // gate ended. That is exactly what the first narrowed build did, reported from the
-            // rig, and it is why these two must never ship narrowed with the wall at zero.
+            // rig, and it is why a narrowed preset must never ship with the wall at zero.
             foreach (ShifterProfile p in DefaultProfiles.Create().Profiles)
             {
                 if (p.Settings.PatternWidthPct >= 100) continue;

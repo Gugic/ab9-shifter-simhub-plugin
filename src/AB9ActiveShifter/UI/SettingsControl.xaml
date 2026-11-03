@@ -2,6 +2,14 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
+        <Style x:Key="TuningSettingCard" TargetType="{x:Type Border}">
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,14" />
+            <Setter Property="Background" Value="#0C000000" />
+            <Setter Property="BorderBrush" Value="#44505C" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
         <DataTemplate x:Key="OutputRoleMappingTemplate">
             <Grid Margin="0,3" MaxWidth="650" HorizontalAlignment="Stretch">
                 <Grid.ColumnDefinitions>
@@ -18,6 +26,9 @@
             <EventSetter Event="PreviewMouseLeftButtonUp" Handler="OnSliderGestureEndMouse" />
             <EventSetter Event="PreviewKeyDown" Handler="OnSliderGestureStartKey" />
             <EventSetter Event="PreviewKeyUp" Handler="OnSliderGestureEndKey" />
+        </Style>
+        <Style TargetType="{x:Type local:ScaledTitledSlider}" BasedOn="{StaticResource {x:Type ui:TitledSlider}}" x:Key="ScaledTuningSlider">
+            <Setter Value="SemiBold" Property="FontWeight" />
         </Style>
     </UserControl.Resources>
     <Grid>
@@ -187,11 +198,14 @@
                                                 <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
                                             <TextBlock Text="•" />
-                                            <TextBlock Grid.Column="1" TextWrapping="Wrap" Margin="0,0,0,8"><Run FontWeight="SemiBold" Text="Moza AB9" /> — Uses internal AB9 base settings alongside the plugin's virtual shifter.</TextBlock>
+                                            <TextBlock Grid.Column="1" TextWrapping="Wrap" Margin="0,0,0,8">
+                                                <Run FontWeight="SemiBold" Text="Moza AB9" /> — Uses internal AB9 base settings alongside the plugin's virtual shifter.</TextBlock>
                                             <TextBlock Grid.Row="1" Text="•" />
-                                            <TextBlock Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" Margin="0,0,0,8"><Run FontWeight="SemiBold" Text="Generic FFB stick" /> — Uses DirectInput only. Choose this for a base other than the AB9 and follow the manual checklist.</TextBlock>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" Margin="0,0,0,8">
+                                                <Run FontWeight="SemiBold" Text="Generic FFB stick" /> — Uses DirectInput only. Choose this for a base other than the AB9 and follow the manual checklist.</TextBlock>
                                             <TextBlock Grid.Row="2" Text="•" />
-                                            <TextBlock Grid.Row="2" Grid.Column="1" TextWrapping="Wrap"><Run FontWeight="SemiBold" Text="Moza AB9 native H-Pattern" /> — Uses the firmware shifter configured in Moza Pit House / AZOM. Plugin output is disabled.</TextBlock>
+                                            <TextBlock Grid.Row="2" Grid.Column="1" TextWrapping="Wrap">
+                                                <Run FontWeight="SemiBold" Text="Moza AB9 native H-Pattern" /> — Uses the firmware shifter configured in Moza Pit House / AZOM. Plugin output is disabled.</TextBlock>
                                         </Grid>
                                         <TextBlock Text="You can choose any mode with the base connected or disconnected and the master switch on or off." TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0" />
                                     </StackPanel>
@@ -526,13 +540,23 @@
             <ContentControl x:Name="FeelDialogHolder">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" x:Name="FeelPanel">
                     <StackPanel Margin="12">
+                        <TextBlock TextWrapping="Wrap" Text="Each block controls one part of the feel. Software strengths adjust in 0.1 steps; AB9 onboard controls use whole percentages. Increase gradually and try a few shifts before changing the next setting." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
                         <styles:SHSection Title="MASTER" ShowSeparator="True">
                             <StackPanel Margin="0,4,0,8">
-                                <ui:TitledSlider Title="Overall gain (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="25" Value="{Binding OverallGainPct, Mode=TwoWay}" />
-                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="Scales everything the gate produces - walls, detents, the lockout and the telemetry buzzes alike - so it is the one dial to reach for if the whole shifter is too strong or too weak. This is a 12 Nm base: raise it in small steps with a hand on the stick. Until polarity has been measured it is capped at 10% whatever this says." />
-                                <TextBlock x:Name="LockoutSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0" />
-                                <styles:SHButtonSecondary Click="OnResetForces" Content="Reset feel to defaults" Padding="12,4" HorizontalAlignment="Left" Margin="0,10,0,0" />
-                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,0" Text="Resets strength, base effects and force stability for this profile. Geometry and telemetry effects keep their current values." />
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Overall gain (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="25" RawValue="{Binding OverallGainPct, Mode=TwoWay}" x:Name="TuningOverallGainPct1" />
+                                        <TextBlock TextWrapping="Wrap" Text="Makes the whole shifter lighter or stronger, including feedback effects. Raise it gradually with a hand on the lever. An uncalibrated base stays limited to 10%." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningOverallGainPct1, Converter={StaticResource BoolToVis}}" />
+                                        <TextBlock x:Name="LockoutSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0" MaxWidth="760" HorizontalAlignment="Left" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <styles:SHButtonSecondary Click="OnResetForces" Content="Reset feel to defaults" Padding="12,4" HorizontalAlignment="Left" Margin="0,10,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="Restores strength and stability for this profile. Your geometry and game effects stay as they are." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </styles:SHSection>
                         <styles:SHSection Title="BASE EFFECTS" ShowSeparator="True">
@@ -540,135 +564,319 @@
                                 <StackPanel x:Name="GenericBaseEffectsPanel">
                                     <TextBlock x:Name="BaseEffectsHeading" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,4" />
                                     <TextBlock Text="DirectInput renders these base effects. Gate forces, software stability and telemetry effects remain available in either virtual mode." TextWrapping="Wrap" Margin="0,4,0,8" x:Name="BaseEffectsDescription" />
-                                    <ui:TitledSlider Title="Base spring (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="0" Value="{Binding BaseSpringPct, Mode=TwoWay}" x:Name="BaseSpringSlider" />
-                                    <TextBlock x:Name="HandbrakeSpringHint" TextWrapping="Wrap" Opacity="0.75" Visibility="Collapsed" Text="Handbrake return uses the configured start position. The base-centering spring is off in this pattern; use Return strength to tune the return." />
-                                    <ui:TitledSlider Title="Base damper (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="8" Value="{Binding BaseDamperPct, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Base friction (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="0" Value="{Binding BaseFrictionPct, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Base inertia (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="0" Value="{Binding BaseInertiaPct, Mode=TwoWay}" />
-                                    <TextBlock Text="Measure polarity again in Options to enable the DirectInput base spring. Other effects remain available." TextWrapping="Wrap" Margin="0,4,0,8" x:Name="BaseSpringCalibrationHint" />
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" x:Name="BaseSpringSlider" Style="{StaticResource ScaledTuningSlider}" Title="Base spring (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="0" RawValue="{Binding BaseSpringPct, Mode=TwoWay}" />
+                                            <TextBlock TextWrapping="Wrap" Text="Pulls the lever toward the base centre. Keep it low if you want the lever to rest naturally in a gear." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=BaseSpringSlider, Converter={StaticResource BoolToVis}}" />
+                                            <TextBlock x:Name="HandbrakeSpringHint" TextWrapping="Wrap" Opacity="0.75" Visibility="Collapsed" Text="Handbrake return uses the configured start position. The base-centering spring is off in this pattern; use Return strength to tune the return." MaxWidth="760" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                                            <TextBlock Text="Measure polarity again in Options to enable the DirectInput base spring. Other effects remain available." TextWrapping="Wrap" Margin="0,8,0,0" x:Name="BaseSpringCalibrationHint" MaxWidth="760" HorizontalAlignment="Left" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Base damper (%)" RawMinimum="0" RawMaximum="100" RawResetValue="8" RawValue="{Binding BaseDamperPct, Mode=TwoWay}" RawStep="0.01" x:Name="TuningBaseDamperPct2" />
+                                            <TextBlock TextWrapping="Wrap" Text="Slows lever movement, like a damper on a real mechanism. Increase for a heavier, calmer movement; too much makes shifting sluggish." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningBaseDamperPct2, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Base friction (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="0" RawValue="{Binding BaseFrictionPct, Mode=TwoWay}" x:Name="TuningBaseFrictionPct3" />
+                                            <TextBlock TextWrapping="Wrap" Text="Adds steady drag as the lever moves. Increase for a weightier mechanical feel; decrease for a freer lever." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningBaseFrictionPct3, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Base inertia (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="0" RawValue="{Binding BaseInertiaPct, Mode=TwoWay}" x:Name="TuningBaseInertiaPct4" />
+                                            <TextBlock TextWrapping="Wrap" Text="Makes the lever feel heavier when starting or stopping a movement." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningBaseInertiaPct4, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
                                     <TextBlock TextWrapping="Wrap" Margin="0,6,0,4" x:Name="NativeSettingsStatus" />
                                 </StackPanel>
                                 <styles:SHExpander Header="AB9 hardware gains" x:Name="NativeHardwareExpander" Margin="0,8,0,8">
                                     <StackPanel x:Name="NativeTunePanel">
-                                        <TextBlock Text="These hardware gains multiply the force produced by the AB9. Changes apply automatically after you pause editing; successful updates keep your force feedback toggle as set." TextWrapping="Wrap" Margin="0,4,0,8" />
-                                        <ui:TitledSlider Title="Maximum Torque Output (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="100" Value="{Binding NativeTorquePct, Mode=TwoWay}" />
-                                        <ui:TitledSlider Title="Overall Force Feedback Intensity (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="100" Value="{Binding NativeOverallIntensityPct, Mode=TwoWay}" />
-                                        <ui:TitledSlider Title="Game Force Feedback Gain (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="100" Value="{Binding NativeGameGainPct, Mode=TwoWay}" />
+                                        <Border Style="{StaticResource TuningSettingCard}">
+                                            <StackPanel>
+                                                <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Maximum Torque Output (%)" RawMinimum="0" RawMaximum="100" RawResetValue="100" RawValue="{Binding NativeTorquePct, Mode=TwoWay}" x:Name="TuningNativeTorquePct5" />
+                                                <TextBlock TextWrapping="Wrap" Text="Sets the base hardware torque limit. Overall gain above still controls the strength of this profile." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                                <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningNativeTorquePct5, Converter={StaticResource BoolToVis}}" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Style="{StaticResource TuningSettingCard}">
+                                            <StackPanel>
+                                                <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Overall Force Feedback Intensity (%)" RawMinimum="0" RawMaximum="100" RawResetValue="100" RawValue="{Binding NativeOverallIntensityPct, Mode=TwoWay}" x:Name="TuningNativeOverallIntensityPct6" />
+                                                <TextBlock TextWrapping="Wrap" Text="Adjusts the AB9 hardware strength. Prefer Overall gain for everyday profile tuning." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                                <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningNativeOverallIntensityPct6, Converter={StaticResource BoolToVis}}" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Style="{StaticResource TuningSettingCard}">
+                                            <StackPanel>
+                                                <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Game Force Feedback Gain (%)" RawMinimum="0" RawMaximum="100" RawResetValue="100" RawValue="{Binding NativeGameGainPct, Mode=TwoWay}" x:Name="TuningNativeGameGainPct7" />
+                                                <TextBlock TextWrapping="Wrap" Text="Adjusts how strongly the AB9 applies the plugin effects." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                                <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningNativeGameGainPct7, Converter={StaticResource BoolToVis}}" />
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
                                 </styles:SHExpander>
                             </StackPanel>
                         </styles:SHSection>
                         <styles:SHSection Title="GATE WALL STRENGTH" ShowSeparator="True">
                             <StackPanel Margin="0,6,0,16">
-                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="Every wall is a percentage of full force, so 90% is a wall you cannot push through by hand. These are the same kind of force as the lockout, which is why they can be made properly solid." />
-                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" Text="This shows the wall you feel pushing back if you drift away from centre without lining up on a column: nothing at all for a short free stretch, then a quick ramp up to a wall you cannot push through by hand once past it. Line up with a column instead and this wall gets out of the way entirely - blocking everywhere except where a gear actually is is the whole job of the gate." />
                                 <local:GateWallCurveVisualizer x:Name="GateWallCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" />
-                                <ui:TitledSlider Title="Gate wall, between columns (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="90" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" Value="{Binding ChannelWallForcePct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Slot wall / lateral rail (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="90" Value="{Binding ColumnPinForcePct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Fore/aft drag while on a column (%)" Minimum="0" Maximum="40" TickFrequency="1" ShowResetButton="True" ResetValue="5" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" Value="{Binding ChannelGuideForcePct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Wall at the pattern edge (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="100" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" Value="{Binding PatternEdgeForcePct, Mode=TwoWay}" />
-                                <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
-                                    <StackPanel Margin="0,6,0,0">
-                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="What stops the lever wandering off the side of a narrowed pattern. Outside the outermost columns there is bare travel with no gear in it, and the neutral tunnel is deliberately free everywhere else, so without this the lever slides to the base's own stop with nothing to say the gate ended. It is one-sided - it only ever pushes back in, never out - so it is a wall rather than a centring force, and it is zero everywhere inside the pattern. At 100% width it renders nothing at all, whatever it is set to: the outer columns are already at the stops and there is no room outside them." />
+                                <Border Style="{StaticResource TuningSettingCard}" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Gate wall between gears (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="90" RawValue="{Binding ChannelWallForcePct, Mode=TwoWay}" x:Name="TuningChannelWallForcePct8" />
+                                        <TextBlock TextWrapping="Wrap" Text="How firmly the gate stops you pushing forward or backward between gear openings." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningChannelWallForcePct8, Converter={StaticResource BoolToVis}}" />
                                     </StackPanel>
-                                </styles:SHExpander>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Gear-slot side walls (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="90" RawValue="{Binding ColumnPinForcePct, Mode=TwoWay}" x:Name="TuningColumnPinForcePct9" />
+                                        <TextBlock TextWrapping="Wrap" Text="How firmly the lever is kept inside a gear slot. In sequential, PRND and handbrake, this supplies the sideways lane walls." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningColumnPinForcePct9, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Forward/backward guide (0–100)" RawStep="0.04" RawMinimum="0" RawMaximum="40" RawResetValue="5" RawValue="{Binding ChannelGuideForcePct, Mode=TwoWay}" x:Name="TuningChannelGuideForcePct10" />
+                                        <TextBlock TextWrapping="Wrap" Text="The light resistance you feel pushing or pulling while lined up with a gear opening. Increase for more guidance; decrease for a freer entry." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningChannelGuideForcePct10, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Outer edge walls (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="100" RawValue="{Binding PatternEdgeForcePct, Mode=TwoWay}" x:Name="TuningPatternEdgeForcePct11" />
+                                        <TextBlock TextWrapping="Wrap" Text="Stops the lever wandering beyond the first and last gear pairs on a narrowed gate. It has no effect at full pattern width." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningPatternEdgeForcePct11, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </styles:SHSection>
-                        <styles:SHSection Title="THROW AND SLOT END-STOP STRENGTH" ShowSeparator="True" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                        <styles:SHSection Title="GEAR END STOPS" ShowSeparator="True" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,6,0,16">
-                                <ui:TitledSlider Title="Slot end-stop wall (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="0" Value="{Binding SlotStopForcePct, Mode=TwoWay}" />
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Gear-slot end stop (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="0" RawValue="{Binding SlotStopForcePct, Mode=TwoWay}" x:Name="TuningSlotStopForcePct12" />
+                                        <TextBlock TextWrapping="Wrap" Text="How firmly each gear slot ends. Raise this to give a short-throw shifter a definite bottom; zero lets the lever travel to the base stop." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningSlotStopForcePct12, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </styles:SHSection>
                         <styles:SHSection Title="HANDBRAKE RESISTANCE AND RETURN" ShowSeparator="True" Visibility="{Binding IsHandbrake, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,6,0,16">
                                 <local:HandbrakeCurveVisualizer x:Name="HandbrakeCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" />
-                                <ui:TitledSlider Title="Pull resistance (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="40" Value="{Binding HandbrakePullForcePct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Return strength (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="20" Value="{Binding HandbrakeReturnForcePct, Mode=TwoWay}" />
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
-                                    <TextBlock Text="Resistance curve" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                    <ComboBox MinWidth="280" SelectedIndex="{Binding HandbrakeForceCurveIndex, Mode=TwoWay}">
-                                        <ComboBoxItem Content="Build later (progressive)" />
-                                        <ComboBoxItem Content="Build early (flatten toward end)" />
-                                        <ComboBoxItem Content="Linear (even build)" />
-                                        <ComboBoxItem Content="S curve (gentle ends)" />
-                                    </ComboBox>
-                                </StackPanel>
-                                <ui:TitledSlider Title="Curve amount (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="70" IsEnabled="{Binding HandbrakeCurveUsesAmount}" Value="{Binding HandbrakeForceProgressionPct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Handbrake end-stop (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="60" Value="{Binding HandbrakeStopForcePct, Mode=TwoWay}" />
-                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Text="Build early raises resistance quickly near the start and flattens toward the end. Build later stays light initially and firms up near the end. S curve builds most in the middle. Curve amount blends the selected shape with a straight line: 0 is linear, 100 is the full shape. Pull and return share this shape; braking input keeps its own curve in Geometry. Return strength is limited to pull resistance. Damping below controls return motion." />
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Pull resistance (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="40" RawValue="{Binding HandbrakePullForcePct, Mode=TwoWay}" x:Name="TuningHandbrakePullForcePct13" />
+                                        <TextBlock TextWrapping="Wrap" Text="How hard you need to pull the handbrake." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningHandbrakePullForcePct13, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Return strength (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="20" RawValue="{Binding HandbrakeReturnForcePct, Mode=TwoWay}" x:Name="TuningHandbrakeReturnForcePct14" />
+                                        <TextBlock TextWrapping="Wrap" Text="How firmly the handbrake returns to its released position. Return is limited to the pull resistance." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningHandbrakeReturnForcePct14, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                                            <TextBlock Text="Resistance curve" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <ComboBox MinWidth="280" SelectedIndex="{Binding HandbrakeForceCurveIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="Build later (progressive)" />
+                                                <ComboBoxItem Content="Build early (flatten toward end)" />
+                                                <ComboBoxItem Content="Linear (even build)" />
+                                                <ComboBoxItem Content="S curve (gentle ends)" />
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <TextBlock TextWrapping="Wrap" Text="Choose how resistance builds during a pull. Build later starts light; Build early firms up sooner; S curve eases both ends." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" IsEnabled="{Binding HandbrakeCurveUsesAmount}" Style="{StaticResource ScaledTuningSlider}" Title="Curve amount (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="70" RawValue="{Binding HandbrakeForceProgressionPct, Mode=TwoWay}" x:Name="TuningHandbrakeForceProgressionPct15" />
+                                        <TextBlock TextWrapping="Wrap" Text="How strongly the selected resistance curve is applied. Low feels more even; high makes the chosen curve more noticeable." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningHandbrakeForceProgressionPct15, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Handbrake end stop (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="60" RawValue="{Binding HandbrakeStopForcePct, Mode=TwoWay}" x:Name="TuningHandbrakeStopForcePct16" />
+                                        <TextBlock TextWrapping="Wrap" Text="How firmly the lever stops at the end of the pull." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningHandbrakeStopForcePct16, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </styles:SHSection>
                         <styles:SHSection Title="SEQUENTIAL STROKE STRENGTH" ShowSeparator="True" Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,6,0,16">
-                                <ui:TitledSlider Title="Shift click kick (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="60" Value="{Binding SeqClickPct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="End-stop wall (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="90" Value="{Binding SeqStopForcePct, Mode=TwoWay}" />
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Shift click (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="60" RawValue="{Binding SeqClickPct, Mode=TwoWay}" x:Name="TuningSeqClickPct17" />
+                                        <TextBlock TextWrapping="Wrap" Text="The kick you feel when a sequential shift registers. Increase for a sharper click." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningSeqClickPct17, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Sequential end stop (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="90" RawValue="{Binding SeqStopForcePct, Mode=TwoWay}" x:Name="TuningSeqStopForcePct18" />
+                                        <TextBlock TextWrapping="Wrap" Text="How firmly the lever stops after the shift click." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningSeqStopForcePct18, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </styles:SHSection>
                         <styles:SHSection Title="PRND DETENTS AND LOCKOUT" ShowSeparator="True" Visibility="{Binding IsPrnd, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,6,0,16">
                                 <local:PrndLaneVisualizer x:Name="PrndLaneCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" />
-                                <ui:TitledSlider Title="Detent between positions (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="45" Value="{Binding PrndDetentForcePct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="End-stop wall past P and D (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="90" Value="{Binding PrndStopForcePct, Mode=TwoWay}" />
-                                <StackPanel Visibility="{Binding HasPrndLockout, Converter={StaticResource BoolToVis}}">
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                        <TextBlock Text="Lockout mode" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                        <ComboBox MinWidth="300" HorizontalAlignment="Left" SelectedIndex="{Binding PrndLockoutModeIndex, Mode=TwoWay}">
-                                            <ComboBoxItem Content="Push through - a toll your hand can beat" />
-                                            <ComboBoxItem Content="Hard - full force until released by hotkey" />
-                                            <ComboBoxItem Content="Hard - re-arms itself after each crossing" />
-                                        </ComboBox>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="PRND position clicks (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="45" RawValue="{Binding PrndDetentForcePct, Mode=TwoWay}" x:Name="TuningPrndDetentForcePct19" />
+                                        <TextBlock TextWrapping="Wrap" Text="Resistance as you move between P, R, N and D. Increase for more definite positions." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningPrndDetentForcePct19, Converter={StaticResource BoolToVis}}" />
                                     </StackPanel>
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,6" Visibility="{Binding IsPrndLockoutHardMode, Converter={StaticResource BoolToVis}}" Text="Force only, always: the selector still registers whichever position the lever physically reaches - a selector is never allowed a moment with nothing selected. Bind the release key in Options → Hotkeys; the gate re-engages on every start and every profile switch." />
-                                    <ui:TitledSlider Title="PRND lockout force (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="70" Value="{Binding PrndLockoutForcePct, Mode=TwoWay}" />
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="PRND end stops (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="90" RawValue="{Binding PrndStopForcePct, Mode=TwoWay}" x:Name="TuningPrndStopForcePct20" />
+                                        <TextBlock TextWrapping="Wrap" Text="How firmly the lever stops beyond P and D." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningPrndStopForcePct20, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+                                <StackPanel Visibility="{Binding HasPrndLockout, Converter={StaticResource BoolToVis}}">
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="Lockout mode" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                <ComboBox MinWidth="300" HorizontalAlignment="Left" SelectedIndex="{Binding PrndLockoutModeIndex, Mode=TwoWay}">
+                                                    <ComboBoxItem Content="Push through - a toll your hand can beat" />
+                                                    <ComboBoxItem Content="Hard - full force until released by hotkey" />
+                                                    <ComboBoxItem Content="Hard - re-arms itself after each crossing" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <TextBlock TextWrapping="Wrap" Text="Push through lets your hand cross the guard. Hard modes hold the resistance until you use the release action in Options &gt; Hotkeys. The selector always reports the position the lever physically reaches." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="PRND lockout force (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="70" RawValue="{Binding PrndLockoutForcePct, Mode=TwoWay}" x:Name="TuningPrndLockoutForcePct21" />
+                                            <TextBlock TextWrapping="Wrap" Text="Resistance crossing the guarded gap between selector positions. Hard lockout modes set their own full strength." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningPrndLockoutForcePct21, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </StackPanel>
                         </styles:SHSection>
                         <styles:SHSection Title="CROSSING THE GATE" ShowSeparator="True" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,6,0,16">
                                 <local:SlidingAcrossGateVisualizer x:Name="SlidingAcrossGateCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" />
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4" Visibility="{Binding ShowsLockoutDials, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="Lockout mode" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                    <ComboBox MinWidth="300" HorizontalAlignment="Left" SelectedIndex="{Binding LockoutModeIndex, Mode=TwoWay}">
-                                        <ComboBoxItem Content="Push through - a toll your hand can beat" />
-                                        <ComboBoxItem Content="Hard - full force until released by hotkey" />
-                                        <ComboBoxItem Content="Hard - re-arms itself after each crossing" />
-                                    </ComboBox>
-                                </StackPanel>
-                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,6" Visibility="{Binding IsLockoutHardMode, Converter={StaticResource BoolToVis}}" Text="Hard means the gate runs at 100% - the force dial below is idle - and locked gears do not register at all until the bound key releases the gate (bind it in Options → Hotkeys). It is still a force: a determined shove can beat 12 Nm, but the gear stays refused until the key turns. The gate re-engages on every start and every profile switch." />
-                                <ui:TitledSlider Title="Lockout force (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="70" Visibility="{Binding ShowsLockoutDials, Converter={StaticResource BoolToVis}}" Value="{Binding LockoutForcePct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Humps between the other columns (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="15" Value="{Binding BarrierForcePct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Pull into a column (%)" Minimum="0" Maximum="60" TickFrequency="1" ShowResetButton="True" ResetValue="12" Value="{Binding ColumnDetentForcePct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Neutral spring toward 3/4 (%)" Minimum="0" Maximum="60" TickFrequency="5" ShowResetButton="True" ResetValue="0" Value="{Binding HomeSpringPct, Mode=TwoWay}" />
-                                <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
-                                    <StackPanel Margin="0,6,0,0">
-                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="What the hand feels moving along the neutral channel: a light pull into each column, a hump to climb between the ordinary columns, and - where one is configured - the lockout gate: a fight flat across a compact band, so a fast flick pays the same price as a slow push, and free travel beyond. Geometry sets its position, direction and width; the dials here set its resistance and release behavior; its width times its force is the toll, so if slams still get through, widen or strengthen it. The graph shows this across the whole width of the gate, coloured band and all; the white dot tracks where the stick actually is while sliding." />
-                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="Off at zero. A real H lever rests at the 3/4 gate: this pulls the lever there whenever it is in the neutral channel, fading out with depth so a held gear feels no side pull. Around 25-30% it out-pulls the default column detent and humps and a released lever walks home from anywhere in the channel; below that it is a lean rather than a return. It follows the gear layout, so mirrored columns move home with the gears. If the lever trembles parked at 3/4, lower it - like every pull toward a place, it is only stable in moderation." />
-                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="The pull into a column is light while you slide along the channel and rises in one straight line to the full slot wall by the time you have left it, so the same dial also sets how firmly an entry taken slightly off a column is steered onto its slot. There is no force at all across a column's own width, so it guides without giving the lever a centre line to hunt around. It has no separate funnel strength: a second waypoint would either make one leg steeper than the walls or land exactly on this line." />
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4" Visibility="{Binding ShowsLockoutDials, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="Lockout mode" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <ComboBox MinWidth="300" HorizontalAlignment="Left" SelectedIndex="{Binding LockoutModeIndex, Mode=TwoWay}">
+                                                <ComboBoxItem Content="Push through - a toll your hand can beat" />
+                                                <ComboBoxItem Content="Hard - full force until released by hotkey" />
+                                                <ComboBoxItem Content="Hard - re-arms itself after each crossing" />
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <TextBlock TextWrapping="Wrap" Text="Push through lets your hand cross the guard. Hard modes block new shifts into the guarded gears until you use the release action in Options &gt; Hotkeys." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
                                     </StackPanel>
-                                </styles:SHExpander>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}" Visibility="{Binding ShowsLockoutDials, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Lockout force (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="70" RawValue="{Binding LockoutForcePct, Mode=TwoWay}" x:Name="TuningLockoutForcePct22" />
+                                        <TextBlock TextWrapping="Wrap" Text="The effort needed to cross a push-through lockout, such as the guard before reverse. Hard lockout modes set their own full strength." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningLockoutForcePct22, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Clicks between gear pairs (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="15" RawValue="{Binding BarrierForcePct, Mode=TwoWay}" x:Name="TuningBarrierForcePct23" />
+                                        <TextBlock TextWrapping="Wrap" Text="The small bumps you feel sliding past the ordinary gear pairs in neutral." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningBarrierForcePct23, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Guidance toward gear pairs (0–100)" RawStep="0.06" RawMinimum="0" RawMaximum="60" RawResetValue="12" RawValue="{Binding ColumnDetentForcePct, Mode=TwoWay}" x:Name="TuningColumnDetentForcePct24" />
+                                        <TextBlock TextWrapping="Wrap" Text="The light pull that helps your hand line up with a gear pair while moving across neutral." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningColumnDetentForcePct24, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Return toward 3rd/4th (0–100)" RawStep="0.06" RawMinimum="0" RawMaximum="60" RawResetValue="0" RawValue="{Binding HomeSpringPct, Mode=TwoWay}" x:Name="TuningHomeSpringPct25" />
+                                        <TextBlock TextWrapping="Wrap" Text="Pulls a released lever toward the 3rd/4th gear pair in neutral. Lower this if the lever trembles there." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningHomeSpringPct25, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </styles:SHSection>
-                        <styles:SHSection Title="SLOT DETENT" ShowSeparator="True" Visibility="{Binding HasSlotDetent, Converter={StaticResource BoolToVis}}">
+                        <styles:SHSection Title="GEAR ENGAGEMENT FEEL" ShowSeparator="True" Visibility="{Binding HasSlotDetent, Converter={StaticResource BoolToVis}}">
                             <StackPanel Margin="0,4,0,8">
                                 <local:DetentCurveVisualizer x:Name="DetentCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" />
-                                <ui:TitledSlider Title="Resistance entering the slot (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="22" Value="{Binding DetentResistPct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Pull into the slot, the snick (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="35" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" Value="{Binding DetentPullPct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Seated hold, keeps the gear in (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="55" Value="{Binding DetentHoldPct, Mode=TwoWay}" />
-                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="The seated hold has to beat whatever the base does by itself. A base that is still self-centring pulls hard at full deflection, and a light hold loses to it - the gear simply falls back out." />
-                                <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
-                                    <StackPanel Margin="0,6,0,0">
-                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="This is what makes a gear feel like it clicks into place, the way a real gearbox does - not just friction holding the lever, but a shaped force that changes three times on the way in. Push toward a gear and it resists at first, like pushing into a spring. Keep pushing past that resistance and the lever gets pulled the rest of the way in on its own - the snick, the same moment a synchro drops into place in a real box. Once seated, a steady hold keeps the gear from slipping back out, even against a base that is still trying to nudge the stick back to centre. The graph is the whole stroke in axis counts from centre, so it gets shorter as the throw does, and the white dot tracks exactly where in that sequence the stick currently is." />
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Resistance entering a gear (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="22" RawValue="{Binding DetentResistPct, Mode=TwoWay}" x:Name="TuningDetentResistPct26" />
+                                        <TextBlock TextWrapping="Wrap" Text="The resistance you push through before a gear clicks into place. In sequential, this sets resistance before the shift click." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningDetentResistPct26, Converter={StaticResource BoolToVis}}" />
                                     </StackPanel>
-                                </styles:SHExpander>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Pull into gear (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="35" RawValue="{Binding DetentPullPct, Mode=TwoWay}" x:Name="TuningDetentPullPct27" />
+                                        <TextBlock TextWrapping="Wrap" Text="The snick that draws the lever into a gear after you push through the entry resistance." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningDetentPullPct27, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Hold in gear (%)" RawStep="0.1" RawMinimum="0" RawMaximum="100" RawResetValue="55" RawValue="{Binding DetentHoldPct, Mode=TwoWay}" x:Name="TuningDetentHoldPct28" />
+                                        <TextBlock TextWrapping="Wrap" Text="Keeps the lever seated after the shift. Increase if a seated gear feels too easy to pull out." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningDetentHoldPct28, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </styles:SHSection>
                         <styles:SHSection Title="SOFTWARE STABILITY" ShowSeparator="True">
                             <StackPanel Margin="0,6,0,16">
-                                <ui:TitledSlider Title="Wall attack (ms to full force, 0 = off)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="0" Value="{Binding WallAttackMs, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Rebound absorption (%)" Minimum="0" Maximum="80" TickFrequency="5" ShowResetButton="True" ResetValue="45" Value="{Binding WallYieldPct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Wall friction (%)" Minimum="0" Maximum="40" TickFrequency="1" ShowResetButton="True" ResetValue="15" Value="{Binding WallFrictionPct, Mode=TwoWay}" />
-                                <ui:TitledSlider Title="Damping (%)" Minimum="0" Maximum="80" TickFrequency="5" ShowResetButton="True" ResetValue="25" Value="{Binding DampingPct, Mode=TwoWay}" />
-                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="Wall attack eases contact in time. Rebound absorption limits a bounce. Wall friction adds grip only where the gate applies force. Software damping resists motion throughout travel. These extra software controls work in both virtual modes." />
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Wall contact smoothing (ms)" RawMinimum="0" RawMaximum="100" RawResetValue="0" RawValue="{Binding WallAttackMs, Mode=TwoWay}" Normalize="False" x:Name="TuningWallAttackMs29" />
+                                        <TextBlock TextWrapping="Wrap" Text="How gradually a wall pushes back after contact. Zero is immediate; a little smoothing can make contact calmer." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningWallAttackMs29, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Rebound absorption (0–100)" RawStep="0.08" RawMinimum="0" RawMaximum="80" RawResetValue="45" RawValue="{Binding WallYieldPct, Mode=TwoWay}" x:Name="TuningWallYieldPct30" />
+                                        <TextBlock TextWrapping="Wrap" Text="Takes energy out of a bounce away from a wall. Increase if the lever kicks back too strongly." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningWallYieldPct30, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Wall friction (0–100)" RawStep="0.04" RawMinimum="0" RawMaximum="40" RawResetValue="15" RawValue="{Binding WallFrictionPct, Mode=TwoWay}" x:Name="TuningWallFrictionPct31" />
+                                        <TextBlock TextWrapping="Wrap" Text="Adds grip while the lever is pressed against a gate wall. It stays free when you are clear of the walls." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningWallFrictionPct31, Converter={StaticResource BoolToVis}}" />
+                                        <TextBlock TextWrapping="Wrap" Text="In Moza AB9 mode, prefer Base friction under Base effects first. Use this only for extra grip against the gate walls." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" x:Name="WallFrictionNativeHint" Visibility="Collapsed" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource TuningSettingCard}">
+                                    <StackPanel>
+                                        <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Software damping (0–100)" RawStep="0.08" RawMinimum="0" RawMaximum="80" RawResetValue="25" RawValue="{Binding DampingPct, Mode=TwoWay}" x:Name="TuningDampingPct32" />
+                                        <TextBlock TextWrapping="Wrap" Text="Slows lever movement throughout its travel. Increase for a calmer lever; too much makes shifts feel heavy or sluggish." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningDampingPct32, Converter={StaticResource BoolToVis}}" />
+                                        <TextBlock TextWrapping="Wrap" Text="In Moza AB9 mode, prefer Base damper under Base effects first. Use this only for extra software damping." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" x:Name="SoftwareDampingNativeHint" Visibility="Collapsed" />
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </styles:SHSection>
                     </StackPanel>
@@ -682,236 +890,416 @@
                     </Grid.RowDefinitions>
                     <StackPanel Margin="12,4,12,8">
                         <local:GateVisualizer x:Name="GeometryGate" Height="250" HorizontalAlignment="Center" />
-                        <CheckBox x:Name="GeometryPercentToggle" Content="Show lateral distances as % of column spacing" Margin="0,0,0,4" Checked="OnGeometryPercentToggleChanged" Unchecked="OnGeometryPercentToggleChanged" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" />
                     </StackPanel>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Grid.Row="1">
                         <StackPanel Margin="12,0,12,12">
+                            <TextBlock TextWrapping="Wrap" Text="Distances use a 0–100 scale: lower is less travel or space, higher is more. Decimals allow fine adjustments. Watch the gate above while you tune." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
                             <styles:SHSection Title="HANDBRAKE TRAVEL AND OUTPUT" ShowSeparator="True" Visibility="{Binding IsHandbrake, Converter={StaticResource BoolToVis}}">
                                 <StackPanel Margin="0,6,0,16">
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.85" Text="Set start and end anywhere in the base's Y travel, in either direction, at least 8000 counts apart. Return force and zero braking use the start position, not the base centre. These endpoints are shared by all profiles. Capture them with free stick in Options → Handbrake travel calibration, or adjust them here. Moving an endpoint eases the new forces in and requires a release to start before braking can arm." />
-                                    <ui:TitledSlider Title="Start position (axis counts)" Minimum="0" Maximum="65535" TickFrequency="100" ShowResetButton="False" Value="{Binding HandbrakeRestY, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="End position (axis counts)" Minimum="0" Maximum="65535" TickFrequency="100" ShowResetButton="False" Value="{Binding HandbrakeFullPullY, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Usable handbrake travel (%)" Minimum="25" Maximum="100" ShowResetButton="True" ResetValue="100" Value="{Binding HandbrakeTravelPct, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Released dead zone (%)" Minimum="0" Maximum="20" ShowResetButton="True" ResetValue="2" Value="{Binding HandbrakeDeadzonePct, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Braking progression (%)" Minimum="0" Maximum="100" ShowResetButton="True" ResetValue="0" Value="{Binding HandbrakeOutputProgressionPct, Mode=TwoWay}" />
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="False" Style="{StaticResource ScaledTuningSlider}" Title="Released position (0–100)" RawMinimum="0" RawMaximum="65535" RawValue="{Binding HandbrakeRestY, Mode=TwoWay}" x:Name="TuningHandbrakeRestY33" />
+                                            <TextBlock TextWrapping="Wrap" Text="Where the handbrake rests with no braking. This is shared by your profiles; set it to your actual released position." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningHandbrakeRestY33, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="False" Style="{StaticResource ScaledTuningSlider}" Title="Full-pull position (0–100)" RawMinimum="0" RawMaximum="65535" RawValue="{Binding HandbrakeFullPullY, Mode=TwoWay}" x:Name="TuningHandbrakeFullPullY34" />
+                                            <TextBlock TextWrapping="Wrap" Text="Where a complete handbrake pull ends. It can be on either side of the released position and is shared by your profiles." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningHandbrakeFullPullY34, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Handbrake pull length (0–100)" RawMinimum="25" RawMaximum="100" RawResetValue="100" RawValue="{Binding HandbrakeTravelPct, Mode=TwoWay}" x:Name="TuningHandbrakeTravelPct35" />
+                                            <TextBlock TextWrapping="Wrap" Text="How much of your calibrated movement is used. Lower makes full braking arrive sooner; higher uses more of the pull." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningHandbrakeTravelPct35, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Free movement before braking (0–100)" RawMinimum="0" RawMaximum="20" RawResetValue="2" RawValue="{Binding HandbrakeDeadzonePct, Mode=TwoWay}" x:Name="TuningHandbrakeDeadzonePct36" />
+                                            <TextBlock TextWrapping="Wrap" Text="The small slack at the released end. Increase if braking does not fully release; too much delays braking on the next pull." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningHandbrakeDeadzonePct36, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Braking progression (%)" RawMinimum="0" RawMaximum="100" RawResetValue="0" RawValue="{Binding HandbrakeOutputProgressionPct, Mode=TwoWay}" x:Name="TuningHandbrakeOutputProgressionPct37" />
+                                            <TextBlock TextWrapping="Wrap" Text="How gently braking builds as you pull. Increase for more fine control at the start of the pull." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningHandbrakeOutputProgressionPct37, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </styles:SHSection>
                             <styles:SHSection Title="GEAR LAYOUT" ShowSeparator="True" Visibility="{Binding IsHandbrake, Converter={StaticResource InverseBoolToVis}}">
                                 <StackPanel Margin="0,6,0,16">
                                     <styles:SHExpander Header="Gear layout">
                                         <StackPanel Margin="0,8,0,0">
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="Pure preference: which end of the gate is first gear. Flip these if the gears come out mirrored from where your hand expects them. In sequential the second one swaps up and down; in the automatic it turns the lane round, so P is nearest you instead of furthest away. The buttons follow the labels either way, so mirroring never costs a rebind." />
-                                            <styles:SHToggleCheckbox IsChecked="{Binding MirrorColumns, Mode=TwoWay}" Content="First gear on the right instead of the left" Margin="0,2" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" />
-                                            <styles:SHToggleCheckbox IsChecked="{Binding MirrorSlots, Mode=TwoWay}" Content="Odd gears toward me instead of away" Margin="0,2" />
+                                            <Border Style="{StaticResource TuningSettingCard}" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                                                <StackPanel>
+                                                    <styles:SHToggleCheckbox IsChecked="{Binding MirrorColumns, Mode=TwoWay}" Content="First gear on the right instead of the left" Margin="0,2" />
+                                                    <TextBlock TextWrapping="Wrap" Text="Choose the layout that matches your hand. Gear buttons keep following their gear labels, so this does not require rebinding the game." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Style="{StaticResource TuningSettingCard}" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                                                <StackPanel>
+                                                    <styles:SHToggleCheckbox IsChecked="{Binding MirrorSlots, Mode=TwoWay}" Content="Odd gears toward me instead of away" Margin="0,2" />
+                                                    <TextBlock TextWrapping="Wrap" Text="Choose the layout that matches your hand. Gear buttons keep following their gear labels, so this does not require rebinding the game." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Style="{StaticResource TuningSettingCard}" Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}">
+                                                <StackPanel>
+                                                    <styles:SHToggleCheckbox IsChecked="{Binding MirrorSlots, Mode=TwoWay}" Content="Pull toward me to shift up" Margin="0,2" />
+                                                    <TextBlock TextWrapping="Wrap" Text="Swaps push and pull for sequential shifts. Off: push to shift up, pull to shift down. On: pull to shift up, push to shift down. Your up/down game bindings stay the same." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Style="{StaticResource TuningSettingCard}" Visibility="{Binding IsPrnd, Converter={StaticResource BoolToVis}}">
+                                                <StackPanel>
+                                                    <styles:SHToggleCheckbox IsChecked="{Binding MirrorSlots, Mode=TwoWay}" Content="Park toward me instead of away" Margin="0,2" />
+                                                    <TextBlock TextWrapping="Wrap" Text="Turns the P/R/N/D layout around. Each position keeps its own game binding." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                                </StackPanel>
+                                            </Border>
                                         </StackPanel>
                                     </styles:SHExpander>
                                 </StackPanel>
                             </styles:SHSection>
                             <styles:SHSection Title="PATTERN SIZE AND LAYOUT" ShowSeparator="True" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                                 <StackPanel Margin="0,6,0,16">
-                                    <ui:TitledSlider Title="Pattern width, side to side (% of stick travel)" Minimum="30" Maximum="100" TickFrequency="1" ShowResetButton="True" ResetValue="100" Value="{Binding PatternWidthPct, Mode=TwoWay}" />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="Nothing else rescales with it. Slot corridors, wall bites and column doorways are all still the raw counts you set, so narrowing the pattern makes each of them a bigger share of the room between columns - which is why the % of column spacing readouts move when this does, and why the wall bite ceiling in Geometry can start biting. Narrow a long way and check that figure." />
-                                    <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
-                                        <StackPanel Margin="0,6,0,0">
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="How much of the stick's side-to-side travel the columns are spread over. At 100% the outer columns sit at the very ends, which is where every pattern used to be. Lower it and the pattern is squeezed in from both sides, keeping its middle where it was, so a shift across the gate is a shorter reach - the gate above shows it happening. It is mainly for the three-column patterns: 5+R and the truck 6 put half as many columns across the same stick as 7+R does, so at full width they feel sprawling next to a real five-speed. Around 67% gives them the same spacing a 7+R has." />
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Pattern width (0–100)" RawMinimum="30" RawMaximum="100" RawResetValue="100" RawValue="{Binding PatternWidthPct, Mode=TwoWay}" x:Name="TuningPatternWidthPct38" />
+                                            <TextBlock TextWrapping="Wrap" Text="How far apart the gear pairs feel. Lower gives a compact gate; higher gives a wider sweep. At 100 the outer pairs use the full sideways travel." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningPatternWidthPct38, Converter={StaticResource BoolToVis}}" />
                                         </StackPanel>
-                                    </styles:SHExpander>
+                                    </Border>
                                 </StackPanel>
                             </styles:SHSection>
-                            <styles:SHSection Title="CORRIDORS AND WALL SHAPE" ShowSeparator="True">
+                            <styles:SHSection Title="FREE MOVEMENT AND WALL CONTACT" ShowSeparator="True">
                                 <StackPanel Margin="0,6,0,16">
-                                    <StackPanel Visibility="{Binding HasLateralLane, Converter={StaticResource BoolToVis}}">
-                                        <ui:TitledSlider Title="Sideways free corridor, either side (axis counts)" Minimum="0" Maximum="6000" TickFrequency="100" ShowResetButton="True" ResetValue="1100" Value="{Binding SlotHalfWidth, Mode=TwoWay}" />
-                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="Sequential, PRND and handbrake have a lane with no sideways force inside this distance from centre. Outside it, Slot wall / lateral rail supplies the walls. Zero restores a centred rail, which can hunt at high force even with base damping. Widen the corridor for a quieter resting region; the monitor draws its actual width." />
-                                        <ui:TitledSlider Title="Wall bite distance (axis counts)" Minimum="60" Maximum="6000" TickFrequency="100" ShowResetButton="True" ResetValue="600" Value="{Binding WallRamp, Mode=TwoWay}" />
-                                    </StackPanel>
-                                    <StackPanel Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
-                                        <ui:TitledSlider Title="Slot width, free corridor (axis counts)" Minimum="0" Maximum="2400" TickFrequency="100" ShowResetButton="True" ResetValue="1100" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}" Value="{Binding SlotHalfWidth, Mode=TwoWay}" />
-                                        <ui:TitledSlider Title="Slot width, free corridor (% of column spacing)" Minimum="0" Maximum="12" TickFrequency="0.5" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}" Value="{Binding SlotHalfWidthPercent, Mode=TwoWay}" />
-                                        <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
-                                            <StackPanel Margin="0,6,0,0">
-                                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="A slot is a corridor with walls, not a pull toward its centre line. If a middle gear shakes while seated, widen this: a narrow corridor leaves the stick balanced on a point it can hunt around. The outer gears never shake because their wall only pushes one way, against the end of travel. Zero is the rail gate: the lever pulled straight onto the column line, like the native shifter mode - stable only with a moderate slot wall, so if a railed gear trembles, lower the wall force first." />
-                                            </StackPanel>
-                                        </styles:SHExpander>
-                                    </StackPanel>
-                                    <ui:TitledSlider Title="Tunnel depth, free corridor (axis counts)" Minimum="0" Maximum="4000" TickFrequency="100" ShowResetButton="True" ResetValue="2600" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" Value="{Binding ChannelFreeDepth, Mode=TwoWay}" />
-                                    <TextBlock x:Name="ChannelFreeDepthSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" Text="The fore/aft twin of the slot width: how deep the tunnel stays free before its centring force begins. Zero closes the last free space in the gate, so the lever is guided on exactly one axis everywhere - together with zero slot width this is the native shifter-mode topology. Values above the neutral channel enter band are capped to it." />
-                                    <StackPanel Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
-                                        <ui:TitledSlider Title="Wall bite distance (axis counts)" Minimum="60" Maximum="6000" TickFrequency="100" ShowResetButton="True" ResetValue="600" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}" Value="{Binding WallRamp, Mode=TwoWay}" />
-                                        <ui:TitledSlider Title="Wall bite distance (% of column spacing)" Minimum="0" Maximum="30" TickFrequency="0.5" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}" Value="{Binding WallRampPercent, Mode=TwoWay}" />
-                                    </StackPanel>
-                                    <TextBlock x:Name="WallRampSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" />
-                                    <StackPanel Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
-                                        <ui:TitledSlider Title="Gate wall fade width, across a column (axis counts)" Minimum="200" Maximum="6000" TickFrequency="100" ShowResetButton="True" ResetValue="1500" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}" Value="{Binding WallBlend, Mode=TwoWay}" />
-                                        <ui:TitledSlider Title="Gate wall fade width, across a column (% of column spacing)" Minimum="0" Maximum="30" TickFrequency="0.5" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}" Value="{Binding WallBlendPercent, Mode=TwoWay}" />
-                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="How far sideways it takes the fore/aft gate wall to go from open, on a column, to solid between columns. This is the mouth of each slot seen from the tunnel: narrow and the gate snaps shut as you leave a column, wide and every entry feels vague. It is a sideways gradient, so it is also what corners are made of - widen it if corners feel harsh." />
-                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0" Text="Which gap the lockout guards is chosen in Geometry; within that gap it still places itself against the near column's band, so sliding across the gate meets it straight away instead of after a long stretch of dead travel (a Both-direction gate sits on the gap's midpoint instead). Its width is in Geometry, and the live monitor draws the band where it actually is." />
-                                        <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
-                                            <StackPanel Margin="0,6,0,0">
-                                                <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="The lateral guide has no ramp of its own any more. Every sideways force in the gate - the pull along the tunnel, the funnel into a slot, the slot wall itself - now rises at the same stiffness as the wall, so a gentler force gets a shorter face instead of a steeper one. Its own ramp was a free parameter, and at the bottom of its range it made the funnel the steepest thing in the gate, three and a half times the wall face, in exactly the place the lever crosses on every shift." />
-                                            </StackPanel>
-                                        </styles:SHExpander>
-                                    </StackPanel>
-                                </StackPanel>
-                            </styles:SHSection>
-                            <styles:SHSection Title="THROW AND SLOT END-STOP" ShowSeparator="True" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
-                                <StackPanel Margin="0,6,0,16">
-                                    <ui:TitledSlider Title="Throw from centre to a seated gear (axis counts)" Minimum="6000" Maximum="30000" TickFrequency="500" ShowResetButton="True" ResetValue="28767" Value="{Binding ThrowFromCentre, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Free landing past the seat (axis counts)" Minimum="0" Maximum="12000" TickFrequency="100" ShowResetButton="True" ResetValue="4000" Value="{Binding SlotOvertravel, Mode=TwoWay}" />
-                                    <TextBlock x:Name="SlotThrowSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" />
-                                    <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
-                                        <StackPanel Margin="0,6,0,0">
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="How far the lever travels from neutral to a seated gear, and whether it has anywhere to stop. These two questions are the whole of a short-throw box, and they are separate: the throw below sets where a gear registers, but with the end-stop at zero the seated hold keeps pulling past that line and the lever runs on to the base's own mechanical stop, exactly as it always has. Shortening the throw on its own therefore only makes the gear register earlier - the travel is unchanged. Raise the end-stop wall and the slot gets a bottom of its own, which is what actually shortens the throw." />
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="The slot in order, once it has a bottom: centre to the seat (the throw - it moves the release line with it, so the hysteresis gap survives), then the seated hold fading out over one wall bite, then a free landing carrying no fore/aft force at all, then the wall. The landing is deliberately free rather than held, so the gear's resting place is a region and not a point - a force pulling toward a single spot is an oscillator, which is the same reason the slot corridor and the tunnel are free spaces rather than centre lines. That only works because the base is not self-centring: with Spring at 0 in MOZA Cockpit nothing pushes the lever back out of the landing, so nothing has to hold it in. The landing never runs shorter than the wall bite, whichever way the two are set, or the hold would have to vanish in a couple of counts and arrive as a bang rather than a face." />
+                                    <Border Style="{StaticResource TuningSettingCard}" Visibility="{Binding HasLateralLane, Converter={StaticResource BoolToVis}}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Sideways freedom (0–100)" RawMinimum="0" RawMaximum="6000" RawResetValue="1100" RawValue="{Binding SlotHalfWidth, Mode=TwoWay}" x:Name="TuningSlotHalfWidth39" />
+                                            <TextBlock TextWrapping="Wrap" Text="Room to move left and right in the sequential, PRND or handbrake lane. Increase for more freedom; zero guides the lever along a centre line." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningSlotHalfWidth39, Converter={StaticResource BoolToVis}}" />
                                         </StackPanel>
-                                    </styles:SHExpander>
-                                </StackPanel>
-                            </styles:SHSection>
-                            <styles:SHSection Title="SEQUENTIAL STROKE" ShowSeparator="True" Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}">
-                                <StackPanel Margin="0,6,0,16">
-                                    <ui:TitledSlider Title="Actuation throw from centre (axis counts)" Minimum="4000" Maximum="30000" TickFrequency="500" ShowResetButton="True" ResetValue="28767" Value="{Binding ThrowFromCentre, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Stroke past the click (axis counts)" Minimum="500" Maximum="10000" TickFrequency="100" ShowResetButton="True" ResetValue="2500" Value="{Binding SeqOvertravel, Mode=TwoWay}" />
-                                    <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
-                                        <StackPanel Margin="0,6,0,0">
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="The whole stroke, in order: centre to the firing point (the actuation throw - shorten it for a quicker shift; it moves the re-arm point with it), this much landing past the click, then the end-stop wall rising over the wall bite. The stop is measured from the firing point, so shortening the throw moves everything together. The click kick is a 25 ms burst in the stroke's direction the instant the shift registers - the mechanism letting go - which then throws the lever onto the end-stop: the two together are the thunk, so raise the kick for a harder click and the end-stop wall for a harder landing. Everything stays a wall toward centre, never a pocket: release the lever anywhere and it still comes home. Resistance up to the click is the detent resist dial; what remains after it is detent hold, which is also the spring that brings the lever back." />
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Gear-slot width (0–100)" RawMinimum="0" RawMaximum="2400" RawResetValue="1100" RawValue="{Binding SlotHalfWidth, Mode=TwoWay}" x:Name="TuningSlotHalfWidth40" />
+                                            <TextBlock TextWrapping="Wrap" Text="Sideways wiggle room while in gear. Increase for roomier slots; lower it for tighter guidance. If a tight slot trembles, widen it or reduce its side-wall force in Feel." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningSlotHalfWidth40, Converter={StaticResource BoolToVis}}" />
                                         </StackPanel>
-                                    </styles:SHExpander>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Neutral tunnel width (0–100)" RawMinimum="0" RawMaximum="4000" RawResetValue="2600" RawValue="{Binding ChannelFreeDepth, Mode=TwoWay}" x:Name="TuningChannelFreeDepth41" />
+                                            <TextBlock TextWrapping="Wrap" Text="Forward/backward wiggle room while sliding left and right through neutral. Increase for more room; zero guides the lever along a centre line. The blue monitor band shows the space in use." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock x:Name="ChannelFreeDepthSummary" TextWrapping="Wrap" MaxWidth="760" HorizontalAlignment="Left" FontWeight="SemiBold" Opacity="0.85" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningChannelFreeDepth41, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Wall bite distance (0–100)" RawMinimum="60" RawMaximum="6000" RawResetValue="600" RawValue="{Binding WallRamp, Mode=TwoWay}" x:Name="TuningWallRamp42" />
+                                            <TextBlock TextWrapping="Wrap" Text="How gradually resistance builds as you press into a wall. Lower feels harder and sharper; higher feels softer. Set the maximum wall force in Feel." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="For a realistic hard-gate feel, aim toward zero bite distance. Very short distances can cause oscillation, so increase it until the gate is stable and feels right to you." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock x:Name="WallRampSummary" TextWrapping="Wrap" MaxWidth="760" HorizontalAlignment="Left" FontWeight="SemiBold" Opacity="0.85" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningWallRamp42, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Gate wall fade width (0–100)" RawMinimum="200" RawMaximum="6000" RawResetValue="1500" RawValue="{Binding WallBlend, Mode=TwoWay}" x:Name="TuningWallBlend43" />
+                                            <TextBlock TextWrapping="Wrap" Text="How gradually the wall closes beside a gear opening while you move sideways through neutral. Lower gives a sharper corner; higher gives a gentler edge." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="For crisp, clearly defined gear openings, keep this narrow. Very small widths make the corners abrupt and can cause chatter or oscillation. Widen it until the corners feel smooth and stable; too wide can feel vague." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningWallBlend43, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </styles:SHSection>
-                            <styles:SHSection Title="SLOT MOUTHS" ShowSeparator="True" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                            <styles:SHSection Title="GEAR TRAVEL" ShowSeparator="True" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                                <StackPanel Margin="0,6,0,16">
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Gear throw length (0–100)" RawMinimum="6000" RawMaximum="30000" RawResetValue="28767" RawValue="{Binding ThrowFromCentre, Mode=TwoWay}" x:Name="TuningThrowFromCentre44" />
+                                            <TextBlock TextWrapping="Wrap" Text="How far the lever moves from neutral to a seated gear. Lower makes a shorter throw. Enable Gear-slot end stop in Feel to give the shorter stroke a definite bottom." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningThrowFromCentre44, Converter={StaticResource BoolToVis}}" />
+                                            <TextBlock x:Name="SlotThrowSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0" MaxWidth="760" HorizontalAlignment="Left" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Room past the seated gear (0–100)" RawMinimum="0" RawMaximum="12000" RawResetValue="4000" RawValue="{Binding SlotOvertravel, Mode=TwoWay}" x:Name="TuningSlotOvertravel45" />
+                                            <TextBlock TextWrapping="Wrap" Text="Extra travel after the gear seats, before its end stop. Lower gives a shorter, more definite finish; higher leaves more room to settle." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningSlotOvertravel45, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </styles:SHSection>
+                            <styles:SHSection Title="SEQUENTIAL TRAVEL" ShowSeparator="True" Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}">
+                                <StackPanel Margin="0,6,0,16">
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Travel before the shift click (0–100)" RawMinimum="4000" RawMaximum="30000" RawResetValue="28767" RawValue="{Binding ThrowFromCentre, Mode=TwoWay}" x:Name="TuningThrowFromCentre46" />
+                                            <TextBlock TextWrapping="Wrap" Text="How far you push or pull before a sequential shift registers. Lower makes a short, quick stroke; higher requires more travel." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningThrowFromCentre46, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Travel after the shift click (0–100)" RawMinimum="500" RawMaximum="10000" RawResetValue="2500" RawValue="{Binding SeqOvertravel, Mode=TwoWay}" x:Name="TuningSeqOvertravel47" />
+                                            <TextBlock TextWrapping="Wrap" Text="How far the lever can move after a sequential shift registers, before meeting the end stop." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningSeqOvertravel47, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </styles:SHSection>
+                            <styles:SHSection Title="GEAR ENTRANCES" ShowSeparator="True" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                                 <StackPanel Margin="0,4,0,8">
                                     <local:SlotMouthVisualizer x:Name="SlotMouthCurve" Height="220" HorizontalAlignment="Left" Margin="0,0,0,8" />
-                                    <TextBlock Text="Mouth shape" Margin="0,0,0,4" />
-                                    <ComboBox SelectedIndex="{Binding MouthShapeIndex, Mode=TwoWay}" Margin="0,0,0,8" HorizontalAlignment="Left" MinWidth="240">
-                                        <ComboBoxItem Content="Square - a plain notch (default)" />
-                                        <ComboBoxItem Content="Rounded - filleted on both sides" />
-                                        <ComboBoxItem Content="Angled - chamfered toward the next gear" />
-                                    </ComboBox>
-                                    <ui:TitledSlider Title="Mouth reach down the slot (axis counts)" Minimum="1000" Maximum="12000" TickFrequency="500" ShowResetButton="True" ResetValue="5000" Value="{Binding MouthDepth, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Mouth opening (%)" Minimum="0" Maximum="100" TickFrequency="5" ShowResetButton="True" ResetValue="100" Value="{Binding MouthOpenPct, Mode=TwoWay}" />
-                                    <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
-                                        <StackPanel Margin="0,6,0,0">
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="The ends of the dividers between slots, where they meet the neutral tunnel. Square is the plain rectangular notch the gate has always had. The other two open the slot out toward the tunnel, which a hand reads as an eased or a chamfered edge - they only ever remove force, never add it, so the shaping guides rather than shoves. The diagram below is a view from above: depth into the slot running right, how much lateral room there is either side of the column running up and down. The white dot tracks the stick while it is actually in a column." />
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="Reach is what decides whether the shaping is felt at all. The base takes three to four milliseconds to answer, in which a lever being shifted covers fifteen hundred counts or more - so shaping confined to a shorter stretch than that is over before a single corrected force arrives. Several thousand counts spans the whole withdrawal stroke. Opening is a share of what the geometry safely allows, so it can never reach the next column's slot or the lockout's band. Angled opens one side only, toward the next gear in sequence, and does nothing at all where there is no next gear or where the crossing is the lockout." />
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <TextBlock Margin="0,0,0,6" FontWeight="SemiBold" Text="Gear-entry shape" />
+                                            <ComboBox SelectedIndex="{Binding MouthShapeIndex, Mode=TwoWay}" Margin="0,0,0,8" HorizontalAlignment="Left" MinWidth="240">
+                                                <ComboBoxItem Content="Square - a plain notch (default)" />
+                                                <ComboBoxItem Content="Rounded - filleted on both sides" />
+                                                <ComboBoxItem Content="Angled - chamfered toward the next gear" />
+                                            </ComboBox>
+                                            <TextBlock TextWrapping="Wrap" Text="Square gives a plain opening. Rounded softens both corners. Angled eases the route toward the next gear." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
                                         </StackPanel>
-                                    </styles:SHExpander>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Gear-entry easing length (0–100)" RawMinimum="1000" RawMaximum="12000" RawResetValue="5000" RawValue="{Binding MouthDepth, Mode=TwoWay}" x:Name="TuningMouthDepth48" />
+                                            <TextBlock TextWrapping="Wrap" Text="How far into the slot its softened entrance continues. Increase if the easing feels too brief during a quick shift." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningMouthDepth48, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Gear-entry opening (%)" RawMinimum="0" RawMaximum="100" RawResetValue="100" RawValue="{Binding MouthOpenPct, Mode=TwoWay}" x:Name="TuningMouthOpenPct49" />
+                                            <TextBlock TextWrapping="Wrap" Text="How much the entrance opens to help your hand slide into a gear. Increase for more forgiving entries." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningMouthOpenPct49, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </styles:SHSection>
                             <styles:SHSection Title="PRND LANE AND LOCKOUT" ShowSeparator="True" Visibility="{Binding IsPrnd, Converter={StaticResource BoolToVis}}">
                                 <StackPanel Margin="0,6,0,16">
-                                    <ui:TitledSlider Title="Lane half-length from centre (axis counts)" Minimum="2000" Maximum="30000" TickFrequency="500" ShowResetButton="True" ResetValue="12000" Value="{Binding PrndLaneHalfLength, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Free notch at each position (axis counts)" Minimum="0" Maximum="6000" TickFrequency="100" ShowResetButton="True" ResetValue="600" Value="{Binding PrndNotchHalfWidth, Mode=TwoWay}" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
-                                        <TextBlock Text="Lockout between positions" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                        <ComboBox MinWidth="220" HorizontalAlignment="Left" SelectedIndex="{Binding PrndLockoutGapIndex, Mode=TwoWay}">
-                                            <ComboBoxItem Content="Off" />
-                                            <ComboBoxItem Content="Between P and R" />
-                                            <ComboBoxItem Content="Between R and N" />
-                                            <ComboBoxItem Content="Between N and D" />
-                                        </ComboBox>
-                                    </StackPanel>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="PRND selector travel (0–100)" RawMinimum="2000" RawMaximum="30000" RawResetValue="12000" RawValue="{Binding PrndLaneHalfLength, Mode=TwoWay}" x:Name="TuningPrndLaneHalfLength50" />
+                                            <TextBlock TextWrapping="Wrap" Text="How far apart P, R, N and D sit along the lever travel. Lower makes a compact selector; higher spreads the positions out." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningPrndLaneHalfLength50, Converter={StaticResource BoolToVis}}" />
+                                            <TextBlock x:Name="PrndLaneSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0" MaxWidth="760" HorizontalAlignment="Left" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Free movement at each PRND position (0–100)" RawMinimum="0" RawMaximum="6000" RawResetValue="600" RawValue="{Binding PrndNotchHalfWidth, Mode=TwoWay}" x:Name="TuningPrndNotchHalfWidth51" />
+                                            <TextBlock TextWrapping="Wrap" Text="Wiggle room while sitting in P, R, N or D. Increase if a selected position feels too tightly pinned." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningPrndNotchHalfWidth51, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                                <TextBlock Text="Lockout between positions" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                <ComboBox MinWidth="220" HorizontalAlignment="Left" SelectedIndex="{Binding PrndLockoutGapIndex, Mode=TwoWay}">
+                                                    <ComboBoxItem Content="Off" />
+                                                    <ComboBoxItem Content="Between P and R" />
+                                                    <ComboBoxItem Content="Between R and N" />
+                                                    <ComboBoxItem Content="Between N and D" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <TextBlock TextWrapping="Wrap" Text="Choose which gap between selector positions should have extra resistance." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                    </Border>
                                     <StackPanel Visibility="{Binding HasPrndLockout, Converter={StaticResource BoolToVis}}">
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                            <TextBlock Text="Direction" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                            <ComboBox MinWidth="300" HorizontalAlignment="Left" SelectedIndex="{Binding PrndLockoutDirectionIndex, Mode=TwoWay}">
-                                                <ComboBoxItem Content="One-way - moving toward D pays" />
-                                                <ComboBoxItem Content="One-way - moving toward P pays" />
-                                                <ComboBoxItem Content="Both ways pay" />
-                                            </ComboBox>
-                                        </StackPanel>
-                                        <ui:TitledSlider Title="PRND lockout half-width (axis counts)" Minimum="200" Maximum="6000" TickFrequency="100" ShowResetButton="True" ResetValue="1200" Value="{Binding PrndLockoutHalfWidth, Mode=TwoWay}" />
-                                        <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,6" Text="The lockout names the labels, so turning the lane round with the mirror option moves it with P, R, N and D. Its band replaces that gap's detent hump and is clamped to end before both neighbouring notches - the line below says what is actually in force." />
+                                        <Border Style="{StaticResource TuningSettingCard}">
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                    <TextBlock Text="Direction" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                    <ComboBox MinWidth="300" HorizontalAlignment="Left" SelectedIndex="{Binding PrndLockoutDirectionIndex, Mode=TwoWay}">
+                                                        <ComboBoxItem Content="Resist moving toward D" />
+                                                        <ComboBoxItem Content="Resist moving toward P" />
+                                                        <ComboBoxItem Content="Resist both directions" />
+                                                    </ComboBox>
+                                                </StackPanel>
+                                                <TextBlock TextWrapping="Wrap" Text="Choose which direction meets the guard: entering, leaving, or both." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Style="{StaticResource TuningSettingCard}">
+                                            <StackPanel>
+                                                <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="PRND lockout width (0–100)" RawMinimum="200" RawMaximum="6000" RawResetValue="1200" RawValue="{Binding PrndLockoutHalfWidth, Mode=TwoWay}" x:Name="TuningPrndLockoutHalfWidth52" />
+                                                <TextBlock TextWrapping="Wrap" Text="How far you must move through the guarded gap. Wider makes it take a more deliberate movement." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                                <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningPrndLockoutHalfWidth52, Converter={StaticResource BoolToVis}}" />
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
-                                    <TextBlock x:Name="PrndLaneSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" />
-                                    <styles:SHExpander Header="How these settings work" Margin="0,8,0,8">
-                                        <StackPanel Margin="0,6,0,0">
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="An automatic's selector: one lane with four fixed positions. Direct vJoy holds P/R/N/D on buttons 11/12/13/14; Control Mapper holds the role assigned to each position in Options. There is no neutral to come back through and no gear to engage: the lever is always somewhere, and moving between positions is all there is." />
-                                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="The lane half-length puts P and D that far either side of centre, with the other two dividing the rest evenly - it is the lane's own dial, not the throw the H and sequential patterns share, because a selector lane is a fraction of the length a gear lever wants and sharing one would retune the other every time the pattern changed. The detent between positions is a smooth hump: nothing at a position, nothing again at the halfway point, one rise either side. That is deliberate rather than decorative - a force pulling toward the nearest position would reverse at every halfway point, and a reversal between two saturated forces is the worst step this hardware can produce. The free notch is what makes a selected position a place the lever rests rather than a point it is pulled to; zero turns each position into a line, which is stable only at moderate detent force, like the rail gate. Sideways the lever is railed to the middle at the slot wall strength." />
-                                        </StackPanel>
-                                    </styles:SHExpander>
                                 </StackPanel>
                             </styles:SHSection>
                             <styles:SHSection Title="LOCKOUT POSITION AND WIDTH" ShowSeparator="True" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                                 <StackPanel Margin="0,6,0,16">
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                        <TextBlock Text="Lockout position" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                        <ComboBox MinWidth="300" HorizontalAlignment="Left" SelectedIndex="{Binding LockoutPlacementIndex, Mode=TwoWay}">
-                                            <ComboBoxItem Content="Pattern default (7+R and 6+R guard 7/R; others none)" />
-                                            <ComboBoxItem Content="Off" />
-                                            <ComboBoxItem Content="Between columns 1 and 2" />
-                                            <ComboBoxItem Content="Between columns 2 and 3" />
-                                            <ComboBoxItem Content="Between columns 3 and 4 (four-column patterns)" />
-                                            <ComboBoxItem Content="On one slot (pick the gear below)" />
-                                        </ComboBox>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4" Visibility="{Binding IsLockoutOnSlot, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="Locked slot" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                        <ComboBox Width="90" SelectedIndex="{Binding LockoutSlotGearIndex, Mode=TwoWay}">
-                                            <ComboBoxItem Content="1" />
-                                            <ComboBoxItem Content="2" />
-                                            <ComboBoxItem Content="3" />
-                                            <ComboBoxItem Content="4" />
-                                            <ComboBoxItem Content="5" />
-                                            <ComboBoxItem Content="6" />
-                                            <ComboBoxItem Content="7" />
-                                            <ComboBoxItem Content="R" />
-                                        </ComboBox>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4" Visibility="{Binding IsLockoutOnGap, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="Direction" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                        <ComboBox MinWidth="300" HorizontalAlignment="Left" SelectedIndex="{Binding LockoutGapDirectionIndex, Mode=TwoWay}">
-                                            <ComboBoxItem Content="One-way - entering the higher column pays" />
-                                            <ComboBoxItem Content="One-way - entering the lower column pays" />
-                                            <ComboBoxItem Content="Both directions pay" />
-                                        </ComboBox>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4" Visibility="{Binding IsLockoutOnSlot, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="Direction" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                        <ComboBox MinWidth="300" HorizontalAlignment="Left" SelectedIndex="{Binding LockoutSlotDirectionIndex, Mode=TwoWay}">
-                                            <ComboBoxItem Content="One-way - going into the slot pays" />
-                                            <ComboBoxItem Content="One-way - coming out of the slot pays" />
-                                            <ComboBoxItem Content="Both ways pay" />
-                                        </ComboBox>
-                                    </StackPanel>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <TextBlock Text="Lockout position" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                <ComboBox MinWidth="300" HorizontalAlignment="Left" SelectedIndex="{Binding LockoutPlacementIndex, Mode=TwoWay}">
+                                                    <ComboBoxItem Content="Pattern default (7+R and 6+R guard 7/R; others none)" />
+                                                    <ComboBoxItem Content="Off" />
+                                                    <ComboBoxItem Content="Between columns 1 and 2" />
+                                                    <ComboBoxItem Content="Between columns 2 and 3" />
+                                                    <ComboBoxItem Content="Between columns 3 and 4 (four-column patterns)" />
+                                                    <ComboBoxItem Content="On one slot (pick the gear below)" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <TextBlock TextWrapping="Wrap" Text="Choose which gear pair or individual gear needs a guard, such as reverse." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock x:Name="LockoutPlacementSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,8,0,0" Visibility="{Binding ShowsLockoutDials, Converter={StaticResource BoolToVis}}" MaxWidth="760" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4" Visibility="{Binding IsLockoutOnSlot, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="Locked slot" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                <ComboBox Width="90" SelectedIndex="{Binding LockoutSlotGearIndex, Mode=TwoWay}">
+                                                    <ComboBoxItem Content="1" />
+                                                    <ComboBoxItem Content="2" />
+                                                    <ComboBoxItem Content="3" />
+                                                    <ComboBoxItem Content="4" />
+                                                    <ComboBoxItem Content="5" />
+                                                    <ComboBoxItem Content="6" />
+                                                    <ComboBoxItem Content="7" />
+                                                    <ComboBoxItem Content="R" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <TextBlock TextWrapping="Wrap" Text="Choose the gear protected by the lockout." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4" Visibility="{Binding IsLockoutOnGap, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="Direction" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                <ComboBox MinWidth="300" HorizontalAlignment="Left" SelectedIndex="{Binding LockoutGapDirectionIndex, Mode=TwoWay}">
+                                                    <ComboBoxItem Content="Resist moving toward higher gears" />
+                                                    <ComboBoxItem Content="Resist moving toward lower gears" />
+                                                    <ComboBoxItem Content="Resist both directions" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <TextBlock TextWrapping="Wrap" Text="Choose which direction meets the guard: entering, leaving, or both." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4" Visibility="{Binding IsLockoutOnSlot, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="Direction" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                <ComboBox MinWidth="300" HorizontalAlignment="Left" SelectedIndex="{Binding LockoutSlotDirectionIndex, Mode=TwoWay}">
+                                                    <ComboBoxItem Content="Resist entering the gear" />
+                                                    <ComboBoxItem Content="Resist leaving the gear" />
+                                                    <ComboBoxItem Content="Resist both directions" />
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <TextBlock TextWrapping="Wrap" Text="Choose which direction meets the guard: entering, leaving, or both." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                    </Border>
                                     <StackPanel Visibility="{Binding ShowsLockoutDials, Converter={StaticResource BoolToVis}}">
-                                        <ui:TitledSlider Title="Lockout gate half-width (axis counts)" Minimum="500" Maximum="6000" TickFrequency="100" ShowResetButton="True" ResetValue="2200" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}" Value="{Binding LockoutHalfWidth, Mode=TwoWay}" />
-                                        <ui:TitledSlider Title="Lockout gate half-width (% of column spacing)" Minimum="0" Maximum="30" TickFrequency="0.5" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}" Value="{Binding LockoutHalfWidthPercent, Mode=TwoWay}" />
+                                        <Border Style="{StaticResource TuningSettingCard}">
+                                            <StackPanel>
+                                                <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Lockout width (0–100)" RawMinimum="500" RawMaximum="6000" RawResetValue="2200" RawValue="{Binding LockoutHalfWidth, Mode=TwoWay}" x:Name="TuningLockoutHalfWidth53" />
+                                                <TextBlock TextWrapping="Wrap" Text="How far you must push through the lockout. Wider makes accidental crossings harder, even during a quick movement." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                                <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningLockoutHalfWidth53, Converter={StaticResource BoolToVis}}" />
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
-                                    <TextBlock x:Name="LockoutPlacementSummary" TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Visibility="{Binding ShowsLockoutDials, Converter={StaticResource BoolToVis}}" />
-                                    <ui:TitledSlider Title="Hump width (axis counts)" Minimum="400" Maximum="8000" TickFrequency="100" ShowResetButton="True" ResetValue="2500" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}" Value="{Binding BarrierWidth, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Hump width (% of column spacing)" Minimum="0" Maximum="40" TickFrequency="1" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}" Value="{Binding BarrierWidthPercent, Mode=TwoWay}" />
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Width of clicks between gear pairs (0–100)" RawMinimum="400" RawMaximum="8000" RawResetValue="2500" RawValue="{Binding BarrierWidth, Mode=TwoWay}" x:Name="TuningBarrierWidth54" />
+                                            <TextBlock TextWrapping="Wrap" Text="How broad the small bumps between gear pairs feel. Lower gives short clicks; higher gives broader rises." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningBarrierWidth54, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </styles:SHSection>
-                            <styles:SHExpander Header="Advanced gate geometry" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
+                            <styles:SHExpander Header="Advanced gear detection" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                                 <StackPanel Margin="0,8,0,8">
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" Text="All in axis counts: positions run 0 to 65535 with 32767 at centre, so 1000 counts is about a finger's width of stick travel. These decide where the gate thinks the lever is, not what it feels like - change them only if gear detection is wrong, and use Feel for anything about strength." />
-                                    <ui:TitledSlider Title="Neutral tunnel half-depth (enter)" Minimum="200" Maximum="8000" TickFrequency="100" ShowResetButton="True" ResetValue="2600" Value="{Binding ChannelHalfEnter, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Neutral tunnel half-depth (leave)" Minimum="200" Maximum="10000" TickFrequency="100" ShowResetButton="True" ResetValue="5200" Value="{Binding ChannelHalfExit, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Outer column half-width" Minimum="500" Maximum="10000" TickFrequency="100" ShowResetButton="True" ResetValue="2600" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}" Value="{Binding ColumnEdgeEnter, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Outer column half-width (% of column spacing)" Minimum="0" Maximum="50" TickFrequency="1" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}" Value="{Binding ColumnEdgeEnterPercent, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Inner column half-width" Minimum="300" Maximum="8000" TickFrequency="100" ShowResetButton="True" ResetValue="1200" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}" Value="{Binding ColumnInnerHalfEnter, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Inner column half-width (% of column spacing)" Minimum="0" Maximum="40" TickFrequency="1" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}" Value="{Binding ColumnInnerHalfEnterPercent, Mode=TwoWay}" />
+                                    <TextBlock TextWrapping="Wrap" Text="Use these only if the game detects shifts at the wrong point or gear openings are hard to find. For everyday tuning, start with throw length, neutral width and gear-slot width above." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Returning to neutral (0–100)" RawMinimum="200" RawMaximum="8000" RawResetValue="2600" RawValue="{Binding ChannelHalfEnter, Mode=TwoWay}" x:Name="TuningChannelHalfEnter55" />
+                                            <TextBlock TextWrapping="Wrap" Text="How close to the neutral lane the lever needs to return before it is treated as back in neutral. Increase if normal hand movement struggles to find neutral." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningChannelHalfEnter55, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Leaving neutral (0–100)" RawMinimum="200" RawMaximum="10000" RawResetValue="5200" RawValue="{Binding ChannelHalfExit, Mode=TwoWay}" x:Name="TuningChannelHalfExit56" />
+                                            <TextBlock TextWrapping="Wrap" Text="How far you can push or pull before the lever is treated as leaving the neutral lane. Increase if it switches too quickly from sliding across neutral to entering a gear." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningChannelHalfExit56, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Outside gear-pair openings (0–100)" RawMinimum="500" RawMaximum="10000" RawResetValue="2600" RawValue="{Binding ColumnEdgeEnter, Mode=TwoWay}" x:Name="TuningColumnEdgeEnter57" />
+                                            <TextBlock TextWrapping="Wrap" Text="How much room you have to line up with the first and last gear pairs. Wider makes their entrances more forgiving." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningColumnEdgeEnter57, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Middle gear-pair openings (0–100)" RawMinimum="300" RawMaximum="8000" RawResetValue="1200" RawValue="{Binding ColumnInnerHalfEnter, Mode=TwoWay}" x:Name="TuningColumnInnerHalfEnter58" />
+                                            <TextBlock TextWrapping="Wrap" Text="How much room you have to line up with the middle gear pairs. Wider makes their entrances more forgiving." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningColumnInnerHalfEnter58, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
                                     <StackPanel Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
-                                        <ui:TitledSlider Title="Lockout clearance from the column beside it" Minimum="300" Maximum="10000" TickFrequency="100" ShowResetButton="True" ResetValue="2400" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}" Value="{Binding ColumnInnerHalfExit, Mode=TwoWay}" />
-                                        <ui:TitledSlider Title="Lockout clearance from the column beside it (% of column spacing)" Minimum="0" Maximum="50" TickFrequency="1" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}" Value="{Binding ColumnInnerHalfExitPercent, Mode=TwoWay}" />
+                                        <Border Style="{StaticResource TuningSettingCard}">
+                                            <StackPanel>
+                                                <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Room beside the lockout (0–100)" RawMinimum="300" RawMaximum="10000" RawResetValue="2400" RawValue="{Binding ColumnInnerHalfExit, Mode=TwoWay}" x:Name="TuningColumnInnerHalfExit59" />
+                                                <TextBlock TextWrapping="Wrap" Text="Space to rest beside the gear pair next to the lockout before meeting its resistance. This matters only for a lockout between gear pairs." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                                <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningColumnInnerHalfExit59, Converter={StaticResource BoolToVis}}" />
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}" Text="The lockout clearance above is the room the lockout gate leaves beside the column it stands against before its band begins - whichever gap Geometry points it at. It does nothing while the lockout is off or on a slot; the line under Geometry's lockout dials says which gap is actually guarded." />
-                                    <ui:TitledSlider Title="Engage depth (from the end of travel)" Minimum="500" Maximum="28000" TickFrequency="500" ShowResetButton="True" ResetValue="4000" Value="{Binding EngageDepth, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Release depth (from the end of travel)" Minimum="1000" Maximum="30000" TickFrequency="500" ShowResetButton="True" ResetValue="8000" Value="{Binding ReleaseDepth, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Column handover width" Minimum="0" Maximum="6000" TickFrequency="100" ShowResetButton="True" ResetValue="400" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource InverseBoolToVis}}" Value="{Binding DetentHysteresis, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Column handover width (% of column spacing)" Minimum="0" Maximum="30" TickFrequency="0.5" Visibility="{Binding IsChecked, ElementName=GeometryPercentToggle, Converter={StaticResource BoolToVis}}" Value="{Binding DetentHysteresisPercent, Mode=TwoWay}" />
-                                    <ui:TitledSlider Title="Ticks required to engage" Minimum="1" Maximum="20" TickFrequency="1" ShowResetButton="True" ResetValue="2" Value="{Binding MinEngageTicks, Mode=TwoWay}" />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="How many consecutive loop ticks the lever must sit past the engage depth before the gear registers, so a single stray reading cannot fire a shift. Ticks use the loop rate in Options → Diagnostics, so at the default 1000 Hz two ticks is two milliseconds - raise it only if gears register spuriously, because every tick added is delay a hand can feel." />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="How far fore or aft of centre still counts as the neutral tunnel. This is a genuine hysteresis pair - the lever has to travel past the larger figure to be considered out of neutral, and come back inside the smaller one to be back in it, so resting on the boundary cannot flutter the gear. The gap between them is also the distance over which the slot walls fade in as you leave the tunnel, so widening it makes the handover gentler." />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="How wide the opening at each column is, measured either side of its centre line - the outer two get more because they run to the end of travel. Inside it the fore/aft wall is fully open so the lever can go straight into the slot; outside it the wall blends shut over the wall blend distance in Geometry. It is not what decides which gear a push selects: every position in the gate belongs to the column it is nearest, so a push that beats the wall lands in the nearer slot rather than in nothing at all. There is no matching release width: once the lever is in a gear the only way out is back through the tunnel, at any sideways distance whatever." />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="Both measure from the ends of travel, so raising them shortens the throw - centre is 32767, and the shift fires once the lever is within the engage depth of a stop. This is also the sequential lever's activation distance: its spring reaches full resistance exactly at the threshold and the click moves with it, so a short throw stays progressive. Keep the release depth 2000-4000 above the engage depth or the re-arm point sits on top of the firing point." />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,8" Text="Nothing to do with the slot detents. Sliding along the tunnel, the sideways pull has to change which column it belongs to at some point, and that swap is a reversal of a force: this is how far either side of the boundary the pull is faded out so the change cannot arrive as a step. It is deliberately small - the whole width is dead space with no sideways guidance, so a wide setting leaves the lever unguided across half the gate." />
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Travel before a gear engages (0–100)" RawMinimum="28000" RawMaximum="500" RawResetValue="4000" RawValue="{Binding EngageDepth, Mode=TwoWay}" x:Name="TuningEngageDepth60" />
+                                            <TextBlock TextWrapping="Wrap" Text="How far you must push or pull before the game registers the gear. Higher requires a longer movement; lower registers it sooner." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningEngageDepth60, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Return needed to release a gear (0–100)" RawMinimum="1000" RawMaximum="30000" RawResetValue="8000" RawValue="{Binding ReleaseDepth, Mode=TwoWay}" x:Name="TuningReleaseDepth61" />
+                                            <TextBlock TextWrapping="Wrap" Text="How far you must bring the lever back before the game releases the gear. Increase if a small movement drops the gear too easily." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningReleaseDepth61, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Smoothness between gear pairs (0–100)" RawMinimum="0" RawMaximum="6000" RawResetValue="400" RawValue="{Binding DetentHysteresis, Mode=TwoWay}" x:Name="TuningDetentHysteresis62" />
+                                            <TextBlock TextWrapping="Wrap" Text="Softens the sideways change in guidance as you pass from one gear pair to the next. Increase if it feels notchy; too much can feel vague." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningDetentHysteresis62, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <local:ScaledTitledSlider ShowResetButton="True" Style="{StaticResource ScaledTuningSlider}" Title="Gear confirmation delay (samples)" RawMinimum="1" RawMaximum="20" RawResetValue="2" RawValue="{Binding MinEngageTicks, Mode=TwoWay}" Normalize="False" x:Name="TuningMinEngageTicks63" />
+                                            <TextBlock TextWrapping="Wrap" Text="Waits for a few steady readings before registering a gear. Increase only if gears register by accident; extra delay makes shifting less immediate." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                            <TextBlock TextWrapping="Wrap" Text="This saved setting is outside the usual adjustment range. It is kept as saved until you adjust this control." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" Visibility="{Binding HasValueOutsideScale, ElementName=TuningMinEngageTicks63, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </styles:SHExpander>
                             <styles:SHSection Title="RESET GEOMETRY" ShowSeparator="True">
                                 <StackPanel Margin="0,6,0,16">
-                                    <styles:SHButtonSecondary Content="Reset geometry" Click="OnResetGeometry" Padding="14,6" Margin="0,4,8,4" />
+                                    <Border Style="{StaticResource TuningSettingCard}">
+                                        <StackPanel>
+                                            <styles:SHButtonSecondary Content="Reset geometry" Click="OnResetGeometry" Padding="14,6" Margin="0,4,8,4" />
+                                            <TextBlock TextWrapping="Wrap" Text="Restores the gate dimensions and gear detection settings for this profile." Opacity="0.8" HorizontalAlignment="Left" MaxWidth="760" Margin="0,8,0,0" />
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </styles:SHSection>
                         </StackPanel>
@@ -936,34 +1324,34 @@
                     </StackPanel>
                     <ContentControl x:Name="NativeEffectsEditor" Grid.Row="3" />
                     <ScrollViewer Grid.Row="2" MaxHeight="340" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel>
-                    <styles:SHExpander Header="Float shifting" Margin="0,0,0,8" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                         <StackPanel>
-                            <styles:SHToggleCheckbox Content="Allow rev-matched shifts without the clutch" IsChecked="{Binding FloatShiftingEnabled, Mode=TwoWay}" />
-                            <TextBlock Text="One RPM-matching model for every H-pattern gearbox. Enable Clutch grind and Reject the gear while grinding below. A match releases the balk and seats normally; an unknown target still needs the clutch. The game must also accept clutchless shifts." TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,8" />
-                            <ui:TitledSlider Title="RPM match tolerance" Minimum="25" Maximum="1000" ResetValue="100" Value="{Binding FloatToleranceRpm, Mode=TwoWay}" />
-                            <TextBlock x:Name="FloatShiftStatus" TextWrapping="Wrap" Margin="0,4,0,8" />
-                            <styles:SHToggleCheckbox Content="Learn ratios while driving in gear" IsChecked="{Binding FloatLearnRatios, Mode=TwoWay}" />
-                            <TextBlock Text="Targets use game telemetry when available. Otherwise, drive in each gear with the clutch fully released for at least a second to learn its ratio. The game must report the same gear as the lever. Learning resets on vehicle, game or profile changes. Road-speed ratios cannot confirm reverse direction, so reverse still needs the clutch." TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,8" />
-                            <TextBlock Text="RPM at 100 km/h, gears 1-7 (optional)" />
-                            <TextBox Text="{Binding FloatRpmAt100Kmh, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,4" />
-                            <TextBlock Text="Comma-separated values, for example 12000,8000,5500,4000,3200,2700. Blank or zero entries are unknown. These values override learning when the game does not report targets; game telemetry takes priority." TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" />
-                            <styles:SHExpander Header="ETS2 / ATS H-shifter bindings">
+                            <styles:SHExpander Header="Float shifting" Margin="0,0,0,8" Visibility="{Binding IsHPattern, Converter={StaticResource BoolToVis}}">
                                 <StackPanel>
-                                    <TextBlock Text="SCS handle positions for buttons 1-7, R" />
-                                    <TextBox Text="{Binding FloatScsHandlePositions, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,4" />
-                                    <TextBlock Text="ETS2/ATS supply wheel speed, ratios and range/splitter state automatically. Positions must match the game's H-shifter bindings: the usual layout has reverse at position 1 and forward gears at 2-8. Enter 0 for an unbound button. This mapping belongs to the profile." TextWrapping="Wrap" Opacity="0.75" />
+                                    <styles:SHToggleCheckbox Content="Allow rev-matched shifts without the clutch" IsChecked="{Binding FloatShiftingEnabled, Mode=TwoWay}" />
+                                    <TextBlock Text="One RPM-matching model for every H-pattern gearbox. Enable Clutch grind and Reject the gear while grinding below. A match releases the balk and seats normally; an unknown target still needs the clutch. The game must also accept clutchless shifts." TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,8" />
+                                    <ui:TitledSlider Title="RPM match tolerance" Minimum="25" Maximum="1000" ResetValue="100" Value="{Binding FloatToleranceRpm, Mode=TwoWay}" />
+                                    <TextBlock x:Name="FloatShiftStatus" TextWrapping="Wrap" Margin="0,4,0,8" />
+                                    <styles:SHToggleCheckbox Content="Learn ratios while driving in gear" IsChecked="{Binding FloatLearnRatios, Mode=TwoWay}" />
+                                    <TextBlock Text="Targets use game telemetry when available. Otherwise, drive in each gear with the clutch fully released for at least a second to learn its ratio. The game must report the same gear as the lever. Learning resets on vehicle, game or profile changes. Road-speed ratios cannot confirm reverse direction, so reverse still needs the clutch." TextWrapping="Wrap" Opacity="0.75" Margin="0,4,0,8" />
+                                    <TextBlock Text="RPM at 100 km/h, gears 1-7 (optional)" />
+                                    <TextBox Text="{Binding FloatRpmAt100Kmh, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,4" />
+                                    <TextBlock Text="Comma-separated values, for example 12000,8000,5500,4000,3200,2700. Blank or zero entries are unknown. These values override learning when the game does not report targets; game telemetry takes priority." TextWrapping="Wrap" Opacity="0.75" Margin="0,0,0,8" />
+                                    <styles:SHExpander Header="ETS2 / ATS H-shifter bindings">
+                                        <StackPanel>
+                                            <TextBlock Text="SCS handle positions for buttons 1-7, R" />
+                                            <TextBox Text="{Binding FloatScsHandlePositions, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,4" />
+                                            <TextBlock Text="ETS2/ATS supply wheel speed, ratios and range/splitter state automatically. Positions must match the game's H-shifter bindings: the usual layout has reverse at position 1 and forward gears at 2-8. Enter 0 for an unbound button. This mapping belongs to the profile." TextWrapping="Wrap" Opacity="0.75" />
+                                        </StackPanel>
+                                    </styles:SHExpander>
+                                </StackPanel>
+                            </styles:SHExpander>
+                            <styles:SHExpander Header="Clutch bite point for this profile" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <ui:TitledSlider Title="Bite point (% of pedal travel)" Minimum="0" Maximum="100" ResetValue="25" Margin="0,10,0,0" Value="{Binding ClutchBitePointPct, Mode=TwoWay}" />
+                                    <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="Where the clutch starts to bite. This is a property of the car rather than of the pedals, so it cannot be measured from the hardware - set it where the car actually picks up. It is what the progressive grind fades across, and what the bite-point pulse on Effects fires on." />
                                 </StackPanel>
                             </styles:SHExpander>
                         </StackPanel>
-                    </styles:SHExpander>
-                    <styles:SHExpander Header="Clutch bite point for this profile" Margin="0,0,0,8">
-                        <StackPanel>
-                            <ui:TitledSlider Title="Bite point (% of pedal travel)" Minimum="0" Maximum="100" ResetValue="25" Margin="0,10,0,0" Value="{Binding ClutchBitePointPct, Mode=TwoWay}" />
-                            <TextBlock TextWrapping="Wrap" Opacity="0.75" Margin="0,2,0,0" Text="Where the clutch starts to bite. This is a property of the car rather than of the pedals, so it cannot be measured from the hardware - set it where the car actually picks up. It is what the progressive grind fades across, and what the bite-point pulse on Effects fires on." />
-                        </StackPanel>
-                    </styles:SHExpander>
-                    </StackPanel>
                     </ScrollViewer>
                 </Grid>
             </ContentControl>

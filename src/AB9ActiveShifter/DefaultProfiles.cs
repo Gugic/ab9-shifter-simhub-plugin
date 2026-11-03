@@ -5,7 +5,7 @@ using AB9ActiveShifter.Core;
 namespace AB9ActiveShifter
 {
     /// <summary>
-    /// What a machine with no saved settings starts with: ten profiles rather than bare
+    /// What a machine with no saved settings starts with: eleven profiles rather than bare
     /// defaults, written out to disk on that first start so they are ordinary settings from then
     /// on - editable, resettable, and never re-applied over anything a user has tuned.
     /// <para>
@@ -78,6 +78,7 @@ namespace AB9ActiveShifter
         public const string ShortThrowName = "7+R lockout (short throw, loose)";
         public const string SportShortThrowName = "7+R lockout (short throw, stiff, sport)";
         public const string FiveRName = "5+R";
+        public const string FiveRSportShortThrowName = "5+R (narrow, short throw, stiff, sport)";
         public const string FiveRWideName = "5+R wide";
         public const string SequentialName = "Sequential";
         public const string SequentialStiffShortName = "Sequential (stiff, short)";
@@ -87,7 +88,7 @@ namespace AB9ActiveShifter
 
         private static readonly string[] BareNames =
         {
-            SevenRName, ShortThrowName, SportShortThrowName, FiveRName, FiveRWideName, SequentialName, SequentialStiffShortName, PrndName,
+            SevenRName, ShortThrowName, SportShortThrowName, FiveRName, FiveRSportShortThrowName, FiveRWideName, SequentialName, SequentialStiffShortName, PrndName,
             TruckName, HandbrakeName
         };
 
@@ -171,6 +172,7 @@ namespace AB9ActiveShifter
                 new ShifterProfile { Name = Preset(ShortThrowName), Settings = ShortThrow() },
                 new ShifterProfile { Name = Preset(SportShortThrowName), Settings = SportShortThrow() },
                 new ShifterProfile { Name = Preset(FiveRName), Settings = fiveR },
+                new ShifterProfile { Name = Preset(FiveRSportShortThrowName), Settings = FiveRSportShortThrow() },
                 new ShifterProfile { Name = Preset(FiveRWideName), Settings = fiveRWide },
                 new ShifterProfile { Name = Preset(SequentialName), Settings = Sequential() },
                 new ShifterProfile { Name = Preset(SequentialStiffShortName), Settings = SequentialStiffShort() },

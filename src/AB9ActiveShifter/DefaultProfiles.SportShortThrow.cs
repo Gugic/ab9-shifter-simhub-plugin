@@ -1,3 +1,7 @@
+using AB9ActiveShifter.Core;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
 namespace AB9ActiveShifter
 {
     public static partial class DefaultProfiles
@@ -20,6 +24,22 @@ namespace AB9ActiveShifter
             s.NativeEffectsJson = SportShortThrowEffects;
             s.PatternWidthPct = 65;
             s.SlotHalfWidth = 468;
+            return s;
+        }
+
+        /// <summary>
+        /// The user's narrow five-speed sport tune captured on 2026-11-01, including the
+        /// final 50% effects volume. All other tuning and the complete editor tree match 7+R sport.
+        /// </summary>
+        private static ShifterSettings FiveRSportShortThrow()
+        {
+            ShifterSettings s = SportShortThrow();
+            s.Pattern = GatePattern.H5R;
+            s.PatternWidthPct = 40;
+            s.ReleaseDepth = 26731;
+            JObject effects = JObject.Parse(s.NativeEffectsJson);
+            effects["GlobalGain"] = 50.0;
+            s.NativeEffectsJson = effects.ToString(Formatting.None);
             return s;
         }
 

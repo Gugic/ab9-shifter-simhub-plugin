@@ -21,6 +21,16 @@ namespace AB9ActiveShifter.UI
 
         private void RefreshBaseConnection() { RefreshBaseHardware(false); }
 
+        private void UpdateBaseEffectSteps(bool onboard)
+        {
+            // The software provider accepts tenths; AB9's onboard protocol takes whole percentages.
+            double step = onboard ? 1 : 0.1;
+            BaseSpringSlider.RawStep = step;
+            TuningBaseDamperPct2.RawStep = onboard ? 1 : 0.01;
+            TuningBaseFrictionPct3.RawStep = step;
+            TuningBaseInertiaPct4.RawStep = step;
+        }
+
         private async void RefreshBaseHardware(bool readNativeSettings)
         {
             if (Plugin == null || _boundSettings == null || _checkingBase || _preparingCalibration || _stopAfterCalibration
@@ -77,6 +87,9 @@ namespace AB9ActiveShifter.UI
             NativeSettingsStatus.Text = NativeOperationText.Text + (Plugin.NativeSettingsPending ? " · Changes pending" : "");
             NativeRefreshButton.IsEnabled = !Plugin.NativeBusy && !calibrating;
             bool onboard = Plugin.CurrentOperatingMode == OperatingMode.Ab9Native;
+            UpdateBaseEffectSteps(onboard);
+            WallFrictionNativeHint.Visibility = onboard ? Visibility.Visible : Visibility.Collapsed;
+            SoftwareDampingNativeHint.Visibility = onboard ? Visibility.Visible : Visibility.Collapsed;
             Ab9PreparePanel.Visibility = onboard ? Visibility.Visible : Visibility.Collapsed;
             PrepareBaseButton.IsEnabled = onboard && !Plugin.NativeBusy && !calibrating;
             ProfileSection.IsEnabled = Plugin.CanActivateProfile(Plugin.Store.FindActive()) && !calibrating;

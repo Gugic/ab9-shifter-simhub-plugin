@@ -11,6 +11,64 @@ namespace AB9ActiveShifter.Tests
     public class SettingsMappingTests
     {
         [Fact]
+        public void FractionalFeelSurvivesSavingSharingAndTheEngineSnapshot()
+        {
+            var settings = new ShifterSettings();
+            var names = new System.Collections.Generic.List<string>();
+            foreach (var field in typeof(EngineConfig).GetFields())
+            {
+                if (field.FieldType != typeof(double) || !field.Name.EndsWith("Pct")) continue;
+                names.Add(field.Name);
+                typeof(ShifterSettings).GetProperty(field.Name).SetValue(settings, 12.34, null);
+            }
+            Assert.Equal(28, names.Count);
+            var saved = Newtonsoft.Json.JsonConvert.DeserializeObject<ShifterSettings>(
+                Newtonsoft.Json.JsonConvert.SerializeObject(settings));
+            var shared = ProfileTransfer.Import(ProfileTransfer.Export(
+                new ShifterProfile { Name = "Fine feel", Settings = settings }), new ShifterSettings());
+            Assert.Equal(0, shared.Clamped);
+            foreach (var copy in new[] { settings, saved, shared.Profile.Settings, SettingsCloner.Clone(settings) })
+            {
+                var config = copy.ToEngineConfig();
+                foreach (string name in names)
+                {
+                    Assert.Equal(12.34, (double)typeof(ShifterSettings).GetProperty(name).GetValue(copy, null), 8);
+                    Assert.Equal(12.34, (double)typeof(EngineConfig).GetField(name).GetValue(config), 8);
+                }
+            }
+        }
+
+        [Fact]
+        public void WholeNumberProfilesStillLoadWithoutRetuning()
+        {
+            var settings = Newtonsoft.Json.JsonConvert.DeserializeObject<ShifterSettings>(
+                "{\"OverallGainPct\":73,\"ChannelGuideForcePct\":20,\"WallFrictionPct\":15,\"BaseFrictionPct\":35}");
+            Assert.Equal(73, settings.OverallGainPct);
+            Assert.Equal(20, settings.ChannelGuideForcePct);
+            Assert.Equal(15, settings.WallFrictionPct);
+            Assert.Equal(35, settings.BaseFrictionPct);
+        }
+
+        [Fact]
+        public void OnlyTheOnboardAdapterRoundsBaseStrengths()
+        {
+            var settings = new ShifterSettings
+            {
+                PolarityConfirmed = true,
+                BaseSpringPct = 12.3,
+                BaseFrictionPct = 34.6,
+                BaseInertiaPct = 56.7
+            };
+            var onboard = settings.ToNativeSettings();
+            Assert.Equal(12, onboard.Spring);
+            Assert.Equal(35, onboard.Friction);
+            Assert.Equal(57, onboard.Inertia);
+            Assert.Equal(12.3, settings.ToEngineConfig().BaseSpringPct, 8);
+            Assert.Equal(34.6, settings.ToEngineConfig().BaseFrictionPct, 8);
+            Assert.Equal(56.7, settings.ToEngineConfig().BaseInertiaPct, 8);
+        }
+
+        [Fact]
         public void TheThrowDialMovesTheFireAndRearmLinesTogether()
         {
             // ThrowFromCentre re-expresses EngageDepth from the hand's point of view: counts

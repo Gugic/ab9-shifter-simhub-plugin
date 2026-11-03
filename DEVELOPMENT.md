@@ -30,7 +30,7 @@ dotnet test tests/AB9ActiveShifter.Tests
 The suite covers `Core/` plus the settings POCO's derived-dial arithmetic, and touches no I/O.
 It also tests the pure GitHub release parser and version/asset policy in `Updates/ReleaseInfo.cs`.
 Float-shifting tests use synthetic telemetry and schema-shaped POCOs for the optional SCS adapter;
-they never load a game reader or hardware. The suite currently has 818 tests, including checks
+they never load a game reader or hardware. The suite currently has 832 tests, including checks
 that reported, configured and learned targets produce identical float-shift behavior.
 Keep it that way — it is the only automated check on the force arithmetic. `Core/` is deliberately
 I/O-free for a second reason as well: the vJoy wrapper is a 32-bit native DLL that test runners
@@ -160,11 +160,11 @@ src/AB9ActiveShifter/
   AB9ShifterPlugin.Native.cs Three operating modes and verified AB9 onboard configuration
   ShifterSettings.cs       Persisted POCO -> ToEngineConfig()
   ShifterProfiles.cs       Named profiles, legacy migration, cloning, the preset fork
-  DefaultProfiles.cs       The ten presets, as deltas from bare defaults, and their reserved
+  DefaultProfiles.cs       The eleven presets, as deltas from bare defaults, and their reserved
                            name prefix
   DefaultProfiles.Handbrake.cs Captured progressive handbrake tune, engine and rear wheel-lock effects
   DefaultProfiles.SequentialStiffShort.cs Captured short sequential tune and portable native Effects tree
-  DefaultProfiles.SportShortThrow.cs Captured short H sport tune and portable native Effects tree
+  DefaultProfiles.SportShortThrow.cs Captured 7+R and narrow 5+R sport tunes and portable native Effects tree
   ProfileTransfer.cs       Export/import of one profile as a shareable file, with validation
   NativeEffectsData.cs     Validates a native tune before SimHub deserializes it
   ScsShiftTelemetryReader.cs Cached optional SCS adapter; raw objects stay on the data thread
@@ -179,6 +179,7 @@ src/AB9ActiveShifter/
     BaseEffectComposer.cs  Optional generic spring/friction/inertia, capped and polarity-aware
     OperatingMode.cs       Rig-wide effect provider; shared profiles keep the same percentages
     EngineConfig.cs        Immutable per-tick config snapshot + every default value
+    TuningScale.cs         Reversible 0–100 display mapping without changing saved tuning
     GateGeometry.cs        Column targets, hysteresis bands, gear map, unit conversions
     GateStateMachine.cs    Neutral / Traveling / Engaged
     SequentialStateMachine.cs One shift per stroke
@@ -217,9 +218,11 @@ src/AB9ActiveShifter/
     SettingsControl.Updates.cs App update preferences, shared banner and install/restart actions
     SettingsControl.Native.cs Native setup actions, status and control availability
     SettingsControl.Outputs.cs Output selector, pattern-specific native role pickers and readiness
+    ScaledTitledSlider.cs  Separate raw/display binding, precision-aware steps and exact undo
     ControlMapperFeatureSettings.cs Guarded public host feature setting, explicit enable/restart
     HandbrakeCurveVisualizer.cs Pull, return and braking curves from the runtime model
 tests/AB9ActiveShifter.Tests/
+  TuningScaleTests.cs      Display round trips, decimal precision and out-of-range saved values
   HandbrakeTests.cs        Pure travel/force/arming/axis-range and profile-transfer checks
   ControlMapperOutputTests.cs Role lifetimes, cleanup, mapping validation and rig-owned settings
   ControlMapperFeatureTests.cs Fake host model: activation isolation, restart rollback and fallback
