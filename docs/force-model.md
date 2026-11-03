@@ -26,8 +26,10 @@ All of this lives in `Core/ForceComposer.cs`, which is pure and fully unit-teste
 The shipped **Sequential (stiff, short)** preset captures **Sequential (stiff, short) 2** from
 the development rig on 2026-10-29. It changes tuning only: a 7,552-count firing distance,
 2,010-count overtravel, 45% push resistance, 70% click, 100% lateral wall, 6000-count wall bite,
-35.15% base damping and 35% base friction. Its native Effects tree is preserved with 40% master
-gain and the saved global mute off. The force shapes and polarity cap are unchanged; the
+35.15% base damping and 35% base friction. All shifter presets now use the balanced native
+Effects tree captured from **5+R (narrow, short throw, stiff, sport) 3** on 2026-11-03 at 80%
+master volume; the handbrake retains its own rear-wheel-lock tune. The complete curves, filters,
+row gains and tone frequencies are preserved. The force shapes and polarity cap are unchanged; the
 regular Sequential preset remains a separate choice.
 
 The gate's force shapes are shared by Generic FFB Stick and AB9-native. Their extra software

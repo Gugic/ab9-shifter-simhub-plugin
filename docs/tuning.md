@@ -643,8 +643,11 @@ Your profiles, including duplicates and imports, stay above them. Each group kee
 Fresh installs select **(Preset) 7+R lockout (short throw, stiff, sport)**. Existing installs keep
 their selected profile. The standard H gates, wide/narrow 5+R choices, sport short-throw gates,
 truck gate, sequential choices, PRND and progressive handbrake offer different starting points.
-**(Preset) 5+R (narrow, short throw, stiff, sport)** includes the captured sport tune and its
-50% effects volume. The short stiff sequential preset has its own tune and 40% effects volume.
+All ten shifter presets share the balanced Effects setup captured from **5+R (narrow, short
+throw, stiff, sport) 3** on 2026-11-03: 80% master volume, engine vibration, road impacts,
+shift feedback and H-pattern grind, including the saved curves, row volumes and frequencies.
+The handbrake keeps its own engine and rear-wheel-lock Effects tune. Each preset retains its
+mechanical feel and geometry. Editable profiles keep their own Effects settings.
 
 Changing a tuning control on a preset creates an editable copy and restores the preset beside
 it. You can keep dragging the same slider; no adjustment is lost. **Duplicate** makes a copy

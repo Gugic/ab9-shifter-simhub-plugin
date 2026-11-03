@@ -484,6 +484,10 @@ The vibration joins the fore/aft force after yield/attack and before the final c
 signs. Native high-priority tones suppress ordinary tones on this one channel.
 
 Each named shifter profile stores its native tree and master gain/mute in `NativeEffectsJson`.
+`DefaultProfiles.Effects.cs` holds the balanced captured tree shared by all ten shipped shifter
+presets. `Presets` applies it after building their mechanical settings; handbrake keeps its own
+engine and rear-wheel-lock tree. `EnsurePresets` refreshes these shipped trees without replacing
+any editable profile's effects.
 A null field seeds nine rows from that profile's old dials, silently, once. Native edits are
 observed every 250 ms and use the existing preset-fork/autosave path; expansion and selection
 state are excluded, and a preset fork keeps the live native profile/editor as well as the

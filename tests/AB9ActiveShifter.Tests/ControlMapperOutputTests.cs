@@ -290,8 +290,11 @@ namespace AB9ActiveShifter.Tests
             Assert.Equal(GearOutputMode.ControlMapper, preset.Settings.OutputMode);
             Assert.Equal("my gear", preset.Settings.ControlMapperRoles[1]);
             string file = ProfileTransfer.Export(preset);
-            Assert.DoesNotContain("ControlMapperRoles", file);
-            Assert.DoesNotContain("OutputMode", file);
+            var dials = Newtonsoft.Json.Linq.JObject.Parse(file)["Settings"];
+            // A native Effects tree has its own unrelated OutputMode. The gear-output facts
+            // must be excluded at the settings boundary without deleting native effect data.
+            Assert.Null(dials[nameof(ShifterSettings.ControlMapperRoles)]);
+            Assert.Null(dials[nameof(ShifterSettings.OutputMode)]);
             Assert.False(ProfileTransfer.IsTuning(nameof(ShifterSettings.OutputMode)));
             Assert.False(ProfileTransfer.IsTuning(nameof(ShifterSettings.ControlMapperRoles)));
         }
