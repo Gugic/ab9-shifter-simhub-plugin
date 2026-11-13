@@ -539,10 +539,30 @@ effects to defaults** disables float shifting and restores its default ratios/bi
 shifting ships off in every preset. There are no throttle cuts or virtual pedal routing;
 unloading a truck transmission remains the driver's and game's job.
 
+### Holding the gear in under load (H patterns)
+
+The settings sit in the **Clutch grind** row of **Effects…**, under the note that begins
+*Leaving a gear.* They are off by default and in every preset, travel with a shared profile, and
+are restored by **Reset effects to defaults**.
+
+| Control | What it changes |
+| --- | --- |
+| **Hold the gear in under load with the clutch up** | Turns the hold on. Pulling an engaged gear out with the clutch up then costs force in proportion to the load through the gearbox; pressing the clutch releases it. It follows **How the clutch decides** and **Only grind above (km/h)** above it. It is force only: a hard enough pull always leaves the gear. |
+| **Hold at full load (%)** | The toll at full load with the clutch fully up. It is met on the way out between the crossover and the seat; a seated gear rests free. |
+| **Load from** → *Estimate from throttle and engine braking* | Drive from the throttle, less engine braking that grows with RPM. Under power, or on a lift high in the revs, the gear is held; at the part throttle where the two balance it slips out, as a real one does. |
+| **Engine braking at redline (% of full throttle)** | How strong engine braking is at the redline, as a share of full-throttle drive. Higher holds harder on a lift and moves the balance point to more throttle; zero makes the hold follow the throttle alone. |
+| **Load from** → *A SimHub property* | Reads the load from a property instead, such as a game's own torque. Its size is used, so negative torque on overrun holds too. |
+| **Property name** | The full SimHub property name. An empty or unreadable property gives no hold. |
+| **Property value at full load** | The property's size that counts as full load: the engine's peak for a torque in Nm, 100 for a 0-100 load. |
+
 Symptoms:
 
 | Symptom | Dial |
 | --- | --- |
+| Gear hold does nothing | Turn on **Hold the gear in under load with the clutch up** and raise **Hold at full load (%)**. Check the clutch reads released, the car is above **Only grind above (km/h)**, and telemetry is live. With *A SimHub property*, check **Property name** and **Property value at full load**. |
+| A gear is hard to pull out even when cruising | Lower **Hold at full load (%)**, or with the estimate, find the balance point: part throttle there should let it out. |
+| A gear falls out on a lift at high revs | Raise **Engine braking at redline (% of full throttle)**. |
+| No throttle position lets the gear slip out | Engine braking is at zero, so only a closed throttle unloads the box. Raise **Engine braking at redline (% of full throttle)**. |
 | Grind never fires | Enable the row. In threshold mode lower **Clutch counts as pressed above (%)** if a pressed pedal reads low. Check the engine is running and the speed floor. |
 | Grind fires in the garage / pit lane | Raise **Only grind above (km/h)**. |
 | A gear registers despite grinding | **Reject the gear while grinding** is off, or the game itself needs no clutch — the rejection is ours, not the game's. |

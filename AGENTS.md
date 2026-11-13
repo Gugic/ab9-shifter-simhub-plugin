@@ -48,7 +48,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-833 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+855 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -122,13 +122,15 @@ src/AB9ActiveShifter/
     PrndStateMachine.cs    Which position is held. No neutral, no travelling, no debounce
     HandbrakeModel.cs      Calibrated travel, independent force/output curves, release-to-arm
     ForceComposer.cs       The gate itself: position+velocity -> forces. The heart.
-    EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision
+    EffectComposer.cs      Telemetry -> vibration carriers + the clutch grind decision + the
+                           gear hold's load target
     RevMatchModel.cs       One float-shift RPM comparison and hysteresis for every H gearbox
     ShiftTargetResolver.cs Game-reported, configured or session-learned targets, by data capability
     FloatShiftConfigTracker.cs Remembers context changes even while the engine is stopped
     NativeEffectMixer.cs   Native envelopes -> independent sine carriers at 1 kHz, no native I/O
     TelemetryState.cs      Immutable game-telemetry snapshot, data thread -> engine thread
-    ClutchTypes.cs         Where the clutch is read from, and how it decides the grind
+    ClutchTypes.cs         Where the clutch is read from, how it decides the grind, and where
+                           the gear hold reads its load
     AxisCalibration.cs     A pedal's measured travel/direction/slack -> 0..100, SimHub's scale
     AxisCapture.cs         "Press the pedal you want": three-phase auto-detect, no I/O, no timers
     PedalDeviceInfo.cs     One controller as the pedal picker shows it
@@ -196,6 +198,10 @@ tests/AB9ActiveShifter.Tests/
   ForceComposerTests.cs    Force shape, stability properties, polarity, clamps
   EffectComposerTests.cs   Carrier amplitudes and gain cap, staleness cut, grind conditions
   UnifiedFloatShiftTests.cs Reported, configured and learned targets share matching and force behavior
+  GearHoldTests.cs         The load-proportional gear hold: off changes nothing, the exit band's
+                           shape and sign, the 10% cap, engaged-only, the rise/fall slew, the
+                           engine estimate's balance point, the property scale, every doubt
+                           resolving to no hold, and what a shared profile carries
   FloatShiftLifecycleTests.cs Pedal sample freshness and context resets between engine ticks
   NativeEffectTests.cs     Native tone budgets, phases, freshness, profile epochs and safe import
   GateStateMachineTests.cs Transitions, hysteresis, lockout traces
@@ -486,6 +492,14 @@ runners cannot load, so anything worth testing must not touch it.
   latch — an overpowered crossing flips the latch exactly when the fight is won, and refusal must
   not lift with it. **A PRND lockout never touches the selector's state machine at all**, hard
   mode included: a selector is always in exactly one position and its buttons follow the lever.
+- **The gear hold is force only, and every doubt releases it.** It tolls the way out of an
+  `Engaged` slot in the slot lockout's exit band, scaled by the grind's clutch engagement and the
+  load through the box. It never touches `allowEngage` or the state machine, so a hand that pulls
+  through leaves the gear and the buttons follow. Anything uncertain gives a zero target: stale
+  or future telemetry, a stale clutch, a stopped engine, the speed floor, an unreadable property.
+  The force slews to it within `GearHoldFallMs`. It goes through `EffectiveGain`, the 10% cap
+  included, and ships off. Its adapter `GearHoldLoadSourceIndex` stays in `NotShared`: an int
+  adapter escapes the enum's `IsDefined` check on import. See docs/force-model.md.
 - **A hard slot lockout is the grind's balk re-keyed, and overlapping walls take the max.** One
   border, one attack, one yield floor — a border is not taller for having two reasons. The
   push-through slot shapes are bands whose edges land where the detent is doing nothing unusual:

@@ -318,6 +318,28 @@ namespace AB9ActiveShifter
                 }
             }
 
+            // The gear hold's load property, sampled here like the custom effect's. NaN, not
+            // zero, when it is not configured or cannot be read: the hold must tell "no reading"
+            // from "no load", and resolves the first to no hold.
+            double gearLoad = double.NaN;
+            if (settings != null && settings.GearHoldEnabled
+                && settings.GearHoldLoadSource == GearHoldLoadSource.Property
+                && !string.IsNullOrWhiteSpace(settings.GearHoldLoadProperty))
+            {
+                try
+                {
+                    object raw = pluginManager.GetPropertyValue(settings.GearHoldLoadProperty.Trim());
+                    if (raw != null)
+                    {
+                        gearLoad = Convert.ToDouble(raw, System.Globalization.CultureInfo.InvariantCulture);
+                    }
+                }
+                catch
+                {
+                    gearLoad = double.NaN;
+                }
+            }
+
             string vehicleKey = null;
             ShiftTelemetry shift = null;
             if (settings != null && settings.FloatShiftingEnabled && settings.IsHPattern)
@@ -344,6 +366,8 @@ namespace AB9ActiveShifter
                 MaxRpm = d.MaxRpm,
                 SpeedKmh = d.SpeedKmh,
                 Clutch = d.Clutch,
+                Throttle = d.Throttle,
+                GearLoadValue = gearLoad,
                 Gear = d.Gear,
                 VehicleKey = vehicleKey,
                 Shift = shift,

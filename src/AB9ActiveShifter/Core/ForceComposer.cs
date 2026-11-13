@@ -60,6 +60,7 @@ namespace AB9ActiveShifter.Core
         private readonly int _detentPullMax;
         private readonly int _detentHold;
         private readonly int _grindWallForce;
+        private readonly int _gearHoldForce;
         private readonly int _slotStopForce;
         private readonly int _seqStopForce;
         private readonly int _seqClickForce;
@@ -255,6 +256,7 @@ namespace AB9ActiveShifter.Core
             _detentPullMax = Force(config.DetentPullPct, gain);
             _detentHold = Force(config.DetentHoldPct, gain);
             _grindWallForce = Force(config.GrindWallPct, gain);
+            _gearHoldForce = config.GearHoldEnabled ? Force(config.GearHoldPct, gain) : 0;
             _slotStopForce = Force(config.SlotStopForcePct, gain);
             _seqStopForce = Force(config.SeqStopForcePct, gain);
             _seqClickForce = Force(config.SeqClickPct, gain);
@@ -362,7 +364,7 @@ namespace AB9ActiveShifter.Core
         public ForceFrame Compose(
             GateState state, Column column, ShiftDir direction, int x, int y,
             int vx = 0, int vy = 0, double dtMs = 0, int vibY = 0, bool muteDetent = false,
-            bool lockoutReleased = false, double grindWallScale = 1)
+            bool lockoutReleased = false, double grindWallScale = 1, double gearHoldScale = 0)
         {
             if (_freeStick)
             {
@@ -370,6 +372,7 @@ namespace AB9ActiveShifter.Core
                 _shapedY = 0;
                 _yieldScaleX = 1.0;
                 _yieldScaleY = 1.0;
+                _gearHold = 0;
 
                 // Forget the guide column too. The lever can be moved anywhere while the forces are
                 // off, and coming back with a stale column would aim a saturated wall at wherever
@@ -384,6 +387,7 @@ namespace AB9ActiveShifter.Core
             }
 
             StepLockout(x, y, lockoutReleased);
+            StepGearHold(state, gearHoldScale, dtMs);
 
             // A latched gear owns the lateral field: the wall points at the gear the lever is in,
             // so dragging sideways is pushed back to it rather than held in whichever slot the lever
@@ -403,7 +407,8 @@ namespace AB9ActiveShifter.Core
 
             ForceFrame frame = state == GateState.Neutral
                 ? ComposeNeutral(x, y)
-                : ComposeInColumn(column, direction, x, y, muteDetent, grindWallScale);
+                : ComposeInColumn(column, direction, x, y, muteDetent, grindWallScale,
+                                  state == GateState.Engaged ? _gearHold : 0);
 
             // The slot detent is the one force not shaped in time: the snick is a deliberate
             // transient, over in a few milliseconds by design, and it has to arrive whole to
@@ -1458,7 +1463,8 @@ namespace AB9ActiveShifter.Core
             return f;
         }
 
-        private ForceFrame ComposeInColumn(Column column, ShiftDir direction, int x, int y, bool muteDetent, double grindWallScale)
+        private ForceFrame ComposeInColumn(Column column, ShiftDir direction, int x, int y, bool muteDetent,
+                                           double grindWallScale, double gearHold)
         {
             ForceFrame f = new ForceFrame
             {
@@ -1475,7 +1481,7 @@ namespace AB9ActiveShifter.Core
             // the slot detent replaces the tunnel's gate wall, which is what makes a gear a place
             // the lever can go rather than a wall it bounces off.
             f.ConstantX = Combine(LateralGuide(x, y, _guideColumn), BarrierForceIn(x, y));
-            f.ConstantY = SlotForceAt(direction, y, muteDetent, column, grindWallScale);
+            f.ConstantY = SlotForceAt(direction, y, muteDetent, column, grindWallScale, gearHold);
 
             return f;
         }
@@ -1510,7 +1516,8 @@ namespace AB9ActiveShifter.Core
         ///
         /// Public because the Feel tab's detent curve plots this rather than a copy of it.
         /// </summary>
-        public int SlotForceAt(ShiftDir direction, int y, bool muted, Column column = Column.None, double grindWallScale = 1)
+        public int SlotForceAt(ShiftDir direction, int y, bool muted, Column column = Column.None, double grindWallScale = 1,
+                               double gearHold = 0)
         {
             double d = _geo.EngageFraction(direction, y);
 
@@ -1527,7 +1534,8 @@ namespace AB9ActiveShifter.Core
 
             if (!border)
             {
-                detent = GateGeometry.Clamp(detent + SlotLockoutBoost(column, direction, d),
+                detent = GateGeometry.Clamp(
+                    detent + SlotLockoutBoost(column, direction, d) + GearHoldToll(direction, d, gearHold),
                     -GateGeometry.ForceMax, GateGeometry.ForceMax);
             }
 
@@ -1595,6 +1603,92 @@ namespace AB9ActiveShifter.Core
                 && column == _geo.LockoutSlotColumn
                 && direction == _geo.LockoutSlotDir
                 && _cfg.LockoutSlotDirection != LockoutSlotDirection.Exit;
+        }
+
+        // The gear hold's current strength, 0..1, slewed toward the engine's target. Composer
+        // state rather than engine state so it resets with the free stick and the tests can
+        // drive it through Compose like every other stateful stage.
+        private double _gearHold;
+
+        /// <summary>
+        /// How long the gear hold takes to come in and to let go, from nothing to full and back.
+        /// It rises over tens of milliseconds because the clutch decision can be a step (the
+        /// threshold mode is one line) and a hand already resting in the band must not be hit
+        /// by the full toll in one tick. It lets go faster, because a clutch going down is the
+        /// driver asking to leave and the gear should come out promptly - but still not in one
+        /// tick, since the hand may be leaning on the toll as it drops.
+        /// </summary>
+        public const double GearHoldRiseMs = 60.0;
+        public const double GearHoldFallMs = 15.0;
+
+        /// <summary>The hold's slewed strength this tick, for tests. The trace does not record it yet.</summary>
+        public double GearHoldLevel { get { return _gearHold; } }
+
+        /// <summary>
+        /// Moves the hold toward its target. Only an engaged gear is held: traveling, neutral
+        /// and a gear being balked all target zero. Without a tick length (the visualizers, a
+        /// one-shot test) there is no time to slew across, so the target is taken as given.
+        /// </summary>
+        private void StepGearHold(GateState state, double target, double dtMs)
+        {
+            double goal = _gearHoldForce > 0 && state == GateState.Engaged && RevMatchModel.Finite(target)
+                ? GateGeometry.Clamp(target, 0.0, 1.0)
+                : 0.0;
+
+            if (!(dtMs > 0))
+            {
+                _gearHold = goal;
+                return;
+            }
+
+            if (goal > _gearHold)
+            {
+                _gearHold = Math.Min(goal, _gearHold + dtMs / GearHoldRiseMs);
+            }
+            else if (goal < _gearHold)
+            {
+                _gearHold = Math.Max(goal, _gearHold - dtMs / GearHoldFallMs);
+            }
+        }
+
+        /// <summary>
+        /// The gear hold's toll: the slot lockout's exit band - the same foot, rise, fall and
+        /// top - at the hold's own strength, on whichever slot is engaged. The band's edges land
+        /// where the detent is doing nothing unusual, so no count of depth steps the stroke, and
+        /// the seat stays outside it: a seated gear rests free and is not pressed into its stop.
+        /// Leaving crosses the band and pays; re-seating crosses it and is assisted.
+        ///
+        /// Force only. It never refuses a release and never drops a gear: a hand that pulls
+        /// through it leaves the gear, and the buttons follow the lever.
+        /// </summary>
+        private int GearHoldToll(ShiftDir direction, double d, double scale)
+        {
+            if (_gearHoldForce <= 0 || !(scale > 0)) return 0;
+            if (direction != ShiftDir.Fwd && direction != ShiftDir.Back) return 0;
+
+            double band;
+            if (d >= SlotExitBandRise && d < SlotExitBandFall)
+            {
+                band = 1.0;
+            }
+            else if (d >= SlotExitBandFoot && d < SlotExitBandRise)
+            {
+                band = (d - SlotExitBandFoot) / (SlotExitBandRise - SlotExitBandFoot);
+            }
+            else if (d >= SlotExitBandFall && d < SlotExitBandTop)
+            {
+                band = 1.0 - (d - SlotExitBandFall) / (SlotExitBandTop - SlotExitBandFall);
+            }
+            else
+            {
+                return 0;
+            }
+
+            // Positive is toward the neutral channel, as in SlotLockoutBoost: the toll pushes
+            // the other way, deeper into the slot.
+            double restoring = -_gearHoldForce * GateGeometry.Clamp(scale, 0.0, 1.0) * band;
+            double signed = direction == ShiftDir.Fwd ? restoring : -restoring;
+            return (int)Math.Round(signed);
         }
 
         /// <summary>

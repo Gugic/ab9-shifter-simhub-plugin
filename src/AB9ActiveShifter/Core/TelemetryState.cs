@@ -34,6 +34,21 @@ namespace AB9ActiveShifter.Core
         /// capture time. A configured but unavailable pedal never supplies this timestamp.</summary>
         public int? ClutchCapturedAtTick;
 
+        /// <summary>
+        /// Throttle position, 0..100 with 100 fully pressed - SimHub's convention. The game's
+        /// own reading only: the gear hold's engine estimate takes it as the drive term, set
+        /// against RPM-scaled engine braking. A game that does not report it reads as zero, which
+        /// the estimate treats as a closed throttle - overrun, not an unloaded box.
+        /// </summary>
+        public double Throttle;
+
+        /// <summary>
+        /// The user's named load property for the gear hold, raw. NaN when none is configured
+        /// or the property could not be read - which the hold treats as no load, not zero load
+        /// that happens to be known.
+        /// </summary>
+        public double GearLoadValue = double.NaN;
+
         public bool IsClutchFresh(int telemetryAgeMs)
         {
             int age = ClutchCapturedAtTick.HasValue
@@ -76,6 +91,8 @@ namespace AB9ActiveShifter.Core
             Rpms = source.Rpms;
             MaxRpm = source.MaxRpm;
             SpeedKmh = source.SpeedKmh;
+            Throttle = source.Throttle;
+            GearLoadValue = source.GearLoadValue;
             Gear = source.Gear;
             VehicleKey = source.VehicleKey;
             Shift = source.Shift;

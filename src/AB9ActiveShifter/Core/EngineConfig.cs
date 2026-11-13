@@ -263,6 +263,41 @@ namespace AB9ActiveShifter.Core
         public int ClutchBitePointPct = 25;
 
         /// <summary>
+        /// Hold the gear in under load: with the clutch up, leaving an H slot costs a toll in
+        /// the band between the crossover and the seat, so a gear does not simply fall out of a
+        /// loaded gearbox. Off by default, so every shipped tune is what it was.
+        /// <para>
+        /// Force only, like the slot lockout's exit toll it borrows its shape from: it never
+        /// refuses a release, never drops a gear, and never touches the state machine - a hand
+        /// that pulls through it leaves the gear, and the buttons follow the lever. The clutch
+        /// decides it the same way it decides the grind (<see cref="GrindClutchMode"/>, the
+        /// threshold or the bite point), stale telemetry or a stopped engine release it, and it
+        /// stays below <see cref="GrindMinSpeedKmh"/> so garage shuffling is free.
+        /// </para>
+        /// </summary>
+        public bool GearHoldEnabled;
+
+        /// <summary>The hold's toll at full load with the clutch fully up.</summary>
+        public int GearHoldPct = 40;
+
+        /// <summary>Where the load through the gearbox comes from.</summary>
+        public GearHoldLoadSource GearHoldLoadSource = GearHoldLoadSource.EngineEstimate;
+
+        /// <summary>
+        /// The engine estimate's overrun: engine braking at the redline, as a share of
+        /// full-throttle drive. Engine braking grows with RPM, so the hold on a lift is strong
+        /// high in the revs and light near idle, and part throttle can cancel it entirely - the
+        /// balance point where a real gear slips out without the clutch.
+        /// </summary>
+        public int GearHoldEngineBrakePct = 30;
+
+        /// <summary>
+        /// For <see cref="GearHoldLoadSource.Property"/>: the property's magnitude that counts as
+        /// full load. A torque in Nm wants the engine's peak; a 0..100 load wants 100.
+        /// </summary>
+        public double GearHoldPropertyFullScale = 100;
+
+        /// <summary>
         /// A short pulse as the clutch passes its bite point, in either direction, so the lever
         /// tells the hand where the engagement point is. Off by default like every carrier.
         /// </summary>

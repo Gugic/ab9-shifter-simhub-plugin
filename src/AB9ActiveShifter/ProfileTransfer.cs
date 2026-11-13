@@ -98,7 +98,7 @@ namespace AB9ActiveShifter
             "GrindClutchModeIndex", "LockoutPlacementIndex", "LockoutGapDirectionIndex",
             "LockoutSlotGearIndex", "LockoutSlotDirectionIndex", "LockoutModeIndex",
             "PrndLockoutGapIndex", "PrndLockoutDirectionIndex", "PrndLockoutModeIndex",
-            "HandbrakeForceCurveIndex",
+            "HandbrakeForceCurveIndex", "GearHoldLoadSourceIndex",
 
             // The Feel tab's percent-of-column-spacing display toggle: each is fully derived
             // from the raw dial it shares a backing field with. Sharing both would write the
@@ -462,6 +462,10 @@ namespace AB9ActiveShifter
             if (name.EndsWith("Ms", StringComparison.Ordinal))
             {
                 lo = 0; hi = 5000; return;
+            }
+            if (name == "GearHoldPropertyFullScale")
+            {
+                lo = 1; hi = 5000; return;
             }
             if (name == "GrindMinSpeedKmh")
             {
