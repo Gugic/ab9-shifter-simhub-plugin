@@ -48,7 +48,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-833 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+869 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -220,6 +220,16 @@ tests/AB9ActiveShifter.Tests/
   TuningScaleTests.cs      Display round trips, decimal precision and out-of-range saved values
   SlotEndStopTests.cs      The bottom of an H slot: the default changes nothing, the landing is
                            free, the wall only pushes home, and no axis count steps the stroke
+  SlotSpringTests.cs       A bottomed slot under a centring spring: the rest moves onto the hold's
+                           fade, which then takes the walls' stabilisers; the snick, unbottomed
+                           slots and a spring the base never receives are untouched
+  LateralBounceTests.cs    A delayed-loop lever model of the traced outer-column bounce: the slot
+                           wall's energy cap kills it, the default tune does not move, and leans,
+                           slow retreats and the tunnel are never cut
+  SpringCancelTests.cs     The onboard spring cancelled while a gear is in: a thrown gear stops
+                           bouncing, it holds for the life of the gear and lets go within
+                           milliseconds of leaving it, no step, the tunnel keeps its centring, and no
+                           cancel without a measured spring at the base
   PatternWidthTests.cs     How wide the pattern stands: the default is the old geometry to the
                            count, narrowing is centred, and no bare axis loses its column
   PatternEdgeWallTests.cs  The wall a narrowed pattern needs at its sides: one-way, zero inside,
@@ -351,6 +361,38 @@ runners cannot load, so anything worth testing must not touch it.
   separate tremor-scale constant, not this deadband: sharing it would freeze real slow retreats
   into force steps. Pinned by `AHandsTremorNeverTripsTheAbsorber`,
   `TheLockoutHoldsWholeAgainstALeaningHand`, and `AnEstimateDipBelowTheDeadbandKeepsTheHeldCut`.
+- **A latched gear's lateral wall returns at most half the energy pushed into it, booked against
+  the force sent a round trip ago** - 4 ms, measured, not the 3 ms floor, which left the rig's
+  bounce at three-quarters of its size. What the cap cannot reach at 4 ms is a turnaround cycle
+  inside the delay; that is the onboard damper's job, never a stiffer or longer cap. A centring spring pushes an outer column's lever into its
+  inner wall; the force acting on the lever lags the face going in and is still the larger value
+  coming out, and the spring hands the difference straight back to the same wall. Traced as a
+  12000-count, ~13 Hz lateral bounce in both outer columns at AB9 Spring 50
+  (trace-20261113-192727). The cap only removes force carrying the lever outward, fades in between
+  60000 and 200000 counts/s, and is Engaged-only. Do not book the ledger against the commanded
+  force (it cannot see the delay, so it never bites), do not let it return everything (a lossless
+  wall plus a spring bounces forever), and do not reach it down to the yield's deadband (a lever
+  resting on its wall wobbles above that, and the cap becomes a relay). Pinned by
+  `TheTracedOuterColumnBounceDies`, `TheDefaultTuneDoesNotGetWorse` and `ASlowRetreatIsNeverCut`.
+- **The AB9 onboard spring is cancelled for exactly as long as a gear is latched and the lever is
+  down in its slot.** Its stiffness (`OnboardSpringStiffness`, measured at 50, linear elsewhere)
+  inverted on both axes - sideways so the lever is not parked on the inner wall, fore/aft so
+  whether the spring can pull a gear out no longer depends on the hold and onboard friction (at
+  Hold 22.5% and Friction 15, Spring 50 did) - faded in with depth so the tunnel always
+  keeps its centring, ramped in over 20 ms on
+  latching and out over 30 ms on leaving, keeping 15% of the spring plus a settle damper that
+  exists only in the slot. The damper is 0.005 DI per count/s: 0.02 made a hand leaning on the wall
+  buzz at ~24 Hz and 0.01 still subtly, because a late damper turns into a push near that
+  frequency; do not raise it. It joins after the stabilisers like damping and never steps. Do not
+  give the spring back while the gear is in (the returned spring crept the lever onto the wall's
+  face and the hunt restarted a second later), do not arm on a fast lever before the gear latches
+  (ordinary entries lost the spring), do not let the cancel or its damper linger after the gear is
+  left (the exit went haywire, or kicked outward), do not swap the linear stiffness for a law
+  inferred from where a held lever rested (a square law cancelled a fifth of it and the bounce
+  came straight back), and do not make it proportional to wall penetration (a stiffer wall, worse
+  than no cancel). Never for the DirectInput spring until that one is measured in the same units.
+  Pinned by `AThrownGearStopsBouncing`, `ItHoldsForAsLongAsTheGearIsIn`,
+  `ItLetsGoWithinMillisecondsOfLeavingTheGear` and `NothingIsLeftInTheTunnelAfterLeavingAGear`.
 - Time shaping (wall attack) applies to **everything a hand can lean on, the lockout included,
   hard mode and all.**
   The slot detent is the one exception — the snick must arrive whole. Do not exempt the lockout
@@ -525,6 +567,9 @@ runners cannot load, so anything worth testing must not touch it.
   Depth is directed into the latched slot, never absolute distance from centre: a stale direction
   must not render its bottom as a full-force push into the opposite end. The bottom takes wall
   attack and wall rebound absorption; only the approach detent keeps the snick's exemptions.
+  While a centring spring actually reaches the base, the hold's fade past the seat is a wall as
+  well, because the spring makes it the lever's resting face (`SeatedAgainstCentring`, pinned by
+  `SlotSpringTests`). Without one, the fade and landing keep the treatment they always had.
 - **A PRND detent is zero at its position AND zero at the crest beside it.** The lane's force is
   measured from the *nearest* position, and every nearest-anything field flips at the midpoint —
   which on the lateral axis was a step of twice the plateau and cost `HandoverClearance` to pay

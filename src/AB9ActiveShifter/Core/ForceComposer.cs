@@ -139,6 +139,116 @@ namespace AB9ActiveShifter.Core
         private double _yieldScaleX = 1.0;
         private double _yieldScaleY = 1.0;
 
+        /// <summary>
+        /// Energy the lever has pushed into the lateral wall it is currently against, and energy
+        /// the wall has given back, in DI times counts - see <see cref="Passive"/>. Both zero
+        /// whenever there is no contact.
+        /// </summary>
+        private double _wallEnergyX;
+        private double _wallReturnedX;
+
+        /// <summary>
+        /// The lateral wall forces sent on the last few ticks, oldest at <see cref="_sentHead"/>.
+        /// Its length is the loop's round trip in ticks: the oldest entry is the force acting on
+        /// the lever now, the rest are still on their way to the base.
+        /// </summary>
+        private readonly int[] _sentX;
+        private int _sentHead;
+
+        /// <summary>
+        /// The send-to-motion delay the energy ledger assumes. 4 ms, measured on the rig in
+        /// trace-20261113-194834: the cap cut the sent force to zero and the lever kept
+        /// accelerating away from the wall for ~6 ms, of which ~2 ms is the speed estimate's own
+        /// window (docs/hardware.md). The first version assumed the 3 ms floor and left the
+        /// bounce at three-quarters of its size. Assuming 4 costs nothing in the model where the
+        /// real delay is 3, and assuming more than 4 buys nothing where it is 4 or 5.
+        /// </summary>
+        private const double RoundTripMs = 4.0;
+
+        /// <summary>
+        /// The share of the energy a lever pushed into a slot wall that a fast rebound may take
+        /// back out - the wall's coefficient of restitution, squared. Not a dial: it is the
+        /// guarantee the yield cannot give once the loop's delay is counted. Halving took the
+        /// measured outer-column bounce from 11000 counts to under 100 in the model
+        /// (LateralBounceTests) without moving the default tune.
+        /// </summary>
+        private const double WallRestitution = 0.5;
+
+        /// <summary>
+        /// Outward speeds, in counts per second, across which the energy cap fades in. Below the
+        /// first nothing is capped: a lever adjusting a lean, or wobbling against a wall it rests
+        /// on, moves at tens of thousands, and capping there turned the cap into a relay in the
+        /// model - a default-tune rest went from 769 to 2762 counts of hunting. The measured
+        /// rebounds ran at 300000-560000 (trace-20261113-192727).
+        /// </summary>
+        private const int LaunchSpeedFrom = 60000;
+        private const int LaunchSpeedFull = 200000;
+
+        /// <summary>
+        /// The AB9 onboard spring's sideways stiffness at Spring 50, in DI per axis count.
+        /// Measured on 2026-11-13 from every trace where the lever sat against a slot wall: the
+        /// wall's mean force over the lever's mean distance from centre came to 0.161-0.211 DI per
+        /// count across eight segments in both outer columns, symmetric about the axis centre,
+        /// ~0.18 overall (docs/hardware.md).
+        /// </summary>
+        private const double OnboardSpringAt50 = 0.18;
+
+        /// <summary>
+        /// The onboard spring's stiffness at any setting, linear from the one measured point.
+        /// A square law was tried, inferred from a lever resting against its slot's outer wall
+        /// at Spring 20 (trace-20261113-203341), and it was wrong: at 0.029 DI per count the
+        /// cancel came to ~400 DI against the inner wall, and the lever bounced off it exactly as
+        /// with no cancel at all (trace-20261113-204252, 4796 counts at 14 Hz). The outer-wall
+        /// rest was the hand or the old arming, not the spring. Linear is what the rig preferred.
+        /// </summary>
+        public static double OnboardSpringStiffness(double springPct)
+        {
+            return OnboardSpringAt50 * GateGeometry.Clamp(springPct, 0, 100) / 50.0;
+        }
+
+        /// <summary>The cancel's stiffness for this config, gain included; 0 when it is off.</summary>
+        private readonly double _springCancelPerCount;
+
+        /// <summary>How much of the cancel is applied now, 0..1, slewed in time.</summary>
+        private double _springCancelScale;
+        private bool _springCancelArmed;
+
+        /// <summary>Ramp-in as a gear latches: long enough not to be a step, short against a
+        /// ~13 Hz bounce's half cycle.</summary>
+        private const double SpringCancelAttackMs = 20;
+
+        /// <summary>
+        /// Ramp-out as the gear is left. Short: the lever leaves the slot's depth band within a
+        /// few tens of milliseconds anyway, and a 500 ms fade kept up to ~800 DI pushing away
+        /// from centre on the way out (trace-20261113-205008).
+        /// </summary>
+        private const double SpringCancelReleaseMs = 30;
+
+        /// <summary>
+        /// The share of the spring left while a gear is in. A small remainder, braked by the
+        /// settle damper, leans the lever gently on the corridor's inner edge rather than
+        /// leaving it wherever it stopped, and is what gear 2 held calmly in
+        /// trace-20261113-205008 (840-1540 ms, within 15 counts at the edge).
+        /// </summary>
+        private const double SpringCancelResidual = 0.15;
+
+        /// <summary>
+        /// The settle damper while a gear is in, in DI per count/s, and its ceiling in DI. Its
+        /// velocity is ~2 ms old and its force lands ~4 ms later, so at a hand-coupled ~24 Hz
+        /// it is near the point where braking turns into pushing. 0.02 crossed it on the rig: a
+        /// hand leaning on the inner wall buzzed at ~24 Hz, 1000 counts, the force following the
+        /// damper (trace-20261113-210016), and Base spring 0 - no cancel, no damper - did not.
+        /// In the model 0.03 was already worse than 0.02, so 0.02 was close to the edge. At 0.01
+        /// the rig buzz became "much more subtle" - it scales with this term - so it is 0.005: a
+        /// thrown gear at Spring 30 still settles to 508/750/1016 counts at 4/5/6 ms in the model,
+        /// against 2122/14743/17770 with no damper at all. Gating it to fast motion was modelled
+        /// and rejected: its job is the slow tail of a bounce, the same speeds as the lean
+        /// (1984-3237 counts left). It exists only in a slot, so the free travel it would
+        /// otherwise make heavy is untouched.
+        /// </summary>
+        private const double SpringCancelSettleDamping = 0.005;
+        private const double SpringCancelSettleMax = 3000;
+
         /// <summary>Force growth rate in DirectInput units per millisecond; 0 disables shaping.</summary>
         private readonly double _attackPerMs;
 
@@ -331,6 +441,16 @@ namespace AB9ActiveShifter.Core
             _attackPerMs = config.WallAttackMs <= 0
                 ? 0
                 : GateGeometry.ForceMax / (double)config.WallAttackMs;
+
+            // The onboard spring only. It is written to the base only once polarity is confirmed
+            // (ShifterSettings.ToNativeSettings), and the DirectInput provider's spring has never
+            // been measured in these units, so it gets no cancel rather than a guessed one.
+            _springCancelPerCount = !config.BaseEffectsViaDirectInput && config.PolarityConfirmed
+                ? OnboardSpringStiffness(config.BaseSpringPct) * gain
+                : 0;
+
+            int tickHz = config.TickHz > 0 ? config.TickHz : 1000;
+            _sentX = new int[Math.Max(1, (int)Math.Round(RoundTripMs * tickHz / 1000.0))];
         }
 
         /// <summary>Gain-scaled damping applied on every frame.</summary>
@@ -370,6 +490,7 @@ namespace AB9ActiveShifter.Core
                 _shapedY = 0;
                 _yieldScaleX = 1.0;
                 _yieldScaleY = 1.0;
+                ForgetWallEnergy();
 
                 // Forget the guide column too. The lever can be moved anywhere while the forces are
                 // off, and coming back with a stale column would aim a saturated wall at wherever
@@ -418,11 +539,173 @@ namespace AB9ActiveShifter.Core
             // exemptions; beyond the free landing, the stop needs attack and full absorption.
             bool atSlotStop = _slotStopForce > 0
                 && SlotDepth(direction, y) > ThrowThreshold() + SlotLanding();
-            bool wallLike = state == GateState.Neutral || muteDetent || atSlotStop;
+            bool wallLike = state == GateState.Neutral || muteDetent || atSlotStop
+                || SeatedAgainstCentring(state, direction, y);
             return Bound(frame, vx, vy, dtMs,
                          wallLike ? _yieldFloor : _snickFloor,
                          shapeY: wallLike,
-                         vibY: vibY);
+                         vibY: vibY,
+                         passiveX: state == GateState.Engaged,
+                         cancelX: StepSpringCancel(x, y, vx, dtMs, state == GateState.Engaged),
+                         cancelY: (int)Math.Round(SpringCancelY(x, y) * _springCancelScale));
+        }
+
+        /// <summary>
+        /// The fore/aft half of the spring cancel: the onboard spring's pull back toward neutral,
+        /// inverted, at this position. Applied at the same scale as the sideways half (evaluated
+        /// after <see cref="StepSpringCancel"/> has stepped it this tick), so it exists exactly
+        /// while a gear is latched and the lever is in its slot.
+        /// <para>
+        /// At Spring 50 the spring pulls ~0.18 DI per count of depth toward neutral, ~5000 DI at
+        /// the bottom of a slot. Whether that unseats a gear depends on the tune: with Hold in
+        /// gear 40% and onboard Friction 25 gears stayed in (trace-20261113-192727), and with
+        /// Hold 22.5% and Friction 15 the rig reported the lever pulled out on its own. With 85%
+        /// cancelled the remainder (~750 DI) is under either hold, so the tune no longer decides. No damper rides on this axis: the sideways one fed a leaning
+        /// hand's buzz until it was cut to 0.005, and nothing fore/aft has asked for one.
+        /// </para>
+        /// <para>
+        /// Faded in with depth like the sideways shape, and zero in the tunnel, so neutral
+        /// centring is untouched. Public because a graph may sample it.
+        /// </para>
+        /// </summary>
+        public int SpringCancelY(int x, int y)
+        {
+            if (_springCancelPerCount <= 0) return 0;
+
+            double force = _springCancelPerCount * (y - GateGeometry.AxisCenter) * _geo.SlotConfinementFactor(y);
+            return GateGeometry.Clamp((int)Math.Round(force), -GateGeometry.ForceMax, GateGeometry.ForceMax);
+        }
+
+        /// <summary>
+        /// Holds the spring cancel for exactly as long as a gear is latched and the lever is
+        /// down in its slot, and returns this tick's cancel force.
+        /// <para>
+        /// While a gear is in, all but <see cref="SpringCancelResidual"/> of the spring is
+        /// cancelled, with a settle damper beside it: the remainder leans the lever gently on the
+        /// slot's inner edge, which in this state is calm. The cancel ramps in over
+        /// <see cref="SpringCancelAttackMs"/> as the gear latches and out over
+        /// <see cref="SpringCancelReleaseMs"/> as it is left. In the lever model at the measured
+        /// 4 ms: ~5900 counts of bounce without it, ~400 with it.
+        /// </para>
+        /// <para>
+        /// Three narrower versions were felt on the rig and each failed. Arming on any fast lever
+        /// outside the corridor took the spring away on ordinary gate entries. Arming only on a
+        /// throw into the inner wall and giving the spring back once the lever had settled at
+        /// the edge stopped the throw - and the returned spring then crept the lever onto the
+        /// wall's face and the hunt restarted a second later, with no throw at all
+        /// (trace-20261113-205008: calm 840-1540 ms, hunting from 1644). Fading the cancel out
+        /// over 500 ms after the gear was left kept up to ~800 DI pushing away from centre on the
+        /// way out. A cancel proportional to how far the lever is into the wall was modelled and
+        /// rejected: it stiffens the wall, and the bounce came out WORSE than none.
+        /// </para>
+        /// <para>
+        /// The scale is history, but it is continuous in time and never steps: a slewed scalar
+        /// on a position-only shape, like the yield's recovery. A dt of zero leaves it where it
+        /// is.
+        /// </para>
+        /// </summary>
+        private int StepSpringCancel(int x, int y, int vx, double dtMs, bool engaged)
+        {
+            if (_springCancelPerCount <= 0) return 0;
+
+            double depth = _geo.SlotConfinementFactor(y);
+
+            if (dtMs > 0)
+            {
+                _springCancelArmed = engaged && depth > 0;
+
+                double target = 1.0 - SpringCancelResidual;
+                _springCancelScale = _springCancelArmed
+                    ? Math.Min(target, _springCancelScale + (dtMs / SpringCancelAttackMs))
+                    : Math.Max(0.0, _springCancelScale - (dtMs / SpringCancelReleaseMs));
+            }
+
+            if (_springCancelScale <= 0) return 0;
+
+            // The settle damper exists only while armed and down in the slot, faded with depth
+            // like the cancel's own shape. Letting it ride the release fade left up to 3000 DI of
+            // braking on the lever's sideways slide across the tunnel after leaving a gear - felt
+            // as the shift going haywire on the way out.
+            // It ramps in with the cancel, so arming is never a step.
+            double settle = _springCancelArmed
+                ? GateGeometry.Clamp(-SpringCancelSettleDamping * vx, -SpringCancelSettleMax, SpringCancelSettleMax)
+                  * depth * Math.Min(1.0, _springCancelScale / (1.0 - SpringCancelResidual))
+                : 0;
+            return (int)Math.Round((SpringCancelX(x, y) * _springCancelScale) + settle);
+        }
+
+
+        /// <summary>
+        /// The full shape of the spring cancel: the AB9 onboard spring's sideways pull, measured
+        /// and inverted, at this position. <see cref="StepSpringCancel"/> decides how much of it
+        /// is applied; this is only where it points and how strong it would be.
+        /// <para>
+        /// A centring spring pulls an outer column's lever toward the middle of the gate, into its
+        /// inner slot wall, and the lever comes to rest where the spring meets the wall: on the
+        /// wall's face, outside the slot's corridor. Eased in, that rest is calm (trace
+        /// 20261113-194857: 1100 counts outside its slot, 991 counts of drift at ~1 Hz). Thrown
+        /// in, it is a restoring force about an interior point on a delayed face, and it hunts:
+        /// 12000 counts at ~13 Hz at onboard Spring 50, and still 6400 with the slot-wall energy
+        /// cap and onboard Damper 20. The middle column, where the spring has no sideways pull,
+        /// never moved.
+        /// </para>
+        /// <para>
+        /// The stiffness is <see cref="OnboardSpringStiffness"/>, measured at 50. The shape is a
+        /// function of position alone - the same in both branches, as the lateral field must be -
+        /// faded in with depth exactly as the humps and the home spring fade out
+        /// (<see cref="GateGeometry.SlotConfinementFactor"/>), so in the tunnel the spring is
+        /// never cancelled. Zero whenever the onboard spring does not reach the base. Public
+        /// because a graph may sample it.
+        /// </para>
+        /// </summary>
+        public int SpringCancelX(int x, int y)
+        {
+            if (_springCancelPerCount <= 0) return 0;
+
+            double force = _springCancelPerCount * (x - GateGeometry.AxisCenter) * _geo.SlotConfinementFactor(y);
+            return GateGeometry.Clamp((int)Math.Round(force), -GateGeometry.ForceMax, GateGeometry.ForceMax);
+        }
+
+        /// <summary>
+        /// Whether the lever is past the seat of a bottomed slot while a centring spring acts on
+        /// the base. The free landing past the seat is the slot's whole stability argument, and
+        /// it holds only because nothing pushes the lever back out of it (docs/force-model.md,
+        /// "the base does not self-centre"). A centring spring - the generic DirectInput one or
+        /// the AB9's onboard Spring - does exactly that: the lever drifts back out of the landing
+        /// and comes to rest on the seated hold's fade, where the spring outward meets the hold
+        /// inward. That is a restoring force about an interior point, on a face as steep as the
+        /// hold over one wall bite, rendered through the delayed loop - and the snick's
+        /// exemptions left it there with no static hold and only a third of the rebound
+        /// absorption. A hard entry banked off the end-stop wall then rang on it: the gear
+        /// bounced.
+        ///
+        /// Past the seat there is no snick left to protect - it lands at the crossover, before
+        /// the seat - so the fade takes the walls' treatment while a spring is configured:
+        /// the attack, the static hold that quiets a resting lever, and full absorption. With
+        /// no spring nothing changes, because the lever then rests in the free landing.
+        /// </summary>
+        private bool SeatedAgainstCentring(GateState state, ShiftDir direction, int y)
+        {
+            return state == GateState.Engaged
+                && _slotStopForce > 0
+                && CentringSpringActs()
+                && SlotDepth(direction, y) > ThrowThreshold();
+        }
+
+        /// <summary>
+        /// Whether the configured Base spring actually reaches the base, by the same gates the
+        /// two providers apply: DirectInput renders it only once the spring signs are measured
+        /// (<see cref="BaseEffectComposer"/>), and the AB9 writes it onboard only once polarity
+        /// is confirmed (<c>ShifterSettings.ToNativeSettings</c>). A dial set above zero that
+        /// neither provider honours pushes nothing out of the landing, so it must not change
+        /// the slot either - "no spring, no change" has to mean no spring at the base.
+        /// </summary>
+        private bool CentringSpringActs()
+        {
+            if (!(_cfg.BaseSpringPct > 0)) return false;
+            return _cfg.BaseEffectsViaDirectInput
+                ? _cfg.BaseSpringPolarityConfirmed
+                : _cfg.PolarityConfirmed;
         }
 
         /// <summary>
@@ -450,6 +733,7 @@ namespace AB9ActiveShifter.Core
                 _shapedY = 0;
                 _yieldScaleX = 1.0;
                 _yieldScaleY = 1.0;
+                ForgetWallEnergy();
                 _seqClickLeftMs = 0;
                 _guideColumn = Column.None;
                 return FreeFrame();
@@ -505,6 +789,7 @@ namespace AB9ActiveShifter.Core
                 _shapedY = 0;
                 _yieldScaleX = 1.0;
                 _yieldScaleY = 1.0;
+                ForgetWallEnergy();
                 _guideColumn = Column.None;
                 _prndSide = 0;
                 _lockoutHoldFire = false;
@@ -792,12 +1077,21 @@ namespace AB9ActiveShifter.Core
         /// wall had learned not to, and rang.
         /// </summary>
         private ForceFrame Bound(ForceFrame frame, int vx, int vy, double dtMs, double floorY, bool shapeY,
-                                 int vibY = 0)
+                                 int vibY = 0, bool passiveX = false, int cancelX = 0, int cancelY = 0)
         {
             int boundedX = Yield(frame.ConstantX, vx, _yieldFloor, ref _yieldScaleX, dtMs);
             int boundedY = Yield(frame.ConstantY, vy, floorY, ref _yieldScaleY, dtMs);
 
+            if (passiveX) boundedX = Passive(boundedX, vx, dtMs);
+            else
+            {
+                _wallEnergyX = 0;
+                _wallReturnedX = 0;
+            }
+
             boundedX = ShapeInTime(ref _shapedX, boundedX, vx, dtMs);
+            _sentX[_sentHead] = _shapedX;
+            _sentHead = (_sentHead + 1) % _sentX.Length;
             boundedY = shapeY
                 ? ShapeInTime(ref _shapedY, boundedY, vy, dtMs)
                 : Track(ref _shapedY, boundedY);
@@ -816,8 +1110,14 @@ namespace AB9ActiveShifter.Core
             // "assists"). It is still inside the final clamp and the polarity signs; being
             // zero-mean, a sign flip is only a phase shift. Friction never keys on it: a
             // carrier is not a load the lever is pressed against.
-            frame.ConstantX = Combine(Combine(boundedX, Friction(boundedX, vx)), Damping(vx)) * _constantSignX;
-            frame.ConstantY = Combine(Combine(Combine(boundedY, Friction(boundedY, vy)), Damping(vy)), vibY)
+            //
+            // The spring cancel joins here too. It is not a wall: it is the onboard spring's own
+            // shape, inverted, and its gradient is a fifth of a wall face. Through the yield it
+            // would be chopped whenever the lever moved away from centre, and sent a round trip
+            // late it nets with the zero-latency spring to a small damping term, not a push.
+            frame.ConstantX = Combine(Combine(Combine(boundedX, Friction(boundedX, vx)), Damping(vx)), cancelX)
+                              * _constantSignX;
+            frame.ConstantY = Combine(Combine(Combine(Combine(boundedY, Friction(boundedY, vy)), Damping(vy)), vibY), cancelY)
                               * _constantSignY;
 
             frame.DamperCoefficient = _damperCoeff;
@@ -932,6 +1232,103 @@ namespace AB9ActiveShifter.Core
             // so it is clamped up to this call's floor rather than carrying a deeper cut across.
             scale = Math.Max(Math.Min(scale, target), floor);
             return (int)Math.Round(force * scale);
+        }
+
+        /// <summary>
+        /// A slot's side wall may give a fast rebound back only half the energy the lever pushed
+        /// into it. The yield exists so that "a bounce off a wall returns less energy than the
+        /// push stored", but it scales the force being commanded, and the force acting on the
+        /// lever is the one commanded a round trip earlier: the lever arrives against a force
+        /// that lags behind the face and leaves against one that is still the deeper, larger
+        /// value. That difference is energy the wall invents on every bounce. In the middle of
+        /// the gate the corridor's far side soaks it up; in an outer column, with the base's
+        /// centring spring pushing the lever into its inner wall, the spring hands it straight
+        /// back to the same wall and the gain accumulates.
+        /// <para>
+        /// Measured in trace-20261113-192727 (AB9 onboard Spring 50, attack 15 ms, absorption
+        /// 10): a 12000-count, ~13 Hz bounce in both outer columns at up to 560000 counts/s,
+        /// the middle column quiet. The model in LateralBounceTests reproduces it, shows it
+        /// vanishing with no delay, and shows the yield alone needs about 45 to contain it.
+        /// </para>
+        /// <para>
+        /// The ledger books what the base actually did: the force sent a round trip ago times
+        /// this tick's travel, into the wall while the lever moves against it, out while the
+        /// force carries it. Both totals clear when no force has been sent or asked for over a
+        /// whole round trip - the lever is in the corridor and the next contact is a new one.
+        /// A force carrying the lever outward is capped at what half the energy in, less what
+        /// has come out and what the forces still in flight will spend, can pay for this tick.
+        /// </para>
+        /// <para>
+        /// It only ever removes force, and only force carrying the lever outward. It fades in
+        /// between <see cref="LaunchSpeedFrom"/> and <see cref="LaunchSpeedFull"/>, far above
+        /// the yield's deadband, so a lean and a lever wobbling where it rests are untouched
+        /// and it cannot become a relay. Engaged only: in the tunnel the lateral field can
+        /// change hands between columns, so a push with nothing stored behind it is legitimate
+        /// there; in a slot the field belongs to one column and is a wall.
+        /// </para>
+        /// </summary>
+        private int Passive(int force, int velocity, double dtMs)
+        {
+            if (dtMs <= 0) return force;
+
+            double travel = velocity * dtMs / 1000.0;
+
+            // The force on the lever this tick is the one sent a round trip ago, not the one
+            // being computed - which is the whole problem: the lever starts out of the wall
+            // while the force acting on it is still the deeper, larger one. Credit and debit
+            // against that, so the ledger books what the base actually did.
+            int acting = _sentX[_sentHead];
+            bool contact = acting != 0 || force != 0;
+            for (int i = 0; i < _sentX.Length && !contact; i++) contact = _sentX[i] != 0;
+
+            if (!contact)
+            {
+                _wallEnergyX = 0;
+                _wallReturnedX = 0;
+                return force;
+            }
+
+            // Work the lever did on the wall: positive when it moved against the force.
+            double work = -acting * travel;
+            if (work > 0) _wallEnergyX += work;
+            else _wallReturnedX -= work;
+
+            int speed = Math.Abs(velocity);
+            if (speed <= LaunchSpeedFrom || Math.Sign(force) != Math.Sign(velocity)) return force;
+
+            // Forces already sent but not yet acting will spend the ledger before this one
+            // arrives, if the lever keeps moving outward.
+            double distance = Math.Abs(travel);
+            double committed = 0;
+            for (int i = 1; i < _sentX.Length; i++)
+            {
+                int sent = _sentX[(_sentHead + i) % _sentX.Length];
+                if (Math.Sign(sent) == Math.Sign(velocity)) committed += Math.Abs(sent) * distance;
+            }
+
+            double cap = Math.Max(0.0, _wallEnergyX * WallRestitution - _wallReturnedX - committed) / distance;
+            if (Math.Abs(force) <= cap) return force;
+
+            double fade = GateGeometry.Clamp(
+                (speed - LaunchSpeedFrom) / (double)(LaunchSpeedFull - LaunchSpeedFrom), 0.0, 1.0);
+            double kept = Math.Abs(force) - ((Math.Abs(force) - cap) * fade);
+            return Math.Sign(force) * (int)Math.Round(kept);
+        }
+
+        /// <summary>
+        /// Clears the wall energy ledger and the forces it thinks are in flight. Only for the
+        /// free-frame paths, which send nothing, so an empty history is then the truth.
+        /// </summary>
+        private void ForgetWallEnergy()
+        {
+            _wallEnergyX = 0;
+            _wallReturnedX = 0;
+            Array.Clear(_sentX, 0, _sentX.Length);
+
+            // The spring cancel's history too: forces off means the lever can be anywhere when
+            // they return, and a stale armed cancel would hold the spring away for no reason.
+            _springCancelScale = 0;
+            _springCancelArmed = false;
         }
 
         /// <summary>
