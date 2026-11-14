@@ -1170,6 +1170,88 @@ clutch-down shaft inertia need additional pedal/transmission integration and are
 change. Arithmetic is verified; RPM tolerance, native envelope feel and game acceptance still
 need a road test.
 
+### Optional gear hold under load
+
+A real gearbox under load is hard to pull out of gear: the dogs carry torque and their faces bind.
+With `GearHoldEnabled` (off by default, and off in every preset), leaving an engaged H gear with
+the clutch up pays a toll in proportion to the load through the box. It is the grind's
+counterpart on the way out, and like the grind it lives in `EffectComposer` (the decision) and
+`ForceComposer` (the force).
+
+**Force shape.** The hold is the grind's balk turned round: a flat wall pushing the lever back
+into whichever slot is engaged, for the whole of the pull. `GearHoldBand` is zero at its foot,
+rises across one wall face, and is flat from there to the mechanical end of the slot. The foot is
+the release line (`ReleaseDepth` as a fraction of the engage depth: 0.748 on the shipped 5+R/7+R
+presets, 0.861 on a bare config), or 0.55 where the gear stays latched lower than that, which
+keeps the tunnel and the crossover free. The hold only exists while a gear is latched, so its
+zero sits exactly where the latch drops it and no axis count steps the stroke
+(`ThePullOutNeverStepsWhereTheLatchLetsGo` drives a real state machine out of five geometries;
+`NoSingleCountOfDepthEverStepsAHeldStroke` bounds every count). The face is
+`WallRamp × GearHoldPct / 100` counts long: the walls' own stiffness, shorter for a weaker hold,
+never steeper. Past the face it is a constant force toward the end of the slot, the same kind the
+seated detent hold already applies, so there is no interior equilibrium to hunt about; a rendered
+slot stop fades it with the detent, so the landing stays free. While the hold has any strength
+the engaged slot is wall-like: wall attack and the walls' full rebound absorption, like the
+balk. Its strength is `GearHoldPct` through `EffectiveGain`, so the 10% unconfirmed-polarity cap
+applies. It is added to the detent beside `SlotLockoutBoost` and is absent while the detent is a
+balk border. Only an `Engaged` slot is held: a gear being travelled into, or balked, targets zero.
+
+**Two shapes were felt and rejected** (2026-11-13, BeamNG, 5+R, hold at 100%, measured with a
+temporary per-250 ms log of the hold's target, level and output force):
+
+- *The slot lockout's exit band* (zero to 0.55, full 0.65-0.90, gone by 0.95). That toll is not
+  gated on the latch, so its foot is safe for the lockout; the hold is, and both the shipped H
+  presets and the bare default unlatch above 0.55. The hold was at full strength where the latch
+  let go and vanished in one tick: about 9800 DI at 100% in a sweep of the 5+R preset. On the rig
+  it was not felt at all at full throttle: level 0.63-0.78 while seated, the gear gone a quarter
+  of a second into the pull. The original tests passed `Engaged` straight in and never ran the
+  state machine, which is how this shipped.
+- *The same band with its foot moved up to the release line.* No step, but a few hundred counts
+  of ramp landing on the detent's own click: "very subtle, can't be distinguished from the
+  normal click". A loaded gear is hard to move from the first millimetre, which a band cannot be.
+
+The plateau was felt the same evening: "this feels good, at 2nd gear I can still force a shift
+but at third I can't", at 100% with the default 30% engine braking.
+
+**Load.** The engine estimate (`GearHoldLoadSource.EngineEstimate`) takes drive as the throttle,
+a flat torque curve, because no game reports the real one. It takes overrun as engine braking
+that grows linearly with RPM, up to `GearHoldEngineBrakePct` of full drive at the redline. The
+redline is the game's `MaxRpm`, or 7000 when it reports none below 1000. The load is the magnitude
+of the difference, because the dogs carry torque either way. Where the two cancel, the box is
+unloaded and the gear comes out freely. That balance point is the realistic way to slip a gear
+out without the clutch: at the default 30%, a lift at the redline balances at 30% throttle and a
+lift near idle at a few percent. The property source (`GearHoldLoadSource.Property`) uses the
+magnitude of a SimHub property the user names, such as a game's own torque, against
+`GearHoldPropertyFullScale` (1-5000), so a signed torque holds on overrun too. The final hold is
+the grind's own `ClutchEngagement` (threshold, or fading from the bite point) times that load,
+0..1.
+
+**Throttle alone was rejected as the load**, on design grounds before any hardware test. It has
+no overrun: a lift high in the revs, where engine braking loads a real box hardest, would leave
+every gear free. It also has no balance point, so part throttle could never unload the box. That
+makes "closed throttle = unloaded" exactly backwards on a trailing throttle.
+
+**Slew.** The target is slewed in the composer, from nothing to full in 60 ms (`GearHoldRiseMs`)
+and back in 15 ms (`GearHoldFallMs`). It rises gradually because the threshold clutch is a step and
+a hand may already be resting in the band. It falls faster because a clutch going down is the
+driver asking to leave, but still not in one tick, because the hand may be leaning on the toll
+as it drops. Free stick zeroes it at once. With no tick length (the curve visualizers) the target
+is taken as given.
+
+**Gating, and why every doubt releases it.** The failure that matters is a gear the hand cannot
+leave. So the setting off or at 0%, no held gear, no game, telemetry older than 500 ms or from
+the future, a stale or non-finite clutch, an engine at or below its stopped threshold, a car
+under the grind's `GrindMinSpeedKmh`, a non-finite throttle and an unreadable property each
+resolve to no hold. Unlike a carrier, a stale frame zeroes the *target* that tick and the force
+follows within the 15 ms fall, rather than vanishing on the same tick. The hold is a slewed
+force, not a buzz that could outlive a game. It never touches `allowEngage` or the state
+machine: a hand that pulls through it leaves the gear and the buttons follow the lever.
+
+**Still open.** A hold and a slot lockout's exit toll on the same slot add (clamped), where the
+hard balk and the grind wall take the max; that combination has not been felt. Nor has a slot
+with a rendered stop (`SlotStopForcePct` above 0), where the plateau fades with the detent past
+the seat.
+
 ## Rejected approaches
 
 Kept permanently. Each line is a thing that was built, felt on hardware, and abandoned.

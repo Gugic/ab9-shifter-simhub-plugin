@@ -93,9 +93,33 @@ namespace AB9ActiveShifter.Effects
             void refresh() { threshold.Visibility = Owner != null && Owner.GrindClutchMode == GrindClutchMode.Progressive ? Visibility.Collapsed : Visibility.Visible; }
             mode.SelectionChanged += delegate { refresh(); };
             threshold.Loaded += delegate { refresh(); };
+            var hold = new SHToggleCheckbox { Content = "Hold the gear in under load with the clutch up" };
+            hold.SetBinding(CheckBox.IsCheckedProperty, new Binding("GearHoldEnabled") { Mode = BindingMode.TwoWay });
+            var source = new ComboBox { Width = 260, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 4) };
+            source.Items.Add("Estimate from throttle and engine braking");
+            source.Items.Add("A SimHub property");
+            source.SetBinding(ComboBox.SelectedIndexProperty, new Binding("GearHoldLoadSourceIndex") { Mode = BindingMode.TwoWay });
+            TitledSlider engineBrake = Slider("Engine braking at redline (% of full throttle)", "GearHoldEngineBrakePct", 0, 100);
+            TextBlock propertyLabel = Note("Property name");
+            var property = new TextBox { Width = 380, HorizontalAlignment = HorizontalAlignment.Left };
+            property.SetBinding(TextBox.TextProperty, new Binding("GearHoldLoadProperty") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
+            TitledSlider fullScale = Slider("Property value at full load", "GearHoldPropertyFullScale", 1, 5000);
+            void refreshSource()
+            {
+                bool usesProperty = Owner != null && Owner.GearHoldLoadSource == GearHoldLoadSource.Property;
+                engineBrake.Visibility = usesProperty ? Visibility.Collapsed : Visibility.Visible;
+                propertyLabel.Visibility = usesProperty ? Visibility.Visible : Visibility.Collapsed;
+                property.Visibility = usesProperty ? Visibility.Visible : Visibility.Collapsed;
+                fullScale.Visibility = usesProperty ? Visibility.Visible : Visibility.Collapsed;
+            }
+            source.SelectionChanged += delegate { refreshSource(); };
+            engineBrake.Loaded += delegate { refreshSource(); };
             return Editor(Note("H-pattern only. Push into a gear with the clutch up to feel the grind. Press the clutch to engage, or match RPM with Float shifting enabled above. Gear rejection and the balk wall follow the lever immediately; volume, frequency and priority are tuned in this effect row. The fading mode uses the profile's clutch bite point."),
                 reject, Slider("Balk wall (%)", "GrindWallPct", 0, 100), Note("How the clutch decides"), mode,
-                threshold, Slider("Only grind above (km/h)", "GrindMinSpeedKmh", 0, 40));
+                threshold, Slider("Only grind above (km/h)", "GrindMinSpeedKmh", 0, 40),
+                Note("Leaving a gear. With the hold on, pulling a gear out with the clutch up costs force in proportion to the load through the gearbox - drive under power, engine braking on a lift. Where the two balance the gear slips out, as a real one does. Pressing the clutch releases it; it follows the clutch setting and speed floor above, and a hard enough pull always wins."),
+                hold, Slider("Hold at full load (%)", "GearHoldPct", 0, 100), Note("Load from"), source,
+                engineBrake, propertyLabel, property, fullScale);
         }
     }
 

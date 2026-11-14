@@ -243,7 +243,11 @@ Master off, panic, shutdown and firmware H-pattern fully disconnect output; base
 temporary native configuration clear its buttons without relinquishing it.
 
 `DataUpdate` publishes the immutable `TelemetryState` used by the clutch protection, then steps
-SimHub's native ShakeIt host. The native output manager copies each active tone into a second
+SimHub's native ShakeIt host. The snapshot also carries the game's throttle, and, only while the
+gear hold is enabled with a property source, the named property read through
+`GetPropertyValue` on this same data thread. It is `NaN` when unset or unreadable, never zero, so
+the engine cannot mistake "no reading" for "no load". The engine's direct-pedal scratch copy
+carries both fields. The native output manager copies each active tone into a second
 immutable snapshot. Native profile swaps and serialization use a short lock on the dispatcher;
 the data callback uses `Monitor.TryEnter` and publishes silence if busy. The 1 kHz loop takes
 neither that lock nor any native object. It still runs with no game connected.

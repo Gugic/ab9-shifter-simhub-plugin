@@ -20,6 +20,25 @@ namespace AB9ActiveShifter.Core
         Pedal
     }
 
+    /// <summary>Where the gear hold reads the load through the gearbox from.</summary>
+    public enum GearHoldLoadSource
+    {
+        /// <summary>
+        /// Estimated from the engine: drive torque from the throttle, less engine braking that
+        /// grows with RPM, taken as a magnitude. Every game reports what it needs, and it has
+        /// the property that matters for slipping a gear out: a balance point where drive and
+        /// engine braking cancel and almost nothing is carried through the dogs.
+        /// </summary>
+        EngineEstimate,
+
+        /// <summary>
+        /// A SimHub property the user names - a game's own torque or load reading where one is
+        /// published - scaled by a full-scale value. Its magnitude is used, so a signed torque
+        /// holds on overrun as well as under power.
+        /// </summary>
+        Property
+    }
+
     /// <summary>How far the clutch's position is allowed to matter to the grind.</summary>
     public enum GrindClutchMode
     {

@@ -825,7 +825,7 @@ namespace AB9ActiveShifter.Core
 
                     frame = _composer.Compose(
                         t.State, t.Column, t.Direction, x, y, _velocity.X, _velocity.Y, dtMs,
-                        fx.VibY, fx.MuteDetent, lockoutReleased, fx.GrindWallScale);
+                        fx.VibY, fx.MuteDetent, lockoutReleased, fx.GrindWallScale, fx.GearHoldScale);
 
                     if (cfg.LockoutMode == LockoutMode.HotkeyAutoRearm && lockoutReleased)
                     {

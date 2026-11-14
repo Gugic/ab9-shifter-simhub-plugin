@@ -22,6 +22,14 @@ namespace AB9ActiveShifter.Core
         public bool MuteDetent;
 
         /// <summary>
+        /// How hard a held gear resists being pulled out, 0..1: clutch engagement times the
+        /// load through the gearbox (<see cref="EffectComposer.GearHoldLoad"/>). Zero whenever the hold is off, the telemetry or the clutch
+        /// reading is stale, the engine is stopped, or no gear is held. A target, not a force:
+        /// the force composer slews toward it and applies it only to an engaged slot.
+        /// </summary>
+        public double GearHoldScale;
+
+        /// <summary>
         /// How hard the teeth are disagreeing, 0..1. With float shifting off, always 1 while
         /// grinding in <see cref="GrindClutchMode.Threshold"/>, preserving the original
         /// threshold behavior. Reported for the Monitor tab and for
@@ -301,8 +309,73 @@ namespace AB9ActiveShifter.Core
                 if (!cfg.NativeEffectsEnabled) vib += Square(ref _grindPhase, cfg.GrindFreqHz, dtMs, amp);
             }
 
+            output.GearHoldScale = GearHoldLoad(cfg, t, ageMs, heldGear);
+
             output.VibY = GateGeometry.Clamp(vib, -VibTotalMax, VibTotalMax);
             return output;
+        }
+
+        /// <summary>
+        /// How hard a held gear resists leaving its slot, 0..1: the clutch engagement times the
+        /// load carried through the gearbox. The clutch is the grind's own
+        /// (<see cref="ClutchEngagement"/>), so the pedal means one thing to the whole shifter.
+        /// <para>
+        /// Everything uncertain resolves toward no hold, because the failure that matters is a
+        /// gear the hand cannot leave: no telemetry, a stale clutch, a stopped engine, a car
+        /// below the grind's speed floor, an unheld gear, and an unreadable load all return zero.
+        /// </para>
+        /// </summary>
+        public static double GearHoldLoad(EngineConfig cfg, TelemetryState t, int ageMs, int heldGear)
+        {
+            if (cfg == null || !cfg.GearHoldEnabled || cfg.GearHoldPct <= 0) return 0;
+            if (heldGear == 0 || t == null || !t.GameRunning) return 0;
+            if (ageMs < 0 || ageMs > StaleAfterMs) return 0;
+            if (!RevMatchModel.Finite(t.Clutch) || !t.IsClutchFresh(ageMs)) return 0;
+            if (!RevMatchModel.Finite(t.Rpms) || t.Rpms <= MinEngineRpm) return 0;
+            if (!RevMatchModel.Finite(t.SpeedKmh) || Math.Abs(t.SpeedKmh) < cfg.GrindMinSpeedKmh) return 0;
+
+            double engagement = ClutchEngagement(cfg, t.Clutch);
+            if (engagement <= 0) return 0;
+
+            double load = cfg.GearHoldLoadSource == GearHoldLoadSource.Property
+                ? PropertyLoad(cfg, t)
+                : EstimatedLoad(cfg, t);
+
+            return GateGeometry.Clamp(engagement * load, 0.0, 1.0);
+        }
+
+        /// <summary>The redline the estimate assumes when a game reports none.</summary>
+        public const double FallbackRedlineRpm = 7000.0;
+
+        /// <summary>
+        /// Load through the gearbox estimated from the engine, 0..1. Drive is the throttle - a
+        /// flat torque curve, since no game reports the real one. Overrun is engine braking,
+        /// growing linearly with RPM to <see cref="EngineConfig.GearHoldEngineBrakePct"/> of
+        /// full drive at the redline: pumping and friction losses rise with engine speed. The
+        /// dogs carry the difference either way, so the magnitude is the load, and where the
+        /// two cancel the box is unloaded and the gear comes out freely.
+        /// </summary>
+        public static double EstimatedLoad(EngineConfig cfg, TelemetryState t)
+        {
+            if (!RevMatchModel.Finite(t.Throttle) || !RevMatchModel.Finite(t.Rpms)) return 0;
+
+            double redline = RevMatchModel.Finite(t.MaxRpm) && t.MaxRpm >= 1000 ? t.MaxRpm : FallbackRedlineRpm;
+            double rpmShare = GateGeometry.Clamp(t.Rpms / redline, 0.0, 1.0);
+            double drive = GateGeometry.Clamp(t.Throttle, 0.0, 100.0) / 100.0;
+            double overrun = GateGeometry.Clamp(cfg.GearHoldEngineBrakePct, 0, 100) / 100.0 * rpmShare;
+
+            return GateGeometry.Clamp(Math.Abs(drive - overrun), 0.0, 1.0);
+        }
+
+        /// <summary>The named property's magnitude against its full scale, 0..1; zero if unreadable.</summary>
+        public static double PropertyLoad(EngineConfig cfg, TelemetryState t)
+        {
+            if (!RevMatchModel.Finite(t.GearLoadValue)) return 0;
+            double fullScale = RevMatchModel.Finite(cfg.GearHoldPropertyFullScale) && cfg.GearHoldPropertyFullScale > 0
+                ? cfg.GearHoldPropertyFullScale
+                : 0;
+            if (fullScale <= 0) return 0;
+            return GateGeometry.Clamp(Math.Abs(t.GearLoadValue) / fullScale, 0.0, 1.0);
         }
 
         /// <summary>

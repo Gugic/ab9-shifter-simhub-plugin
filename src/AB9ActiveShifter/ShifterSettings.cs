@@ -164,6 +164,12 @@ namespace AB9ActiveShifter
         private int _grindMinSpeedKmh;
         private bool _grindRejectsGear = true;
         private GrindClutchMode _grindClutchMode = GrindClutchMode.Threshold;
+        private bool _gearHoldEnabled;
+        private int _gearHoldPct = 40;
+        private GearHoldLoadSource _gearHoldLoadSource = GearHoldLoadSource.EngineEstimate;
+        private int _gearHoldEngineBrakePct = 30;
+        private string _gearHoldLoadProperty = "";
+        private int _gearHoldPropertyFullScale = 100;
         private int _clutchBitePointPct = 25;
         private bool _fxBiteEnabled;
         private int _fxBiteGainPct = 35;
@@ -836,6 +842,35 @@ namespace AB9ActiveShifter
         /// </summary>
         public int ClutchBitePointPct { get { return _clutchBitePointPct; } set { Set(ref _clutchBitePointPct, value); } }
 
+        /// <summary>Whether a held gear resists being pulled out with the clutch up.</summary>
+        public bool GearHoldEnabled { get { return _gearHoldEnabled; } set { Set(ref _gearHoldEnabled, value); } }
+
+        /// <summary>The hold's toll at full load with the clutch fully up.</summary>
+        public int GearHoldPct { get { return _gearHoldPct; } set { Set(ref _gearHoldPct, GateGeometry.Clamp(value, 0, 100)); } }
+
+        /// <summary>Where the hold reads the gearbox load from.</summary>
+        public GearHoldLoadSource GearHoldLoadSource
+        {
+            get { return _gearHoldLoadSource; }
+            set { Set(ref _gearHoldLoadSource, value); OnChanged("GearHoldLoadSourceIndex"); }
+        }
+
+        /// <summary>The combo box's view of the load source.</summary>
+        public int GearHoldLoadSourceIndex
+        {
+            get { return (int)_gearHoldLoadSource; }
+            set { GearHoldLoadSource = (GearHoldLoadSource)value; }
+        }
+
+        /// <summary>Engine braking at the redline, as a share of full-throttle drive.</summary>
+        public int GearHoldEngineBrakePct { get { return _gearHoldEngineBrakePct; } set { Set(ref _gearHoldEngineBrakePct, GateGeometry.Clamp(value, 0, 100)); } }
+
+        /// <summary>Full SimHub property name read as the gearbox load, for the Property source.</summary>
+        public string GearHoldLoadProperty { get { return _gearHoldLoadProperty; } set { Set(ref _gearHoldLoadProperty, value ?? ""); } }
+
+        /// <summary>The property magnitude that counts as full load.</summary>
+        public int GearHoldPropertyFullScale { get { return _gearHoldPropertyFullScale; } set { Set(ref _gearHoldPropertyFullScale, GateGeometry.Clamp(value, 1, 5000)); } }
+
         /// <summary>A pulse through the lever as the clutch crosses its bite point.</summary>
         public bool FxBiteEnabled { get { return _fxBiteEnabled; } set { Set(ref _fxBiteEnabled, value); } }
         public int FxBiteGainPct { get { return _fxBiteGainPct; } set { Set(ref _fxBiteGainPct, value); } }
@@ -1174,6 +1209,11 @@ namespace AB9ActiveShifter
                 GrindRejectsGear = GrindRejectsGear,
                 GrindClutchMode = GrindClutchMode,
                 ClutchBitePointPct = ClutchBitePointPct,
+                GearHoldEnabled = GearHoldEnabled,
+                GearHoldPct = GearHoldPct,
+                GearHoldLoadSource = GearHoldLoadSource,
+                GearHoldEngineBrakePct = GearHoldEngineBrakePct,
+                GearHoldPropertyFullScale = GearHoldPropertyFullScale,
                 FxBiteEnabled = FxBiteEnabled,
                 FxBiteGainPct = FxBiteGainPct,
                 FxBiteFreqHz = FxBiteFreqHz,
@@ -1362,6 +1402,12 @@ namespace AB9ActiveShifter
                 GrindRejectsGear = d.GrindRejectsGear;
                 GrindClutchMode = d.GrindClutchMode;
                 ClutchBitePointPct = d.ClutchBitePointPct;
+                GearHoldEnabled = d.GearHoldEnabled;
+                GearHoldPct = d.GearHoldPct;
+                GearHoldLoadSource = d.GearHoldLoadSource;
+                GearHoldEngineBrakePct = d.GearHoldEngineBrakePct;
+                GearHoldLoadProperty = d.GearHoldLoadProperty;
+                GearHoldPropertyFullScale = d.GearHoldPropertyFullScale;
                 FxBiteEnabled = d.FxBiteEnabled;
                 FxBiteGainPct = d.FxBiteGainPct;
                 FxBiteFreqHz = d.FxBiteFreqHz;

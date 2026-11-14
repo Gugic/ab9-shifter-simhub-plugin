@@ -130,6 +130,19 @@ The handbrake preset enables native wheel-lock feedback with rear-wheel routing.
 **Effects…**; the response depends on the wheel telemetry supplied by the game.
 The grind uses either the game's clutch reading or a pedal bound under **Options → Pedals**.
 
+**Hold the gear in under load with the clutch up** (in the **Clutch grind** row's settings, off
+by default) makes leaving an H gear with the clutch up cost force in proportion to the load
+through the gearbox. By default the load is estimated from the engine (**Estimate from throttle
+and engine braking**): drive from the throttle, less engine braking that grows with RPM
+(**Engine braking at redline (% of full throttle)**). Under power and on a high-RPM lift the gear
+is held; at the part throttle where the two balance it slips out, as a real one does. A game
+that publishes its own torque or load can drive it instead through **A SimHub property**, named
+in **Property name** and scaled by **Property value at full load**. Pressing the clutch releases
+the hold, and it follows the grind's clutch mode and speed floor. It is force only: a hard enough
+pull always leaves the gear, and stale telemetry, a stopped engine or an unreadable property
+lets it go within a few milliseconds. [Tuning](tuning.md#holding-the-gear-in-under-load-h-patterns)
+lists each control.
+
 ![Effects editor: profile gain, clutch behavior and SimHub's native effect rows](img/effects.png)
 
 ### Float shifting

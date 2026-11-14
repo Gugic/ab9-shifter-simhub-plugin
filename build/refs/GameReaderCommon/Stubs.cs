@@ -32,6 +32,9 @@ namespace GameReaderCommon
         /// <summary>Clutch pedal, 0..100 with 100 fully pressed.</summary>
         public double Clutch { get; set; }
 
+        /// <summary>Throttle pedal, 0..100 with 100 fully pressed.</summary>
+        public double Throttle { get; set; }
+
         /// <summary>The game's own gear label, e.g. "N", "1", "R".</summary>
         public string Gear { get; set; }
 
