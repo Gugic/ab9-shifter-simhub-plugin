@@ -409,6 +409,26 @@ centring in firmware this shape would let the gear crawl back out, and the old
 pull-to-the-mechanical-stop is the right answer there — which is what `SlotStopForcePct` = 0, the
 default, still is.
 
+A centring spring that reaches the base (Base spring, generic or AB9 onboard) breaks that
+premise from the plugin's own settings. The lever is pushed back out of the landing and rests
+where the spring meets the seated hold's fade. That face is the hold over one wall bite: 1.05
+DI/count on the loose short-throw preset and 1.31 on both sport ones at full gain, before the
+spring's own stiffness is added, all rendered through the delayed loop. The fade used to keep the
+snick's exemptions (no attack, no static hold, a third of the absorption). A hard entry banked off
+the end-stop and rang on it, so the gear bounced. While a spring acts, everything past the seat of
+a bottomed slot is now treated as a wall (`SeatedAgainstCentring`). The snick, which lands before
+the seat, is untouched, and with no spring nothing changes. The static hold that quiets the
+resting lever lives in the attack stage, so it needs `WallAttackMs` above zero; every shipped
+preset has 15.
+
+"A spring acts" means the spring the base actually receives, not the dial. DirectInput renders it
+only once the spring signs are measured (`BaseSpringPolarityConfirmed`), and the AB9 writes it
+onboard only once polarity is confirmed. A dial above zero that neither provider honours pushes
+nothing, so it must leave the slot exactly as it was (`CentringSpringActs`). Every preset ships
+with Base spring at 0, so this only changes a tune someone has given a spring. The fix does not
+cover a centring spring set outside the plugin, such as MOZA Cockpit's own Spring. The plugin
+cannot see that one, and the advice stays what it was: keep it at 0.
+
 The fade is never shorter than the wall bite whatever the landing is set to. Zero landing would
 ask a full-strength hold to reach nothing within a count or two of the seat, which is a bang and
 not a face — the fore/aft twin of the tunnel-band cliff `MinBandSpan` exists to prevent. The floor
@@ -807,7 +827,8 @@ This is the user's captured tune, not a stability claim about every supported ri
 
 A stiff wall rendered through a 3–4 ms delay is unstable — the delayed force acts as *negative*
 damping, so each overshoot returns with interest. Four independent mechanisms address it. They
-compose; none alone was sufficient.
+compose; none alone was sufficient. A fifth, the slot-wall energy cap, guards the one place a
+centring spring can turn a wall's delay into a sustained bounce.
 
 **Flat plateaus.** Past its short face a wall is a constant force. A flat force has **no gradient
 for the delay to pump**, so leaning deep on a wall is unconditionally calm. This is the reason the
@@ -935,6 +956,156 @@ hard where every wall had learned not to, and rang.
 The static hold band is **proportional** to the force already being applied, not a fixed figure. A
 band wide enough to steady a full-strength wall would swallow a light guide force whole, and freezing
 the gentle pull along the channel makes sliding across the gate feel notchy and sticky.
+
+**Slot-wall energy cap (in gear, lateral only, not a dial).** A fast rebound off a slot's side wall
+may take back at most half the energy the lever pushed into it. It exists because of a bounce
+traced on 2026-11-13 (`trace-20261113-192727`): AB9 onboard Spring 50 on a 5+R profile with
+`WallAttackMs` 15 and `WallYieldPct` 10. In both outer columns the lever swung about 12000 counts
+across its slot at ~13 Hz, at up to 560000 counts/s, while the middle column was quiet. Fore/aft
+force held steady at the seated hold the whole time — the bounce was entirely lateral.
+
+The mechanism is the spring plus the delay, not the wall's shape. The base's centring spring pulls
+an outer column's lever toward the middle of the gate, into its inner slot wall. The wall throws it
+back across the corridor, the spring returns it, and it meets the wall again. At the middle column
+the spring has no sideways pull, so nothing returns the lever. Each bounce gains energy because the
+force on the lever is the one commanded a round trip earlier: on the way in it lags behind the face
+(and the attack lags it further), on the way out it is still the deeper, larger value. A model of the
+lever (`LateralBounceTests`, fitted to the trace's free flight and wall contact) reproduces 11105
+counts of swing at the traced settings and **zero with no delay**. The yield alone needs about 45 to
+contain it, which is why the default tune is fine and the traced one was not.
+
+The cap keeps a ledger per contact: the force sent a round trip ago (`RoundTripMs`, 4 ms, measured
+for this purpose — see below) times each tick's travel, booked in while the lever moves against the force and out
+while the force carries it. A force carrying the lever outward is capped at what half the energy
+in, less what has come out and what the forces still in flight will spend, can pay for that tick.
+The ledger clears when no force has been sent or asked for over a whole round trip. The cap fades
+in between 60000 and 200000 counts/s, far above the yield's deadband. It only ever removes force,
+only force carrying the lever out, and only while a gear is latched — in the tunnel the lateral
+field can change hands between columns, so a push with nothing behind it is legitimate there.
+
+What the model says at the traced settings, by real delay: 3 ms, 11105 → 67 counts; 4 ms,
+14915 → 2722; 5 ms, 26236 → 4563. With no physical damping at 3 ms, 49970 → 2431. The default tune
+does not move (769 → 724).
+
+The first rig test (`trace-20261113-194834`, the cap assuming 3 ms) took the bounce from 12069 to
+9180 counts — less than the model promised, and the trace showed why. The cap cut the sent force to
+zero as the lever left the wall, and the lever went on accelerating away for ~6 ms, ~2 ms of which
+is the speed estimate's window: the force reaches the lever about **4 ms** after it is sent here,
+not 3 (recorded in [hardware.md](hardware.md)). Assuming 4 is what ships; in the model it costs
+nothing where the delay is really 3, and assuming 5 or 6 buys nothing more.
+
+The residue at 4 ms is not the ledger's to remove. It is a cycle at the turnaround, where the lever
+is slow and the wall is a face rendered 4 ms late — the same thing the lean-hunt was, and no force
+the plugin sends arrives inside the delay. The model takes it from 2722 to 149 counts by doubling the
+*physical* damping, which acts at the servo with no delay. That is the cure hardware.md already
+records for the lean-hunt (MOZA's Damper at ~15%), and in Moza AB9 mode the plugin's **Base damper
+(%)** writes that same onboard damper; the traced profile ran it at 8.
+
+**The spring itself was the next rig finding.** With Damper 20, smoothing 0 and absorption 80
+(`trace-20261113-200039`) the lever still hunted at ~19 Hz, and in gear it spent 72% of its time
+*outside* its slot's corridor, on the inner wall's face. The spring parks it there: the rest point is
+where the spring meets the wall. Even the calm, gently-entered trace rested 1100 counts outside
+the slot. Measuring the spring from those rests (~0.18 DI per count at Spring 50,
+[hardware.md](hardware.md)) made the next step possible.
+
+**Spring cancel, while a throw is caught (AB9 onboard spring only, not a dial).** The spring's
+pull, inverted, faded in with depth like the humps and the home spring fade out, so the tunnel
+always keeps its centring. It is applied for exactly as long as a gear is latched and the lever is
+down in its slot: it ramps in over 20 ms as the gear latches, cancels all but 15% of the spring,
+and ramps out over 30 ms as the gear is left. A settle damper (0.005 DI per count/s, capped at
+3000) ramps in beside it and exists only in the slot.
+
+The cancel covers both axes. Fore/aft, the spring pulls a seated lever back toward neutral with
+~0.18 DI per count of depth at Spring 50, ~5000 DI at the bottom of a slot. Whether that
+unseats a gear depends on the tune. With **Hold in gear** 40% and onboard Friction 25, gears
+stayed in at Spring 50 (`trace-20261113-192727`). After retuning to Hold 22.5% and Friction 15,
+Spring 50 pulled gears out by itself. The same 85% cancel at the same scale leaves ~750 DI, under
+either hold, so the tune no longer decides. No damper rides on that axis.
+
+The damper started at 0.02, and on the rig that made a hand leaning on the inner wall buzz:
+~24 Hz, ~1000 counts, with the sent force following the damper rather than the wall
+(`trace-20261113-210016`). With Base spring 0, so no cancel and no damper, the same lean did
+not buzz. Its velocity is ~2 ms old and its force lands ~4 ms later, which at 24 Hz is close to
+where braking turns into pushing. The trace's own energy balance puts the crossover at a 6 ms
+effective delay. In the model 0.03 was already worse than 0.02 for throws, so 0.02 sat near the
+edge. At 0.01 the rig buzz became "much more subtle", so it scales with this term, and the damper
+is 0.005: in the model a thrown gear at Spring 30 still settles to 508 / 750 / 1016 counts at
+4 / 5 / 6 ms, against 2122 / 14743 / 17770 with no damper at all. Gating the damper to fast motion was also modelled and rejected: its
+job is the slow tail of a bounce, the same speeds as the lean, and gated it left 1984–3237 counts. The 15% remainder leans the lever gently on
+the corridor's inner edge, which is calm. It joins after the stabilisers, like damping: it is not
+a wall, and sent 4 ms late against a zero-latency spring it nets to slight damping.
+
+It reached that shape through three rig tests, kept here so they are not repeated:
+
+- *Arming on any fast lever outside the corridor* (`0.1.0+2d71f64`) switched the spring off on
+  ordinary gate entries, which sweep the inner wall's face at 85000–150000 counts/s.
+- *Arming only on a throw into the inner wall and giving the spring back once the lever had
+  settled at the edge* (`0.1.0+1f26b97`) stopped the throw, and the returned spring then crept the
+  lever onto the wall's face and the hunt restarted a second later with no throw at all
+  (`trace-20261113-205008`: settled at the edge by 840 ms, still until 1540, hunting from 1644 at
+  up to 275000 counts/s). On this base, with this tune, the face rest under the spring is not
+  stable, so the spring cannot be given back in gear.
+- *Fading the cancel out over 500 ms after the gear was left* kept up to ~800 DI pushing away from
+  centre on the way out; 30 ms is enough, because the lever leaves the slot's depth band within a
+  few tens of milliseconds anyway.
+
+The exit kick in that same trace is mostly older than any of this. Leaving a gear diagonally and
+fast, the lever overshoots the neutral tunnel into the region between columns, where the pick is
+frozen to the old column and its wall throws it back at full strength. Pre-cancel exits show the
+same throw: 7679 DI at 269677 counts/s in `trace-20261113-195616`, and up to 8400 at 391917 in
+`trace-20261113-192727`.
+
+Its strength is linear in the Spring percentage from the measured 50. After the first rig test the
+lever sat against its slot's *outer* wall (`trace-20261113-203341`), which read as the cancel
+out-pulling the spring and suggested a square law (0.029 DI per count at Spring 20 instead of
+0.072). That was wrong. With the square law the cancel came to ~400 DI against the inner wall, and
+the lever bounced off it exactly as with no cancel (`trace-20261113-204252`: 4796 counts at 14 Hz,
+the settle damper visibly armed). The outer-wall rest was the hand or the old over-eager arming,
+not the spring. Do not infer a spring law from where a held lever rests.
+
+The first version's settle damper also rode the 500 ms release fade into the tunnel, braking the
+sideways slide out of a gear with up to 3000 DI, which was felt as the shift going haywire on the
+way out. Keeping the damper to the slot made dragging against a wall feel much better on the rig
+(`trace-20261113-204356`).
+
+*A cancel proportional to how far the lever is into the wall* was suggested on the rig, because it
+needs no arming at all, and it was modelled. It makes the wall effectively stiffer, and the bounce
+came out worse than no cancel: 5596–10907 counts at 4 ms against 5993.
+
+In the lever model with the measured spring, thrown at 300000 counts/s: 2084 / 5858 / 8132 counts
+of bounce at 3 / 4 / 5 ms without it, ~150 / ~400 / ~725 with it, armed once per throw. Two
+versions failed in the model first:
+
+- *Cancelling all of the spring and fading it back after the lever went still* left the lever
+  wherever it stopped in the corridor. The returning spring then threw it across into the wall and
+  re-armed the cancel, three to eight times per throw. The 15% remainder walks the lever to the
+  inner edge first, and the release waits for it there.
+- *A settle damper scaled with the cancel* faded with it, exactly while the returning spring
+  needed braking. It rides the armed state now.
+
+The settle damper is the one software damping this file does not argue against. It exists only
+while armed, so free travel stays light, and it is moderate enough that 4 ms of lag leaves it
+mostly braking. The model has no Coulomb friction, so there the lever never goes quite still
+and the spring stays mostly cancelled until the gear is left. On the base, onboard Friction
+should let it settle and the spring come back; that is for the rig to show.
+
+Three versions of the energy cap were tried in the model before it, and each failed for a reason
+worth keeping:
+
+- *A ledger booked against the force being commanded* changed nothing. It cannot see the delay,
+  which is where the energy comes from: by its books the wall was already returning only what it
+  stored.
+- *Returning everything stored* barely helped. A lossless wall plus a spring is a perpetual
+  bounce: the delay's gain stops, but nothing takes energy out.
+- *Capping from the yield's deadband up* made the default tune hunt (769 → 2762 counts). A lever
+  resting against its wall wobbles at tens of thousands of counts/s, and a cap there steps the
+  force at every outward wobble — the yield's relay rebuilt. Hence the launch-speed fade.
+
+Not yet felt on the rig with the 4 ms ledger, nor with a higher Base damper. A gentle entry into the
+same gear did not bounce at all (`trace-20261113-194857`, 991 counts of drift at ~1 Hz): the cycle
+needs a hard enough arrival to start. Pinned by `TheTracedOuterColumnBounceDies`,
+`ThePhysicalDamperIsWhatEndsTheResidue`, `TheDefaultTuneDoesNotGetWorse`, `ASlowRetreatIsNeverCut`,
+`ALeanIsNeverCut` and `TheTunnelIsUntouched`.
 
 Damping joins after all of this and keeps full bandwidth.
 
