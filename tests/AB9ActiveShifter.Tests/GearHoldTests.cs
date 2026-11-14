@@ -16,6 +16,13 @@ namespace AB9ActiveShifter.Tests
     {
         private const int Center = GateGeometry.AxisCenter;
 
+        // The shape tests below sample the band at fixed depths, so they need a gate whose gear
+        // stays latched through all of it: the release line at 0.51 of the engage depth, under
+        // the band's lowest foot. Where the release line sits higher - every shipped H geometry,
+        // and the bare default - the foot rides up to it; ThePullOutNeverStepsWhereTheLatchLetsGo
+        // drives a real state machine through those.
+        private const int LowReleaseDepth = 18000;
+
         private static EngineConfig HoldConfig(bool enabled = true)
         {
             return new EngineConfig
@@ -24,7 +31,8 @@ namespace AB9ActiveShifter.Tests
                 PolarityConfirmed = true,
                 GearHoldEnabled = enabled,
                 GearHoldPct = 40,
-                GearHoldEngineBrakePct = 30
+                GearHoldEngineBrakePct = 30,
+                ReleaseDepth = LowReleaseDepth
             };
         }
 
@@ -76,14 +84,16 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
-        public void TheHoldTollsTheWayOutAndLeavesTheSeatFree()
+        public void TheHoldIsAFlatWallFromItsFaceToTheEndOfTheSlot()
         {
-            // The exit band's core carries the full toll, pushing deeper into the slot; the
-            // seat, the landing and everything before the crossover are untouched.
+            // Like the grind's balk turned round: past one wall face above its foot, the full
+            // toll pushes deeper into the slot the whole way to the end of travel, seat included,
+            // so a loaded gear is hard to move from the first count of the pull. The tunnel and
+            // everything up to the crossover are untouched.
             EngineConfig cfg = HoldConfig();
             ForceComposer c = Composer(cfg);
 
-            foreach (double d in new[] { 0.66, 0.75, 0.89 })
+            foreach (double d in new[] { 0.60, 0.75, 0.89, 0.96, 1.0, 1.1, 1.2 })
             {
                 int plain = c.SlotForceAt(ShiftDir.Fwd, FwdAt(cfg, d), muted: false, column: Column.C2);
                 int expected = GateGeometry.Clamp(plain - 4000, -GateGeometry.ForceMax, GateGeometry.ForceMax);
@@ -91,7 +101,7 @@ namespace AB9ActiveShifter.Tests
                     c.SlotForceAt(ShiftDir.Fwd, FwdAt(cfg, d), muted: false, column: Column.C2, gearHold: 1.0));
             }
 
-            foreach (double d in new[] { 0.0, 0.25, 0.50, 0.54, 0.96, 1.0, 1.1, 1.2 })
+            foreach (double d in new[] { 0.0, 0.25, 0.50, 0.54 })
             {
                 Assert.Equal(
                     c.SlotForceAt(ShiftDir.Fwd, FwdAt(cfg, d), muted: false, column: Column.C2),
@@ -127,12 +137,11 @@ namespace AB9ActiveShifter.Tests
         [Fact]
         public void NoSingleCountOfDepthEverStepsAHeldStroke()
         {
-            // The band's edges land where the detent is doing nothing unusual; with the hold at
+            // The hold's one face is the walls' own stiffness, never steeper; with the hold at
             // full strength, no adjacent pair of axis counts may differ by more than the plain
-            // stroke's own steepest step plus the band's steepest face.
+            // stroke's own steepest step plus that stiffness.
             EngineConfig cfg = HoldConfig();
             ForceComposer c = Composer(cfg);
-            int span = Center - cfg.EngageDepth;
 
             int plainStep = 0;
             int previous = c.SlotForceAt(ShiftDir.Fwd, Center, muted: false, column: Column.C2);
@@ -143,8 +152,9 @@ namespace AB9ActiveShifter.Tests
                 previous = force;
             }
 
-            // The steepest band face is the top's fall, 5% of the engage span.
-            int bound = plainStep + (int)Math.Ceiling(4000 / (0.05 * span)) + 2;
+            // A full-scale wall rises across WallRamp counts; a weaker hold gets a shorter face
+            // at the same slope.
+            int bound = plainStep + (int)Math.Ceiling(GateGeometry.ForceMax / (double)cfg.WallRamp) + 2;
 
             previous = c.SlotForceAt(ShiftDir.Fwd, Center, muted: false, column: Column.C2, gearHold: 1.0);
             for (int depth = 1; depth <= Center; depth++)
@@ -154,6 +164,64 @@ namespace AB9ActiveShifter.Tests
                     "stepped by " + Math.Abs(force - previous) + " at depth " + depth + ", bound " + bound);
                 previous = force;
             }
+        }
+
+        [Theory]
+        [InlineData(4000, 8000)]     // bare EngineConfig: releases at 0.861
+        [InlineData(20852, 23852)]   // the 5+R / 7+R presets: releases at 0.748
+        [InlineData(20761, 26731)]   // narrow 5+R short throw: releases at 0.503, under the foot
+        [InlineData(20761, 35317)]   // 7+R short throw: release line past the centre
+        [InlineData(2767, 5767)]     // truck: releases at 0.900, past the old band's fall
+        public void ThePullOutNeverStepsWhereTheLatchLetsGo(int engageDepth, int releaseDepth)
+        {
+            // The hold only exists while a gear is latched. With the slot lockout's foot at 0.55
+            // it was at full strength where the 5+R presets unlatch (0.748) and vanished in one
+            // tick: ~9800 DI at 100% in a sweep of that preset, and on the rig a toll too short to
+            // feel at full throttle. Pulled out count by count through a real state machine, the
+            // hold must be nothing as the latch lets go, nothing once it has, and still reach its
+            // full strength somewhere on the way out of the gear - or it is not there to feel.
+            EngineConfig cfg = HoldConfig();
+            cfg.GearHoldPct = 100;
+            cfg.EngageDepth = engageDepth;
+            cfg.ReleaseDepth = releaseDepth;
+
+            GateGeometry geo = cfg.BuildGeometry();
+            GateStateMachine sm = new GateStateMachine(geo, cfg.MinEngageTicks);
+            ForceComposer held = new ForceComposer(geo, cfg);
+            ForceComposer plain = new ForceComposer(cfg.BuildGeometry(), cfg);
+            int x = geo.ColumnTarget(Column.C2);
+            int full = GateGeometry.ForceMax;
+
+            for (int y = Center; y >= 0; y -= 64)
+                for (int i = 0; i < 10; i++) sm.Update(x, y, true);
+            Assert.Equal(GateState.Engaged, sm.State);
+
+            // The peak is read off the band, not the composed force: where the detent already
+            // pushes the same way, the sum saturates at the clamp and hides a full-strength hold.
+            double peakBand = 0;
+            int lastEngaged = int.MaxValue;
+            bool released = false;
+            for (int y = 0; y <= GateGeometry.AxisMax && !released; y++)
+            {
+                sm.Update(x, y, true);
+                int toll = held.Compose(sm.State, sm.Column, sm.Direction, x, y, gearHoldScale: 1.0).ConstantY
+                         - plain.Compose(sm.State, sm.Column, sm.Direction, x, y, gearHoldScale: 0.0).ConstantY;
+
+                if (sm.State == GateState.Engaged)
+                {
+                    peakBand = Math.Max(peakBand, held.GearHoldBand(geo.EngageFraction(sm.Direction, y)));
+                    lastEngaged = Math.Abs(toll);
+                }
+                else
+                {
+                    released = true;
+                    Assert.Equal(0, toll);
+                }
+            }
+
+            Assert.True(released, "the gear never let go");
+            Assert.True(lastEngaged <= full / 100, "the hold was " + lastEngaged + " DI as the latch let go");
+            Assert.True(peakBand >= 0.99, "the hold's band peaked at only " + peakBand + " on the way out");
         }
 
         [Fact]

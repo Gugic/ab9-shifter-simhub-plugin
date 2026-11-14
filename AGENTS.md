@@ -198,7 +198,8 @@ tests/AB9ActiveShifter.Tests/
   ForceComposerTests.cs    Force shape, stability properties, polarity, clamps
   EffectComposerTests.cs   Carrier amplitudes and gain cap, staleness cut, grind conditions
   UnifiedFloatShiftTests.cs Reported, configured and learned targets share matching and force behavior
-  GearHoldTests.cs         The load-proportional gear hold: off changes nothing, the exit band's
+  GearHoldTests.cs         The load-proportional gear hold: off changes nothing, zero where the
+                           latch lets go on five geometries, the plateau's
                            shape and sign, the 10% cap, engaged-only, the rise/fall slew, the
                            engine estimate's balance point, the property scale, every doubt
                            resolving to no hold, and what a shared profile carries
@@ -492,9 +493,15 @@ runners cannot load, so anything worth testing must not touch it.
   latch — an overpowered crossing flips the latch exactly when the fight is won, and refusal must
   not lift with it. **A PRND lockout never touches the selector's state machine at all**, hard
   mode included: a selector is always in exactly one position and its buttons follow the lever.
-- **The gear hold is force only, and every doubt releases it.** It tolls the way out of an
-  `Engaged` slot in the slot lockout's exit band, scaled by the grind's clutch engagement and the
-  load through the box. It never touches `allowEngage` or the state machine, so a hand that pulls
+- **The gear hold is force only, and every doubt releases it.** It is the grind's balk turned
+  round: a flat wall pushing an `Engaged` lever back into its slot for the whole pull, scaled by
+  the grind's clutch engagement and the load through the box, and wall-like (attack, full
+  absorption) while it has any strength. **Its foot is the release line**, because it exists only
+  while the gear is latched: on the slot lockout's exit band it was at full strength where the
+  shipped presets unlatch and vanished in one tick (~9800 DI), and a band was too short to feel
+  anyway. Its face is the walls' own stiffness (`WallRamp`), never steeper. Pinned by
+  `ThePullOutNeverStepsWhereTheLatchLetsGo`, which runs the real state machine - a test that
+  passes `Engaged` straight in cannot see where the latch lets go. It never touches `allowEngage` or the state machine, so a hand that pulls
   through leaves the gear and the buttons follow. Anything uncertain gives a zero target: stale
   or future telemetry, a stale clutch, a stopped engine, the speed floor, an unreadable property.
   The force slews to it within `GearHoldFallMs`. It goes through `EffectiveGain`, the 10% cap

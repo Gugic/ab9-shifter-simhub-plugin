@@ -1178,15 +1178,40 @@ the clutch up pays a toll in proportion to the load through the box. It is the g
 counterpart on the way out, and like the grind it lives in `EffectComposer` (the decision) and
 `ForceComposer` (the force).
 
-**Force shape.** The toll is the slot lockout's exit band, reused rather than redrawn: zero up to
-0.55 of the engage fraction, rising to full at 0.65, full to 0.90, falling to zero at 0.95,
-pushing deeper into whichever slot is engaged. The band's edges land where the detent is doing
-nothing unusual, so no axis count steps the stroke (`NoSingleCountOfDepthEverStepsAHeldStroke`).
-The seat and the landing stay outside it, so a seated gear rests free instead of being pressed
-into its stop. Leaving crosses the band and pays; re-seating crosses it and is assisted. Its
-strength is `GearHoldPct` through `EffectiveGain`, so the 10% unconfirmed-polarity cap applies.
-It is added to the detent beside `SlotLockoutBoost` and is absent while the detent is a balk
-border. Only an `Engaged` slot is held: a gear being travelled into, or balked, targets zero.
+**Force shape.** The hold is the grind's balk turned round: a flat wall pushing the lever back
+into whichever slot is engaged, for the whole of the pull. `GearHoldBand` is zero at its foot,
+rises across one wall face, and is flat from there to the mechanical end of the slot. The foot is
+the release line (`ReleaseDepth` as a fraction of the engage depth: 0.748 on the shipped 5+R/7+R
+presets, 0.861 on a bare config), or 0.55 where the gear stays latched lower than that, which
+keeps the tunnel and the crossover free. The hold only exists while a gear is latched, so its
+zero sits exactly where the latch drops it and no axis count steps the stroke
+(`ThePullOutNeverStepsWhereTheLatchLetsGo` drives a real state machine out of five geometries;
+`NoSingleCountOfDepthEverStepsAHeldStroke` bounds every count). The face is
+`WallRamp × GearHoldPct / 100` counts long: the walls' own stiffness, shorter for a weaker hold,
+never steeper. Past the face it is a constant force toward the end of the slot, the same kind the
+seated detent hold already applies, so there is no interior equilibrium to hunt about; a rendered
+slot stop fades it with the detent, so the landing stays free. While the hold has any strength
+the engaged slot is wall-like: wall attack and the walls' full rebound absorption, like the
+balk. Its strength is `GearHoldPct` through `EffectiveGain`, so the 10% unconfirmed-polarity cap
+applies. It is added to the detent beside `SlotLockoutBoost` and is absent while the detent is a
+balk border. Only an `Engaged` slot is held: a gear being travelled into, or balked, targets zero.
+
+**Two shapes were felt and rejected** (2026-11-13, BeamNG, 5+R, hold at 100%, measured with a
+temporary per-250 ms log of the hold's target, level and output force):
+
+- *The slot lockout's exit band* (zero to 0.55, full 0.65-0.90, gone by 0.95). That toll is not
+  gated on the latch, so its foot is safe for the lockout; the hold is, and both the shipped H
+  presets and the bare default unlatch above 0.55. The hold was at full strength where the latch
+  let go and vanished in one tick: about 9800 DI at 100% in a sweep of the 5+R preset. On the rig
+  it was not felt at all at full throttle: level 0.63-0.78 while seated, the gear gone a quarter
+  of a second into the pull. The original tests passed `Engaged` straight in and never ran the
+  state machine, which is how this shipped.
+- *The same band with its foot moved up to the release line.* No step, but a few hundred counts
+  of ramp landing on the detent's own click: "very subtle, can't be distinguished from the
+  normal click". A loaded gear is hard to move from the first millimetre, which a band cannot be.
+
+The plateau was felt the same evening: "this feels good, at 2nd gear I can still force a shift
+but at third I can't", at 100% with the default 30% engine braking.
 
 **Load.** The engine estimate (`GearHoldLoadSource.EngineEstimate`) takes drive as the throttle,
 a flat torque curve, because no game reports the real one. It takes overrun as engine braking
@@ -1222,14 +1247,10 @@ follows within the 15 ms fall, rather than vanishing on the same tick. The hold 
 force, not a buzz that could outlive a game. It never touches `allowEngage` or the state
 machine: a hand that pulls through it leaves the gear and the buttons follow the lever.
 
-**Open questions for the rig.** The engaged-slot detent keeps the snick's exemptions, so the toll
-is not wall-attack shaped and gets the milder rebound floor, exactly like the slot lockout's
-exit toll it borrows. Its steepest face is the band's top fall, `GearHoldPct` × 100 DI over 5%
-of the throw. At the default 40% on the sport short throw (12006 counts) that is about 6.7
-DI/count at full gain, about five times the seated hold's own fade on that preset (1.3
-DI/count), and it is the face a hand pulling out of gear meets first. A hold and a slot lockout's
-exit toll on the same slot add (clamped), where the hard balk and the grind wall take the max.
-Neither choice has been felt yet.
+**Still open.** A hold and a slot lockout's exit toll on the same slot add (clamped), where the
+hard balk and the grind wall take the max; that combination has not been felt. Nor has a slot
+with a rendered stop (`SlotStopForcePct` above 0), where the plateau fades with the detent past
+the seat.
 
 ## Rejected approaches
 
