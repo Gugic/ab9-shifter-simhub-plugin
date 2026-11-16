@@ -48,7 +48,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-833 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+836 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -249,7 +249,8 @@ tests/AB9ActiveShifter.Tests/
                            fork that keeps the settings object a slider is mid-drag on
   MachineFactsTests.cs     That switching profiles cannot change what the rig measured, and that
                            moving those facts leaves every tuned dial alone
-  ProfileSwitchTransitionTests.cs  Easing the new gate in, and the confirmation thump's count
+  ProfileSwitchTransitionTests.cs  Easing the new gate in, the confirmation thump's count, and
+                           that an engine restart mid-transition cannot stick a pulse on
   ForceOutputHealthTests.cs  What the base's status flags mean, and what it takes to convict
   VJoyDeviceInfoTests.cs   What the device picker says, including the too-few-buttons trap
   UpdateReleaseTests.cs   Numeric stable versions, repository-bound DLL assets, required checksum,

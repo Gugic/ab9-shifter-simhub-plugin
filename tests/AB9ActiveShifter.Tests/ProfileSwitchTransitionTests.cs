@@ -170,6 +170,68 @@ namespace AB9ActiveShifter.Tests
         }
 
         [Fact]
+        public void AnEngineRestartMidPulseCannotLeaveThePulseOn()
+        {
+            // The traced fault: the engine had been running for ten minutes, a pattern change
+            // began a transition, and the onboard-settings write restarted the engine - and with
+            // it the clock, from zero - while a confirmation pulse was playing. The pulse then
+            // stayed on until the new clock caught up with the old one.
+            const long oldClock = 600000;
+            var t = new ProfileSwitchTransition();
+            t.Begin(oldClock, pulses: 3);
+
+            long ms = oldClock;
+            while (t.PulseEnvelope <= 0) t.Step(++ms, Centre, Centre);   // into the first pulse
+
+            // The clock restarts. Everything must be over well inside the time three pulses take.
+            long budget = 3 * (ProfileSwitchTransition.PulseMs + ProfileSwitchTransition.PulseGapMs) + 50;
+            int pulseTicks = 0;
+            for (long now = 0; now <= budget; now++)
+            {
+                t.Step(now, Centre, Centre);
+                if (t.PulseEnvelope > 0) pulseTicks++;
+            }
+
+            Assert.False(t.Active, "the transition never finished after the clock restarted");
+            Assert.Equal(0.0, t.PulseEnvelope);
+            Assert.Equal(1.0, t.ForceScale);
+            Assert.True(pulseTicks <= 3 * ProfileSwitchTransition.PulseMs + 3, "pulse ticks after restart: " + pulseTicks);
+        }
+
+        [Fact]
+        public void AnEngineRestartMidRampCannotHoldTheGateOff()
+        {
+            // The same fault one stage earlier: a negative elapsed time clamps the ramp to zero,
+            // so the new gate would simply not exist until the clock caught up.
+            const long oldClock = 600000;
+            var t = new ProfileSwitchTransition();
+            t.Begin(oldClock, pulses: 0);
+            t.Step(oldClock + 1, Centre, Centre);                                  // home: ramp begins
+            t.Step(oldClock + 1 + ProfileSwitchTransition.RampMs / 2, Centre, Centre);
+            Assert.InRange(t.ForceScale, 0.3, 0.7);
+
+            for (long now = 0; now <= ProfileSwitchTransition.RampMs + 1; now++) t.Step(now, Centre, Centre);
+
+            Assert.Equal(1.0, t.ForceScale);
+            Assert.False(t.Active);
+        }
+
+        [Fact]
+        public void AnEngineRestartWhileSettlingStillTimesOut()
+        {
+            // A hand holding the lever out of the band must not be able to hang the switch just
+            // because the clock restarted underneath it.
+            var t = new ProfileSwitchTransition();
+            t.Begin(600000, pulses: 0);
+
+            for (long now = 0; now <= ProfileSwitchTransition.SettleTimeoutMs + ProfileSwitchTransition.RampMs + 2; now++)
+                t.Step(now, 1000, 1000);
+
+            Assert.Equal(1.0, t.ForceScale);
+            Assert.False(t.Active);
+        }
+
+        [Fact]
         public void AnIdleTransitionLeavesTheGateAlone()
         {
             // The overwhelmingly common tick: nothing is switching, so nothing is scaled.
