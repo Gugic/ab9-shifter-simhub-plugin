@@ -173,6 +173,7 @@ For **vJoy (direct)**, bind the virtual controller's buttons or handbrake axis:
 | Pattern | Output |
 | --- | --- |
 | H pattern | **1–7** for forward gears; **8** for reverse in every pattern that has it |
+| Dog-leg four-speed | **1–4** for forward gears; **8** for reverse |
 | Truck six-slot gate | **1–6**; no reverse |
 | Sequential | **9** for up, **10** for down |
 | Automatic PRND | **11**, **12**, **13**, **14** for P, R, N, D |

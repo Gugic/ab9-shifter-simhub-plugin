@@ -106,6 +106,7 @@
                                             <ComboBoxItem Content="Automatic (P R N D)" />
                                             <ComboBoxItem Content="H pattern, 6 gears, no reverse (truck)" />
                                             <ComboBoxItem Content="Handbrake (analog)" />
+                                            <ComboBoxItem Content="H pattern, 4 gears + R (dog-leg, R above 1st)" />
                                         </ComboBox>
                                     </Grid>
                                     <ui:TitledSlider x:Name="VirtualSequentialPulse" Title="Sequential pulse length (ms)" Minimum="20" Maximum="400" TickFrequency="10" ShowResetButton="True" ResetValue="120" Visibility="{Binding IsSequential, Converter={StaticResource BoolToVis}}" Value="{Binding SeqPulseMs, Mode=TwoWay}" Margin="0,4,0,8" />

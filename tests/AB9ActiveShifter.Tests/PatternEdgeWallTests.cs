@@ -133,7 +133,8 @@ namespace AB9ActiveShifter.Tests
             // stops, so the region this renders in has no width. That is what makes it safe to
             // default to full strength and to hand it to every existing profile at once.
             foreach (GatePattern pattern in new[] { GatePattern.H7R, GatePattern.H6R,
-                                                    GatePattern.H5R, GatePattern.H6 })
+                                                    GatePattern.H5R, GatePattern.H6,
+                                                    GatePattern.H4RDogLeg })
             {
                 EngineConfig off = Tune(100, 0);
                 EngineConfig on = Tune(100, 100);

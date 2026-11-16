@@ -61,7 +61,7 @@ namespace AB9ActiveShifter.Core
             if (pattern == GatePattern.Prnd) return button >= 11 && button <= 14;
             if (button == 0) return true;
             if (button == 8) return pattern != GatePattern.H6;
-            int gears = pattern == GatePattern.H5R ? 5 : pattern == GatePattern.H7R ? 7 : 6;
+            int gears = pattern == GatePattern.H4RDogLeg ? 4 : pattern == GatePattern.H5R ? 5 : pattern == GatePattern.H7R ? 7 : 6;
             return button >= 1 && button <= gears;
         }
 

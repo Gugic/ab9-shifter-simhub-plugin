@@ -1,7 +1,7 @@
 # AB9 Active Shifter — working notes for agents
 
 A SimHub plugin that turns a **MOZA AB9 flight base** into an **H-pattern shifter** (7+R, 6+R with
-no 7th slot, 5+R, or a six-slot truck gate with no reverse), a **sequential lever**, or an
+no 7th slot, 5+R, a dog-leg 4+R, or a six-slot truck gate with no reverse), a **sequential lever**, or an
 **automatic's PRND selector**, or a **progressive analog handbrake**, selectable per named profile
 — with a **configurable lockout**: any
 adjacent gap or a single slot, one-way either way or both, push-through or held at full force
@@ -48,7 +48,7 @@ dotnet build
 dotnet test tests/AB9ActiveShifter.Tests
 ```
 
-833 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
+843 tests, all green, none touching I/O — `Core/`, the settings POCO's derived-dial arithmetic,
 the pure release parser in `Updates/ReleaseInfo.cs`, and role output through a fake API. Keep them that way — they are the only
 automated check on force arithmetic, and a sign error here drives a 12 Nm base the wrong way.
 
@@ -220,6 +220,9 @@ tests/AB9ActiveShifter.Tests/
   TuningScaleTests.cs      Display round trips, decimal precision and out-of-range saved values
   SlotEndStopTests.cs      The bottom of an H slot: the default changes nothing, the landing is
                            free, the wall only pushes home, and no axis count steps the stroke
+  DogLegPatternTests.cs    The dog-leg four-speed as a fact of the gear map: R above first, the
+                           hole under fourth, both mirrors, and the walls, state machine and
+                           output mask all reading the same answer from it
   PatternWidthTests.cs     How wide the pattern stands: the default is the old geometry to the
                            count, narrowing is centred, and no bare axis loses its column
   PatternEdgeWallTests.cs  The wall a narrowed pattern needs at its sides: one-way, zero inside,

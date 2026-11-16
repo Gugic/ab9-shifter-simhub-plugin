@@ -39,7 +39,17 @@ namespace AB9ActiveShifter.Core
         H6 = 5,
 
         /// <summary>One-sided progressive lever with proportional vJoy Z output.</summary>
-        Handbrake = 6
+        Handbrake = 6,
+
+        /// <summary>
+        /// Three columns, four gears and a dog-leg first: R above 1 in the first column, 2 above 3
+        /// in the middle, 4 alone at the top of the last, and no slot beneath it. The racing
+        /// four-speed layout, where the gears used on track (2-3-4) run straight through the
+        /// gate and first sits out of the way. The hole and the relocated reverse are facts of
+        /// the gear map alone - see <see cref="GateGeometry.GearFor(Column, ShiftDir)"/>. Appended
+        /// for the same reason the truck gate was: saved settings store the pattern as an int.
+        /// </summary>
+        H4RDogLeg = 7
     }
 
     /// <summary>

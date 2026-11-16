@@ -617,7 +617,8 @@ namespace AB9ActiveShifter
                 return _pattern == GatePattern.H7R
                     || _pattern == GatePattern.H6R
                     || _pattern == GatePattern.H5R
-                    || _pattern == GatePattern.H6;
+                    || _pattern == GatePattern.H6
+                    || _pattern == GatePattern.H4RDogLeg;
             }
         }
 

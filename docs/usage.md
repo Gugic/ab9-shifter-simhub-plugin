@@ -66,13 +66,14 @@ the way a real H lever rests at the 3/4 gate.
 
 ## Patterns
 
-Seven, selectable per **profile** on Main:
+Eight, selectable per **profile** on Main:
 
 | Pattern | |
 | --- | --- |
 | **7+R** | The full gate above, with the lockout |
 | **6+R** | The slot where 7 would sit genuinely does not exist — the wall over it never opens, so the lever cannot enter it at all. The stock firmware's 6+R leaves the seven-gear gate rendered with that slot merely inert, which is no guard against the misshift that choosing six gears is meant to prevent |
 | **5+R** | Three wider columns, no lockout by default. Standard presets at 60% width and *wide* at the full sweep; **5+R (narrow, short throw, stiff, sport)** uses 40% width, short slot stops, the sport detent and base resistance |
+| **4+R dog-leg** | Three columns laid out like a racing four-speed: **R above 1** in the first column, **2 above 3** in the middle where the lever rests, and **4** alone at the top of the last. The slot under fourth does not exist, exactly as 6+R's seventh does not. No lockout by default; to guard reverse, set the lockout position to a single slot and choose R. Both layout mirrors apply, so the reverse/first column can sit on either side |
 | **Sequential** | A sprung fore/aft lever: one shift per stroke, with a click you can tune |
 | **Automatic (P R N D)** | A selector lane: four fixed positions in a line, a button held at whichever one the lever is in. No neutral to come back through and no gear to engage — the lever is always somewhere |
 | **Truck 6** | Three wider columns, six plain slots on buttons 1–6, no reverse anywhere — what each button means is your game's business. Made for Eaton-Fuller-style boxes: add the lockout between the first two columns (the shipped truck preset does exactly that) and you have a low-range gate |
