@@ -1079,8 +1079,19 @@ damper, friction and inertia coefficients remain whole through the transition be
 oppose motion: winding a stabiliser in alongside its force would leave the ramp least damped
 exactly where it is changing fastest.
 
+The stages are timed on the engine thread's clock, and that clock starts again from zero every
+time the engine is stopped and started. An onboard-settings write does exactly that about half a
+second after a pattern change, which is inside the transition it caused. A stage that kept its
+old start time then read a negative elapsed time until the new clock caught up with the old one:
+a confirmation pulse stayed on, or the ramp held the gate at zero, for as long as the previous
+engine had run. Traced as a constant 28 Hz, 2600 DI buzz on Y for the whole of a 5.2 s capture
+after switching to 6+R (trace-20261116-172327), the engine having run for about ten minutes
+before the switch. `Step` now treats a clock that went backwards as a restart of the current
+stage, so the cost of an engine restart is at most one stage played again from its beginning.
+
 `ProfileSwitchTransitionTests` pins the shape — zero throughout the settle, monotonic ramp, the
-timeout, the pulse count, and that pulses never play while the ramp is still winding.
+timeout, the pulse count, that pulses never play while the ramp is still winding, and that an
+engine restart in any stage neither sticks a pulse on nor holds the gate off.
 
 ## The vibration channel and the grind
 

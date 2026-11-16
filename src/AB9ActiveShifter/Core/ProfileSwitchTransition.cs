@@ -100,6 +100,17 @@ namespace AB9ActiveShifter.Core
         {
             PulseEnvelope = 0;
 
+            // The clock belongs to the engine thread and starts again from zero whenever the
+            // engine is stopped and started - which an onboard-settings write does about half a
+            // second after a pattern change, in the middle of this very transition. A stage that
+            // kept its old start would then read a negative elapsed time until the new clock
+            // caught up with the old one: the ramp held the gate at zero, or a confirmation
+            // pulse stayed on, for as long as the previous engine had been running. Traced as a
+            // constant 28 Hz, 2600 DI buzz for minutes after switching to 6+R
+            // (trace-20261116-172327). A clock that went backwards restarts the current stage
+            // instead: the worst case is one stage played again from its beginning.
+            if (_stage != Stage.Idle && nowMs < _stageStartedMs) _stageStartedMs = nowMs;
+
             switch (_stage)
             {
                 case Stage.Idle:
