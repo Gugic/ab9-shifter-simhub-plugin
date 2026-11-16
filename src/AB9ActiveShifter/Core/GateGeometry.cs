@@ -138,8 +138,8 @@ namespace AB9ActiveShifter.Core
         public int ColumnSpacing { get { return PatternSpan / (ColumnCount - 1); } }
 
         /// <summary>
-        /// The column the neutral spring pulls toward: the one holding gears 3 and 4, where a
-        /// real H lever rests. Gear-column 1 in map space, so mirroring relocates it with the
+        /// The column the neutral spring pulls toward: the one holding gears 3 and 4 (2 and 3 on
+        /// the dog-leg four-speed), where a real H lever rests. Gear-column 1 in map space, so mirroring relocates it with the
         /// gears - and the middle column of a three-column gate either way.
         /// </summary>
         public Column HomeColumn
@@ -171,7 +171,7 @@ namespace AB9ActiveShifter.Core
             int patternWidthPct = 100)
         {
             Pattern = pattern;
-            ColumnCount = pattern == GatePattern.H5R || pattern == GatePattern.H6 ? 3 : 4;
+            ColumnCount = pattern == GatePattern.H5R || pattern == GatePattern.H6 || pattern == GatePattern.H4RDogLeg ? 3 : 4;
             ReverseGear = 8;
 
             MirrorColumns = mirrorColumns;
@@ -795,7 +795,9 @@ namespace AB9ActiveShifter.Core
         ///
         /// Reverse is the last gear-column's back slot and is always gear 8 - see
         /// <see cref="ReverseGear"/> for why the buttons are deliberately not contiguous. The
-        /// truck 6 is the exception with no reverse at all, so it never produces gear 8.
+        /// truck 6 is the exception with no reverse at all, so it never produces gear 8. The
+        /// dog-leg four-speed is the other: its reverse is the FIRST gear-column's forward slot,
+        /// above first, and its last column has no back slot. It is still gear 8.
         /// </summary>
         public int GearFor(Column c, ShiftDir dir)
         {
@@ -803,6 +805,17 @@ namespace AB9ActiveShifter.Core
 
             int column = MirrorColumns ? (ColumnCount - 1 - (int)c) : (int)c;
             bool forward = MirrorSlots ? dir == ShiftDir.Back : dir == ShiftDir.Fwd;
+
+            // The dog-leg four-speed is its own small map rather than an exception to the formula:
+            // reverse moves to the first column's forward slot, every forward gear shifts along one
+            // slot to make room for it, and the last column's back slot holds nothing. Written in
+            // map space like everything else here, so both mirror flags relocate it whole.
+            if (Pattern == GatePattern.H4RDogLeg)
+            {
+                if (column == 0) return forward ? ReverseGear : 1;
+                if (column == 1) return forward ? 2 : 3;
+                return forward ? 4 : 0;
+            }
 
             // The truck gate has no reverse anywhere: its last back slot is simply gear 6, so
             // the raw formula runs through and the buttons come out contiguous at 1..6.

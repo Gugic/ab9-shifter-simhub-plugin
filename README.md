@@ -16,7 +16,8 @@ with low gain, and read the [full safety notice](docs/safety.md) before enabling
 
 ## Features
 
-- **Seven patterns:** 7+R, 6+R, 5+R, a six-slot truck gate, sequential, automatic PRND and handbrake.
+- **Eight patterns:** 7+R, 6+R, 5+R, a dog-leg 4+R, a six-slot truck gate, sequential, automatic PRND
+  and handbrake.
 - **Analog handbrake:** adjustable start/end positions, selectable resistance curves and damped return
   to the chosen start, proportional vJoy Z output and rear-wheel lock feedback through SimHub.
   [Setup and tuning](docs/tuning.md#handbrake).

@@ -19,7 +19,7 @@ namespace AB9ActiveShifter.Tests
     {
         private static readonly GatePattern[] AllPatterns =
         {
-            GatePattern.H7R, GatePattern.H6R, GatePattern.H5R, GatePattern.H6
+            GatePattern.H7R, GatePattern.H6R, GatePattern.H5R, GatePattern.H6, GatePattern.H4RDogLeg
         };
 
         private static GateGeometry Geo(GatePattern pattern, int widthPct = 100)
